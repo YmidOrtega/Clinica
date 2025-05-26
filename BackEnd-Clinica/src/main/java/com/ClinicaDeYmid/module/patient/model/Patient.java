@@ -1,0 +1,133 @@
+package com.ClinicaDeYmid.module.patient.model;
+
+import com.ClinicaDeYmid.module.billing.model.Attention;
+import com.ClinicaDeYmid.module.patient.model.emun.*;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+@Entity
+@Table(name = "patients")
+@Data
+@EqualsAndHashCode(of = "id")
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Patient {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true, nullable = false)
+    private UUID uuid;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "identification_type", nullable = false)
+    private IdentificationType identificationType;
+
+    @Column(unique = true, nullable = false)
+    private String identification;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(name = "last_name", nullable = false)
+    private String lastName;
+
+    @Column(name = "date_of_birth", nullable = false)
+    private LocalDate dateOfBirth;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "birth_site_id", nullable = false)
+    private Site placeOfBirth;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "issuance_site_id", nullable = false)
+    private Site placeOfIssuance;
+
+    @Enumerated(EnumType.STRING)
+    private Disability disability;
+
+    @Enumerated(EnumType.STRING)
+    private Language language;
+
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "occupation_id", nullable = false)
+    private Occupation occupation;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "marital_status")
+    private MaritalStatus maritalStatus;
+
+    @Enumerated(EnumType.STRING)
+    private Religion religion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_of_affiliation")
+    private TypeOfAffiliation typeOfAffiliation;
+
+    @Column(name = "affiliation_number")
+    private String affiliationNumber;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "health_policy_id", nullable = false)
+    private HealthPolicy healthPolicy;
+
+    @Column(name = "health_policy_number")
+    private String healthPolicyNumber;
+
+    @Column(name = "mothers_name")
+    private String mothersName;
+
+    @Column(name = "fathers_name")
+    private String fathersName;
+
+    @Enumerated(EnumType.STRING)
+    private Zone zone;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "locality_site_id", nullable = false)
+    private Site locality;
+
+    private String address;
+    private String phone;
+    private String mobile;
+
+    @Column(unique = false, nullable = false)
+    private String email;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Status status = Status.ALIVE;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    private void generateUuid() {
+        if (uuid == null) {
+            uuid = UUID.randomUUID();
+        }
+    }
+
+    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Attention> attentions = new ArrayList<>();
+
+    public String getFullName() {
+        return name + " " + lastName;
+    }
+}
