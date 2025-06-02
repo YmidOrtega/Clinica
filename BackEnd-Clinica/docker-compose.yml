@@ -81,80 +81,80 @@ services:
          timeout: 20s
          retries: 10
 
-   # Servicios Spring Boot
-   patient-service:
-      build: ./patient-service
-      container_name: patient-service
-      depends_on:
-         patient-db:
-            condition: service_healthy
-      environment:
-         - SPRING_DATASOURCE_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${PATIENT_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${PATIENT_DB_PASSWORD}
-      ports:
-         - "8081:8081"
-      networks:
-         - clinica-net
+   # # Servicios Spring Boot
+   # patient-service:
+   #    build: ./patient-service
+   #    container_name: patient-service
+   #    depends_on:
+   #       patient-db:
+   #          condition: service_healthy
+   #    environment:
+   #       - SPRING_DATASOURCE_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
+   #       - SPRING_DATASOURCE_USERNAME=${PATIENT_DB_USER}
+   #       - SPRING_DATASOURCE_PASSWORD=${PATIENT_DB_PASSWORD}
+   #    ports:
+   #       - "8081:8081"
+   #    networks:
+   #       - clinica-net
 
-   billing-service:
-      build: ./billing-service
-      container_name: billing-service
-      depends_on:
-         billing-db:
-            condition: service_healthy
-      environment:
-         - SPRING_DATASOURCE_URL=jdbc:mysql://billing-db:3306/${BILLING_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${BILLING_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${BILLING_DB_PASSWORD}
-      ports:
-         - "8082:8082"
-      networks:
-         - clinica-net
+   # billing-service:
+   #    build: ./billing-service
+   #    container_name: billing-service
+   #    depends_on:
+   #       billing-db:
+   #          condition: service_healthy
+   #    environment:
+   #       - SPRING_DATASOURCE_URL=jdbc:mysql://billing-db:3306/${BILLING_DB_NAME}
+   #       - SPRING_DATASOURCE_USERNAME=${BILLING_DB_USER}
+   #       - SPRING_DATASOURCE_PASSWORD=${BILLING_DB_PASSWORD}
+   #    ports:
+   #       - "8082:8082"
+   #    networks:
+   #       - clinica-net
 
-   admissions-service:
-      build: ./admissions-service
-      container_name: admissions-service
-      depends_on:
-         admissions-db:
-            condition: service_healthy
-      environment:
-         - SPRING_DATASOURCE_URL=jdbc:mysql://admissions-db:3306/${ADMISSIONS_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
-      ports:
-         - "8083:8083"
-      networks:
-         - clinica-net
+   # admissions-service:
+   #    build: ./admissions-service
+   #    container_name: admissions-service
+   #    depends_on:
+   #       admissions-db:
+   #          condition: service_healthy
+   #    environment:
+   #       - SPRING_DATASOURCE_URL=jdbc:mysql://admissions-db:3306/${ADMISSIONS_DB_NAME}
+   #       - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
+   #       - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
+   #    ports:
+   #       - "8083:8083"
+   #    networks:
+   #       - clinica-net
 
-   ai-assistant-service:
-      build: ./ai-assistant-service
-      container_name: ai-assistant-service
-      depends_on:
-         ai-assistant-db:
-            condition: service_healthy
-      environment:
-         - SPRING_DATASOURCE_URL=jdbc:mysql://ai-assistant-db:3306/${AI_ASSISTANT_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${AI_ASSISTANT_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${AI_ASSISTANT_DB_PASSWORD}
-      ports:
-         - "8084:8084"
-      networks:
-         - clinica-net
+   # ai-assistant-service:
+   #    build: ./ai-assistant-service
+   #    container_name: ai-assistant-service
+   #    depends_on:
+   #       ai-assistant-db:
+   #          condition: service_healthy
+   #    environment:
+   #       - SPRING_DATASOURCE_URL=jdbc:mysql://ai-assistant-db:3306/${AI_ASSISTANT_DB_NAME}
+   #       - SPRING_DATASOURCE_USERNAME=${AI_ASSISTANT_DB_USER}
+   #       - SPRING_DATASOURCE_PASSWORD=${AI_ASSISTANT_DB_PASSWORD}
+   #    ports:
+   #       - "8084:8084"
+   #    networks:
+   #       - clinica-net
 
-   # API Gateway
-   api-gateway:
-      build: ./api-gateway
-      container_name: api-gateway
-      depends_on:
-         - patient-service
-         - billing-service
-         - admissions-service
-         - ai-assistant-service
-      ports:
-         - "8080:8080"
-      networks:
-         - clinica-net
+   # # API Gateway
+   # api-gateway:
+   #    build: ./api-gateway
+   #    container_name: api-gateway
+   #    depends_on:
+   #       - patient-service
+   #       - billing-service
+   #       - admissions-service
+   #       - ai-assistant-service
+   #    ports:
+   #       - "8080:8080"
+   #    networks:
+   #       - clinica-net
 
 # Volúmenes para persistencia de datos
 volumes:

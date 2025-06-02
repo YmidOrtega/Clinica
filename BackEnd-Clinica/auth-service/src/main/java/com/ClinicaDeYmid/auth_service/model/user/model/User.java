@@ -22,7 +22,8 @@ import java.util.List;
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
 @Builder
-public class User implements UserDetails {
+public class
+User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
