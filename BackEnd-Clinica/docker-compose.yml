@@ -1,0 +1,168 @@
+version: "3.8"
+services:
+   # Bases de datos
+   patient-db:
+      image: mysql:8.0
+      container_name: patient-db
+      restart: always
+      environment:
+         MYSQL_ROOT_PASSWORD: ${PATIENT_DB_ROOT_PASSWORD}
+         MYSQL_DATABASE: ${PATIENT_DB_NAME}
+         MYSQL_USER: ${PATIENT_DB_USER}
+         MYSQL_PASSWORD: ${PATIENT_DB_PASSWORD}
+      ports:
+         - "3307:3306"
+      volumes:
+         - patient_data:/var/lib/mysql
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+         timeout: 20s
+         retries: 10
+
+   billing-db:
+      image: mysql:8.0
+      container_name: billing-db
+      restart: always
+      environment:
+         MYSQL_ROOT_PASSWORD: ${BILLING_DB_ROOT_PASSWORD}
+         MYSQL_DATABASE: ${BILLING_DB_NAME}
+         MYSQL_USER: ${BILLING_DB_USER}
+         MYSQL_PASSWORD: ${BILLING_DB_PASSWORD}
+      ports:
+         - "3308:3306"
+      volumes:
+         - billing_data:/var/lib/mysql
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+         timeout: 20s
+         retries: 10
+
+   admissions-db:
+      image: mysql:8.0
+      container_name: admissions-db
+      restart: always
+      environment:
+         MYSQL_ROOT_PASSWORD: ${ADMISSIONS_DB_ROOT_PASSWORD}
+         MYSQL_DATABASE: ${ADMISSIONS_DB_NAME}
+         MYSQL_USER: ${ADMISSIONS_DB_USER}
+         MYSQL_PASSWORD: ${ADMISSIONS_DB_PASSWORD}
+      ports:
+         - "3309:3306"
+      volumes:
+         - admissions_data:/var/lib/mysql
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+         timeout: 20s
+         retries: 10
+
+   ai-assistant-db:
+      image: mysql:8.0
+      container_name: ai-assistant-db
+      restart: always
+      environment:
+         MYSQL_ROOT_PASSWORD: ${AI_ASSISTANT_DB_ROOT_PASSWORD}
+         MYSQL_DATABASE: ${AI_ASSISTANT_DB_NAME}
+         MYSQL_USER: ${AI_ASSISTANT_DB_USER}
+         MYSQL_PASSWORD: ${AI_ASSISTANT_DB_PASSWORD}
+      ports:
+         - "3310:3306"
+      volumes:
+         - ai_assistant_data:/var/lib/mysql
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+         timeout: 20s
+         retries: 10
+
+   # Servicios Spring Boot
+   patient-service:
+      build: ./patient-service
+      container_name: patient-service
+      depends_on:
+         patient-db:
+            condition: service_healthy
+      environment:
+         - SPRING_DATASOURCE_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
+         - SPRING_DATASOURCE_USERNAME=${PATIENT_DB_USER}
+         - SPRING_DATASOURCE_PASSWORD=${PATIENT_DB_PASSWORD}
+      ports:
+         - "8081:8081"
+      networks:
+         - clinica-net
+
+   billing-service:
+      build: ./billing-service
+      container_name: billing-service
+      depends_on:
+         billing-db:
+            condition: service_healthy
+      environment:
+         - SPRING_DATASOURCE_URL=jdbc:mysql://billing-db:3306/${BILLING_DB_NAME}
+         - SPRING_DATASOURCE_USERNAME=${BILLING_DB_USER}
+         - SPRING_DATASOURCE_PASSWORD=${BILLING_DB_PASSWORD}
+      ports:
+         - "8082:8082"
+      networks:
+         - clinica-net
+
+   admissions-service:
+      build: ./admissions-service
+      container_name: admissions-service
+      depends_on:
+         admissions-db:
+            condition: service_healthy
+      environment:
+         - SPRING_DATASOURCE_URL=jdbc:mysql://admissions-db:3306/${ADMISSIONS_DB_NAME}
+         - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
+         - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
+      ports:
+         - "8083:8083"
+      networks:
+         - clinica-net
+
+   ai-assistant-service:
+      build: ./ai-assistant-service
+      container_name: ai-assistant-service
+      depends_on:
+         ai-assistant-db:
+            condition: service_healthy
+      environment:
+         - SPRING_DATASOURCE_URL=jdbc:mysql://ai-assistant-db:3306/${AI_ASSISTANT_DB_NAME}
+         - SPRING_DATASOURCE_USERNAME=${AI_ASSISTANT_DB_USER}
+         - SPRING_DATASOURCE_PASSWORD=${AI_ASSISTANT_DB_PASSWORD}
+      ports:
+         - "8084:8084"
+      networks:
+         - clinica-net
+
+   # API Gateway
+   api-gateway:
+      build: ./api-gateway
+      container_name: api-gateway
+      depends_on:
+         - patient-service
+         - billing-service
+         - admissions-service
+         - ai-assistant-service
+      ports:
+         - "8080:8080"
+      networks:
+         - clinica-net
+
+# Volúmenes para persistencia de datos
+volumes:
+   patient_data:
+   billing_data:
+   admissions_data:
+   ai_assistant_data:
+
+networks:
+   clinica-net:
+      driver: bridge

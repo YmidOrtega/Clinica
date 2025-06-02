@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="f71bce1b-3fd4-4904-884f-7fb88e0554f5" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitattributes" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.mvn/wrapper/maven-wrapper.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mvnw" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mvnw.cmd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/ClinicaDeYmidApplication.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/Attention.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/Doctor.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/TypeOfAttention.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/AttentionType.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/Cause.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/EntryRoute.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/ServiceType.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/Specialty.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/HealthPolicy.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/Occupation.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/Patient.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/Site.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/StatusTransitionValidator.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Disability.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Gender.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/IdentificationType.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Language.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/MaritalStatus.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Religion.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Status.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/TypeOfAffiliation.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Zone.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/user/model/Role.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/user/model/StatusTransitionValidator.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/user/model/StatusUser.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/user/model/User.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/migration/V1.0__ CREATION-OF-DATABASES-PATIENT.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/migration/V1.1__CREATION-OF-DATABASES-USERS.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/migration/V1.2__CREATION-OF-DATABASES-BILLING.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/com/ClinicaDeYmid/ClinicaDeYmidApplicationTests.java" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
+  "associatedIndex": 8
+}]]></component>
+  <component name="ProjectId" id="2xxj6I2ZiGljKQAc8qkdVuoBR9g" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "settings.editor.selected.configurable": "preferences.pluginManager"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f71bce1b-3fd4-4904-884f-7fb88e0554f5" name="Changes" comment="" />
+      <created>1748886442070</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1748886442070</updated>
+    </task>
+    <servers />
+  </component>
+</project>
