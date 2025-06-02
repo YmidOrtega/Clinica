@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.module.patient.model;
 
-import com.ClinicaDeYmid.module.patient.model.emun.Status;
+import com.ClinicaDeYmid.patient_service.module.patient.model.enums.Status;
 
 public class StatusTransitionValidator {
     public static boolean canTransition(Status current, Status next) {

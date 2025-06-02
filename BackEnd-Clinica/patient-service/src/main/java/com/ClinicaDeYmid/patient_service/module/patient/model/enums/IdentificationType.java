@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.module.patient.model.emun;
+package com.ClinicaDeYmid.patient_service.module.patient.model.enums;
 
 
 import lombok.Getter;

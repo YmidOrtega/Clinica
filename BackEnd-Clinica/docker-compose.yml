@@ -20,6 +20,7 @@ services:
          test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
          timeout: 20s
          retries: 10
+      command: --log-bin-trust-function-creators=1
 
    billing-db:
       image: mysql:8.0
@@ -40,6 +41,7 @@ services:
          test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
          timeout: 20s
          retries: 10
+      command: --log-bin-trust-function-creators=1
 
    admissions-db:
       image: mysql:8.0
@@ -60,6 +62,7 @@ services:
          test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
          timeout: 20s
          retries: 10
+      command: --log-bin-trust-function-creators=1
 
    ai-assistant-db:
       image: mysql:8.0
@@ -80,6 +83,7 @@ services:
          test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
          timeout: 20s
          retries: 10
+      command: --log-bin-trust-function-creators=1
 
    # # Servicios Spring Boot
    # patient-service:

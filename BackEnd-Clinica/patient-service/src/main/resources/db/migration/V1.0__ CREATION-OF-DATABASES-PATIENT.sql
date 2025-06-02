@@ -1,6 +1,7 @@
 -- =====================================================
 -- 1. TABLA SITES (Sitios/Ubicaciones)
 -- =====================================================
+DROP TABLE IF EXISTS patients;
 DROP TABLE IF EXISTS sites;
 
 CREATE TABLE sites (
@@ -52,47 +53,8 @@ CREATE TABLE occupations (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- 3. TABLA HEALTH_POLICIES (Pólizas de Salud)
+-- 3. TABLA patients (Pacientes)
 -- =====================================================
-DROP TABLE IF EXISTS health_policies;
-
-CREATE TABLE health_policies (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    social_reason VARCHAR(200) NOT NULL,
-    nit INT NOT NULL,
-    contract VARCHAR(100),
-    number_contract VARCHAR(100),
-    type VARCHAR(50),
-    address VARCHAR(255),
-    phone VARCHAR(20),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-    PRIMARY KEY (id),
-
-    -- Índices únicos
-    UNIQUE KEY uk_health_policies_nit (nit),
-    UNIQUE KEY uk_health_policies_contract (number_contract),
-
-    -- Índices de búsqueda
-    INDEX idx_health_policies_social_reason (social_reason),
-    INDEX idx_health_policies_type (type),
-    INDEX idx_health_policies_active (is_active),
-
-    -- Validaciones
-    CONSTRAINT chk_health_policies_social_reason_not_empty CHECK (TRIM(social_reason) != ''),
-    CONSTRAINT chk_health_policies_nit_positive CHECK (nit > 0),
-    CONSTRAINT chk_health_policies_nit_valid CHECK (nit >= 100000 AND nit <= 999999999),
-    CONSTRAINT chk_health_policies_phone_format CHECK (phone IS NULL OR phone REGEXP '^[0-9+\\-\\s()]+$'),
-    CONSTRAINT chk_health_policies_contract_length CHECK (number_contract IS NULL OR CHAR_LENGTH(number_contract) >= 3)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- 4. TABLA patients (Usuarios)
--- =====================================================
-DROP TABLE IF EXISTS patients;
-
 CREATE TABLE patients (
     id BIGINT NOT NULL AUTO_INCREMENT,
     uuid CHAR(36) NOT NULL,
@@ -172,7 +134,7 @@ CREATE TABLE patients (
         'NONE'
     ) NOT NULL,
     affiliation_number VARCHAR(50),
-    health_policy_id BIGINT NOT NULL,
+    health_policy_id CHAR(36) NOT NULL,
     health_policy_number VARCHAR(50),
     mothers_name VARCHAR(100),
     fathers_name VARCHAR(100),
@@ -204,7 +166,6 @@ CREATE TABLE patients (
     CONSTRAINT fk_patients_birth_site FOREIGN KEY (birth_site_id) REFERENCES sites(id),
     CONSTRAINT fk_patients_issuance_site FOREIGN KEY (issuance_site_id) REFERENCES sites(id),
     CONSTRAINT fk_patients_occupation FOREIGN KEY (occupation_id) REFERENCES occupations(id),
-    CONSTRAINT fk_patients_health_policy FOREIGN KEY (health_policy_id) REFERENCES health_policies(id),
     CONSTRAINT fk_patients_locality_site FOREIGN KEY (locality_site_id) REFERENCES sites(id),
 
     -- Índices de rendimiento
@@ -216,6 +177,7 @@ CREATE TABLE patients (
     INDEX idx_patients_email (email),
     INDEX idx_patients_created_at (created_at),
     INDEX idx_patients_affiliation (type_of_affiliation, affiliation_number),
+    INDEX idx_patients_health_policy (health_policy_id),
 
     -- Validaciones de negocio
     CONSTRAINT chk_patients_uuid_format CHECK (uuid REGEXP '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'),
@@ -281,12 +243,43 @@ BEGIN
 END//
 DELIMITER ;
 
--- Trigger para actualizar timestamp en updates
+-- Trigger para el update (también debe validar edad)
 DELIMITER //
-CREATE TRIGGER tr_patients_update_timestamp
+CREATE TRIGGER tr_patients_validate_age_identification_type_update
 BEFORE UPDATE ON patients
 FOR EACH ROW
 BEGIN
+    DECLARE user_age INT;
+    SET user_age = TIMESTAMPDIFF(YEAR, NEW.date_of_birth, CURDATE());
+
+    -- Validaciones por tipo de documento
+    CASE NEW.identification_type
+        WHEN 'TARJETA_DE_IDENTIDAD' THEN
+            IF user_age >= 18 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tarjeta de Identidad solo válida para menores de 18 años';
+            END IF;
+        WHEN 'CEDULA_DE_CIUDADANIA' THEN
+            IF user_age < 18 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cédula de Ciudadanía solo válida para mayores de 18 años';
+            END IF;
+        WHEN 'REGISTRO_CIVIL' THEN
+            IF user_age >= 7 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Registro Civil solo válido para menores de 7 años';
+            END IF;
+    END CASE;
+
+    -- Validación general para que la fecha de nacimiento no sea futura
+    IF NEW.date_of_birth > CURDATE() THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La fecha de nacimiento no puede ser una fecha futura.';
+    END IF;
+
+    -- Validación general para la edad sea válida (no negativa)
+    IF DATEDIFF(CURDATE(), NEW.date_of_birth) < 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La fecha de nacimiento no puede resultar en una edad negativa.';
+    END IF;
+
+    -- Actualizar timestamp
     SET NEW.updated_at = CURRENT_TIMESTAMP;
+
 END//
 DELIMITER ;

@@ -1,7 +1,8 @@
-package com.ClinicaDeYmid.module.patient.model;
+package com.ClinicaDeYmid.patient_service.module.patient.model;
 
-import com.ClinicaDeYmid.module.billing.model.Attention;
-import com.ClinicaDeYmid.module.patient.model.emun.*;
+import com.ClinicaDeYmid.patient_service.module.patient.dto.AttentionDto;
+import com.ClinicaDeYmid.patient_service.module.patient.dto.HealthPolicyDto;
+import com.ClinicaDeYmid.patient_service.module.patient.model.enums.*;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -79,9 +80,11 @@ public class Patient {
     @Column(name = "affiliation_number")
     private String affiliationNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "health_policy_id", nullable = false)
-    private HealthPolicy healthPolicy;
+    @Column(name = "health_policy_id", nullable = false)
+    private UUID healthPolicyId;
+
+    @Transient
+    private HealthPolicyDto healthPolicyDetails;;
 
     @Column(name = "health_policy_number")
     private String healthPolicyNumber;
@@ -124,8 +127,8 @@ public class Patient {
         }
     }
 
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Attention> attentions = new ArrayList<>();
+    @Transient
+    private List<AttentionDto> attentions = new ArrayList<>();
 
     public String getFullName() {
         return name + " " + lastName;
