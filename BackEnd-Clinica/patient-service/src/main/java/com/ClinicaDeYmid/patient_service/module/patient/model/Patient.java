@@ -1,7 +1,7 @@
 package com.ClinicaDeYmid.patient_service.module.patient.model;
 
-import com.ClinicaDeYmid.patient_service.module.patient.dto.AttentionDto;
-import com.ClinicaDeYmid.patient_service.module.patient.dto.HealthPolicyDto;
+import com.ClinicaDeYmid.patient_service.module.patient.dto.AttentionDTO;
+import com.ClinicaDeYmid.patient_service.module.patient.dto.HealthPolicyDTO;
 import com.ClinicaDeYmid.patient_service.module.patient.model.enums.*;
 import jakarta.persistence.*;
 import lombok.*;
@@ -83,8 +83,8 @@ public class Patient {
     @Column(name = "health_policy_id", nullable = false)
     private UUID healthPolicyId;
 
-    @Transient
-    private HealthPolicyDto healthPolicyDetails;;
+    //@Transient
+    //private HealthPolicyDTO healthPolicyDetails;;
 
     @Column(name = "health_policy_number")
     private String healthPolicyNumber;
@@ -127,8 +127,8 @@ public class Patient {
         }
     }
 
-    @Transient
-    private List<AttentionDto> attentions = new ArrayList<>();
+    //@Transient
+    //private List<AttentionDTO> attentions = new ArrayList<>();
 
     public String getFullName() {
         return name + " " + lastName;

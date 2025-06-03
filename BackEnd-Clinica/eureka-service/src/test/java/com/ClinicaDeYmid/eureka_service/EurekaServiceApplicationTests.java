@@ -1,10 +1,10 @@
-package com.ClinicaDeYmid.api_gateway;
+package com.ClinicaDeYmid.eureka_service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ApiGatewayApplicationTests {
+class EurekaServiceApplicationTests {
 
 	@Test
 	void contextLoads() {

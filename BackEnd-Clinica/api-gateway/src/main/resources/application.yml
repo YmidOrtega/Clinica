@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true # Habilita la resolución de rutas basada en Eureka
+          lower-case-service-id: true # Opcional, útil para URLs más limpias
+      routes:
+        - id: patient-service-route
+          uri: lb://patient-service # Usar el nombre del servicio en Eureka
+          predicates:
+            - Path=/api/patients/** # Rutas que irán a patient-service
+
+        - id: suppliers-service-route
+          uri: lb://suppliers-service # Usar el nombre del servicio en Eureka
+          predicates:
+            - Path=/api/suppliers/** # Rutas que irán a suppliers-service
+
+server:
+  port: 8080 # O el puerto que desees para tu gateway, ej. 80
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://eureka-server:8761/eureka
+  instance:
+    hostname: api-gateway
+    prefer-ip-address: true
