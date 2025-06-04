@@ -1,5 +1,7 @@
 package com.ClinicaDeYmid.patient_service.module.patient.service;
 
+import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotActiveException;
+import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
 import com.ClinicaDeYmid.patient_service.module.patient.dto.GetPatientDto;
 import com.ClinicaDeYmid.patient_service.module.patient.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.patient.entity.Patient;
@@ -23,17 +25,12 @@ public class GetPatientInformationService {
 
     @Transactional(readOnly = true)
     public GetPatientDto getPatientDto(String identification) {
+
         Patient patient = patientRepository.findByIdentification(identification)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Patient not found with identification: " + identification
-                ));
+                .orElseThrow(() -> new PatientNotFoundException(identification));
 
         if (patient.getStatus() != Status.ALIVE) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Patient is not active (status: " + patient.getStatus().getDisplayName() + ")"
-            );
+            throw new PatientNotActiveException(patient.getStatus().getDisplayName());
         }
 
         return patientMapper.toPatientDTO(patient);

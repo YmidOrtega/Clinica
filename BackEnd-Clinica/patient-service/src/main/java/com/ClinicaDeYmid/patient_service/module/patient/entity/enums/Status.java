@@ -7,7 +7,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum Status {
     ALIVE("Vivo"),
-    DECEASED("Fallecido"),
+    DECEASED("Muerto"),
     SUSPENDED("Suspendido"),
     DELETED("Eliminado");
 

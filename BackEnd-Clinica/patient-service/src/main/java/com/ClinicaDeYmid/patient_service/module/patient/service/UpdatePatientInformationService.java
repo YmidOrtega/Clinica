@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.patient_service.module.patient.service;
 
+import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
 import com.ClinicaDeYmid.patient_service.module.patient.dto.NewPatientDto;
 import com.ClinicaDeYmid.patient_service.module.patient.dto.PatientResponseDto;
 import com.ClinicaDeYmid.patient_service.module.patient.dto.UpdatePatientDto;
@@ -26,10 +27,7 @@ public class UpdatePatientInformationService {
     public PatientResponseDto updatePatientInformation(UpdatePatientDto updatePatientDto, String identification) {
 
         Patient patient = patientRepository.findByIdentification(identification)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Patient not found with identification: " + identification
-                ));
+                .orElseThrow(() -> new PatientNotFoundException(identification));
 
         patientMapper.updatePatientFromDTO(updatePatientDto, patient);
 

@@ -205,81 +205,68 @@ CREATE TABLE patients (
 -- TRIGGERS PARA AUDITORIA Y VALIDACIONES ADICIONALES
 -- =====================================================
 
--- Trigger para validar edad mínima según tipo de identificación
 DELIMITER //
 CREATE TRIGGER tr_patients_validate_age_identification_type
 BEFORE INSERT ON patients
 FOR EACH ROW
 BEGIN
     DECLARE user_age INT;
-    SET user_age = TIMESTAMPDIFF(YEAR, NEW.date_of_birth, CURDATE());
 
-    -- Validaciones por tipo de documento
-    CASE NEW.identification_type
-        WHEN 'TARJETA_DE_IDENTIDAD' THEN
-            IF user_age >= 18 THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tarjeta de Identidad solo válida para menores de 18 años';
-            END IF;
-        WHEN 'CEDULA_DE_CIUDADANIA' THEN
-            IF user_age < 18 THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cédula de Ciudadanía solo válida para mayores de 18 años';
-            END IF;
-        WHEN 'REGISTRO_CIVIL' THEN
-            IF user_age >= 7 THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Registro Civil solo válido para menores de 7 años';
-            END IF;
-    END CASE;
-
-    -- Validación general para que la fecha de nacimiento no sea futura
+    -- Validación: fecha de nacimiento no puede ser futura
     IF NEW.date_of_birth > CURDATE() THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La fecha de nacimiento no puede ser una fecha futura.';
     END IF;
 
-    -- Validación general para la edad sea válida (no negativa)
-    IF DATEDIFF(CURDATE(), NEW.date_of_birth) < 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La fecha de nacimiento no puede resultar en una edad negativa.';
-    END IF;
+    SET user_age = TIMESTAMPDIFF(YEAR, NEW.date_of_birth, CURDATE());
 
+    -- Validaciones por tipo de documento (solo para ciertos tipos)
+    CASE NEW.identification_type
+        WHEN 'REGISTRO_CIVIL' THEN
+            IF user_age >= 7 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Registro Civil solo válido para menores de 7 años';
+            END IF;
+        WHEN 'TARJETA_DE_IDENTIDAD' THEN
+            IF user_age < 7 OR user_age >= 18 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tarjeta de Identidad válida para edades entre 7 y 17 años';
+            END IF;
+        WHEN 'CEDULA_DE_CIUDADANIA' THEN
+            IF user_age < 18 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cédula de Ciudadanía solo válida para mayores o iguales a 18 años';
+            END IF;
+        ELSE
+            BEGIN END;
+    END CASE;
 END//
-DELIMITER ;
 
--- Trigger para el update (también debe validar edad)
-DELIMITER //
 CREATE TRIGGER tr_patients_validate_age_identification_type_update
 BEFORE UPDATE ON patients
 FOR EACH ROW
 BEGIN
     DECLARE user_age INT;
-    SET user_age = TIMESTAMPDIFF(YEAR, NEW.date_of_birth, CURDATE());
 
-    -- Validaciones por tipo de documento
-    CASE NEW.identification_type
-        WHEN 'TARJETA_DE_IDENTIDAD' THEN
-            IF user_age >= 18 THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tarjeta de Identidad solo válida para menores de 18 años';
-            END IF;
-        WHEN 'CEDULA_DE_CIUDADANIA' THEN
-            IF user_age < 18 THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cédula de Ciudadanía solo válida para mayores de 18 años';
-            END IF;
-        WHEN 'REGISTRO_CIVIL' THEN
-            IF user_age >= 7 THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Registro Civil solo válido para menores de 7 años';
-            END IF;
-    END CASE;
-
-    -- Validación general para que la fecha de nacimiento no sea futura
+    -- Validación: fecha de nacimiento no puede ser futura
     IF NEW.date_of_birth > CURDATE() THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La fecha de nacimiento no puede ser una fecha futura.';
     END IF;
 
-    -- Validación general para la edad sea válida (no negativa)
-    IF DATEDIFF(CURDATE(), NEW.date_of_birth) < 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La fecha de nacimiento no puede resultar en una edad negativa.';
-    END IF;
+    SET user_age = TIMESTAMPDIFF(YEAR, NEW.date_of_birth, CURDATE());
 
-    -- Actualizar timestamp
-    SET NEW.updated_at = CURRENT_TIMESTAMP;
-
+    -- Validaciones por tipo de documento (solo para ciertos tipos)
+    CASE NEW.identification_type
+        WHEN 'REGISTRO_CIVIL' THEN
+            IF user_age >= 7 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Registro Civil solo válido para menores de 7 años';
+            END IF;
+        WHEN 'TARJETA_DE_IDENTIDAD' THEN
+            IF user_age < 7 OR user_age >= 18 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tarjeta de Identidad válida para edades entre 7 y 17 años';
+            END IF;
+        WHEN 'CEDULA_DE_CIUDADANIA' THEN
+            IF user_age < 18 THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cédula de Ciudadanía solo válida para mayores o iguales a 18 años';
+            END IF;
+        ELSE
+            BEGIN END;
+    END CASE;
 END//
 DELIMITER ;
