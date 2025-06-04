@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.patient_service.module.patient.model.enums;
+package com.ClinicaDeYmid.patient_service.module.patient.entity.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,5 +14,5 @@ public enum MaritalStatus {
     COHABITING("Unión libre"),
     NOT_DISCLOSED("No declarado");
 
-    private final String description;
+    private final String displayName;
 }

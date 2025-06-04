@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.patient_service.module.patient.model.enums;
+package com.ClinicaDeYmid.patient_service.module.patient.entity.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +13,7 @@ public enum Disability {
     COGNITIVA("Cognitiva"),
     PSICOSOCIAL("Psicosocial"),
     MULTIPLE("Múltiple"),
-    OTRA("Otra");
+    OTHER("Otra");
 
     private final String displayName;
 

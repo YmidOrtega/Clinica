@@ -81,7 +81,7 @@ CREATE TABLE patients (
         'COGNITIVA',
         'PSICOSOCIAL',
         'MULTIPLE',
-        'OTRA'
+        'OTHER'
     ) DEFAULT 'NONE',
     language ENUM(
         'SPANISH',
@@ -96,10 +96,10 @@ CREATE TABLE patients (
         'RUSSIAN'
     ) DEFAULT 'SPANISH',
     gender ENUM(
-        'masculine',
-        'feminine',
-        'other',
-        'notDisclosed'
+        'MASCULINE',
+        'FEMININE',
+        'OTHER',
+        'NOT_DISCLOSED'
     ) NOT NULL,
     occupation_id BIGINT NOT NULL,
     marital_status ENUM(
@@ -121,7 +121,7 @@ CREATE TABLE patients (
         'ATHEIST',
         'AGNOSTIC',
         'OTHER'
-    ) DEFAULT 'ATHEIST',
+    ) DEFAULT 'CATHOLIC',
     type_of_affiliation ENUM(
         'BENEFICIARY',
         'CONTRIBUTOR',

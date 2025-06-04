@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.patient_service.module.patient.model;
+package com.ClinicaDeYmid.patient_service.module.patient.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

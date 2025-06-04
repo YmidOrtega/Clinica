@@ -1,8 +1,8 @@
-package com.ClinicaDeYmid.patient_service.module.patient.model;
+package com.ClinicaDeYmid.patient_service.module.patient.entity;
 
-import com.ClinicaDeYmid.patient_service.module.patient.dto.AttentionDTO;
-import com.ClinicaDeYmid.patient_service.module.patient.dto.HealthPolicyDTO;
-import com.ClinicaDeYmid.patient_service.module.patient.model.enums.*;
+import com.ClinicaDeYmid.patient_service.module.patient.dto.AttentionDto;
+import com.ClinicaDeYmid.patient_service.module.patient.dto.HealthPolicyDto;
+import com.ClinicaDeYmid.patient_service.module.patient.entity.enums.*;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "patients")
+@Table(name = "patients", indexes = {
+        @Index(name = "idx_identification", columnList = "identification")
+})
 @Data
 @EqualsAndHashCode(of = "id")
 @NoArgsConstructor
@@ -27,13 +29,14 @@ public class Patient {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private UUID uuid;
+    private String uuid;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "identification_type", nullable = false)
     private IdentificationType identificationType;
 
     @Column(unique = true, nullable = false)
+
     private String identification;
 
     @Column(nullable = false)
@@ -81,10 +84,10 @@ public class Patient {
     private String affiliationNumber;
 
     @Column(name = "health_policy_id", nullable = false)
-    private UUID healthPolicyId;
+    private String healthPolicyId;
 
-    //@Transient
-    //private HealthPolicyDTO healthPolicyDetails;;
+    @Transient
+    private HealthPolicyDto healthPolicyDetails;;
 
     @Column(name = "health_policy_number")
     private String healthPolicyNumber;
@@ -123,12 +126,13 @@ public class Patient {
     @PrePersist
     private void generateUuid() {
         if (uuid == null) {
-            uuid = UUID.randomUUID();
+            uuid = UUID.randomUUID().toString();
         }
     }
 
-    //@Transient
-    //private List<AttentionDTO> attentions = new ArrayList<>();
+
+    @Transient
+    private List<AttentionDto> attentions = new ArrayList<>();
 
     public String getFullName() {
         return name + " " + lastName;

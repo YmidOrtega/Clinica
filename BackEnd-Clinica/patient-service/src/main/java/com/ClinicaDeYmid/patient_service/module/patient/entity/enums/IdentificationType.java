@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.patient_service.module.patient.model.enums;
+package com.ClinicaDeYmid.patient_service.module.patient.entity.enums;
 
 
 import lombok.Getter;
@@ -16,4 +16,5 @@ public enum IdentificationType {
     DOCUMENTO_NACIONAL_DE_IDENTIFICACION("Documento Nacional de Identificación");
 
     private final String displayName;
+
 }

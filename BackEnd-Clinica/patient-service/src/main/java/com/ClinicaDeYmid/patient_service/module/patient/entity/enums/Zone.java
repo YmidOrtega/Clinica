@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.patient_service.module.patient.model.enums;
+package com.ClinicaDeYmid.patient_service.module.patient.entity.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,6 +9,6 @@ public enum Zone {
     URBAN("Urbano"),
     RURAL("Rural");
 
-    private final String description;
+    private final String displayName;
 
 }
