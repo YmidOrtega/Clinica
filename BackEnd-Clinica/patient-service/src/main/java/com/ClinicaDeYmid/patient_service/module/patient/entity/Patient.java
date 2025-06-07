@@ -35,9 +35,8 @@ public class Patient {
     @Column(name = "identification_type", nullable = false)
     private IdentificationType identificationType;
 
-    @Column(unique = true, nullable = false)
-
-    private String identification;
+    @Column(name = "identification_number",unique = true, nullable = false)
+    private String identificationNumber;
 
     @Column(nullable = false)
     private String name;
@@ -83,8 +82,8 @@ public class Patient {
     @Column(name = "affiliation_number")
     private String affiliationNumber;
 
-    @Column(name = "health_policy_id", nullable = false)
-    private String healthPolicyId;
+    @Column(name = "health_provider_id", nullable = false)
+    private Long healthProviderId;
 
     @Transient
     private HealthPolicyDto healthPolicyDetails;;
@@ -135,6 +134,6 @@ public class Patient {
     private List<AttentionDto> attentions = new ArrayList<>();
 
     public String getFullName() {
-        return name + " " + lastName;
+        return lastName + "," + name;
     }
 }

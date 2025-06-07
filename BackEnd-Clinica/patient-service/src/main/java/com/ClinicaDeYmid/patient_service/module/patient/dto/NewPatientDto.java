@@ -30,7 +30,7 @@ public record NewPatientDto(
         @NotNull Religion religion,
         @NotNull TypeOfAffiliation typeOfAffiliation,
         String affiliationNumber,
-        @NotNull String healthPolicyId,
+        @NotNull Long healthProviderId,
         String healthPolicyNumber,
         String mothersName,
         String fathersName,

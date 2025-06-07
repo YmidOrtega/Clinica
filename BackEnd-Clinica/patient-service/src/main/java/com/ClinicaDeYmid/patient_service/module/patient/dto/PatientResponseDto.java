@@ -6,7 +6,7 @@ public record PatientResponseDto(
         String uuid,
         String name,
         String lastName,
-        String identification,
+        String identificationNumber,
         String email,
         LocalDateTime createdAt //,
         //HealthPolicyDto healthPolicyId

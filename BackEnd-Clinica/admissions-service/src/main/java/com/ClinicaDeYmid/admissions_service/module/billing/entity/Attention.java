@@ -11,6 +11,7 @@ import com.ClinicaDeYmid.module.user.model.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import org.antlr.v4.runtime.misc.NotNull;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -64,7 +65,7 @@ public class Attention {
     @JoinColumn(name = "type_of_attention_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_attention_type"))
     @NotNull(message = "El tipo de atención es obligatorio")
-    private TypeOfAttention typeOfAttention;
+    private com.ClinicaDeYmid.module.billing.model.TypeOfAttention typeOfAttention;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "patient_id", nullable = false,
@@ -75,7 +76,7 @@ public class Attention {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "health_policy_id",
             foreignKey = @ForeignKey(name = "fk_attention_health_policy"))
-    private HealthPolicy healthPolicy;
+    private Long healthProviderId;;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "doctor_id", nullable = false,

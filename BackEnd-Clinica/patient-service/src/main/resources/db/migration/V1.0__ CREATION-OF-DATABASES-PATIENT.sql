@@ -67,7 +67,7 @@ CREATE TABLE patients (
         'PERMISO_ESPECIAL_DE_PERMANENCIA',
         'DOCUMENTO_NACIONAL_DE_IDENTIFICACION'
     ) NOT NULL,
-    identification VARCHAR(20) NOT NULL,
+    identification_number VARCHAR(20) NOT NULL, -- Cambiado de 'identification' a 'identification_number'
     name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     date_of_birth DATE NOT NULL,
@@ -134,7 +134,7 @@ CREATE TABLE patients (
         'NONE'
     ) NOT NULL,
     affiliation_number VARCHAR(50),
-    health_policy_id CHAR(36) NOT NULL,
+    health_provider_id BIGINT NOT NULL,
     health_policy_number VARCHAR(50),
     mothers_name VARCHAR(100),
     fathers_name VARCHAR(100),
@@ -160,7 +160,7 @@ CREATE TABLE patients (
 
     -- Claves únicas
     UNIQUE KEY uk_patients_uuid (uuid),
-    UNIQUE KEY uk_patients_identification (identification),
+    UNIQUE KEY uk_patients_identification_number (identification_number), -- Actualizado el nombre de la clave única
 
     -- Claves foráneas
     CONSTRAINT fk_patients_birth_site FOREIGN KEY (birth_site_id) REFERENCES sites(id),
@@ -177,12 +177,12 @@ CREATE TABLE patients (
     INDEX idx_patients_email (email),
     INDEX idx_patients_created_at (created_at),
     INDEX idx_patients_affiliation (type_of_affiliation, affiliation_number),
-    INDEX idx_patients_health_policy (health_policy_id),
+    INDEX idx_patients_health_provider (health_provider_id),
 
     -- Validaciones de negocio
     CONSTRAINT chk_patients_uuid_format CHECK (uuid REGEXP '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'),
-    CONSTRAINT chk_patients_identification_not_empty CHECK (TRIM(identification) != ''),
-    CONSTRAINT chk_patients_identification_length CHECK (CHAR_LENGTH(identification) >= 3),
+    CONSTRAINT chk_patients_identification_number_not_empty CHECK (TRIM(identification_number) != ''), -- Actualizada la validación
+    CONSTRAINT chk_patients_identification_number_length CHECK (CHAR_LENGTH(identification_number) >= 3), -- Actualizada la validación
     CONSTRAINT chk_patients_name_not_empty CHECK (TRIM(name) != ''),
     CONSTRAINT chk_patients_lastname_not_empty CHECK (TRIM(last_name) != ''),
     CONSTRAINT chk_patients_name_length CHECK (CHAR_LENGTH(name) >= 2),
@@ -193,11 +193,11 @@ CREATE TABLE patients (
     CONSTRAINT chk_patients_mobile_format CHECK (mobile IS NULL OR mobile REGEXP '^[0-9+\\-\\s()]+$'),
     CONSTRAINT chk_patients_identification_cc_length CHECK (
         identification_type != 'CEDULA_DE_CIUDADANIA' OR
-        (CHAR_LENGTH(identification) >= 6 AND CHAR_LENGTH(identification) <= 12)
+        (CHAR_LENGTH(identification_number) >= 6 AND CHAR_LENGTH(identification_number) <= 12) -- Actualizada la validación
     ),
     CONSTRAINT chk_patients_identification_numeric CHECK (
         identification_type NOT IN ('CEDULA_DE_CIUDADANIA', 'TARJETA_DE_IDENTIDAD', 'CEDULA_DE_EXTRANJERIA') OR
-        identification REGEXP '^[0-9]+$'
+        identification_number REGEXP '^[0-9]+$' -- Actualizada la validación
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

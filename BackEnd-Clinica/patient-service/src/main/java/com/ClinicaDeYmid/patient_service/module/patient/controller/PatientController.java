@@ -1,65 +1,101 @@
 package com.ClinicaDeYmid.patient_service.module.patient.controller;
 
-import com.ClinicaDeYmid.patient_service.module.patient.dto.GetPatientDto;
-import com.ClinicaDeYmid.patient_service.module.patient.dto.NewPatientDto;
-import com.ClinicaDeYmid.patient_service.module.patient.dto.PatientResponseDto;
-import com.ClinicaDeYmid.patient_service.module.patient.dto.UpdatePatientDto;
+import com.ClinicaDeYmid.patient_service.module.patient.dto.*;
+import com.ClinicaDeYmid.patient_service.module.patient.repository.PatientRepository;
 import com.ClinicaDeYmid.patient_service.module.patient.service.GetPatientInformationService;
 import com.ClinicaDeYmid.patient_service.module.patient.service.PatientRegistrationService;
+import com.ClinicaDeYmid.patient_service.module.patient.service.PatientSearchService;
 import com.ClinicaDeYmid.patient_service.module.patient.service.UpdatePatientInformationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
+@Slf4j
+@Validated
 @RestController
-@RequestMapping("/patient")
+@RequestMapping("/api/v1/patients") // Más específico y versionado
+@RequiredArgsConstructor // Lombok para constructor automático
 public class PatientController {
 
     private final PatientRegistrationService patientRegistrationService;
     private final GetPatientInformationService getPatientInformationService;
     private final UpdatePatientInformationService updatePatientInformationService;
-
-    public PatientController(PatientRegistrationService patientRegistrationService,
-                             GetPatientInformationService getPatientInformationService, UpdatePatientInformationService updatePatientInformationService) {
-        this.patientRegistrationService = patientRegistrationService;
-        this.getPatientInformationService = getPatientInformationService;
-        this.updatePatientInformationService = updatePatientInformationService;
-    }
+    private final PatientRepository patientRepository;
+    private final PatientSearchService patientSearchService;
 
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<PatientResponseDto> createdUser(@Valid @RequestBody NewPatientDto newPatientDTO,
-                                                          UriComponentsBuilder uriBuilder, HttpServletRequest request) {
+    public ResponseEntity<PatientResponseDto> createPatient(
+            @Valid @RequestBody NewPatientDto newPatientDto,
+            UriComponentsBuilder uriBuilder) {
 
-        PatientResponseDto patientResponseDTO = patientRegistrationService.createPatient(newPatientDTO);
+        log.info("Creation of a new patient with the identification number: {}", newPatientDto.identificationNumber());
 
-        URI uri = uriBuilder.path("/patient/{uuid}").buildAndExpand(patientResponseDTO.uuid()).toUri();
-        return ResponseEntity.created(uri).body(patientResponseDTO);
+        PatientResponseDto patientResponseDto = patientRegistrationService.createPatient(newPatientDto);
+
+        URI uri = uriBuilder.path("/api/v1/patients/{uuid}")
+                .buildAndExpand(patientResponseDto.uuid())
+                .toUri();
+
+        log.info("Patient created successfully with UUID: {}", patientResponseDto.uuid());
+        return ResponseEntity.created(uri).body(patientResponseDto);
     }
 
-    @GetMapping
-    @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<GetPatientDto> getPatientDto(@RequestParam String identification) {
 
-        GetPatientDto getPatientDto = getPatientInformationService.getPatientDto(identification);
+    @GetMapping("/{identificationNumber}")
+    public ResponseEntity<GetPatientDto> getPatient(
+            @PathVariable  @NotBlank(message = "Identification cannot be blank") String identificationNumber) {
+
+        log.info("Retrieval of patient information with the identification number: {}", identificationNumber);
+
+        GetPatientDto getPatientDto = getPatientInformationService.getPatientDto(identificationNumber);
         return ResponseEntity.ok(getPatientDto);
     }
 
-    @PutMapping
-    @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<PatientResponseDto> updatePatient(@Valid @RequestBody UpdatePatientDto updatePatientDto, @RequestParam @NotBlank String identification,  UriComponentsBuilder uriBuilder) {
 
-        PatientResponseDto patientResponseDTO = updatePatientInformationService.updatePatientInformation(updatePatientDto, identification);
-        return ResponseEntity.ok(patientResponseDTO);
+
+
+    @GetMapping("/search")
+    public ResponseEntity<PagedModel<EntityModel<PatientsListDto>>> searchPatients(
+            @RequestParam(name = "q") @NotBlank(message = "Search query cannot be blank") String query,
+            Pageable pageable,
+            PagedResourcesAssembler<PatientsListDto> assembler) {
+
+        log.info("Searching patients with query: {} - Page: {}, Size: {}",
+                query, pageable.getPageNumber(), pageable.getPageSize());
+
+        Page<PatientsListDto> patientsList = patientSearchService.searchPatients(query, pageable);
+
+        return ResponseEntity.ok(assembler.toModel(patientsList));
     }
+
+    @PutMapping
+    public ResponseEntity<PatientResponseDto> updatePatient(
+            @Valid @RequestBody UpdatePatientDto updatePatientDto,
+            @RequestParam @NotBlank(message = "Identification number cannot be blank") String identificationNumber) {
+
+        log.info("Updating patient information with the identification number: {}", identificationNumber);
+
+        PatientResponseDto patientResponseDto = updatePatientInformationService
+                .updatePatientInformation(updatePatientDto, identificationNumber);
+
+        log.info("Patient updated successfully: {}", patientResponseDto.uuid());
+        return ResponseEntity.ok(patientResponseDto);
+    }
+
 
 }

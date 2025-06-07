@@ -85,6 +85,50 @@ services:
          retries: 10
       command: --log-bin-trust-function-creators=1
 
+   # Base de datos para proveedores
+   suppliers-db:
+      image: mysql:8.0
+      container_name: suppliers-db
+      restart: always
+      environment:
+         MYSQL_ROOT_PASSWORD: ${SUPPLIERS_DB_ROOT_PASSWORD}
+         MYSQL_DATABASE: ${SUPPLIERS_DB_NAME}
+         MYSQL_USER: ${SUPPLIERS_DB_USER}
+         MYSQL_PASSWORD: ${SUPPLIERS_DB_PASSWORD}
+      ports:
+         - "3311:3306"
+      volumes:
+         - suppliers_data:/var/lib/mysql
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+         timeout: 20s
+         retries: 10
+      command: --log-bin-trust-function-creators=1
+
+   # Base de datos para autenticación
+   auth-db:
+      image: mysql:8.0
+      container_name: auth-db
+      restart: always
+      environment:
+         MYSQL_ROOT_PASSWORD: ${AUTH_DB_ROOT_PASSWORD}
+         MYSQL_DATABASE: ${AUTH_DB_NAME}
+         MYSQL_USER: ${AUTH_DB_USER}
+         MYSQL_PASSWORD: ${AUTH_DB_PASSWORD}
+      ports:
+         - "3312:3306"
+      volumes:
+         - auth_data:/var/lib/mysql
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+         timeout: 20s
+         retries: 10
+      command: --log-bin-trust-function-creators=1
+
    # # Servicios Spring Boot
    # patient-service:
    #    build: ./patient-service
@@ -146,6 +190,38 @@ services:
    #    networks:
    #       - clinica-net
 
+   # suppliers-service:
+   #    build: ./suppliers-service
+   #    container_name: suppliers-service
+   #    depends_on:
+   #       suppliers-db:
+   #          condition: service_healthy
+   #    environment:
+   #       - SPRING_DATASOURCE_URL=jdbc:mysql://suppliers-db:3306/${SUPPLIERS_DB_NAME}
+   #       - SPRING_DATASOURCE_USERNAME=${SUPPLIERS_DB_USER}
+   #       - SPRING_DATASOURCE_PASSWORD=${SUPPLIERS_DB_PASSWORD}
+   #    ports:
+   #       - "8085:8085"
+   #    networks:
+   #       - clinica-net
+
+   # auth-service:
+   #    build: ./auth-service
+   #    container_name: auth-service
+   #    depends_on:
+   #       auth-db:
+   #          condition: service_healthy
+   #    environment:
+   #       - SPRING_DATASOURCE_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME}
+   #       - SPRING_DATASOURCE_USERNAME=${AUTH_DB_USER}
+   #       - SPRING_DATASOURCE_PASSWORD=${AUTH_DB_PASSWORD}
+   #       - JWT_SECRET=${JWT_SECRET}
+   #       - JWT_EXPIRATION=${JWT_EXPIRATION}
+   #    ports:
+   #       - "8086:8086"
+   #    networks:
+   #       - clinica-net
+
    # # API Gateway
    # api-gateway:
    #    build: ./api-gateway
@@ -155,6 +231,15 @@ services:
    #       - billing-service
    #       - admissions-service
    #       - ai-assistant-service
+   #       - suppliers-service
+   #       - auth-service
+   #    environment:
+   #       - PATIENT_SERVICE_URL=http://patient-service:8081
+   #       - BILLING_SERVICE_URL=http://billing-service:8082
+   #       - ADMISSIONS_SERVICE_URL=http://admissions-service:8083
+   #       - AI_ASSISTANT_SERVICE_URL=http://ai-assistant-service:8084
+   #       - SUPPLIERS_SERVICE_URL=http://suppliers-service:8085
+   #       - AUTH_SERVICE_URL=http://auth-service:8086
    #    ports:
    #       - "8080:8080"
    #    networks:
@@ -166,6 +251,8 @@ volumes:
    billing_data:
    admissions_data:
    ai_assistant_data:
+   suppliers_data:
+   auth_data:
 
 networks:
    clinica-net:

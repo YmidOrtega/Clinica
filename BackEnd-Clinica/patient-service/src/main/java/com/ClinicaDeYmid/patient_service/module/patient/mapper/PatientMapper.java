@@ -15,12 +15,12 @@ public abstract class PatientMapper {
     @Mappings({
             @Mapping(target = "id", ignore = true),
             @Mapping(target = "uuid", ignore = true),
-            @Mapping(source = "identificationNumber", target = "identification"),
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(LocalDateTime.now())"),
             @Mapping(target = "status", constant = "ALIVE"),
             @Mapping(target = "healthPolicyDetails", ignore = true),
-            @Mapping(target = "attentions", ignore = true)
+            @Mapping(target = "attentions", ignore = true),
+            @Mapping(source = "healthProviderId", target = "healthProviderId")
     })
     public abstract Patient toPatient(NewPatientDto newPatientDTO);
 
@@ -32,7 +32,7 @@ public abstract class PatientMapper {
         return new GetPatientDto(
                 patient.getUuid(),
                 patient.getIdentificationType().getDisplayName(),
-                patient.getIdentification(),
+                patient.getIdentificationNumber(),
                 patient.getName(),
                 patient.getLastName(),
                 patient.getDateOfBirth(),
@@ -46,7 +46,7 @@ public abstract class PatientMapper {
                 patient.getReligion().getDisplayName(),
                 patient.getTypeOfAffiliation().getDisplayName(),
                 patient.getAffiliationNumber(),
-                patient.getHealthPolicyId(),
+                patient.getHealthProviderId().toString(),
                 patient.getHealthPolicyNumber(),
                 patient.getMothersName(),
                 patient.getFathersName(),
@@ -66,7 +66,7 @@ public abstract class PatientMapper {
             @Mapping(target = "id", ignore = true),
             @Mapping(target = "uuid", ignore = true),
             @Mapping(target = "identificationType", ignore = true),
-            //@Mapping(source = "identificationNumber", target = "identification", ignore = true),
+            //@Mapping(source = "identificationNumber", ignore = true),
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(java.time.LocalDateTime.now())"),
             @Mapping(target = "status", ignore = true),
@@ -79,7 +79,6 @@ public abstract class PatientMapper {
     @Mappings({
             @Mapping(target = "id", ignore = true),
             @Mapping(target = "uuid", ignore = true),
-            @Mapping(source = "identificationNumber", target = "identification"),
             @Mapping(target = "placeOfBirth", ignore = true),
             @Mapping(target = "placeOfIssuance", ignore = true),
             @Mapping(target = "occupation", ignore = true),
