@@ -1,5 +1,8 @@
 package com.ClinicaDeYmid.suppliers_service.module.entity;
 
+import com.ClinicaDeYmid.suppliers_service.module.domain.Nit;
+import com.ClinicaDeYmid.suppliers_service.module.enums.Status;
+import com.ClinicaDeYmid.suppliers_service.module.enums.TypeProvider;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -10,7 +13,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.time.Year;
 
 
 @Entity
@@ -40,8 +42,11 @@ public class HealthProvider {
     @Column(name = "social_reason", nullable = false, length = 200)
     private String socialReason;
 
-    @Column(name = "nit", nullable = false, length = 20)
-    private String nit;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name="value", column=@Column(name="nit", nullable = false, length = 20))
+    })
+    private Nit nit;
 
     @Column(name = "contract", length = 100)
     private String contract;
@@ -50,7 +55,7 @@ public class HealthProvider {
     private String numberContract;
 
     @Column(name = "type_provider", length = 50)
-    private TypeProvider type;
+    private TypeProvider typeProvider;
 
     @Column(name = "address", length = 500)
     private String address;
@@ -61,11 +66,6 @@ public class HealthProvider {
     @Builder.Default
     @Column(name = "active", nullable = false)
     private Boolean active = true;
-
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    @Column(name = "contract_status")
-    private Status contractStatus = Status.ACTIVE;
 
     @Column(name = "year_of_validity")
     private Integer yearOfValidity;
@@ -86,11 +86,10 @@ public class HealthProvider {
         return "HealthProvider{" +
                 "id=" + id +
                 ", socialReason='" + socialReason + '\'' +
-                ", type='" + type + '\'' +
+                ", type='" + typeProvider + '\'' +
                 ", active=" + active +
                 ", yearOfValidity=" + yearOfValidity +
                 ", yearCompletion=" + yearCompletion +
-                ", contractStatus='" + getContractStatus() + '\'' +
                 '}';
     }
 }

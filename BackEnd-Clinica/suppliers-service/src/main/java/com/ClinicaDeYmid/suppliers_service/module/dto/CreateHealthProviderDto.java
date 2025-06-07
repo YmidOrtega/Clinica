@@ -1,5 +1,7 @@
 package com.ClinicaDeYmid.suppliers_service.module.dto;
 
+import com.ClinicaDeYmid.suppliers_service.module.domain.Nit;
+import com.ClinicaDeYmid.suppliers_service.module.enums.TypeProvider;
 import jakarta.validation.constraints.*;
 
 public record CreateHealthProviderDto(
@@ -8,7 +10,7 @@ public record CreateHealthProviderDto(
         String socialReason,
         @NotBlank(message = "El NIT es obligatorio")
         @Pattern(regexp = "^[0-9]{6,12}$", message = "El NIT debe contener entre 6 y 12 dígitos")
-        String nit,
+        Nit nit,
 
         @Size(max = 100, message = "El contrato no puede exceder 100 caracteres")
         String contract,
@@ -16,9 +18,9 @@ public record CreateHealthProviderDto(
         @Size(min = 3, max = 100, message = "El número de contrato debe tener entre 3 y 100 caracteres")
         String numberContract,
 
-        @Pattern(regexp = "^(EPS|ARL|PREPAGADA|SUBSIDIADO|CONTRIBUTIVO)$",
+        @Pattern(regexp = "^(EPS|IPS|ARL|POLIZA_DE_SALUD|POLIZA_ESTUDIANTE|MEDICINA_PREPAGADA|PLAN_COMPLEMENTARIO|OTRO)$",
                 message = "El tipo debe ser: EPS, ARL, PREPAGADA, SUBSIDIADO o CONTRIBUTIVO")
-        String type,
+        TypeProvider typeProvider,
 
         @Size(max = 500, message = "La dirección no puede exceder 500 caracteres")
         String address,
