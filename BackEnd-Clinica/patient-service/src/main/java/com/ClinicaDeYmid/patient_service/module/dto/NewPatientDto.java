@@ -3,7 +3,6 @@ package com.ClinicaDeYmid.patient_service.module.dto;
 import com.ClinicaDeYmid.patient_service.module.entity.Occupation;
 import com.ClinicaDeYmid.patient_service.module.entity.Site;
 import com.ClinicaDeYmid.patient_service.module.enums.*;
-import com.ClinicaDeYmid.patient_service.module.patient.entity.enums.*;
 import com.ClinicaDeYmid.patient_service.module.validation.ParentsRequiredForMinor;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

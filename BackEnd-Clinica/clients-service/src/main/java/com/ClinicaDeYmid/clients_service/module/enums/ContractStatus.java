@@ -1,0 +1,25 @@
+package com.ClinicaDeYmid.clients_service.module.enums;
+
+public enum ContractStatus {
+    ACTIVE("ACTIVO"),
+    INACTIVE("INACTIVO"),
+    PENDING("PENDIENTE"),
+    EXPIRED("VENCIDO"),
+    CANCELLED("CANCELADO"),
+    SUSPENDED("SUSPENDIDO");
+
+    private final String displayName;
+
+    ContractStatus(String description) {
+        this.displayName = description;
+    }
+
+    public String getDescription() {
+        return displayName;
+    }
+
+    @Override
+    public String toString() {
+        return displayName;
+    }
+}

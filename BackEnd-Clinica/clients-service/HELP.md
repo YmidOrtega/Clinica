@@ -1,7 +1,7 @@
 # Read Me First
 The following was discovered as part of building this project:
 
-* The original package name 'com.ClinicaDeYmid.billing-service' is invalid and this project uses 'com.ClinicaDeYmid.billing_service' instead.
+* The original package name 'com.ClinicaDeYmid.suppliers-service' is invalid and this project uses 'com.ClinicaDeYmid.clients_service' instead.
 
 # Getting Started
 
