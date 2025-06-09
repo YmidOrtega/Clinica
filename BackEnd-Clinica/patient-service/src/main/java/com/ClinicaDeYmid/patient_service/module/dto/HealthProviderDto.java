@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.patient_service.module.dto;
 
-public record HealthPolicyDto (
+public record HealthProviderDto(
         Long id,
         String socialReason) {
 }

@@ -1,7 +1,7 @@
 package com.ClinicaDeYmid.patient_service.module.entity;
 
 import com.ClinicaDeYmid.patient_service.module.dto.AttentionDto;
-import com.ClinicaDeYmid.patient_service.module.dto.HealthPolicyDto;
+import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderDto;
 import com.ClinicaDeYmid.patient_service.module.enums.*;
 import jakarta.persistence.*;
 import lombok.*;
@@ -82,11 +82,11 @@ public class Patient {
     @Column(name = "affiliation_number")
     private String affiliationNumber;
 
-    @Column(name = "health_provider_id", nullable = false)
-    private Long healthProviderId;
+    @Column(name = "health_provider_nit", nullable = false)
+    private String healthProviderNit;
 
     @Transient
-    private HealthPolicyDto healthPolicyDetails;;
+    private HealthProviderDto healthPolicyDetails;;
 
     @Column(name = "health_policy_number")
     private String healthPolicyNumber;

@@ -151,6 +151,28 @@ services:
          retries: 10
       command: --log-bin-trust-function-creators=1
 
+   # Eureka Service Discovery
+   eureka-service:
+      build: ./eureka-service
+      container_name: eureka-service
+      restart: always
+      environment:
+         - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+         - EUREKA_CLIENT_FETCH_REGISTRY=false
+         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+         - EUREKA_INSTANCE_HOSTNAME=eureka-service
+         - SPRING_PROFILES_ACTIVE=docker
+      ports:
+         - "8761:8761"
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 60s
+
    # # Servicios Spring Boot
    # patient-service:
    #    build: ./patient-service
@@ -158,10 +180,15 @@ services:
    #    depends_on:
    #       patient-db:
    #          condition: service_healthy
+   #       eureka-service:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${PATIENT_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${PATIENT_DB_PASSWORD}
+   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=docker
    #    ports:
    #       - "8081:8081"
    #    networks:
@@ -173,10 +200,15 @@ services:
    #    depends_on:
    #       billing-db:
    #          condition: service_healthy
+   #       eureka-service:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://billing-db:3306/${BILLING_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${BILLING_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${BILLING_DB_PASSWORD}
+   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=docker
    #    ports:
    #       - "8082:8082"
    #    networks:
@@ -188,10 +220,15 @@ services:
    #    depends_on:
    #       admissions-db:
    #          condition: service_healthy
+   #       eureka-service:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://admissions-db:3306/${ADMISSIONS_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
+   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=docker
    #    ports:
    #       - "8083:8083"
    #    networks:
@@ -203,10 +240,15 @@ services:
    #    depends_on:
    #       ai-assistant-db:
    #          condition: service_healthy
+   #       eureka-service:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://ai-assistant-db:3306/${AI_ASSISTANT_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${AI_ASSISTANT_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${AI_ASSISTANT_DB_PASSWORD}
+   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=docker
    #    ports:
    #       - "8084:8084"
    #    networks:
@@ -218,10 +260,15 @@ services:
    #    depends_on:
    #       suppliers-db:
    #          condition: service_healthy
+   #       eureka-service:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://suppliers-db:3306/${SUPPLIERS_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${SUPPLIERS_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${SUPPLIERS_DB_PASSWORD}
+   #       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=docker
    #    ports:
    #       - "8085:8085"
    #    networks:
@@ -233,12 +280,17 @@ services:
    #    depends_on:
    #       auth-db:
    #          condition: service_healthy
+   #       eureka-service:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${AUTH_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${AUTH_DB_PASSWORD}
    #       - JWT_SECRET=${JWT_SECRET}
    #       - JWT_EXPIRATION=${JWT_EXPIRATION}
+   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=docker
    #    ports:
    #       - "8086:8086"
    #    networks:
@@ -250,10 +302,15 @@ services:
    #    depends_on:
    #       clients-db:
    #          condition: service_healthy
+   #       eureka-service:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${CLIENTS_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${CLIENTS_DB_PASSWORD}
+   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=docker
    #    ports:
    #       - "8087:8087"
    #    networks:
@@ -264,6 +321,8 @@ services:
    #    build: ./api-gateway
    #    container_name: api-gateway
    #    depends_on:
+   #       eureka-service:
+   #          condition: service_healthy
    #       - patient-service
    #       - billing-service
    #       - admissions-service
@@ -279,6 +338,9 @@ services:
    #       - SUPPLIERS_SERVICE_URL=http://suppliers-service:8085
    #       - AUTH_SERVICE_URL=http://auth-service:8086
    #       - CLIENTS_SERVICE_URL=http://clients-service:8087
+   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=docker
    #    ports:
    #       - "8080:8080"
    #    networks:

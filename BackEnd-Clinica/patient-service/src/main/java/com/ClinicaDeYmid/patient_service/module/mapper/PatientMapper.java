@@ -20,7 +20,6 @@ public abstract class PatientMapper {
             @Mapping(target = "status", constant = "ALIVE"),
             @Mapping(target = "healthPolicyDetails", ignore = true),
             @Mapping(target = "attentions", ignore = true),
-            @Mapping(source = "healthProviderId", target = "healthProviderId")
     })
     public abstract Patient toPatient(NewPatientDto newPatientDTO);
 
@@ -46,7 +45,7 @@ public abstract class PatientMapper {
                 patient.getReligion().getDisplayName(),
                 patient.getTypeOfAffiliation().getDisplayName(),
                 patient.getAffiliationNumber(),
-                patient.getHealthProviderId().toString(),
+                patient.getHealthProviderNit().toString(),
                 patient.getHealthPolicyNumber(),
                 patient.getMothersName(),
                 patient.getFathersName(),

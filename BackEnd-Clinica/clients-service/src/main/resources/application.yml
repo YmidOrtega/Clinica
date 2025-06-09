@@ -1,8 +1,20 @@
+server:
+  port: 8085
+
 spring:
   application:
-    name: clients-service
+    name: suppliers-service
+  datasource:
+    url: jdbc:mysql://suppliers-db:3306/${SUPPLIERS_DB_NAME}
+    username: ${SUPPLIERS_DB_USER}
+    password: ${SUPPLIERS_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    database-platform: org.hibernate.dialect.MySQL8Dialect
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://eureka-service:8761/eureka/

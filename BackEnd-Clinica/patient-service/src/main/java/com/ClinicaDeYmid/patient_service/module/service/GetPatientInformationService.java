@@ -3,7 +3,9 @@ package com.ClinicaDeYmid.patient_service.module.service;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotActiveException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
+import com.ClinicaDeYmid.patient_service.module.controller.HealthProviderClient;
 import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
+import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderDto;
 import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.enums.Status;
@@ -19,6 +21,7 @@ public class GetPatientInformationService {
 
     private final PatientRepository patientRepository;
     private final PatientMapper patientMapper;
+    private final HealthProviderClient healthProviderClient;
 
     @Transactional(readOnly = true)
     public GetPatientDto getPatientDto(String identificationNumber) {
@@ -30,6 +33,8 @@ public class GetPatientInformationService {
             if (patient.getStatus() != Status.ALIVE) {
                 throw new PatientNotActiveException(patient.getStatus().getDisplayName());
             }
+
+            HealthProviderDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
 
             return patientMapper.toPatientDTO(patient);
 

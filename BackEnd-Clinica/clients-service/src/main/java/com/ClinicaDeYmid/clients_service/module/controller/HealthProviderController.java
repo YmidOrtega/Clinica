@@ -26,7 +26,7 @@ import java.net.URI;
 @Slf4j
 @Validated
 @RestController
-@RequestMapping("/api/billing-service/configuration/health-providers")
+@RequestMapping("/api/billing-service/health-providers")
 @RequiredArgsConstructor
 public class HealthProviderController {
 

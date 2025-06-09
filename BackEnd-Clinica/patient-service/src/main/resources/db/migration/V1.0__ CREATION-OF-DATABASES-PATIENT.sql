@@ -134,7 +134,7 @@ CREATE TABLE patients (
         'NONE'
     ) NOT NULL,
     affiliation_number VARCHAR(50),
-    health_provider_id BIGINT NOT NULL,
+    health_provider_nit VARCHAR(100) NOT NULL,
     health_policy_number VARCHAR(50),
     mothers_name VARCHAR(100),
     fathers_name VARCHAR(100),
@@ -177,7 +177,7 @@ CREATE TABLE patients (
     INDEX idx_patients_email (email),
     INDEX idx_patients_created_at (created_at),
     INDEX idx_patients_affiliation (type_of_affiliation, affiliation_number),
-    INDEX idx_patients_health_provider (health_provider_id),
+    INDEX idx_patients_health_provider (health_provider_nit),
 
     -- Validaciones de negocio
     CONSTRAINT chk_patients_uuid_format CHECK (uuid REGEXP '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'),

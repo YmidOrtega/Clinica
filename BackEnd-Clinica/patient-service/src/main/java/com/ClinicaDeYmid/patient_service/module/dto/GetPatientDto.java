@@ -19,7 +19,7 @@ public record GetPatientDto(
         String religion,
         String typeOfAffiliation,
         String affiliationNumber,
-        String healthPolicyId,
+        String healthProviderNit,
         String healthPolicyNumber,
         String mothersName,
         String fathersName,
