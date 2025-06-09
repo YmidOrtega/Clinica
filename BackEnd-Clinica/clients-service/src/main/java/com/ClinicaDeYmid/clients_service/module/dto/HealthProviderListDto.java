@@ -1,16 +1,18 @@
 package com.ClinicaDeYmid.clients_service.module.dto;
 
 import com.ClinicaDeYmid.clients_service.module.domain.Nit;
+import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.enums.TypeProvider;
 
-public record HealthProviderResponseDto (
-        Nit nit,
-        String socialReason,
-        TypeProvider typeProvider,
-        String contractStatus,
-        String phone,
-        String address,
-        String createdAt
+import java.util.List;
 
+public record HealthProviderListDto(
+        Long id,
+        String socialReason,
+        Nit nit,
+        TypeProvider typeProvider,
+        String address,
+        String phone,
+        Boolean active
 ) {
 }

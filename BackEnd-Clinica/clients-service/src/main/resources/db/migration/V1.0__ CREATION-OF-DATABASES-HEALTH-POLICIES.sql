@@ -1,20 +1,17 @@
 -- =====================================================
 -- 1. TABLA HEALTH_PROVIDERS (Proveedores de Salud)
 -- =====================================================
-DROP TABLE IF EXISTS contracts;
-DROP TABLE IF EXISTS contract_covered_services;
-DROP TABLE IF EXISTS health_providers;
 
 CREATE TABLE health_providers (
     id BIGINT NOT NULL AUTO_INCREMENT,
     social_reason VARCHAR(200) NOT NULL,
     nit VARCHAR(20) NOT NULL,
     type_provider VARCHAR(50),
-    address VARCHAR(500),
-    phone VARCHAR(20),
+    address VARCHAR(500) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
     active BOOLEAN DEFAULT TRUE NOT NULL,
-    year_of_validity INT,
-    year_completion INT,
+    year_of_validity INT NOT NULL,
+    year_completion INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
 
@@ -51,15 +48,55 @@ ALTER TABLE health_providers
 COMMENT = 'Tabla que almacena información de los proveedores de salud';
 
 -- =====================================================
--- 2. TABLA CONTRACTS (Contratos)
+-- 2. TABLA PORTFOLIOS (Catálogo de Servicios/Exámenes)
+-- =====================================================
+CREATE TABLE portfolios (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(200) NOT NULL,
+    code_cups VARCHAR(50) NOT NULL,
+    code_clinic VARCHAR(50) NOT NULL,
+    price DECIMAL(15,2) NOT NULL,
+
+    PRIMARY KEY (id),
+
+    -- Índices de búsqueda
+    INDEX idx_portfolios_name (name),
+    INDEX idx_portfolios_code_cups (code_cups),
+    INDEX idx_portfolios_code_clinic (code_clinic),
+    INDEX idx_portfolios_price (price),
+
+    -- Índices únicos para códigos
+    UNIQUE KEY uk_portfolios_code_cups (code_cups),
+    UNIQUE KEY uk_portfolios_code_clinic (code_clinic),
+
+    -- Validaciones
+    CONSTRAINT chk_portfolios_name_not_empty
+        CHECK (TRIM(name) != ''),
+    CONSTRAINT chk_portfolios_name_length
+        CHECK (CHAR_LENGTH(TRIM(name)) >= 2),
+    CONSTRAINT chk_portfolios_code_cups_format
+        CHECK (code_cups IS NULL OR TRIM(code_cups) != ''),
+    CONSTRAINT chk_portfolios_code_clinic_format
+        CHECK (code_clinic IS NULL OR TRIM(code_clinic) != ''),
+    CONSTRAINT chk_portfolios_price_positive
+        CHECK (price IS NULL OR price >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Comentarios para documentación
+ALTER TABLE portfolios
+COMMENT = 'Tabla que almacena el catálogo maestro de servicios y exámenes disponibles';
+
+-- =====================================================
+-- 3. TABLA CONTRACTS (Contratos)
 -- =====================================================
 CREATE TABLE contracts (
     id BIGINT NOT NULL AUTO_INCREMENT,
     health_provider_id BIGINT NOT NULL,
-    contract_number VARCHAR(100) NOT NULL,
-    agreed_tariff DECIMAL(15,2),
-    start_date DATE,
-    end_date DATE,
+    contract_name VARCHAR(255) NOT NULL,
+    contract_number VARCHAR(100) UNIQUE NOT NULL,
+    agreed_tariff DECIMAL(15,2) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL ,
     status VARCHAR(20) DEFAULT 'ACTIVE' NOT NULL,
     active BOOLEAN DEFAULT TRUE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -77,6 +114,7 @@ CREATE TABLE contracts (
     INDEX idx_contracts_end_date (end_date),
     INDEX idx_contracts_created_at (created_at),
     INDEX idx_contracts_active (active),
+    INDEX idx_contracts_contract_name (contract_name),
 
     -- Claves foráneas
     CONSTRAINT fk_contracts_health_provider
@@ -84,6 +122,8 @@ CREATE TABLE contracts (
         ON DELETE CASCADE ON UPDATE CASCADE,
 
     -- Validaciones
+    CONSTRAINT chk_contracts_contract_name_not_empty
+        CHECK (TRIM(contract_name) != ''),
     CONSTRAINT chk_contracts_contract_number_not_empty
         CHECK (TRIM(contract_number) != ''),
     CONSTRAINT chk_contracts_contract_number_length
@@ -101,52 +141,31 @@ ALTER TABLE contracts
 COMMENT = 'Tabla que almacena información de los contratos con proveedores de salud';
 
 -- =====================================================
--- 3. TABLA CONTRACT_COVERED_SERVICES (Servicios Cubiertos por Contrato)
+-- 4. TABLA CONTRACT_PORTFOLIOS (Servicios Contratados)
 -- =====================================================
-CREATE TABLE contract_covered_services (
+CREATE TABLE contract_portfolios (
     id BIGINT NOT NULL AUTO_INCREMENT,
     contract_id BIGINT NOT NULL,
-    service_name VARCHAR(200) NOT NULL,
+    portfolio_id BIGINT NOT NULL,
 
     PRIMARY KEY (id),
 
     -- Índices
-    INDEX idx_contract_services_contract_id (contract_id),
-    INDEX idx_contract_services_service_name (service_name),
+    INDEX idx_contract_portfolios_contract_id (contract_id),
+    INDEX idx_contract_portfolios_portfolio_id (portfolio_id),
 
-    -- Clave foránea
-    CONSTRAINT fk_contract_services_contract
+    -- Claves foráneas
+    CONSTRAINT fk_contract_portfolios_contract
         FOREIGN KEY (contract_id) REFERENCES contracts(id)
         ON DELETE CASCADE ON UPDATE CASCADE,
-
-    -- Validaciones
-    CONSTRAINT chk_contract_services_service_name_not_empty
-        CHECK (TRIM(service_name) != ''),
-    CONSTRAINT chk_contract_services_service_name_length
-        CHECK (CHAR_LENGTH(TRIM(service_name)) >= 2),
+    CONSTRAINT fk_contract_portfolios_portfolio
+        FOREIGN KEY (portfolio_id) REFERENCES portfolios(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
 
     -- Evitar duplicados de servicio por contrato
-    UNIQUE KEY uk_contract_services_contract_service (contract_id, service_name)
+    UNIQUE KEY uk_contract_portfolios_contract_portfolio (contract_id, portfolio_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Comentarios para documentación
-ALTER TABLE contract_covered_services
-COMMENT = 'Tabla que almacena los servicios cubiertos por cada contrato';
-
--- =====================================================
--- 4. DATOS DE EJEMPLO (OPCIONAL)
--- =====================================================
--- Insertar un proveedor de ejemplo
-INSERT INTO health_providers (social_reason, nit, type_provider, address, phone, year_of_validity, year_completion)
-VALUES ('EPS SURA S.A.', '860002503', 'EPS', 'Calle 72 #10-07 Bogotá', '601-5115000', 2024, 2025);
-
--- Insertar un contrato de ejemplo
-INSERT INTO contracts (health_provider_id, contract_number, agreed_tariff, start_date, end_date, status)
-VALUES (1, 'CONT-2024-001', 150000.00, '2024-01-01', '2024-12-31', 'ACTIVE');
-
--- Insertar servicios cubiertos de ejemplo
-INSERT INTO contract_covered_services (contract_id, service_name) VALUES
-(1, 'Consulta médica general'),
-(1, 'Exámenes de laboratorio'),
-(1, 'Radiografías'),
-(1, 'Procedimientos menores');
+ALTER TABLE contract_portfolios
+COMMENT = 'Tabla intermedia que relaciona contratos con los servicios del portafolio que pueden contratar';

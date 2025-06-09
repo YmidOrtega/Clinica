@@ -35,6 +35,9 @@ public class Contract {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "contract_name", nullable = false)
+    private String contractName;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "health_provider_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_contracts_health_provider"))
@@ -57,8 +60,14 @@ public class Contract {
     @Builder.Default
     private ContractStatus status = ContractStatus.ACTIVE;
 
-
-    @Column(name = "service_name", length = 200)
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "contract_portfolios",
+            joinColumns = @JoinColumn(name = "contract_id"),
+            inverseJoinColumns = @JoinColumn(name = "portfolio_id"),
+            foreignKey = @ForeignKey(name = "fk_contract_portfolios_contract"),
+            inverseForeignKey = @ForeignKey(name = "fk_contract_portfolios_portfolio")
+    )
     @Builder.Default
     private List<Portfolio> coveredServices = new ArrayList<>();
 
