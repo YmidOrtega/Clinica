@@ -76,9 +76,8 @@ public class HealthProvider {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "healthProvider", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "healthProvider", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @Builder.Default
-    @JsonIgnore
     private List<Contract> contracts = new ArrayList<>();
 
     @Override
