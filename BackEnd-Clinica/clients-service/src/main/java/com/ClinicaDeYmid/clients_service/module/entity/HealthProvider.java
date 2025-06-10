@@ -2,7 +2,6 @@ package com.ClinicaDeYmid.clients_service.module.entity;
 
 import com.ClinicaDeYmid.clients_service.module.domain.Nit;
 import com.ClinicaDeYmid.clients_service.module.enums.TypeProvider;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

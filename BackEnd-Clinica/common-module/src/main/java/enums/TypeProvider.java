@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clients_service.module.enums;
+package enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

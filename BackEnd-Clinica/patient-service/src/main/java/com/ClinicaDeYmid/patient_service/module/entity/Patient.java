@@ -1,8 +1,8 @@
 package com.ClinicaDeYmid.patient_service.module.entity;
 
 import com.ClinicaDeYmid.patient_service.module.dto.AttentionDto;
-import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderDto;
 import com.ClinicaDeYmid.patient_service.module.enums.*;
+import dto.HealthProviderResponseDto;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -86,7 +86,7 @@ public class Patient {
     private String healthProviderNit;
 
     @Transient
-    private HealthProviderDto healthPolicyDetails;;
+    private HealthProviderResponseDto healthProviderResponseDto;;
 
     @Column(name = "health_policy_number")
     private String healthPolicyNumber;

@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clients_service.module.enums;
+package enums;
 
 public enum ContractStatus {
     ACTIVE("ACTIVO"),

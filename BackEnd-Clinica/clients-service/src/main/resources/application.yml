@@ -4,18 +4,10 @@ server:
 spring:
   application:
     name: clients-service
-  datasource:
-    url: jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}
-    username: ${CLIENTS_DB_USER}
-    password: ${CLIENTS_DB_PASSWORD}
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    database-platform: org.hibernate.dialect.MySQL8Dialect
 
 eureka:
   client:
     service-url:
-      defaultZone: http://eureka-service:8761/eureka/
+      defaultZone: http://localhost:8761/eureka
+      #defaultZone: http://eureka-service:8761/eureka/
 

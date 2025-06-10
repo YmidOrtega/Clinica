@@ -9,10 +9,10 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableFeignClients
-public class ClinicaDeYmidApplication {
+public class PatientServiceApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(ClinicaDeYmidApplication.class, args);
+		SpringApplication.run(PatientServiceApplication.class, args);
 	}
 
 }

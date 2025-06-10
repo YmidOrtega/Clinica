@@ -5,7 +5,6 @@ import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotActiveExcepti
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
 import com.ClinicaDeYmid.patient_service.module.controller.HealthProviderClient;
 import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
-import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderDto;
 import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.enums.Status;
