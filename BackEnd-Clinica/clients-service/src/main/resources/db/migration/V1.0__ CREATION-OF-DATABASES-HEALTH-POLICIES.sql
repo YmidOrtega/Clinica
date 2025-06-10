@@ -6,7 +6,16 @@ CREATE TABLE health_providers (
     id BIGINT NOT NULL AUTO_INCREMENT,
     social_reason VARCHAR(200) NOT NULL,
     nit VARCHAR(20) NOT NULL,
-    type_provider VARCHAR(50),
+    type_provider ENUM(
+        'EPS',
+        'IPS',
+        'ARL',
+        'POLIZA_DE_SALUD',
+        'POLIZA_ESTUDIANTE',
+        'MEDICINA_PREPAGADA',
+        'PLAN_COMPLEMENTARIO',
+        'OTRO'
+    ) DEFAULT NULL,
     address VARCHAR(500) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     active BOOLEAN DEFAULT TRUE NOT NULL,
@@ -97,7 +106,14 @@ CREATE TABLE contracts (
     agreed_tariff DECIMAL(15,2) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL ,
-    status VARCHAR(20) DEFAULT 'ACTIVE' NOT NULL,
+    status ENUM(
+        'ACTIVE',
+        'INACTIVE',
+        'PENDING',
+        'EXPIRED',
+        'CANCELLED',
+        'SUSPENDED'
+    ) DEFAULT 'ACTIVE' NOT NULL,
     active BOOLEAN DEFAULT TRUE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,

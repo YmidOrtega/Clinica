@@ -296,25 +296,26 @@ services:
    #    networks:
    #       - clinica-net
 
-   # clients-service:
-   #    build: ./clients-service
-   #    container_name: clients-service
-   #    depends_on:
-   #       clients-db:
-   #          condition: service_healthy
-   #       eureka-service:
-   #          condition: service_healthy
-   #    environment:
-   #       - SPRING_DATASOURCE_URL=jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}
-   #       - SPRING_DATASOURCE_USERNAME=${CLIENTS_DB_USER}
-   #       - SPRING_DATASOURCE_PASSWORD=${CLIENTS_DB_PASSWORD}
-   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-   #       - SPRING_PROFILES_ACTIVE=docker
-   #    ports:
-   #       - "8087:8087"
-   #    networks:
-   #       - clinica-net
+   # Servicio de clientes
+   clients-service:
+      build: ./clients-service
+      container_name: clients-service
+      depends_on:
+         clients-db:
+            condition: service_healthy
+         eureka-service:
+            condition: service_healthy
+      environment:
+         - SPRING_DATASOURCE_URL=jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}
+         - SPRING_DATASOURCE_USERNAME=${CLIENTS_DB_USER}
+         - SPRING_DATASOURCE_PASSWORD=${CLIENTS_DB_PASSWORD}
+         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+         - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+         - SPRING_PROFILES_ACTIVE=prod
+      ports:
+         - "8087:8087"
+      networks:
+         - clinica-net
 
    # # API Gateway
    # api-gateway:

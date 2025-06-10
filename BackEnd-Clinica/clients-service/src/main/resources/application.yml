@@ -1,13 +1,13 @@
 server:
-  port: 8085
+  port: 8087
 
 spring:
   application:
-    name: suppliers-service
+    name: clients-service
   datasource:
-    url: jdbc:mysql://suppliers-db:3306/${SUPPLIERS_DB_NAME}
-    username: ${SUPPLIERS_DB_USER}
-    password: ${SUPPLIERS_DB_PASSWORD}
+    url: jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}
+    username: ${CLIENTS_DB_USER}
+    password: ${CLIENTS_DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
@@ -18,3 +18,4 @@ eureka:
   client:
     service-url:
       defaultZone: http://eureka-service:8761/eureka/
+

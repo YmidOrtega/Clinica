@@ -1,75 +1,103 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="f71bce1b-3fd4-4904-884f-7fb88e0554f5" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitattributes" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.mvn/wrapper/maven-wrapper.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mvnw" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mvnw.cmd" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/ClinicaDeYmidApplication.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/Attention.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/Doctor.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/TypeOfAttention.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/AttentionType.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/Cause.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/EntryRoute.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/ServiceType.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/billing/model/emun/Specialty.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/HealthPolicy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/Occupation.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/Patient.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/Site.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/StatusTransitionValidator.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Disability.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Gender.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/IdentificationType.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Language.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/MaritalStatus.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Religion.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Status.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/TypeOfAffiliation.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/patient/model/emun/Zone.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/user/model/Role.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/user/model/StatusTransitionValidator.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/user/model/StatusUser.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/ClinicaDeYmid/module/user/model/User.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/migration/V1.0__ CREATION-OF-DATABASES-PATIENT.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/migration/V1.1__CREATION-OF-DATABASES-USERS.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/migration/V1.2__CREATION-OF-DATABASES-BILLING.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/com/ClinicaDeYmid/ClinicaDeYmidApplicationTests.java" beforeDir="false" />
+    <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/clients-service/Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application-prod.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clients-service/src/test/java/com/ClinicaDeYmid/clients_service/module/controller/HealthProviderControllerTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-assistant-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/db/migration/V1.0__ CREATION-OF-DATABASES-HEALTH-POLICIES.sql" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/db/migration/V1.0__ CREATION-OF-DATABASES-HEALTH-POLICIES.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/test/java/com/ClinicaDeYmid/clients_service/ClientsServiceApplicationTests.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eureka-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/eureka-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/ClinicaDeYmidApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/ClinicaDeYmidApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "customColor": "",
-  "associatedIndex": 8
-}]]></component>
-  <component name="ProjectId" id="2xxj6I2ZiGljKQAc8qkdVuoBR9g" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6
+}</component>
+  <component name="ProjectId" id="2yIDlCq9rtHb6Lm17UAUc1Bwj1W" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "settings.editor.selected.configurable": "preferences.pluginManager"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.ClinicaDeYmidApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Maven.admissions-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.api-gateway [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.eureka-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.microservice [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.patient-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;settings.sync&quot;
   }
-}]]></component>
+}</component>
+  <component name="RunManager">
+    <configuration name="ClinicaDeYmidApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.patient_service.ClinicaDeYmidApplication" />
+      <module name="patient-service" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ClinicaDeYmid.patient_service.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Application.ClinicaDeYmidApplication" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="f71bce1b-3fd4-4904-884f-7fb88e0554f5" name="Changes" comment="" />
-      <created>1748886442070</created>
+      <changelist id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="" />
+      <created>1749513342635</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1748886442070</updated>
+      <updated>1749513342635</updated>
     </task>
     <servers />
   </component>
