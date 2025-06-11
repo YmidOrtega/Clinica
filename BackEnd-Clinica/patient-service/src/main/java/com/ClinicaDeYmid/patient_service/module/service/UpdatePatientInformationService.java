@@ -1,10 +1,13 @@
 package com.ClinicaDeYmid.patient_service.module.service;
 
+import clients_patients.dto.HealthProviderResponseDto;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
+import com.ClinicaDeYmid.patient_service.module.dto.GetClientDto;
 import com.ClinicaDeYmid.patient_service.module.dto.PatientResponseDto;
 import com.ClinicaDeYmid.patient_service.module.dto.UpdatePatientDto;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
+import com.ClinicaDeYmid.patient_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +21,7 @@ public class UpdatePatientInformationService {
 
     private final PatientRepository patientRepository;
     private final PatientMapper patientMapper;
+    private final HealthProviderClient healthProviderClient;
 
     @Transactional
     public PatientResponseDto updatePatientInformation(UpdatePatientDto updatePatientDto, String identification) {
@@ -27,18 +31,13 @@ public class UpdatePatientInformationService {
             Patient patient = patientRepository.findByIdentificationNumber(identification)
                     .orElseThrow(() -> new PatientNotFoundException(identification));
 
+            HealthProviderResponseDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
+
             patientMapper.updatePatientFromDTO(updatePatientDto, patient);
 
             Patient updatedPatient = patientRepository.save(patient);
 
-            return new PatientResponseDto(
-                    updatedPatient.getUuid(),
-                    updatedPatient.getName(),
-                    updatedPatient.getLastName(),
-                    updatedPatient.getIdentificationNumber(),
-                    updatedPatient.getEmail(),
-                    updatedPatient.getCreatedAt()
-            );
+            return patientMapper.toPatientResponseDto(updatedPatient, provider);
 
         } catch (DataAccessException ex) {
             throw new PatientDataAccessException("actualizar información del paciente", ex);

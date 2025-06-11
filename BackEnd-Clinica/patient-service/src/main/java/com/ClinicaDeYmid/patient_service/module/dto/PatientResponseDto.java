@@ -8,8 +8,8 @@ public record PatientResponseDto(
         String lastName,
         String identificationNumber,
         String email,
-        LocalDateTime createdAt //,
-        //HealthPolicyDto healthPolicyId
+        LocalDateTime createdAt,
+        GetClientDto clientInfo
 ){
 
 }

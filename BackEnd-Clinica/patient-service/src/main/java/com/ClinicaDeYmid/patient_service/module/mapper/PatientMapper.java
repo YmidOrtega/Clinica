@@ -1,9 +1,6 @@
 package com.ClinicaDeYmid.patient_service.module.mapper;
 
-import com.ClinicaDeYmid.patient_service.module.dto.GetClientDto;
-import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
-import com.ClinicaDeYmid.patient_service.module.dto.NewPatientDto;
-import com.ClinicaDeYmid.patient_service.module.dto.UpdatePatientDto;
+import com.ClinicaDeYmid.patient_service.module.dto.*;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import clients_patients.dto.HealthProviderResponseDto;
 import org.mapstruct.*;
@@ -11,7 +8,7 @@ import org.mapstruct.*;
 import java.time.LocalDateTime;
 
 @Mapper(componentModel = "spring", imports = {LocalDateTime.class})
-public abstract class PatientMapper {
+public interface PatientMapper {
 
     // Mapeo de DTO a Entity para creación
     @Mappings({
@@ -23,10 +20,10 @@ public abstract class PatientMapper {
             @Mapping(target = "healthProviderResponseDto", ignore = true),
             @Mapping(target = "attentions", ignore = true),
     })
-    public abstract Patient toPatient(NewPatientDto newPatientDTO);
+    Patient toPatient(NewPatientDto newPatientDTO);
 
-    // Mapeo de Entity a DTO con implementación manual
-    public GetPatientDto toPatientDTO(Patient patient, HealthProviderResponseDto healthProviderResponseDto) {
+    // Mapeo de Entity a DTO manual (por lógica personalizada)
+    default GetPatientDto toPatientDTO(Patient patient, HealthProviderResponseDto healthProviderResponseDto) {
         if (patient == null) {
             return null;
         }
@@ -68,33 +65,41 @@ public abstract class PatientMapper {
         );
     }
 
-    // Metodo para actualizar una entidad existente desde DTO
-
+    // Metodo para actualizar una entidad desde DTO
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings({
             @Mapping(target = "id", ignore = true),
             @Mapping(target = "uuid", ignore = true),
             @Mapping(target = "identificationType", ignore = true),
-            //@Mapping(source = "identificationNumber", ignore = true),
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(java.time.LocalDateTime.now())"),
             @Mapping(target = "status", ignore = true),
             @Mapping(target = "healthProviderResponseDto", ignore = true),
             @Mapping(target = "attentions", ignore = true)
     })
-    public abstract void updatePatientFromDTO(UpdatePatientDto updatePatientDto, @MappingTarget Patient patient);
+    void updatePatientFromDTO(UpdatePatientDto updatePatientDto, @MappingTarget Patient patient);
 
-    // Metodo adicional para mapeo básico sin relaciones complejas
-    @Mappings({
-            @Mapping(target = "id", ignore = true),
-            @Mapping(target = "uuid", ignore = true),
-            @Mapping(target = "placeOfBirth", ignore = true),
-            @Mapping(target = "placeOfIssuance", ignore = true),
-            @Mapping(target = "occupation", ignore = true),
-            @Mapping(target = "locality", ignore = true),
-            @Mapping(target = "createdAt", ignore = true),
-            @Mapping(target = "updatedAt", expression = "java(LocalDateTime.now())"),
-            @Mapping(target = "status", constant = "ALIVE"),
-    })
-    public abstract Patient toPatientBasic(NewPatientDto newPatientDTO);
+    // Mapeo de Entity a DTO manual (también con lógica personalizada)
+    default PatientResponseDto toPatientResponseDto(Patient patient, HealthProviderResponseDto healthProviderResponseDto) {
+        if (patient == null) {
+            return null;
+        }
+
+        GetClientDto clientInfo = new GetClientDto(
+                patient.getHealthProviderNit(),
+                healthProviderResponseDto != null ? healthProviderResponseDto.socialReason() : null,
+                healthProviderResponseDto != null ? healthProviderResponseDto.typeProvider().toString() : null
+        );
+
+        return new PatientResponseDto(
+                patient.getUuid(),
+                patient.getName(),
+                patient.getLastName(),
+                patient.getIdentificationNumber(),
+                patient.getEmail(),
+                patient.getCreatedAt(),
+                clientInfo
+        );
+    }
+
 }
