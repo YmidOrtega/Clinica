@@ -1,10 +1,10 @@
-package com.ClinicaDeYmid.billing_service;
+package com.ClinicaDeYmid.suppliers_service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class BillingServiceApplicationTests {
+class SuppliersServiceApplicationTests {
 
 	@Test
 	void contextLoads() {

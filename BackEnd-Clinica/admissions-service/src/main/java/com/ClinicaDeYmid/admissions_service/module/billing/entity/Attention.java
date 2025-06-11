@@ -3,11 +3,8 @@ package com.ClinicaDeYmid.module.billing.model;
 import com.ClinicaDeYmid.module.billing.model.emun.Cause;
 import com.ClinicaDeYmid.module.billing.model.emun.EntryRoute;
 import com.ClinicaDeYmid.module.billing.model.emun.ServiceType;
-import com.ClinicaDeYmid.module.patient.model.HealthPolicy;
-import com.ClinicaDeYmid.module.patient.model.Patient;
-import com.ClinicaDeYmid.module.patient.model.Site;
-import com.ClinicaDeYmid.module.patient.model.emun.Zone;
 import com.ClinicaDeYmid.module.user.model.User;
+import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -64,13 +61,11 @@ public class Attention {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "type_of_attention_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_attention_type"))
-    @NotNull(message = "El tipo de atención es obligatorio")
     private com.ClinicaDeYmid.module.billing.model.TypeOfAttention typeOfAttention;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "patient_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_attention_patient"))
-    @NotNull(message = "El paciente es obligatorio")
     private Patient patient;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -81,24 +76,18 @@ public class Attention {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "doctor_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_attention_doctor"))
-    @NotNull(message = "El doctor es obligatorio")
     private Doctor doctor;
 
-    // Información del acompañante
-    @Size(max = 100, message = "El nombre del acompañante no puede exceder 100 caracteres")
+
     @Column(name = "companion_name", length = 100)
     private String companionName;
 
-    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$",
-            message = "El teléfono del acompañante no tiene un formato válido")
     @Column(name = "companion_phone", length = 20)
     private String companionPhone;
 
-    @Size(max = 50, message = "La relación no puede exceder 50 caracteres")
     @Column(length = 50)
     private String relationship;
 
-    @Size(max = 1000, message = "Las observaciones no pueden exceder 1000 caracteres")
     @Column(length = 1000)
     private String observations;
 
@@ -130,7 +119,6 @@ public class Attention {
     private ServiceType locationService;
 
     @Enumerated(EnumType.STRING)
-    @NotNull(message = "La causa de atención es obligatoria")
     @Column(nullable = false, length = 50)
     private Cause cause;
 

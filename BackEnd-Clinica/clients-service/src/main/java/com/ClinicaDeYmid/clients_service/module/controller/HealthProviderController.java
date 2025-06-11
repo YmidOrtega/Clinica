@@ -1,10 +1,10 @@
 package com.ClinicaDeYmid.clients_service.module.controller;
 
 import com.ClinicaDeYmid.clients_service.module.dto.CreateHealthProviderDto;
-import com.ClinicaDeYmid.clients_service.module.dto.GetHealthProviderDto;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 import com.ClinicaDeYmid.clients_service.module.service.*;
+import dto.HealthProviderResponseDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -73,14 +73,14 @@ public class HealthProviderController {
      * Obtener un proveedor de salud por NIT
      */
     @GetMapping("/{nit}")
-    public ResponseEntity<GetHealthProviderDto> getHealthProviderByNit(
+    public ResponseEntity<HealthProviderResponseDto> getHealthProviderByNit(
             @PathVariable @NotNull(message = "El NIT no puede ser nulo")
             @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
             String nit) {
 
         log.info("Retrieving health provider with NIT: {}", nit);
 
-        GetHealthProviderDto providerDto = getHealthProviderService.getHealthProviderByNit(nit);
+        HealthProviderResponseDto providerDto = getHealthProviderService.getHealthProviderByNit(nit);
 
         log.info("Health provider found with NIT: {}", nit);
         return ResponseEntity.ok(providerDto);

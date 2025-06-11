@@ -5,33 +5,47 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/common-module/pom.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/enums/ContractStatus.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/enums/TypeProvider.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/common-module/src/main/java/dto/ContractDto.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/dto/GetClientDto.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/billing/entity/Attention.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/billing/entity/Attention.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/clients-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/dto/GetHealthProviderDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/common-module/src/main/java/dto/HealthProviderResponseDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/controller/HealthProviderController.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/controller/HealthProviderController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/domain/Nit.java" beforeDir="false" afterPath="$PROJECT_DIR$/common-module/src/main/java/domain/Nit.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/dto/CreateHealthProviderDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/dto/CreateHealthProviderDto.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/dto/HealthProviderListDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/dto/HealthProviderListDto.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/entity/Contract.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/entity/Contract.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/entity/HealthProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/entity/HealthProvider.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/enums/ContractStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/common-module/src/main/java/enums/ContractStatus.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/enums/TypeProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/common-module/src/main/java/enums/TypeProvider.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/application-prod.properties" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application-prod.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/mapper/HealthProviderMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/mapper/HealthProviderMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/service/GetHealthProviderService.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/service/GetHealthProviderService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common-module/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/common-module/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common-module/src/main/java/dto/HealthProviderResponseDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/common-module/src/main/java/dto/HealthProviderResponseDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common-module/src/main/java/enums/ContractStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/common-module/src/main/java/enums/ContractStatus.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/patient-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/ClinicaDeYmidApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/PatientServiceApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/controller/HealthProviderClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/controller/HealthProviderClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/dto/HealthProviderDto.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/entity/Patient.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/entity/Patient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/controller/HealthProviderClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/feignclient/HealthProviderClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/dto/GetPatientDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/dto/GetPatientDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/mapper/PatientMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/mapper/PatientMapper.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/service/GetPatientInformationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/service/GetPatientInformationService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/test/java/com/ClinicaDeYmid/ClinicaDeYmidApplicationTests.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/test/java/com/ClinicaDeYmid/PatientServiceApplicationTests.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/billing_service/BillingServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/SuppliersServiceApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/test/java/com/ClinicaDeYmid/billing_service/BillingServiceApplicationTests.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/test/java/com/ClinicaDeYmid/suppliers_service/SuppliersServiceApplicationTests.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Enum" />
+        <option value="Record" />
+        <option value="Class" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
@@ -47,31 +61,36 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Application.ClientsServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Application.ClinicaDeYmidApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Application.EurekaServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Application.PatientServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Maven.admissions-service [clean].executor&quot;: &quot;Run&quot;,
-    &quot;Maven.api-gateway [clean].executor&quot;: &quot;Run&quot;,
-    &quot;Maven.eureka-service [clean].executor&quot;: &quot;Run&quot;,
-    &quot;Maven.microservice [clean].executor&quot;: &quot;Run&quot;,
-    &quot;Maven.patient-service [clean].executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_directory_selection&quot;: &quot;C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/common-module/src/main/java&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;settings.sync&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.ClientsServiceApplication.executor": "Run",
+    "Application.ClinicaDeYmidApplication.executor": "Run",
+    "Application.EurekaServiceApplication.executor": "Run",
+    "Application.PatientServiceApplication.executor": "Run",
+    "Maven.admissions-service [clean].executor": "Run",
+    "Maven.api-gateway [clean].executor": "Run",
+    "Maven.eureka-service [clean].executor": "Run",
+    "Maven.microservice [clean].executor": "Run",
+    "Maven.microservice [install].executor": "Run",
+    "Maven.patient-service [clean].executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_directory_selection": "C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/common-module/src/main/java",
+    "last_opened_file_path": "C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/enums",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0",
+    "settings.editor.selected.configurable": "settings.sync"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\clients-service\src\main\java\com\ClinicaDeYmid\clients_service\module\enums" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\common-module\src\main\java\domain" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\common-module\src\main\java\enums" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\common-module\src\main\java\dto" />
     </key>
@@ -126,6 +145,9 @@
       </method>
     </configuration>
     <configuration name="PatientServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="envFilePaths">
+        <option value="$PROJECT_DIR$/.env" />
+      </option>
       <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.patient_service.PatientServiceApplication" />
       <module name="patient-service" />
       <extension name="coverage">
@@ -147,8 +169,8 @@
     <recent_temporary>
       <list>
         <item itemvalue="Application.PatientServiceApplication" />
-        <item itemvalue="Application.ClientsServiceApplication" />
         <item itemvalue="Application.EurekaServiceApplication" />
+        <item itemvalue="Application.ClientsServiceApplication" />
         <item itemvalue="Application.ClinicaDeYmidApplication" />
       </list>
     </recent_temporary>

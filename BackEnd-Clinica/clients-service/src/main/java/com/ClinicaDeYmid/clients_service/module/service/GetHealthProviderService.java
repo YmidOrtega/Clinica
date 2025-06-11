@@ -3,11 +3,11 @@ package com.ClinicaDeYmid.clients_service.module.service;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderDataAccessException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderNotActiveException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderNotFoundException;
-import com.ClinicaDeYmid.clients_service.module.dto.GetHealthProviderDto;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 import com.ClinicaDeYmid.clients_service.module.mapper.HealthProviderMapper;
 import com.ClinicaDeYmid.clients_service.module.repository.HealthProviderRepository;
+import dto.HealthProviderResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -31,7 +31,7 @@ public class GetHealthProviderService {
     private final HealthProviderMapper healthProviderMapper;
 
     @Transactional(readOnly = true)
-    public GetHealthProviderDto getHealthProviderByNit(String nit) {
+    public HealthProviderResponseDto getHealthProviderByNit(String nit) {
         // Validación de entrada
         validateNitInput(nit);
 

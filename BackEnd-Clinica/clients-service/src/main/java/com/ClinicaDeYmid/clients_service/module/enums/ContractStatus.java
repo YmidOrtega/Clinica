@@ -1,4 +1,4 @@
-package enums;
+package com.ClinicaDeYmid.clients_service.module.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,5 +16,3 @@ public enum ContractStatus {
     private final String displayName;
 
 }
-
-

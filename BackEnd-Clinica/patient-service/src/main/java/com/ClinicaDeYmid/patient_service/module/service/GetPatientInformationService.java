@@ -3,12 +3,13 @@ package com.ClinicaDeYmid.patient_service.module.service;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotActiveException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
-import com.ClinicaDeYmid.patient_service.module.controller.HealthProviderClient;
+import com.ClinicaDeYmid.patient_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
 import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.enums.Status;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
+import dto.HealthProviderResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,9 +34,9 @@ public class GetPatientInformationService {
                 throw new PatientNotActiveException(patient.getStatus().getDisplayName());
             }
 
-            HealthProviderDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
+            HealthProviderResponseDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
 
-            return patientMapper.toPatientDTO(patient);
+            return patientMapper.toPatientDTO(patient, provider);
 
         } catch (DataAccessException ex) {
             throw new PatientDataAccessException("obtener información del paciente", ex);

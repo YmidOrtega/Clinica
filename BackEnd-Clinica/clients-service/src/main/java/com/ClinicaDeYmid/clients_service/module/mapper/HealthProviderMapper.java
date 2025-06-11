@@ -1,10 +1,11 @@
 package com.ClinicaDeYmid.clients_service.module.mapper;
 
-import com.ClinicaDeYmid.clients_service.module.dto.GetHealthProviderDto;
+
 import com.ClinicaDeYmid.clients_service.module.dto.CreateHealthProviderDto;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 
+import dto.HealthProviderResponseDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -14,7 +15,7 @@ public interface HealthProviderMapper {
     // Mapeo de Entidad a Response DTO
     @Mapping(target = "contractStatus",
             expression = "java(healthProvider.getContracts() != null && !healthProvider.getContracts().isEmpty() ? healthProvider.getContracts().get(0).getStatus() : null)")
-    GetHealthProviderDto toResponseDto(HealthProvider healthProvider);
+    HealthProviderResponseDto toResponseDto(HealthProvider healthProvider);
 
     // Mapeo de Create DTO a Entidad
     @Mapping(target = "id", ignore = true)

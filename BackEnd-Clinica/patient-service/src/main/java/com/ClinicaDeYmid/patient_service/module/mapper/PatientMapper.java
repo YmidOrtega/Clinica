@@ -1,9 +1,11 @@
 package com.ClinicaDeYmid.patient_service.module.mapper;
 
+import com.ClinicaDeYmid.patient_service.module.dto.GetClientDto;
 import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
 import com.ClinicaDeYmid.patient_service.module.dto.NewPatientDto;
 import com.ClinicaDeYmid.patient_service.module.dto.UpdatePatientDto;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
+import dto.HealthProviderResponseDto;
 import org.mapstruct.*;
 
 import java.time.LocalDateTime;
@@ -18,16 +20,20 @@ public abstract class PatientMapper {
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(LocalDateTime.now())"),
             @Mapping(target = "status", constant = "ALIVE"),
-            @Mapping(target = "healthPolicyDetails", ignore = true),
+            @Mapping(target = "healthProviderResponseDto", ignore = true),
             @Mapping(target = "attentions", ignore = true),
     })
     public abstract Patient toPatient(NewPatientDto newPatientDTO);
 
     // Mapeo de Entity a DTO con implementación manual
-    public GetPatientDto toPatientDTO(Patient patient) {
+    public GetPatientDto toPatientDTO(Patient patient, HealthProviderResponseDto healthProviderResponseDto) {
         if (patient == null) {
             return null;
         }
+
+        String socialReason = (healthProviderResponseDto != null) ? healthProviderResponseDto.socialReason() : null;
+        String typeProvider = (healthProviderResponseDto != null) ? healthProviderResponseDto.typeProvider().toString() : null;
+
         return new GetPatientDto(
                 patient.getUuid(),
                 patient.getIdentificationType().getDisplayName(),
@@ -45,7 +51,11 @@ public abstract class PatientMapper {
                 patient.getReligion().getDisplayName(),
                 patient.getTypeOfAffiliation().getDisplayName(),
                 patient.getAffiliationNumber(),
-                patient.getHealthProviderNit().toString(),
+                new GetClientDto(
+                        patient.getHealthProviderNit(),
+                        socialReason,
+                        typeProvider
+                ),
                 patient.getHealthPolicyNumber(),
                 patient.getMothersName(),
                 patient.getFathersName(),
@@ -69,7 +79,7 @@ public abstract class PatientMapper {
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(java.time.LocalDateTime.now())"),
             @Mapping(target = "status", ignore = true),
-            @Mapping(target = "healthPolicyDetails", ignore = true),
+            @Mapping(target = "healthProviderResponseDto", ignore = true),
             @Mapping(target = "attentions", ignore = true)
     })
     public abstract void updatePatientFromDTO(UpdatePatientDto updatePatientDto, @MappingTarget Patient patient);
