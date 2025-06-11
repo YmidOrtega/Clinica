@@ -9,7 +9,7 @@ import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.enums.Status;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
-import dto.HealthProviderResponseDto;
+import clients_patients.dto.HealthProviderResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;

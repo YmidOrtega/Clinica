@@ -1,9 +1,9 @@
-package dto;
+package clients_patients.dto;
 
 
-import domain.Nit;
-import enums.ContractStatus;
-import enums.TypeProvider;
+import clients_patients.domain.Nit;
+import clients_patients.enums.ContractStatus;
+import clients_patients.enums.TypeProvider;
 
 
 import java.util.List;

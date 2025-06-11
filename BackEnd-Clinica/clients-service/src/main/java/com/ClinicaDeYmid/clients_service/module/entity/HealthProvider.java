@@ -2,7 +2,7 @@ package com.ClinicaDeYmid.clients_service.module.entity;
 
 
 
-import domain.Nit;
+import clients_patients.domain.Nit;
 import com.ClinicaDeYmid.clients_service.module.enums.TypeProvider;
 import jakarta.persistence.*;
 import lombok.Data;

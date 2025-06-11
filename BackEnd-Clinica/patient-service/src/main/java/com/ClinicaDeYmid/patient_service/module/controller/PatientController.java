@@ -3,7 +3,7 @@ package com.ClinicaDeYmid.patient_service.module.controller;
 import com.ClinicaDeYmid.patient_service.module.dto.*;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
 import com.ClinicaDeYmid.patient_service.module.service.GetPatientInformationService;
-import com.ClinicaDeYmid.patient_service.module.service.PatientRegistrationService;
+import com.ClinicaDeYmid.patient_service.module.service.PatientRecordService;
 import com.ClinicaDeYmid.patient_service.module.service.PatientSearchService;
 import com.ClinicaDeYmid.patient_service.module.service.UpdatePatientInformationService;
 import jakarta.validation.Valid;
@@ -26,11 +26,11 @@ import java.net.URI;
 @Slf4j
 @Validated
 @RestController
-@RequestMapping("/api/v1/patients") // Más específico y versionado
-@RequiredArgsConstructor // Lombok para constructor automático
+@RequestMapping("/api/v1/patients")
+@RequiredArgsConstructor
 public class PatientController {
 
-    private final PatientRegistrationService patientRegistrationService;
+    private final PatientRecordService patientRecordService;
     private final GetPatientInformationService getPatientInformationService;
     private final UpdatePatientInformationService updatePatientInformationService;
     private final PatientRepository patientRepository;
@@ -44,7 +44,7 @@ public class PatientController {
 
         log.info("Creation of a new patient with the identification number: {}", newPatientDto.identificationNumber());
 
-        PatientResponseDto patientResponseDto = patientRegistrationService.createPatient(newPatientDto);
+        PatientResponseDto patientResponseDto = patientRecordService.createPatient(newPatientDto);
 
         URI uri = uriBuilder.path("/api/v1/patients/{uuid}")
                 .buildAndExpand(patientResponseDto.uuid())

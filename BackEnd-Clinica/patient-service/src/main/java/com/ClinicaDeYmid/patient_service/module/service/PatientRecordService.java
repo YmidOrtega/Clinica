@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class PatientRegistrationService {
+public class PatientRecordService {
 
     private final PatientRepository patientRepository;
     private final PatientMapper patientMapper;

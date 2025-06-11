@@ -5,7 +5,7 @@ import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
 import com.ClinicaDeYmid.patient_service.module.dto.NewPatientDto;
 import com.ClinicaDeYmid.patient_service.module.dto.UpdatePatientDto;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
-import dto.HealthProviderResponseDto;
+import clients_patients.dto.HealthProviderResponseDto;
 import org.mapstruct.*;
 
 import java.time.LocalDateTime;

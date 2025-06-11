@@ -4,7 +4,7 @@ import com.ClinicaDeYmid.clients_service.module.dto.CreateHealthProviderDto;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 import com.ClinicaDeYmid.clients_service.module.service.*;
-import dto.HealthProviderResponseDto;
+import clients_patients.dto.HealthProviderResponseDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -30,7 +30,7 @@ import java.net.URI;
 @RequiredArgsConstructor
 public class HealthProviderController {
 
-    private final HeathProviderRegistrationService registrationService;
+    private final HeathProviderRecordService registrationService;
     private final GetHealthProviderService getHealthProviderService;
     private final UpdateHealthProviderService updateHealthProviderService;
     private final StatusHealthProviderService statusHealthProviderService;

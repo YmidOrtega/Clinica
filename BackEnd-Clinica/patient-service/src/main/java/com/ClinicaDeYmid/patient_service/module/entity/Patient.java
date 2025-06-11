@@ -2,7 +2,7 @@ package com.ClinicaDeYmid.patient_service.module.entity;
 
 import com.ClinicaDeYmid.patient_service.module.dto.AttentionDto;
 import com.ClinicaDeYmid.patient_service.module.enums.*;
-import dto.HealthProviderResponseDto;
+import clients_patients.dto.HealthProviderResponseDto;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

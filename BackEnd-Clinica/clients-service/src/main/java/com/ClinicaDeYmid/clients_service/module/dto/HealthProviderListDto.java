@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.clients_service.module.dto;
 
-import domain.Nit;
+import clients_patients.domain.Nit;
 import com.ClinicaDeYmid.clients_service.module.enums.TypeProvider;
 
 public record HealthProviderListDto(

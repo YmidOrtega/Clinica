@@ -1,6 +1,6 @@
-package dto;
+package clients_patients.dto;
 
-import enums.ContractStatus;
+import clients_patients.enums.ContractStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

@@ -1,7 +1,7 @@
 package com.ClinicaDeYmid.patient_service.module.feignclient;
 
 
-import dto.HealthProviderResponseDto;
+import clients_patients.dto.HealthProviderResponseDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

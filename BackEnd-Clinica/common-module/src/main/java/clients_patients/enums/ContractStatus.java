@@ -1,4 +1,4 @@
-package enums;
+package clients_patients.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

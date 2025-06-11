@@ -47,7 +47,7 @@ public class UpdateHealthProviderService {
             log.error("Error de acceso a datos al actualizar proveedor con NIT: {}", nit, ex);
             throw new HealthProviderDataAccessException("actualizar proveedor de salud con NIT: " + nit, ex);
         } catch (HealthProviderNotFoundException | UpdateHealthProviderNitConflictException ex) {
-            throw ex; // Re-lanzar excepciones específicas
+            throw ex;
         } catch (Exception ex) {
             log.error("Error inesperado al actualizar proveedor con NIT: {}", nit, ex);
             throw new HealthProviderUpdateException(nit, ex.getMessage(), ex);

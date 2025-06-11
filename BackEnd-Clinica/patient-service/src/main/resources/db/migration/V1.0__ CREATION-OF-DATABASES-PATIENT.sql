@@ -1,9 +1,11 @@
+-- Eliminar tablas en orden correcto
+DROP TABLE IF EXISTS patients;
+DROP TABLE IF EXISTS occupations;
+DROP TABLE IF EXISTS sites;
+
 -- =====================================================
 -- 1. TABLA SITES (Sitios/Ubicaciones)
 -- =====================================================
-DROP TABLE IF EXISTS patients;
-DROP TABLE IF EXISTS sites;
-
 CREATE TABLE sites (
     id BIGINT NOT NULL AUTO_INCREMENT,
     city VARCHAR(100) NOT NULL,
@@ -22,7 +24,7 @@ CREATE TABLE sites (
     INDEX idx_sites_country (country),
     INDEX idx_sites_location (city, department, country),
 
-    -- Validaciones
+    -- Validaciones básicas de integridad
     CONSTRAINT chk_sites_city_not_empty CHECK (TRIM(city) != ''),
     CONSTRAINT chk_sites_department_not_empty CHECK (TRIM(department) != ''),
     CONSTRAINT chk_sites_country_not_empty CHECK (TRIM(country) != '')
@@ -31,8 +33,6 @@ CREATE TABLE sites (
 -- =====================================================
 -- 2. TABLA OCCUPATIONS (Ocupaciones)
 -- =====================================================
-DROP TABLE IF EXISTS occupations;
-
 CREATE TABLE occupations (
     id BIGINT NOT NULL AUTO_INCREMENT,
     name VARCHAR(150) NOT NULL,
@@ -43,17 +43,18 @@ CREATE TABLE occupations (
 
     PRIMARY KEY (id),
 
-    -- Índices
+    -- Restricciones de unicidad
     UNIQUE KEY uk_occupations_name (name),
+
+    -- Índices
     INDEX idx_occupations_active (is_active),
 
-    -- Validaciones
-    CONSTRAINT chk_occupations_name_not_empty CHECK (TRIM(name) != ''),
-    CONSTRAINT chk_occupations_name_length CHECK (CHAR_LENGTH(name) >= 2)
+    -- Validaciones básicas de integridad
+    CONSTRAINT chk_occupations_name_not_empty CHECK (TRIM(name) != '')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- 3. TABLA patients (Pacientes)
+-- 3. TABLA PATIENTS (Pacientes)
 -- =====================================================
 CREATE TABLE patients (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -67,7 +68,7 @@ CREATE TABLE patients (
         'PERMISO_ESPECIAL_DE_PERMANENCIA',
         'DOCUMENTO_NACIONAL_DE_IDENTIFICACION'
     ) NOT NULL,
-    identification_number VARCHAR(20) NOT NULL, -- Cambiado de 'identification' a 'identification_number'
+    identification_number VARCHAR(20) NOT NULL,
     name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     date_of_birth DATE NOT NULL,
@@ -147,20 +148,20 @@ CREATE TABLE patients (
     phone VARCHAR(20),
     mobile VARCHAR(20),
     email VARCHAR(150) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status ENUM(
         'ALIVE',
         'DECEASED',
         'SUSPENDED',
         'DELETED'
     ) DEFAULT 'ALIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
 
-    -- Claves únicas
+    -- Restricciones de unicidad
     UNIQUE KEY uk_patients_uuid (uuid),
-    UNIQUE KEY uk_patients_identification_number (identification_number), -- Actualizado el nombre de la clave única
+    UNIQUE KEY uk_patients_identification_number (identification_number),
 
     -- Claves foráneas
     CONSTRAINT fk_patients_birth_site FOREIGN KEY (birth_site_id) REFERENCES sites(id),
@@ -170,6 +171,7 @@ CREATE TABLE patients (
 
     -- Índices de rendimiento
     INDEX idx_patients_identification_type (identification_type),
+    INDEX idx_patients_identification_number (identification_number),
     INDEX idx_patients_name_lastname (name, last_name),
     INDEX idx_patients_date_birth (date_of_birth),
     INDEX idx_patients_gender (gender),
@@ -179,26 +181,12 @@ CREATE TABLE patients (
     INDEX idx_patients_affiliation (type_of_affiliation, affiliation_number),
     INDEX idx_patients_health_provider (health_provider_nit),
 
-    -- Validaciones de negocio
-    CONSTRAINT chk_patients_uuid_format CHECK (uuid REGEXP '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'),
-    CONSTRAINT chk_patients_identification_number_not_empty CHECK (TRIM(identification_number) != ''), -- Actualizada la validación
-    CONSTRAINT chk_patients_identification_number_length CHECK (CHAR_LENGTH(identification_number) >= 3), -- Actualizada la validación
+    -- Validaciones básicas de integridad solamente
+    CONSTRAINT chk_patients_identification_number_not_empty CHECK (TRIM(identification_number) != ''),
     CONSTRAINT chk_patients_name_not_empty CHECK (TRIM(name) != ''),
     CONSTRAINT chk_patients_lastname_not_empty CHECK (TRIM(last_name) != ''),
-    CONSTRAINT chk_patients_name_length CHECK (CHAR_LENGTH(name) >= 2),
-    CONSTRAINT chk_patients_lastname_length CHECK (CHAR_LENGTH(last_name) >= 2),
-    CONSTRAINT chk_patients_birth_date_reasonable CHECK (date_of_birth >= '1900-01-01'),
-    CONSTRAINT chk_patients_email_format CHECK (email REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'),
-    CONSTRAINT chk_patients_phone_format CHECK (phone IS NULL OR phone REGEXP '^[0-9+\\-\\s()]+$'),
-    CONSTRAINT chk_patients_mobile_format CHECK (mobile IS NULL OR mobile REGEXP '^[0-9+\\-\\s()]+$'),
-    CONSTRAINT chk_patients_identification_cc_length CHECK (
-        identification_type != 'CEDULA_DE_CIUDADANIA' OR
-        (CHAR_LENGTH(identification_number) >= 6 AND CHAR_LENGTH(identification_number) <= 12) -- Actualizada la validación
-    ),
-    CONSTRAINT chk_patients_identification_numeric CHECK (
-        identification_type NOT IN ('CEDULA_DE_CIUDADANIA', 'TARJETA_DE_IDENTIDAD', 'CEDULA_DE_EXTRANJERIA') OR
-        identification_number REGEXP '^[0-9]+$' -- Actualizada la validación
-    )
+    CONSTRAINT chk_patients_email_not_empty CHECK (TRIM(email) != ''),
+    CONSTRAINT chk_patients_health_provider_not_empty CHECK (TRIM(health_provider_nit) != '')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================

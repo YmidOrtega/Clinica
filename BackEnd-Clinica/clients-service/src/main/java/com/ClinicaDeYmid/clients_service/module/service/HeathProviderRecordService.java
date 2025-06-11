@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class HeathProviderRegistrationService {
+public class HeathProviderRecordService {
 
     private final HealthProviderRepository healthProviderRepository;
     private final HealthProviderMapper healthProviderMapper;
