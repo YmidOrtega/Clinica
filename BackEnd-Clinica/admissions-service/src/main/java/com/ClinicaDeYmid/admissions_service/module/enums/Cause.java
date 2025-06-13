@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.module.billing.model.emun;
+package com.ClinicaDeYmid.admissions_service.module.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
