@@ -3,12 +3,14 @@ package com.ClinicaDeYmid.admissions_service.module.entity;
 import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
 import com.ClinicaDeYmid.admissions_service.module.enums.Cause;
 import com.ClinicaDeYmid.admissions_service.module.enums.TriageLevel;
+import com.ClinicaDeYmid.admissions_service.module.enums.UserActionType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -60,14 +62,9 @@ public class Attention {
     @Column(name = "invoice_number")
     private Long invoiceNumber;
 
-    @Column(name = "user_id")
-    private Long userId;
-
-    @Column(name = "created_by_user_id")
-    private Long createdByUserId;
-
-    @Column(name = "updated_by_user_id")
-    private Long updatedByUserId;
+    @OneToMany(mappedBy = "attention", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("actionTimestamp ASC")
+    private List<AttentionUserHistory> userHistory = new ArrayList<>();
 
     @OneToMany(mappedBy = "attention", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Authorization> authorizations;
@@ -127,4 +124,45 @@ public class Attention {
 
     @Column(length = 1000)
     private String billingObservations;
+
+    @Transient
+    public Long getCreatedByUserId() {
+        return userHistory.stream()
+                .filter(h -> h.getActionType() == UserActionType.CREATED)
+                .findFirst()
+                .map(AttentionUserHistory::getUserId)
+                .orElse(null);
+    }
+
+    @Transient
+    public Long getLastUpdatedByUserId() {
+        return userHistory.stream()
+                .filter(h -> h.getActionType() == UserActionType.UPDATED)
+                .reduce((first, second) -> second) // Obtiene el último
+                .map(AttentionUserHistory::getUserId)
+                .orElse(null);
+    }
+
+    @Transient
+    public Long getInvoicedByUserId() {
+        return userHistory.stream()
+                .filter(h -> h.getActionType() == UserActionType.INVOICED)
+                .findFirst()
+                .map(AttentionUserHistory::getUserId)
+                .orElse(null);
+    }
+
+    public void addUserAction(Long userId, UserActionType actionType, String observations) {
+        AttentionUserHistory history = AttentionUserHistory.builder()
+                .attention(this)
+                .userId(userId)
+                .actionType(actionType)
+                .observations(observations)
+                .build();
+
+        if (this.userHistory == null) {
+            this.userHistory = new ArrayList<>();
+        }
+        this.userHistory.add(history);
+    }
 }
