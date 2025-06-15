@@ -1,16 +1,16 @@
-package com.ClinicaDeYmid.auth_service.model.user.model;
+package com.ClinicaDeYmid.auth_service.module.user.entity;
 
-import com.ClinicaDeYmid.auth_service.model.user.enums.StatusUser;
+import com.ClinicaDeYmid.auth_service.module.user.enums.StatusUser;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.List;
 
 @Entity
 @Table(name = "users", indexes = {
@@ -18,7 +18,8 @@ import java.util.List;
         @Index(name = "idx_user_username", columnList = "username"),
         @Index(name = "idx_user_status", columnList = "status")
 })
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
@@ -46,13 +47,17 @@ public class User implements UserDetails {
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDate createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false, updatable = false, insertable = false)
+    private LocalDateTime updatedAt;
 
     @Column(nullable = false)
     private boolean active = true;
@@ -62,21 +67,16 @@ public class User implements UserDetails {
     @Builder.Default
     private StatusUser status = StatusUser.ACTIVE;
 
-    @PrePersist
-    protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = LocalDate.now();
-        }
-    }
+
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.getName().toUpperCase()));
+        return role.getGrantedAuthorities();
     }
 
     @Override
     public String getUsername() {
-        return email;
+        return username;
     }
 
     @Override
@@ -104,8 +104,4 @@ public class User implements UserDetails {
         return active && status == StatusUser.ACTIVE;
     }
 
-    // Método para obtener el username real (no el email)
-    public String getRealUsername() {
-        return username;
-    }
 }

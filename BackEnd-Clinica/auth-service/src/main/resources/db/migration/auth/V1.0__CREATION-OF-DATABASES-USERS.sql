@@ -1,47 +1,92 @@
--- Tabla de roles
-CREATE TABLE IF NOT EXISTS roles (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE,
 
-    -- Índices
-    INDEX idx_role_name (name),
+-- Eliminar tablas en orden correcto (por dependencias)
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS role_permissions;
+DROP TABLE IF EXISTS roles;
 
-    -- Constraints adicionales
-    CONSTRAINT chk_role_name_not_empty CHECK (TRIM(name) != ''),
-    CONSTRAINT chk_role_name_length CHECK (CHAR_LENGTH(name) >= 2)
+-- =====================================================
+-- 1. TABLA ROLES (Roles del Sistema)
+-- =====================================================
+CREATE TABLE roles (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    -- Restricciones de unicidad
+    UNIQUE KEY uk_roles_name (name),
+
+    -- Índices para optimizar consultas
+    INDEX idx_roles_name (name),
+
+    -- Validaciones básicas de integridad
+    CONSTRAINT chk_roles_name_not_empty CHECK (TRIM(name) != '')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Tabla de usuarios
-CREATE TABLE IF NOT EXISTS users (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+-- =====================================================
+-- 2. TABLA ROLE_PERMISSIONS (Permisos por Rol)
+-- =====================================================
+CREATE TABLE role_permissions (
     role_id BIGINT NOT NULL,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    birth_date DATE,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    phone_number VARCHAR(20),
-    created_at DATE NOT NULL DEFAULT (CURRENT_DATE),
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    status ENUM('ACTIVE', 'INACTIVE', 'PENDING', 'SUSPENDED') NOT NULL DEFAULT 'ACTIVE',
+    permission VARCHAR(100) NOT NULL,
 
-    -- Claves foráneas
-    CONSTRAINT fk_user_role
-        FOREIGN KEY (role_id) REFERENCES roles(id)
-        ON DELETE RESTRICT ON UPDATE CASCADE,
+    PRIMARY KEY (role_id, permission),
+
+    -- Clave foránea
+    CONSTRAINT fk_role_permissions_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
 
     -- Índices
-    INDEX idx_user_email (email),
-    INDEX idx_user_username (username),
-    INDEX idx_user_status (status),
-    INDEX idx_user_role (role_id),
-    INDEX idx_user_created_at (created_at),
+    INDEX idx_role_permissions_role_id (role_id),
+    INDEX idx_role_permissions_permission (permission),
 
-    -- Constraints adicionales
-    CONSTRAINT chk_username_not_empty CHECK (TRIM(username) != ''),
-    CONSTRAINT chk_username_length CHECK (CHAR_LENGTH(username) >= 3),
-    CONSTRAINT chk_email_format CHECK (email REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'),
-    CONSTRAINT chk_password_not_empty CHECK (TRIM(password) != ''),
-    CONSTRAINT chk_password_length CHECK (CHAR_LENGTH(password) >= 8),
-    CONSTRAINT chk_phone_format CHECK (phone_number IS NULL OR phone_number REGEXP '^\\+?[1-9][0-9]{1,14}$')
+    -- Validaciones básicas de integridad
+    CONSTRAINT chk_role_permissions_permission_not_empty CHECK (TRIM(permission) != '')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- 3. TABLA USERS (Usuarios del Sistema)
+-- =====================================================
+CREATE TABLE users (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    role_id BIGINT NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    birth_date DATE,
+    email VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    phone_number VARCHAR(20),
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    status ENUM(
+        'PENDING',
+        'ACTIVE',
+        'INACTIVE',
+        'SUSPENDED',
+        'DELETED'
+    ) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    -- Restricciones de unicidad
+    UNIQUE KEY uk_users_username (username),
+    UNIQUE KEY uk_users_email (email),
+
+    -- Clave foránea
+    CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id),
+
+    -- Índices para optimizar consultas
+    INDEX idx_users_email (email),
+    INDEX idx_users_username (username),
+    INDEX idx_users_status (status),
+    INDEX idx_users_active (active),
+    INDEX idx_users_role_id (role_id),
+    INDEX idx_users_created_at (created_at),
+
+    -- Validaciones básicas de integridad
+    CONSTRAINT chk_users_username_not_empty CHECK (TRIM(username) != ''),
+    CONSTRAINT chk_users_email_not_empty CHECK (TRIM(email) != ''),
+    CONSTRAINT chk_users_password_not_empty CHECK (TRIM(password) != '')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
