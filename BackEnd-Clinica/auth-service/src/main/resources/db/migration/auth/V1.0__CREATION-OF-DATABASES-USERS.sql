@@ -50,6 +50,7 @@ CREATE TABLE role_permissions (
 -- =====================================================
 CREATE TABLE users (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    uuid VARCHAR(36) NOT NULL UNIQUE,
     role_id BIGINT NOT NULL,
     username VARCHAR(50) NOT NULL,
     birth_date DATE,
