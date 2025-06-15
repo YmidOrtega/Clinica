@@ -1,7 +1,8 @@
-package com.ClinicaDeYmid.module.user.model;
+package com.ClinicaDeYmid.auth_service.model.user.model;
 
+import com.ClinicaDeYmid.auth_service.model.user.enums.StatusUser;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
+
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,8 +23,7 @@ import java.util.List;
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
 @Builder
-public class
-User implements UserDetails {
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,31 +32,22 @@ User implements UserDetails {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_user_role"))
-    @NotNull(message = "El rol es obligatorio")
+
     private Role role;
 
-    @NotBlank(message = "El nombre de usuario es obligatorio")
-    @Size(min = 3, max = 50, message = "El nombre de usuario debe tener entre 3 y 50 caracteres")
+
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
-    @Past(message = "La fecha de nacimiento debe ser en el pasado")
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
-    @NotBlank(message = "El email es obligatorio")
-    @Email(message = "El formato del email no es válido")
-    @Size(max = 100, message = "El email no puede exceder 100 caracteres")
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @NotBlank(message = "La contraseña es obligatoria")
-    @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
     @Column(nullable = false)
     private String password;
 
-    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$",
-            message = "El número de teléfono no tiene un formato válido")
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
@@ -78,7 +69,6 @@ User implements UserDetails {
         }
     }
 
-    // UserDetails methods
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.getName().toUpperCase()));

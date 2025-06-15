@@ -1,10 +1,9 @@
-package com.ClinicaDeYmid.module.user.model;
+package com.ClinicaDeYmid.auth_service.model.user.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.*;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +21,6 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "El nombre del rol es obligatorio")
-    @Size(min = 2, max = 50, message = "El nombre del rol debe tener entre 2 y 50 caracteres")
     @Column(nullable = false, unique = true, length = 50)
     private String name;
 

@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: suppliers-service
+  flyway:
+      location: classpath:db/migration/suppliers
 
 eureka:
   client:

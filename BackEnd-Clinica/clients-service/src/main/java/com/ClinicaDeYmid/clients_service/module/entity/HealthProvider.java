@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.clients_service.module.entity;
 
 
 
+import admissions_suppliers.dto.AttentionResponseDTO;
 import clients_patients.domain.Nit;
 import com.ClinicaDeYmid.clients_service.module.enums.TypeProvider;
 import jakarta.persistence.*;
@@ -80,6 +81,9 @@ public class HealthProvider {
     @OneToMany(mappedBy = "healthProvider", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @Builder.Default
     private List<Contract> contracts = new ArrayList<>();
+
+    @Transient
+    private List<AttentionResponseDTO> attentions;
 
     @Override
     public String toString() {

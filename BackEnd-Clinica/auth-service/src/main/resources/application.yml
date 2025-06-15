@@ -1,0 +1,13 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: auth-service
+  flyway:
+    location: classpath:db/migration/auth
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka

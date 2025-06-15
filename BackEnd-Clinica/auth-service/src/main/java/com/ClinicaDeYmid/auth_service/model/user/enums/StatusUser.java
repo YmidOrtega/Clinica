@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.module.user.model;
+package com.ClinicaDeYmid.auth_service.model.user.enums;
 
 public enum StatusUser {
     PENDING,

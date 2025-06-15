@@ -56,8 +56,10 @@ public class Attention {
     @Column(name = "doctor_id", nullable = false)
     private Long doctorId;
 
-    @Column(name = "health_provider_id", nullable = false)
-    private Long healthProviderId;
+    @ElementCollection
+    @CollectionTable(name = "attention_health_providers", joinColumns = @JoinColumn(name = "attention_id"))
+    @Column(name = "health_provider_id")
+    private List<Long> healthProviderIds = new ArrayList<>();
 
     @Column(name = "invoice_number")
     private Long invoiceNumber;

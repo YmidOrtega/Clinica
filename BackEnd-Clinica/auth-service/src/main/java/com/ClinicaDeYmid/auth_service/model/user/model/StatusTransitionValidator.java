@@ -1,4 +1,6 @@
-package com.ClinicaDeYmid.module.user.model;
+package com.ClinicaDeYmid.auth_service.model.user.model;
+
+import com.ClinicaDeYmid.auth_service.model.user.enums.StatusUser;
 
 public class StatusTransitionValidator {
     public static boolean canTransition(StatusUser current, StatusUser next) {

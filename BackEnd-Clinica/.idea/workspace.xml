@@ -5,10 +5,39 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/entity/AttentionUserHistory.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/enums/UserActionType.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/resources/application.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/resources/db/migration/admissions/V1.0__ CREATION-OF-DATABASES-ADMISSION.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/resources/db/migration/admissions/V1.1__ALTER-TABLE-ATTENTIONS.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/application.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/billing-service/src/main/resources/application.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/entity/Attention.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/entity/Attention.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/entity/ServiceType.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/entity/ServiceType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/resources/db/migration/V1.0__ CREATION-OF-DATABASES-ATTENTION.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/model/user/model/Role.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/model/user/model/Role.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/model/user/model/StatusTransitionValidator.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/model/user/model/StatusTransitionValidator.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/model/user/model/StatusUser.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/model/user/enums/StatusUser.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/model/user/model/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/model/user/model/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/db/migration/V1.0__CREATION-OF-DATABASES-USERS.sql" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/db/migration/auth/V1.0__CREATION-OF-DATABASES-USERS.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/billing-service/src/main/resources/db/migration/V1.0__CREATION-OF-DATABASES-BILLING.sql" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/src/main/resources/db/migration/billing/V1.0__CREATION-OF-DATABASES-BILLING.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/entity/HealthProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/entity/HealthProvider.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/db/migration/V1.0__ CREATION-OF-DATABASES-HEALTH-POLICIES.sql" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/db/migration/clients/V1.0__ CREATION-OF-DATABASES-HEALTH-POLICIES.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eureka-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/eureka-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/resources/db/migration/V1.0__ CREATION-OF-DATABASES-PATIENT.sql" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/resources/db/migration/patient/V1.0__ CREATION-OF-DATABASES-PATIENT.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/resources/db/migration/V1.0__CREATION-OF-DATABASES-SUPPLIERS.sql" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/resources/db/migration/suppliers/V1.0__CREATION-OF-DATABASES-SUPPLIERS.sql" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -40,6 +69,7 @@
   </component>
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
+    &quot;Application.AdmissionsServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Application.ClientsServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Application.ClinicaDeYmidApplication.executor&quot;: &quot;Run&quot;,
     &quot;Application.EurekaServiceApplication.executor&quot;: &quot;Run&quot;,
@@ -58,7 +88,7 @@
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;last_directory_selection&quot;: &quot;C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/common-module/src/main/java&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/enums&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/admissions-service/src/main/resources/db/migration/admissions&quot;,
     &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
     &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
     &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
@@ -74,13 +104,15 @@
       <recent name="com.ClinicaDeYmid.suppliers_service.dto" />
     </key>
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\admissions-service\src\main\resources\db\migration\admissions" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\clients-service\src\main\java\com\ClinicaDeYmid\clients_service\module\enums" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\common-module\src\main\java\admissions_suppliers\dto" />
-      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\common-module\src\main\java\domain" />
-      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\common-module\src\main\java\enums" />
-      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\common-module\src\main\java\dto" />
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\admissions-service\src\main\resources\db\migration" />
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\admissions-service\src\main\resources\db\migration\admissions" />
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\auth-service\src\main\resources\db\migration\auth" />
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\billing-service\src\main\resources\db\migration\billing" />
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\clients-service\src\main\resources\db\migration\clients" />
     </key>
     <key name="MoveClassesOrPackagesDialog.RECENTS_KEY">
       <recent name="com.ClinicaDeYmid.clients_service.module.entity" />
@@ -89,7 +121,23 @@
       <recent name="com.ClinicaDeYmid.suppliers_service.module.dto" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.SuppliersServiceApplication">
+  <component name="RunManager" selected="Application.AdmissionsServiceApplication">
+    <configuration name="AdmissionsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="envFilePaths">
+        <option value="$PROJECT_DIR$/.env" />
+      </option>
+      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.admissions_service.AdmissionsServiceApplication" />
+      <module name="admissions-service" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ClinicaDeYmid.admissions_service.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="ClientsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="envFilePaths">
         <option value="$PROJECT_DIR$/.env" />
@@ -157,33 +205,20 @@
       </deployment>
       <method v="2" />
     </configuration>
-    <configuration name="docker-compose.yml.suppliers-db: Compose Deployment" type="docker-deploy" factoryName="docker-compose.yml" temporary="true" server-name="Docker">
-      <deployment type="docker-compose.yml">
-        <settings>
-          <option name="services">
-            <list>
-              <option value="suppliers-db" />
-            </list>
-          </option>
-          <option name="sourceFilePath" value="docker-compose.yml" />
-        </settings>
-      </deployment>
-      <method v="2" />
-    </configuration>
     <list>
+      <item itemvalue="Application.AdmissionsServiceApplication" />
       <item itemvalue="Application.ClientsServiceApplication" />
       <item itemvalue="Application.EurekaServiceApplication" />
       <item itemvalue="Application.PatientServiceApplication" />
       <item itemvalue="Application.SuppliersServiceApplication" />
-      <item itemvalue="Docker.docker-compose.yml.suppliers-db: Compose Deployment" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.SuppliersServiceApplication" />
+        <item itemvalue="Application.AdmissionsServiceApplication" />
         <item itemvalue="Application.PatientServiceApplication" />
-        <item itemvalue="Application.ClientsServiceApplication" />
         <item itemvalue="Application.EurekaServiceApplication" />
-        <item itemvalue="Docker.docker-compose.yml.suppliers-db: Compose Deployment" />
+        <item itemvalue="Application.SuppliersServiceApplication" />
+        <item itemvalue="Application.ClientsServiceApplication" />
       </list>
     </recent_temporary>
   </component>

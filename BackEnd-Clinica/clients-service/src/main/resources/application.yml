@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: clients-service
+  flyway:
+    location: classpath:db/migration/clients
 
 eureka:
   client:
