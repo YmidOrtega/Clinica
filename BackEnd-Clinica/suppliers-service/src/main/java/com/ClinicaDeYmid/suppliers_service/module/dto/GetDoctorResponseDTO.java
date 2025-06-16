@@ -7,7 +7,7 @@ import admissions_suppliers.dto.SubSpecialtyDTO;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public record DoctorResponse(
+public record GetDoctorResponseDTO(
         Long id,
         Integer providerCode,
         String name,
@@ -21,6 +21,8 @@ public record DoctorResponse(
         Double hourlyRate,
         Boolean active,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
-
+        LocalDateTime updatedAt,
+        List<SubSpecialtyDTO> subSpecialties,
+        List<ServiceTypeDTO> allowedServiceTypes,
+        List<AttentionResponseDTO> attentions
 ) {}

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.*;
 
 import java.util.List;
 
-public record DoctorCreateRequest(
+public record DoctorCreateRequestDTO(
         @NotNull Integer providerCode,
         @NotBlank String name,
         @NotBlank String lastName,

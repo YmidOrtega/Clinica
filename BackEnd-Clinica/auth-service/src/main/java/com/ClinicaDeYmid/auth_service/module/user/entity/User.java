@@ -68,6 +68,13 @@ public class User implements UserDetails {
     @Builder.Default
     private StatusUser status = StatusUser.ACTIVE;
 
+    public void activate() {
+        this.active = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
+    }
 
 
     @Override
@@ -77,7 +84,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return username;
+        return email;
     }
 
     @Override

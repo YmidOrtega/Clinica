@@ -1,8 +1,8 @@
 package com.ClinicaDeYmid.suppliers_service.module.controller;
 
-import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorCreateRequest;
-import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorResponse;
-import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorUpdateRequest;
+import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorCreateRequestDTO;
+import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorResponseDTO;
+import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorUpdateRequestDTO;
 import com.ClinicaDeYmid.suppliers_service.module.service.DoctorGetService;
 import com.ClinicaDeYmid.suppliers_service.module.service.DoctorRecordService;
 import com.ClinicaDeYmid.suppliers_service.module.service.DoctorStatusService;
@@ -29,13 +29,13 @@ public class DoctorController {
     private final DoctorStatusService doctorStatusService;
 
     @PostMapping
-    public ResponseEntity<DoctorResponse> createDoctor(
-            @Valid @RequestBody DoctorCreateRequest request,
+    public ResponseEntity<DoctorResponseDTO> createDoctor(
+            @Valid @RequestBody DoctorCreateRequestDTO request,
             UriComponentsBuilder uriBuilder) {
 
         log.info("Creating doctor with provider code: {}", request.providerCode());
 
-        DoctorResponse response = doctorRecordService.createDoctor(request);
+        DoctorResponseDTO response = doctorRecordService.createDoctor(request);
 
         URI uri = uriBuilder.path("/api/v1/doctors/{id}")
                 .buildAndExpand(response.id())
@@ -46,24 +46,24 @@ public class DoctorController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DoctorResponse> updateDoctor(
+    public ResponseEntity<DoctorResponseDTO> updateDoctor(
             @PathVariable Long id,
-            @Valid @RequestBody DoctorUpdateRequest request) {
+            @Valid @RequestBody DoctorUpdateRequestDTO request) {
 
         log.info("Updating doctor with ID: {}", id);
-        DoctorResponse response = doctorRecordService.updateDoctor(id, request);
+        DoctorResponseDTO response = doctorRecordService.updateDoctor(id, request);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<DoctorResponse> getDoctorById(@PathVariable Long id) {
+    public ResponseEntity<DoctorResponseDTO> getDoctorById(@PathVariable Long id) {
         log.info("Fetching doctor with ID: {}", id);
-        DoctorResponse response = doctorGetService.getDoctorById(id);
+        DoctorResponseDTO response = doctorGetService.getDoctorById(id);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping
-    public ResponseEntity<List<DoctorResponse>> getAllDoctors() {
+    public ResponseEntity<List<DoctorResponseDTO>> getAllDoctors() {
         log.info("Fetching all doctors");
         return ResponseEntity.ok(doctorGetService.getAllDoctors());
     }

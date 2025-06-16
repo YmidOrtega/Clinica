@@ -12,16 +12,16 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface DoctorMapper {
 
-    Doctor toEntity(DoctorCreateRequest dto);
+    Doctor toEntity(DoctorCreateRequestDTO dto);
 
-    GetDoctorResponse toDto(Doctor doctor,
-                         List<SubSpecialtyDTO> subspecialties,
-                         List<ServiceTypeDTO> services,
-                         List<AttentionResponseDTO> attentions);
+    GetDoctorResponseDTO toDto(Doctor doctor,
+                               List<SubSpecialtyDTO> subspecialties,
+                               List<ServiceTypeDTO> services,
+                               List<AttentionResponseDTO> attentions);
 
-    DoctorResponse toResponse(Doctor doctor);
+    DoctorResponseDTO toResponse(Doctor doctor);
 
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateDoctorFromDto(DoctorUpdateRequest dto, @MappingTarget Doctor entity);
+    void updateDoctorFromDto(DoctorUpdateRequestDTO dto, @MappingTarget Doctor entity);
 }

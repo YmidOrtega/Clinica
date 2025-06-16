@@ -15,7 +15,7 @@ public class DoctorRecordService {
     private final DoctorRepository doctorRepository;
     private final DoctorMapper doctorMapper;
 
-    public DoctorResponse createDoctor(DoctorCreateRequest request) {
+    public DoctorResponseDTO createDoctor(DoctorCreateRequestDTO request) {
 
         Doctor doctor = doctorMapper.toEntity(request);
 
@@ -24,7 +24,7 @@ public class DoctorRecordService {
         return doctorMapper.toResponse(doctor);
     }
 
-    public DoctorResponse updateDoctor(Long id, DoctorUpdateRequest request) {
+    public DoctorResponseDTO updateDoctor(Long id, DoctorUpdateRequestDTO request) {
         Doctor doctor = doctorRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Doctor not found"));
 
