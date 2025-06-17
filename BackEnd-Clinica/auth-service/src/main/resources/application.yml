@@ -11,18 +11,3 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka
-
-
-logging:
-  level:
-    org.springframework.web: DEBUG
-    org.springframework.security: DEBUG
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: mappings
-  endpoint:
-    mappings:
-      enabled: true
