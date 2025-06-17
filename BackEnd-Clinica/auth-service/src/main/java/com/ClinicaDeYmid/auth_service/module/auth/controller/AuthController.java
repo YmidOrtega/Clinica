@@ -22,7 +22,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
 
-    @PostMapping("/login")
+    @PostMapping("/api/v1/auth/login")
     public ResponseEntity<JwtTokenDto> AuthUser (@RequestBody @Valid AuthUserDTO authUserDTO) {
         Authentication authToken = new UsernamePasswordAuthenticationToken(
                 authUserDTO.email(),
