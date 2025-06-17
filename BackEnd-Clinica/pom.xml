@@ -95,6 +95,12 @@
 				<version>2.14.0</version>
 			</dependency>
 
+			<dependency>
+				<groupId>org.apache.tomcat.embed</groupId>
+				<artifactId>tomcat-embed-core</artifactId>
+				<version>10.1.42</version>
+			</dependency>
+
 		</dependencies>
 	</dependencyManagement>
 
