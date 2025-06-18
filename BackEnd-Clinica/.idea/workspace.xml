@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="" />
+    <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -81,11 +84,11 @@
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\clients-service\src\main\java\com\ClinicaDeYmid\clients_service\module\enums" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\api-gateway" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\admissions-service\src\main\resources\db\migration" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\admissions-service\src\main\resources\db\migration\admissions" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\auth-service\src\main\resources\db\migration\auth" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\billing-service\src\main\resources\db\migration\billing" />
-      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\clients-service\src\main\resources\db\migration\clients" />
     </key>
     <key name="MoveClassesOrPackagesDialog.RECENTS_KEY">
       <recent name="com.ClinicaDeYmid.auth_service.infra" />
