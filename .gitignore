@@ -1,6 +1,8 @@
 # Archivos de configuración del entorno y secretos
 .env
+.pem
 BackEnd-Clinica/.env 
+src/main/resources/keys/*.pem
 
 # Configuración de IDEs
 .idea/
