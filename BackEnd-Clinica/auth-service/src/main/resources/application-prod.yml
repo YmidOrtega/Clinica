@@ -1,0 +1,35 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  application:
+    name: auth-service
+
+  datasource:
+    url: ${AUTH_DB_HOST}
+    username: ${AUTH_DB_USER}
+    password: ${AUTH_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+server:
+  port: 8086
+  error:
+    include-message: never
+    include-stacktrace: never
+
+jwt:
+  algorithm: RS256
+  access-token:
+    expiration: 900
+  refresh-token:
+    expiration: 604800
+  rsa:
+    public-key-path: ${JWT_PUBLIC_KEY_PATH}
+    private-key-path: ${JWT_PRIVATE_KEY_PATH}

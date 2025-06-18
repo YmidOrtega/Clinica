@@ -29,7 +29,7 @@ public class AuthController {
                 authUserDTO.password()
         );
         var UserAuth = authenticationManager.authenticate(authToken);
-        var jwtToken = tokenService.generateToken((User) UserAuth.getPrincipal());
+        var jwtToken = tokenService.generateAccessToken((User) UserAuth.getPrincipal());
         return ResponseEntity.ok(new JwtTokenDto(jwtToken));
 
     }

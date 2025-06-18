@@ -5,9 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/dto/LoginRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/dto/RefreshTokenRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/dto/TokenPair.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application-prod.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/TokenService.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/TokenService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -101,7 +106,7 @@
       <recent name="com.ClinicaDeYmid.suppliers_service.module.dto" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.EurekaServiceApplication">
+  <component name="RunManager" selected="Application.AuthServiceApplication">
     <configuration name="AuthServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <envs>
         <env name="JWT_PRIVATE_KEY_PATH" value="classpath:keys/private_key.pem" />
@@ -200,8 +205,8 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.EurekaServiceApplication" />
         <item itemvalue="Application.AuthServiceApplication" />
+        <item itemvalue="Application.EurekaServiceApplication" />
         <item itemvalue="Application.ClientsServiceApplication" />
         <item itemvalue="Application.PatientServiceApplication" />
         <item itemvalue="Application.SuppliersServiceApplication" />

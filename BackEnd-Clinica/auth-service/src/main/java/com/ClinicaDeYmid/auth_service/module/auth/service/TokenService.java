@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.auth_service.module.auth.service;
 
+import com.ClinicaDeYmid.auth_service.module.auth.dto.TokenPair;
 import com.ClinicaDeYmid.auth_service.module.user.entity.User;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -37,8 +38,11 @@ public class TokenService {
     @Value("${jwt.rsa.public-key-path:classpath:keys/public_key.pem}")
     private String publicKeyPath;
 
-    @Value("${jwt.expiration:3600}")
-    private Long expiration;
+    @Value("${jwt.access-token.expiration:900}")
+    private Long accessTokenExpiration;
+
+    @Value("${jwt.refresh-token.expiration:604800}")
+    private Long refreshTokenExpiration;
 
     @Value("${jwt.secret:}")
     private String hmacSecret;
@@ -79,7 +83,7 @@ public class TokenService {
     }
 
     private void loadRSAKeys() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-
+        // Cargar clave privada
         Resource privateKeyResource = resourceLoader.getResource(privateKeyPath);
         if (!privateKeyResource.exists()) {
             throw new IllegalStateException("Archivo de clave privada no encontrado: " + privateKeyPath);
@@ -95,6 +99,7 @@ public class TokenService {
         KeyFactory keyFactory = KeyFactory.getInstance(ALGORITHM_TYPE);
         this.privateKey = (RSAPrivateKey) keyFactory.generatePrivate(privateKeySpec);
 
+        // Cargar clave pública
         Resource publicKeyResource = resourceLoader.getResource(publicKeyPath);
         if (!publicKeyResource.exists()) {
             throw new IllegalStateException("Archivo de clave pública no encontrado: " + publicKeyPath);
@@ -110,20 +115,43 @@ public class TokenService {
         this.publicKey = (RSAPublicKey) keyFactory.generatePublic(publicKeySpec);
     }
 
-    public String generateToken(User user) {
+    public String generateAccessToken(User user) {
         validateUser(user);
         try {
             return JWT.create()
                     .withIssuer(ISSUER)
                     .withSubject(user.getUuid())
                     .withIssuedAt(new Date())
-                    .withExpiresAt(Date.from(getExpirationTime()))
+                    .withExpiresAt(Date.from(getAccessTokenExpirationTime()))
                     .withJWTId(UUID.randomUUID().toString())
                     .withClaim("email", user.getEmail())
+                    .withClaim("type", "access")
                     .sign(algorithm);
         } catch (JWTCreationException e) {
-            throw new RuntimeException("Error al generar el token", e);
+            throw new RuntimeException("Error al generar el access token", e);
         }
+    }
+
+    public String generateRefreshToken(User user) {
+        validateUser(user);
+        try {
+            return JWT.create()
+                    .withIssuer(ISSUER)
+                    .withSubject(user.getUuid())
+                    .withIssuedAt(new Date())
+                    .withExpiresAt(Date.from(getRefreshTokenExpirationTime()))
+                    .withJWTId(UUID.randomUUID().toString())
+                    .withClaim("type", "refresh")
+                    .sign(algorithm);
+        } catch (JWTCreationException e) {
+            throw new RuntimeException("Error al generar el refresh token", e);
+        }
+    }
+
+    public TokenPair generateTokenPair(User user) {
+        String accessToken = generateAccessToken(user);
+        String refreshToken = generateRefreshToken(user);
+        return new TokenPair(accessToken, refreshToken);
     }
 
     public String getSubject(String token) {
@@ -138,12 +166,41 @@ public class TokenService {
         try {
             return JWT.require(algorithm)
                     .withIssuer(ISSUER)
-                    .acceptLeeway(10)
+                    .acceptLeeway(10) // 10 segundos de margen para clock skew
                     .build()
                     .verify(token);
         } catch (JWTVerificationException e) {
             throw new RuntimeException("Token inválido o expirado: " + e.getMessage(), e);
         }
+    }
+
+    public void validateAccessToken(String token) {
+        DecodedJWT decodedJWT = validateAndDecodeToken(token);
+        String tokenType = decodedJWT.getClaim("type").asString();
+        if (!"access".equals(tokenType)) {
+            throw new RuntimeException("Token no es de tipo access");
+        }
+    }
+
+    public void validateRefreshToken(String token) {
+        DecodedJWT decodedJWT = validateAndDecodeToken(token);
+        String tokenType = decodedJWT.getClaim("type").asString();
+        if (!"refresh".equals(tokenType)) {
+            throw new RuntimeException("Token no es de tipo refresh");
+        }
+    }
+
+    public TokenPair refreshTokens(String refreshToken, User user) {
+
+        validateRefreshToken(refreshToken);
+
+        DecodedJWT decodedJWT = validateAndDecodeToken(refreshToken);
+        if (!user.getUuid().equals(decodedJWT.getSubject())) {
+            throw new RuntimeException("Refresh token no pertenece al usuario");
+        }
+
+
+        return generateTokenPair(user);
     }
 
     public boolean isTokenValid(String token) {
@@ -159,7 +216,6 @@ public class TokenService {
         return algorithmType;
     }
 
-    // Solo para RS256 - retorna la clave pública para verificación externa
     public RSAPublicKey getPublicKey() {
         if (!"RS256".equalsIgnoreCase(algorithmType)) {
             throw new UnsupportedOperationException("Clave pública solo disponible para algoritmo RS256");
@@ -167,8 +223,20 @@ public class TokenService {
         return publicKey;
     }
 
-    private Instant getExpirationTime() {
-        return Instant.now().plusSeconds(expiration);
+    private Instant getAccessTokenExpirationTime() {
+        return Instant.now().plusSeconds(accessTokenExpiration);
+    }
+
+    private Instant getRefreshTokenExpirationTime() {
+        return Instant.now().plusSeconds(refreshTokenExpiration);
+    }
+
+    public Long getAccessTokenExpirationSeconds() {
+        return accessTokenExpiration;
+    }
+
+    public Long getRefreshTokenExpirationSeconds() {
+        return refreshTokenExpiration;
     }
 
     private void validateUser(User user) {
