@@ -14,6 +14,7 @@ import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
@@ -44,6 +45,7 @@ public class TokenService {
     @Value("${jwt.refresh-token.expiration:604800}")
     private Long refreshTokenExpiration;
 
+    // Fallback para HS256 si no se configuran las claves RSA
     @Value("${jwt.secret:}")
     private String hmacSecret;
 
@@ -194,12 +196,13 @@ public class TokenService {
 
         validateRefreshToken(refreshToken);
 
+        // Verificar que el token pertenece al usuario
         DecodedJWT decodedJWT = validateAndDecodeToken(refreshToken);
         if (!user.getUuid().equals(decodedJWT.getSubject())) {
             throw new RuntimeException("Refresh token no pertenece al usuario");
         }
 
-
+        // Generar nuevo par de tokens
         return generateTokenPair(user);
     }
 
@@ -216,6 +219,7 @@ public class TokenService {
         return algorithmType;
     }
 
+    // Solo para RS256 - retorna la clave pública para verificación externa
     public RSAPublicKey getPublicKey() {
         if (!"RS256".equalsIgnoreCase(algorithmType)) {
             throw new UnsupportedOperationException("Clave pública solo disponible para algoritmo RS256");

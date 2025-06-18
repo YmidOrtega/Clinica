@@ -64,4 +64,6 @@ public interface UserMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "role", ignore = true)
     void updateStatusFromDTO(UserStatusUpdateDTO statusUpdateDTO, @MappingTarget User user);
+
+    User toEntity2(UserResponseDTO userResponse);
 }
