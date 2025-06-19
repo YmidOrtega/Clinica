@@ -5,10 +5,23 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/config/RedisConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/AuthService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/RedisConnectionTester.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/RedisTokenBlacklistService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/TokenBlacklistService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/TokenHelper.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/AuthServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/AuthServiceApplication.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/security/SecurityFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/security/SecurityFilter.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/TokenService.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/TokenService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/user/mapper/UserMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/user/mapper/UserMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eureka-service/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/eureka-service/Dockerfile" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,14 +35,17 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Enum" />
+        <option value="Record" />
         <option value="Interface" />
         <option value="Class" />
-        <option value="Record" />
       </list>
     </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/RedisTokenBlacklistService.java" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="CurrentFile" />
@@ -55,7 +71,12 @@
     "Maven.admissions-service [clean].executor": "Run",
     "Maven.api-gateway [clean].executor": "Run",
     "Maven.auth-service [clean].executor": "Run",
+    "Maven.clients-service [clean].executor": "Run",
+    "Maven.clients-service [package].executor": "Run",
+    "Maven.common-module [clean].executor": "Run",
+    "Maven.common-module [package].executor": "Run",
     "Maven.eureka-service [clean].executor": "Run",
+    "Maven.eureka-service [package].executor": "Run",
     "Maven.microservice [clean].executor": "Run",
     "Maven.microservice [install].executor": "Run",
     "Maven.patient-service [clean].executor": "Run",
@@ -69,7 +90,7 @@
     "project.structure.last.edited": "Problems",
     "project.structure.proportion": "0.0",
     "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "project.propCompiler"
+    "settings.editor.selected.configurable": "preferences.pluginManager"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -202,9 +223,9 @@
       <list>
         <item itemvalue="Application.AuthServiceApplication" />
         <item itemvalue="Application.EurekaServiceApplication" />
-        <item itemvalue="Application.ClientsServiceApplication" />
-        <item itemvalue="Application.PatientServiceApplication" />
         <item itemvalue="Application.SuppliersServiceApplication" />
+        <item itemvalue="Application.PatientServiceApplication" />
+        <item itemvalue="Application.ClientsServiceApplication" />
       </list>
     </recent_temporary>
   </component>
@@ -219,6 +240,54 @@
     <servers />
   </component>
   <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java</url>
+          <line>53</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java</url>
+          <line>54</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java</url>
+          <line>50</line>
+          <option name="timeStamp" value="4" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/security/SecurityFilter.java</url>
+          <line>31</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/security/SecurityFilter.java</url>
+          <line>32</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/security/SecurityFilter.java</url>
+          <line>34</line>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/security/SecurityFilter.java</url>
+          <line>35</line>
+          <option name="timeStamp" value="8" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-method">
+          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java</url>
+          <line>51</line>
+          <properties class="com.ClinicaDeYmid.auth_service.module.auth.controller.AuthController" method="validateToken">
+            <option name="EMULATED" value="true" />
+            <option name="WATCH_EXIT" value="false" />
+          </properties>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
     <watches-manager>
       <configuration name="Application">
         <watch expression="userRepository" language="JAVA" />

@@ -31,7 +31,10 @@ public class SecurityFilter extends OncePerRequestFilter {
         try {
             String token = extractToken(request);
             if (token != null) {
+
+                tokenService.validateAccessToken(token);
                 String uuid = tokenService.getSubject(token);
+
                 Optional<User> userOptional = userRepository.findByUuid(uuid);
 
                 if (userOptional.isPresent()) {
@@ -42,13 +45,13 @@ public class SecurityFilter extends OncePerRequestFilter {
                             user.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 } else {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);;
                     return;
                 }
             }
 
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);;
             return;
         }
 

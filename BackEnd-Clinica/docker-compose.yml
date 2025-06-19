@@ -151,6 +151,25 @@ services:
          retries: 10
       command: --log-bin-trust-function-creators=1
 
+   # Redis para caché
+   redis-cache:
+      image: redis:7-alpine
+      container_name: redis-cache
+      restart: always
+      command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+      ports:
+         - "6379:6379"
+      volumes:
+         - redis_data:/data
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 30s
+
    # Eureka Service Discovery
    eureka-service:
       build: ./eureka-service
@@ -173,7 +192,7 @@ services:
          retries: 5
          start_period: 60s
 
-   # # Servicios Spring Boot
+   # # Servicios Spring Boot (con configuración Redis)
    # patient-service:
    #    build: ./patient-service
    #    container_name: patient-service
@@ -182,10 +201,19 @@ services:
    #          condition: service_healthy
    #       eureka-service:
    #          condition: service_healthy
+   #       redis-cache:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${PATIENT_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${PATIENT_DB_PASSWORD}
+   #       - SPRING_REDIS_HOST=redis-cache
+   #       - SPRING_REDIS_PORT=6379
+   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_REDIS_TIMEOUT=2000ms
+   #       - SPRING_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+   #       - SPRING_REDIS_LETTUCE_POOL_MAX_IDLE=8
+   #       - SPRING_REDIS_LETTUCE_POOL_MIN_IDLE=0
    #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
    #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
    #       - SPRING_PROFILES_ACTIVE=docker
@@ -202,10 +230,16 @@ services:
    #          condition: service_healthy
    #       eureka-service:
    #          condition: service_healthy
+   #       redis-cache:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://billing-db:3306/${BILLING_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${BILLING_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${BILLING_DB_PASSWORD}
+   #       - SPRING_REDIS_HOST=redis-cache
+   #       - SPRING_REDIS_PORT=6379
+   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_REDIS_TIMEOUT=2000ms
    #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
    #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
    #       - SPRING_PROFILES_ACTIVE=docker
@@ -222,10 +256,16 @@ services:
    #          condition: service_healthy
    #       eureka-service:
    #          condition: service_healthy
+   #       redis-cache:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://admissions-db:3306/${ADMISSIONS_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
+   #       - SPRING_REDIS_HOST=redis-cache
+   #       - SPRING_REDIS_PORT=6379
+   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_REDIS_TIMEOUT=2000ms
    #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
    #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
    #       - SPRING_PROFILES_ACTIVE=docker
@@ -242,10 +282,16 @@ services:
    #          condition: service_healthy
    #       eureka-service:
    #          condition: service_healthy
+   #       redis-cache:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://ai-assistant-db:3306/${AI_ASSISTANT_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${AI_ASSISTANT_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${AI_ASSISTANT_DB_PASSWORD}
+   #       - SPRING_REDIS_HOST=redis-cache
+   #       - SPRING_REDIS_PORT=6379
+   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_REDIS_TIMEOUT=2000ms
    #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
    #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
    #       - SPRING_PROFILES_ACTIVE=docker
@@ -262,10 +308,16 @@ services:
    #          condition: service_healthy
    #       eureka-service:
    #          condition: service_healthy
+   #       redis-cache:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://suppliers-db:3306/${SUPPLIERS_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${SUPPLIERS_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${SUPPLIERS_DB_PASSWORD}
+   #       - SPRING_REDIS_HOST=redis-cache
+   #       - SPRING_REDIS_PORT=6379
+   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_REDIS_TIMEOUT=2000ms
    #       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka/
    #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
    #       - SPRING_PROFILES_ACTIVE=docker
@@ -282,10 +334,16 @@ services:
    #          condition: service_healthy
    #       eureka-service:
    #          condition: service_healthy
+   #       redis-cache:
+   #          condition: service_healthy
    #    environment:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${AUTH_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${AUTH_DB_PASSWORD}
+   #       - SPRING_REDIS_HOST=redis-cache
+   #       - SPRING_REDIS_PORT=6379
+   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_REDIS_TIMEOUT=2000ms
    #       - JWT_SECRET=${JWT_SECRET}
    #       - JWT_EXPIRATION=${JWT_EXPIRATION}
    #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
@@ -297,25 +355,34 @@ services:
    #       - clinica-net
 
    # Servicio de clientes
-   clients-service:
-      build: ./clients-service
-      container_name: clients-service
-      depends_on:
-         clients-db:
-            condition: service_healthy
-         eureka-service:
-            condition: service_healthy
-      environment:
-         - SPRING_DATASOURCE_URL=jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${CLIENTS_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${CLIENTS_DB_PASSWORD}
-         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-         - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-         - SPRING_PROFILES_ACTIVE=prod
-      ports:
-         - "8087:8087"
-      networks:
-         - clinica-net
+   # clients-service:
+   #    build: ./clients-service
+   #    container_name: clients-service
+   #    depends_on:
+   #       clients-db:
+   #          condition: service_healthy
+   #       eureka-service:
+   #          condition: service_healthy
+   #       redis-cache:
+   #          condition: service_healthy
+   #    environment:
+   #       - SPRING_DATASOURCE_URL=jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}
+   #       - SPRING_DATASOURCE_USERNAME=${CLIENTS_DB_USER}
+   #       - SPRING_DATASOURCE_PASSWORD=${CLIENTS_DB_PASSWORD}
+   #       - SPRING_REDIS_HOST=redis-cache
+   #       - SPRING_REDIS_PORT=6379
+   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_REDIS_TIMEOUT=2000ms
+   #       - SPRING_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+   #       - SPRING_REDIS_LETTUCE_POOL_MAX_IDLE=8
+   #       - SPRING_REDIS_LETTUCE_POOL_MIN_IDLE=0
+   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+   #       - SPRING_PROFILES_ACTIVE=prod
+   #    ports:
+   #       - "8087:8087"
+   #    networks:
+   #       - clinica-net
 
    # # API Gateway
    # api-gateway:
@@ -323,6 +390,8 @@ services:
    #    container_name: api-gateway
    #    depends_on:
    #       eureka-service:
+   #          condition: service_healthy
+   #       redis-cache:
    #          condition: service_healthy
    #       - patient-service
    #       - billing-service
@@ -339,6 +408,10 @@ services:
    #       - SUPPLIERS_SERVICE_URL=http://suppliers-service:8085
    #       - AUTH_SERVICE_URL=http://auth-service:8086
    #       - CLIENTS_SERVICE_URL=http://clients-service:8087
+   #       - SPRING_REDIS_HOST=redis-cache
+   #       - SPRING_REDIS_PORT=6379
+   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_REDIS_TIMEOUT=2000ms
    #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
    #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
    #       - SPRING_PROFILES_ACTIVE=docker
@@ -346,6 +419,21 @@ services:
    #       - "8080:8080"
    #    networks:
    #       - clinica-net
+
+   # Redis Insight para monitoreo
+   redis-insight:
+      image: redislabs/redisinsight:latest
+      container_name: redis-insight
+      restart: always
+      depends_on:
+         redis-cache:
+            condition: service_healthy
+      ports:
+         - "8001:8001"
+      volumes:
+         - redis_insight_data:/db
+      networks:
+         - clinica-net
 
 # Volúmenes para persistencia de datos
 volumes:
@@ -356,6 +444,8 @@ volumes:
    suppliers_data:
    auth_data:
    clients_data:
+   redis_data:
+   redis_insight_data:
 
 networks:
    clinica-net:

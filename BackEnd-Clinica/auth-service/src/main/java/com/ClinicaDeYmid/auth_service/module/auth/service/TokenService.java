@@ -45,7 +45,6 @@ public class TokenService {
     @Value("${jwt.refresh-token.expiration:604800}")
     private Long refreshTokenExpiration;
 
-    // Fallback para HS256 si no se configuran las claves RSA
     @Value("${jwt.secret:}")
     private String hmacSecret;
 
@@ -53,13 +52,15 @@ public class TokenService {
     private String algorithmType;
 
     private final ResourceLoader resourceLoader;
+    private final TokenBlacklistService tokenBlacklistService;
 
     private RSAPrivateKey privateKey;
     private RSAPublicKey publicKey;
     private Algorithm algorithm;
 
-    public TokenService(ResourceLoader resourceLoader) {
+    public TokenService(ResourceLoader resourceLoader, TokenBlacklistService tokenBlacklistService) {
         this.resourceLoader = resourceLoader;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @PostConstruct
@@ -85,7 +86,6 @@ public class TokenService {
     }
 
     private void loadRSAKeys() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        // Cargar clave privada
         Resource privateKeyResource = resourceLoader.getResource(privateKeyPath);
         if (!privateKeyResource.exists()) {
             throw new IllegalStateException("Archivo de clave privada no encontrado: " + privateKeyPath);
@@ -101,7 +101,6 @@ public class TokenService {
         KeyFactory keyFactory = KeyFactory.getInstance(ALGORITHM_TYPE);
         this.privateKey = (RSAPrivateKey) keyFactory.generatePrivate(privateKeySpec);
 
-        // Cargar clave pública
         Resource publicKeyResource = resourceLoader.getResource(publicKeyPath);
         if (!publicKeyResource.exists()) {
             throw new IllegalStateException("Archivo de clave pública no encontrado: " + publicKeyPath);
@@ -151,9 +150,7 @@ public class TokenService {
     }
 
     public TokenPair generateTokenPair(User user) {
-        String accessToken = generateAccessToken(user);
-        String refreshToken = generateRefreshToken(user);
-        return new TokenPair(accessToken, refreshToken);
+        return new TokenPair(generateAccessToken(user), generateRefreshToken(user));
     }
 
     public String getSubject(String token) {
@@ -168,7 +165,7 @@ public class TokenService {
         try {
             return JWT.require(algorithm)
                     .withIssuer(ISSUER)
-                    .acceptLeeway(10) // 10 segundos de margen para clock skew
+                    .acceptLeeway(10)
                     .build()
                     .verify(token);
         } catch (JWTVerificationException e) {
@@ -177,6 +174,9 @@ public class TokenService {
     }
 
     public void validateAccessToken(String token) {
+        if (tokenBlacklistService.isTokenBlacklisted(token)) {
+            throw new RuntimeException("Token inválido (en blacklist)");
+        }
         DecodedJWT decodedJWT = validateAndDecodeToken(token);
         String tokenType = decodedJWT.getClaim("type").asString();
         if (!"access".equals(tokenType)) {
@@ -193,16 +193,11 @@ public class TokenService {
     }
 
     public TokenPair refreshTokens(String refreshToken, User user) {
-
         validateRefreshToken(refreshToken);
-
-        // Verificar que el token pertenece al usuario
         DecodedJWT decodedJWT = validateAndDecodeToken(refreshToken);
         if (!user.getUuid().equals(decodedJWT.getSubject())) {
             throw new RuntimeException("Refresh token no pertenece al usuario");
         }
-
-        // Generar nuevo par de tokens
         return generateTokenPair(user);
     }
 
@@ -215,11 +210,13 @@ public class TokenService {
         }
     }
 
-    public String getAlgorithmType() {
-        return algorithmType;
+    public long getExpirationInSeconds(String token) {
+        DecodedJWT decodedJWT = validateAndDecodeToken(token);
+        Date expiration = decodedJWT.getExpiresAt();
+        return (expiration.getTime() - System.currentTimeMillis()) / 1000;
     }
 
-    // Solo para RS256 - retorna la clave pública para verificación externa
+
     public RSAPublicKey getPublicKey() {
         if (!"RS256".equalsIgnoreCase(algorithmType)) {
             throw new UnsupportedOperationException("Clave pública solo disponible para algoritmo RS256");
@@ -235,23 +232,11 @@ public class TokenService {
         return Instant.now().plusSeconds(refreshTokenExpiration);
     }
 
-    public Long getAccessTokenExpirationSeconds() {
-        return accessTokenExpiration;
-    }
-
-    public Long getRefreshTokenExpirationSeconds() {
-        return refreshTokenExpiration;
-    }
-
     private void validateUser(User user) {
-        if (user == null) {
-            throw new IllegalArgumentException("El usuario no puede ser null");
-        }
-        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+        if (user == null) throw new IllegalArgumentException("El usuario no puede ser null");
+        if (user.getEmail() == null || user.getEmail().trim().isEmpty())
             throw new IllegalArgumentException("El usuario debe tener un email válido");
-        }
-        if (user.getUuid() == null || user.getUuid().trim().isEmpty()) {
+        if (user.getUuid() == null || user.getUuid().trim().isEmpty())
             throw new IllegalArgumentException("El usuario debe tener un UUID válido");
-        }
     }
 }
