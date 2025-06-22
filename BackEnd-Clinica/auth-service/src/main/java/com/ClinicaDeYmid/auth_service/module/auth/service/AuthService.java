@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.auth_service.module.auth.service;
 
 import com.ClinicaDeYmid.auth_service.module.auth.dto.LoginRequest;
+import com.ClinicaDeYmid.auth_service.module.auth.dto.PublicKeyResponse;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.RefreshTokenRequest;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.TokenPair;
 import com.ClinicaDeYmid.auth_service.module.user.dto.UserResponseDTO;
@@ -14,6 +15,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+
+import java.security.interfaces.RSAPublicKey;
+import java.util.Base64;
 
 @Service
 @RequiredArgsConstructor
@@ -69,4 +73,18 @@ public class AuthService {
         log.info("Logout exitoso para token");
     }
 
+    public PublicKeyResponse getPublicKey() {
+        RSAPublicKey publicKey = tokenService.getPublicKey();
+        String encodedKey = Base64.getEncoder().encodeToString(publicKey.getEncoded());
+
+        log.debug("Clave pública obtenida exitosamente");
+
+        return new PublicKeyResponse(
+                encodedKey,
+                "RS256",
+                "RSA"
+        );
+
+
+    }
 }

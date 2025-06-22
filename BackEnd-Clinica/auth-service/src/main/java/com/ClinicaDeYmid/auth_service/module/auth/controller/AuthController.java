@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.auth_service.module.auth.controller;
 
 import com.ClinicaDeYmid.auth_service.module.auth.dto.LoginRequest;
+import com.ClinicaDeYmid.auth_service.module.auth.dto.PublicKeyResponse;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.RefreshTokenRequest;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.TokenPair;
 
@@ -72,6 +73,22 @@ public class AuthController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/public-key")
+    public ResponseEntity<PublicKeyResponse> getPublicKey() {
+        try {
+            PublicKeyResponse response = authService.getPublicKey();
+            log.debug("Clave pública solicitada exitosamente");
+            return ResponseEntity.ok(response);
+
+        } catch (UnsupportedOperationException e) {
+            log.warn("Intento de obtener clave pública con algoritmo no soportado: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            log.error("Error inesperado al obtener clave pública", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

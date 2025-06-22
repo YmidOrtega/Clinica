@@ -20,7 +20,7 @@ import java.util.List;
 @Slf4j
 @Validated
 @RestController
-@RequestMapping("/api/v1/doctors")
+@RequestMapping("/api/v1/suppliers/doctors")
 @RequiredArgsConstructor
 public class DoctorController {
 
