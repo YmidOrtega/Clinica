@@ -8,10 +8,6 @@ import java.time.Period;
 
 public class ParentsRequiredForMinorValidator implements ConstraintValidator<ParentsRequiredForMinor, NewPatientDto> {
 
-    @Override
-    public void initialize(ParentsRequiredForMinor constraintAnnotation) {
-        // Inicialización si es necesaria
-    }
 
     @Override
     public boolean isValid(NewPatientDto newPatientDTO, ConstraintValidatorContext context) {
