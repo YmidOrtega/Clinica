@@ -1,8 +1,5 @@
 package com.ClinicaDeYmid.suppliers_service.module.mapper;
 
-import admissions_suppliers.dto.AttentionResponseDTO;
-import admissions_suppliers.dto.ServiceTypeDTO;
-import admissions_suppliers.dto.SubSpecialtyDTO;
 import com.ClinicaDeYmid.suppliers_service.module.dto.*;
 import com.ClinicaDeYmid.suppliers_service.module.entity.Doctor;
 import org.mapstruct.*;
@@ -14,13 +11,10 @@ public interface DoctorMapper {
 
     Doctor toEntity(DoctorCreateRequestDTO dto);
 
-    GetDoctorResponseDTO toDto(Doctor doctor,
-                               List<SubSpecialtyDTO> subspecialties,
-                               List<ServiceTypeDTO> services,
-                               List<AttentionResponseDTO> attentions);
-
-    DoctorResponseDTO toResponse(Doctor doctor);
-
+    DoctorResponseDTO toDto(Doctor doctor,
+                            List<SubSpecialtyDto> subspecialties,
+                            List<ServiceTypeDto> services,
+                            List<AttentionGetDto> attentions);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateDoctorFromDto(DoctorUpdateRequestDTO dto, @MappingTarget Doctor entity);

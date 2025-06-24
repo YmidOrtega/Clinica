@@ -1,7 +1,7 @@
 package com.ClinicaDeYmid.clients_service.module.entity;
 
 
-import clients_patients.enums.ContractStatus;
+import com.ClinicaDeYmid.clients_service.module.enums.ContractStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

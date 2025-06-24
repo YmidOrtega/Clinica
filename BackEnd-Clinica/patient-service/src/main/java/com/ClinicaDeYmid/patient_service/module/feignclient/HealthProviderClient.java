@@ -1,7 +1,6 @@
 package com.ClinicaDeYmid.patient_service.module.feignclient;
 
-
-import clients_patients.dto.HealthProviderResponseDto;
+import com.ClinicaDeYmid.patient_service.module.dto.GetHealthProviderDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,5 +9,5 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface HealthProviderClient {
 
     @GetMapping("/{nit}")
-    HealthProviderResponseDto getHealthProviderByNit(@PathVariable("nit") String nit);
+    GetHealthProviderDto getHealthProviderByNit(@PathVariable("nit") String nit);
 }

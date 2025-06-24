@@ -5,7 +5,7 @@ import com.ClinicaDeYmid.clients_service.module.dto.CreateHealthProviderDto;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 
-import clients_patients.dto.HealthProviderResponseDto;
+import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderResponseDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

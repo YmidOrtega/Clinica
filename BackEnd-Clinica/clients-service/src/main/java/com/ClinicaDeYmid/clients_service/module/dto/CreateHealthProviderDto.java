@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.clients_service.module.dto;
 
-import clients_patients.domain.Nit;
+import com.ClinicaDeYmid.clients_service.module.domain.Nit;
 import com.ClinicaDeYmid.clients_service.module.enums.TypeProvider;
 import jakarta.validation.constraints.*;
 

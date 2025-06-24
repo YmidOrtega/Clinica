@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.admissions_service.module.mapper;
 import com.ClinicaDeYmid.admissions_service.module.dto.*;
 import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
 import com.ClinicaDeYmid.admissions_service.module.entity.Companion;
+import com.ClinicaDeYmid.admissions_service.module.entity.ConfigurationService;
 import org.mapstruct.*;
 
 import java.util.List;
@@ -25,6 +26,9 @@ public interface AttentionMapper {
     @Mapping(target = "companion", source = "companion")
     Attention toEntity(CreateAttentionRequestDto dto);
 
+
+    @Mapping(target = "patientId", source = "patientId")
+    @Mapping(target = "doctorId", source = "doctorId")
     @Mapping(target = "configurationService", source = "configurationService")
     AttentionSummary toSummary(Attention entity);
 
@@ -42,4 +46,13 @@ public interface AttentionMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "version", ignore = true)
     void updateEntityFromDto(CreateAttentionRequestDto dto, @MappingTarget Attention entity);
+
+    default ConfigurationService map(Long configServiceId) {
+        if (configServiceId == null) {
+            return null;
+        }
+        ConfigurationService configService = new ConfigurationService();
+        configService.setId(configServiceId);
+        return configService;
+    }
 }

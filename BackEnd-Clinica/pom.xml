@@ -40,7 +40,6 @@
 		<module>eureka-service</module>
 		<module>patient-service</module>
 		<module>suppliers-service</module>
-		<module>common-module</module>
 	</modules>
 
 	<dependencyManagement>

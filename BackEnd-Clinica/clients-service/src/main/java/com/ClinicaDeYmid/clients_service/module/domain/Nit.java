@@ -1,4 +1,4 @@
-package clients_patients.domain;
+package com.ClinicaDeYmid.clients_service.module.domain;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

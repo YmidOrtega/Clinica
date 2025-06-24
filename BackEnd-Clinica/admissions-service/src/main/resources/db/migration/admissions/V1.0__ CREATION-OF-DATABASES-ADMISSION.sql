@@ -79,7 +79,7 @@ CREATE TABLE attentions (
     invoiced BOOLEAN NOT NULL DEFAULT FALSE,
     patient_id BIGINT NOT NULL,
     doctor_id BIGINT NOT NULL,
-    health_provider_id BIGINT NOT NULL,
+    health_provider_nit VARCHAR(255) NOT NULL,
     invoice_number BIGINT NULL,
     configuration_service_id BIGINT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -2,7 +2,6 @@ package com.ClinicaDeYmid.patient_service.module.mapper;
 
 import com.ClinicaDeYmid.patient_service.module.dto.*;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
-import clients_patients.dto.HealthProviderResponseDto;
 import org.mapstruct.*;
 
 import java.time.LocalDateTime;
@@ -23,13 +22,13 @@ public interface PatientMapper {
     Patient toPatient(NewPatientDto newPatientDTO);
 
     // Mapeo de Entity a DTO manual (por lógica personalizada)
-    default GetPatientDto toPatientDTO(Patient patient, HealthProviderResponseDto healthProviderResponseDto) {
+    default GetPatientDto toPatientDTO(Patient patient, GetHealthProviderDto getHealthProviderDto) {
         if (patient == null) {
             return null;
         }
 
-        String socialReason = (healthProviderResponseDto != null) ? healthProviderResponseDto.socialReason() : null;
-        String typeProvider = (healthProviderResponseDto != null) ? healthProviderResponseDto.typeProvider().toString() : null;
+        String socialReason = (getHealthProviderDto != null) ? getHealthProviderDto.socialReason() : null;
+        String typeProvider = (getHealthProviderDto != null) ? getHealthProviderDto.typeProvider().toString() : null;
 
         return new GetPatientDto(
                 patient.getUuid(),
@@ -49,7 +48,6 @@ public interface PatientMapper {
                 patient.getTypeOfAffiliation().getDisplayName(),
                 patient.getAffiliationNumber(),
                 new GetClientDto(
-                        patient.getHealthProviderNit(),
                         socialReason,
                         typeProvider
                 ),
@@ -80,15 +78,14 @@ public interface PatientMapper {
     void updatePatientFromDTO(UpdatePatientDto updatePatientDto, @MappingTarget Patient patient);
 
     // Mapeo de Entity a DTO manual (también con lógica personalizada)
-    default PatientResponseDto toPatientResponseDto(Patient patient, HealthProviderResponseDto healthProviderResponseDto) {
+    default PatientResponseDto toPatientResponseDto(Patient patient, GetHealthProviderDto getHealthProviderDto) {
         if (patient == null) {
             return null;
         }
 
         GetClientDto clientInfo = new GetClientDto(
-                patient.getHealthProviderNit(),
-                healthProviderResponseDto != null ? healthProviderResponseDto.socialReason() : null,
-                healthProviderResponseDto != null ? healthProviderResponseDto.typeProvider().toString() : null
+                getHealthProviderDto != null ? getHealthProviderDto.socialReason() : null,
+                getHealthProviderDto != null ? getHealthProviderDto.typeProvider().toString() : null
         );
 
         return new PatientResponseDto(

@@ -1,7 +1,6 @@
 package com.ClinicaDeYmid.suppliers_service.module.controller;
 
 import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorCreateRequestDTO;
-import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorResponseDTO;
 import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorUpdateRequestDTO;
 import com.ClinicaDeYmid.suppliers_service.module.service.DoctorGetService;
 import com.ClinicaDeYmid.suppliers_service.module.service.DoctorRecordService;

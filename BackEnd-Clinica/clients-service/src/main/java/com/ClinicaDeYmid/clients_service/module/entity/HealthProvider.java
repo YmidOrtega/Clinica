@@ -1,9 +1,7 @@
 package com.ClinicaDeYmid.clients_service.module.entity;
 
-
-
-import admissions_suppliers.dto.AttentionResponseDTO;
-import clients_patients.domain.Nit;
+import com.ClinicaDeYmid.clients_service.module.domain.Nit;
+import com.ClinicaDeYmid.clients_service.module.dto.AttentionResponseDTO;
 import com.ClinicaDeYmid.clients_service.module.enums.TypeProvider;
 import jakarta.persistence.*;
 import lombok.Data;

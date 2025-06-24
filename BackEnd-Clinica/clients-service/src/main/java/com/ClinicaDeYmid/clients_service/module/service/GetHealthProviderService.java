@@ -7,7 +7,7 @@ import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 import com.ClinicaDeYmid.clients_service.module.mapper.HealthProviderMapper;
 import com.ClinicaDeYmid.clients_service.module.repository.HealthProviderRepository;
-import clients_patients.dto.HealthProviderResponseDto;
+import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;

@@ -3,13 +3,13 @@ package com.ClinicaDeYmid.patient_service.module.service;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotActiveException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
+import com.ClinicaDeYmid.patient_service.module.dto.GetHealthProviderDto;
 import com.ClinicaDeYmid.patient_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
 import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.enums.Status;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
-import clients_patients.dto.HealthProviderResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +34,7 @@ public class GetPatientInformationService {
                 throw new PatientNotActiveException(patient.getStatus().getDisplayName());
             }
 
-            HealthProviderResponseDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
+            GetHealthProviderDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
 
             return patientMapper.toPatientDTO(patient, provider);
 
