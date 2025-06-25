@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.admissions_service.module.feignclient;
 
-
 import com.ClinicaDeYmid.admissions_service.module.dto.clients.GetHealthProviderDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;

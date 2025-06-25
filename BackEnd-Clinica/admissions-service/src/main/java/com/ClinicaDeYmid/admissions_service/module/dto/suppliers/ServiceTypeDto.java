@@ -1,5 +1,6 @@
-package com.ClinicaDeYmid.admissions_service.module.dto;
+package com.ClinicaDeYmid.admissions_service.module.dto.suppliers;
 
+import com.ClinicaDeYmid.admissions_service.module.dto.catalog.CareTypeDto;
 import jakarta.validation.constraints.NotNull;
 
 public record ServiceTypeDto(

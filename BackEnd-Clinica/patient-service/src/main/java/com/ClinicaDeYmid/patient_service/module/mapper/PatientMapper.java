@@ -16,7 +16,7 @@ public interface PatientMapper {
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(LocalDateTime.now())"),
             @Mapping(target = "status", constant = "ALIVE"),
-            @Mapping(target = "healthProviderResponseDto", ignore = true),
+            @Mapping(target = "getHealthProviderDto", ignore = true),
             @Mapping(target = "attentions", ignore = true),
     })
     Patient toPatient(NewPatientDto newPatientDTO);
@@ -72,7 +72,7 @@ public interface PatientMapper {
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(java.time.LocalDateTime.now())"),
             @Mapping(target = "status", ignore = true),
-            @Mapping(target = "healthProviderResponseDto", ignore = true),
+            @Mapping(target = "healthProviderNit", ignore = true),
             @Mapping(target = "attentions", ignore = true)
     })
     void updatePatientFromDTO(UpdatePatientDto updatePatientDto, @MappingTarget Patient patient);
@@ -85,7 +85,7 @@ public interface PatientMapper {
 
         GetClientDto clientInfo = new GetClientDto(
                 getHealthProviderDto != null ? getHealthProviderDto.socialReason() : null,
-                getHealthProviderDto != null ? getHealthProviderDto.typeProvider().toString() : null
+                getHealthProviderDto != null ? getHealthProviderDto.typeProvider() : null
         );
 
         return new PatientResponseDto(

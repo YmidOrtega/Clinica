@@ -16,6 +16,10 @@ public interface DoctorMapper {
                             List<ServiceTypeDto> services,
                             List<AttentionGetDto> attentions);
 
+    DoctorResponseDTO toResponse(Doctor doctor);
+
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateDoctorFromDto(DoctorUpdateRequestDTO dto, @MappingTarget Doctor entity);
+
+
 }

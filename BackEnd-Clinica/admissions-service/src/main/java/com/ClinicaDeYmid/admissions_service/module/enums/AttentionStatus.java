@@ -6,7 +6,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum AttentionStatus {
-   CREATED("Creado"),
+    CREATED("Creado"),
     IN_PROGRESS("En progreso"),
     DISCHARGED("Alta"),
     CANCELLED("Cancelado");

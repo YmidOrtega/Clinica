@@ -1,23 +1,24 @@
 package com.ClinicaDeYmid.admissions_service.module.validation;
 
-import com.ClinicaDeYmid.admissions_service.module.dto.CreateAttentionRequestDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionRequestDto;
 import jakarta.validation.ConstraintValidator;
 
 public class TriageLevelRequiredForEmergencyValidator implements ConstraintValidator<TriageLevelRequiredForEmergency,
-        CreateAttentionRequestDto> {
+        AttentionRequestDto> {
 
     @Override
-    public boolean isValid(CreateAttentionRequestDto createAttentionRequestDto,
+    public boolean isValid(AttentionRequestDto attentionRequestDto,
                            jakarta.validation.ConstraintValidatorContext context) {
 
-        if (createAttentionRequestDto == null) {
+        if (attentionRequestDto == null) {
             return true;
         }
 
-        // Verificar si el tipo de servicio es de emergencia
-        if (createAttentionRequestDto.configurationServiceId().serviceType().name().equals("EMERGENCY")) {
+        /* Verificar si el tipo de servicio es de emergencia
+        if (attentionRequestDto.configurationServiceId()
+        ().serviceType().name().equals("EMERGENCY")) {
             // Verificar si el nivel de Triage está presente
-            if (createAttentionRequestDto.triageLevel() == null) {
+            if (attentionRequestDto.triageLevel() == null) {
                 context.disableDefaultConstraintViolation();
                 context.buildConstraintViolationWithTemplate(
                         "El nivel de Triage es obligatorio para atenciones de emergencia")
@@ -25,7 +26,7 @@ public class TriageLevelRequiredForEmergencyValidator implements ConstraintValid
                         .addConstraintViolation();
                 return false;
             }
-        }
+        }*/
 
 
         return true;

@@ -1,7 +1,5 @@
 package com.ClinicaDeYmid.admissions_service.module.dto.suppliers;
 
-import com.ClinicaDeYmid.admissions_service.module.dto.ServiceTypeDto;
-
 import java.util.List;
 
 public record GetDoctorDto(

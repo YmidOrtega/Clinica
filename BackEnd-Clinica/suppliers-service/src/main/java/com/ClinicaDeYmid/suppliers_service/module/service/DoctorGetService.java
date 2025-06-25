@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.suppliers_service.module.service;
 
+import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorResponseDTO;
 import com.ClinicaDeYmid.suppliers_service.module.entity.Doctor;
 import com.ClinicaDeYmid.suppliers_service.module.mapper.DoctorMapper;
 import com.ClinicaDeYmid.suppliers_service.module.repository.DoctorRepository;

@@ -43,12 +43,10 @@ CREATE TABLE locations (
 CREATE TABLE service_types (
     id BIGINT NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) UNIQUE NOT NULL,
-    care_type_id BIGINT NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    CONSTRAINT fk_service_types_care_type FOREIGN KEY (care_type_id) REFERENCES care_types(id)
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
@@ -102,7 +100,7 @@ CREATE TABLE attentions (
     CONSTRAINT fk_attentions_config_service FOREIGN KEY (configuration_service_id) REFERENCES configuration_services(id),
     INDEX idx_attention_patient_id (patient_id),
     INDEX idx_attention_doctor_id (doctor_id),
-    INDEX idx_attention_health_provider_id (health_provider_id)
+    INDEX idx_attention_health_provider_nit (health_provider_nit)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================

@@ -1,58 +1,122 @@
 package com.ClinicaDeYmid.admissions_service.module.mapper;
 
-import com.ClinicaDeYmid.admissions_service.module.dto.*;
-import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
-import com.ClinicaDeYmid.admissions_service.module.entity.Companion;
-import com.ClinicaDeYmid.admissions_service.module.entity.ConfigurationService;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.*;
+import com.ClinicaDeYmid.admissions_service.module.dto.catalog.CareTypeDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.catalog.LocationDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.catalog.ServiceTypeDto;
+import com.ClinicaDeYmid.admissions_service.module.entity.*;
 import org.mapstruct.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
-@Mapper(
-        componentModel = "spring",
-        uses = {ConfigurationServiceMapper.class},
-        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
-        nullValueCheckStrategy = NullValueCheckStrategy.ALWAYS
-)
+@Mapper(componentModel = "spring",
+        uses = {AuthorizationMapper.class, AttentionUserHistoryMapper.class},
+        unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface AttentionMapper {
 
+    // Mapeo de Request a Entidad
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "invoiceNumber", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "admissionDateTime", ignore = true)
     @Mapping(target = "dischargeDateTime", ignore = true)
-    @Mapping(target = "invoiced", constant = "false")
-    @Mapping(target = "configurationService", source = "configurationServiceId")
-    @Mapping(target = "companion", source = "companion")
-    Attention toEntity(CreateAttentionRequestDto dto);
+    @Mapping(target = "userHistory", ignore = true)
+    @Mapping(target = "configurationService", source = "configurationServiceId", qualifiedByName = "mapConfigurationServiceIdToEntity")
+    @Mapping(target = "authorizations", ignore = true)
+    @Mapping(target = "healthProviderNit", source = "healthProviderNit")
+    Attention toEntity(AttentionRequestDto dto);
 
-
-    @Mapping(target = "patientId", source = "patientId")
-    @Mapping(target = "doctorId", source = "doctorId")
-    @Mapping(target = "configurationService", source = "configurationService")
-    AttentionSummary toSummary(Attention entity);
-
-    List<AttentionSummary> toSummaryList(List<Attention> entities);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "attention", ignore = true)
-    Companion companionDtoToEntity(CompanionDto dto);
-
-    CompanionDto companionEntityToDto(Companion entity);
-
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    // Actualización de Entidad desde Request DTO
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "version", ignore = true)
-    void updateEntityFromDto(CreateAttentionRequestDto dto, @MappingTarget Attention entity);
+    @Mapping(target = "admissionDateTime", ignore = true)
+    @Mapping(target = "dischargeDateTime", ignore = true)
+    @Mapping(target = "userHistory", ignore = true)
+    @Mapping(target = "configurationService", source = "configurationServiceId", qualifiedByName = "mapConfigurationServiceIdToEntity")
+    @Mapping(target = "authorizations", ignore = true)
+    @Mapping(target = "healthProviderNit", source = "healthProviderNit")
+    void updateEntityFromDto(AttentionRequestDto dto, @MappingTarget Attention entity);
 
-    default ConfigurationService map(Long configServiceId) {
-        if (configServiceId == null) {
+    // Mapeo de Entidad a Response DTO
+    @Mapping(target = "patientDetails", ignore = true)
+    @Mapping(target = "doctorDetails", ignore = true)
+    @Mapping(target = "healthProviderDetails", ignore = true)
+    @Mapping(target = "userHistory", source = "userHistory", qualifiedByName = "ToUserHistoryResponseDto")
+    @Mapping(target = "authorizations", source = "authorizations", qualifiedByName = "ToAuthorizationResponseDto")
+    @Mapping(target = "configurationService", source = "configurationService", qualifiedByName = "ToConfigurationServiceResponseDto")
+    @Mapping(target = "createdByUserId", expression = "java(entity.getCreatedByUserId())")
+    @Mapping(target = "lastUpdatedByUserId", expression = "java(entity.getLastUpdatedByUserId())")
+    @Mapping(target = "invoicedByUserId", expression = "java(entity.getInvoicedByUserId())")
+    AttentionResponseDto toResponseDto(Attention entity);
+
+    // Métodos para colecciones
+    List<AttentionResponseDto> toResponseDtoList(List<Attention> entities);
+
+
+    @Named("mapConfigurationServiceIdToEntity")
+    default ConfigurationService mapConfigurationServiceIdToEntity(Long configurationServiceId) {
+        if (configurationServiceId == null) {
             return null;
         }
         ConfigurationService configService = new ConfigurationService();
-        configService.setId(configServiceId);
+        configService.setId(configurationServiceId);
         return configService;
+    }
+
+
+    // Metodo para mapear ConfigurationService a ConfigurationServiceResponseDto
+    @Named("ToConfigurationServiceResponseDto")
+    default ConfigurationServiceResponseDto mapConfigurationServiceToResponseDto(ConfigurationService configService) {
+        if (configService == null) {
+            return null;
+        }
+        return new ConfigurationServiceResponseDto(
+                configService.getId(),
+                configService.getServiceType() != null ? configService.getServiceType().getName() : null,
+                configService.getServiceType() != null && configService.getServiceType()
+                        .getCareTypes() != null ? configService.getServiceType().getCareTypes().iterator().next().getName() :
+                        null,
+                configService.getLocation() != null ? configService.getLocation().getName() : null,
+                configService.isActive()
+        );
+    }
+
+    // Mapeo para Companion
+    CompanionDto toCompanionDto(Companion companion);
+    Companion toCompanionEntity(CompanionDto companionDto);
+
+    // Mapeo para CareType
+    @Named("toCareTypeDto")
+    default CareTypeDto toCareTypeDto(CareType careType) {
+        if (careType == null) {
+            return null;
+        }
+        return new CareTypeDto(careType.getId(), careType.getName());
+    }
+
+    // Mapeo para Location
+    @Named("toLocationDto")
+    default LocationDto toLocationDto(Location location) {
+        if (location == null) {
+            return null;
+        }
+        return new LocationDto(location.getId(), location.getName());
+    }
+
+    // Mapeo para ServiceType
+    @Named("toServiceTypeDto")
+    default ServiceTypeDto toServiceTypeDto(ServiceType serviceType) {
+        if (serviceType == null) {
+            return null;
+        }
+        return new ServiceTypeDto(
+                serviceType.getId(),
+                serviceType.getName(),
+                toCareTypeDto(serviceType.getCareTypes().iterator().next()),
+                serviceType.isActive()
+        );
     }
 }

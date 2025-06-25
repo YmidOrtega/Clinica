@@ -1,12 +1,16 @@
 package com.ClinicaDeYmid.admissions_service.module.service;
 
-import com.ClinicaDeYmid.admissions_service.module.dto.AttentionSummary;
-import com.ClinicaDeYmid.admissions_service.module.dto.CreateAttentionRequestDto;
-import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
-import com.ClinicaDeYmid.admissions_service.module.entity.ConfigurationService;
 import com.ClinicaDeYmid.admissions_service.infra.exception.EntityNotFoundException;
 import com.ClinicaDeYmid.admissions_service.infra.exception.ValidationException;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionRequestDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionResponseDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.AuthorizationRequestDto;
+import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
+import com.ClinicaDeYmid.admissions_service.module.entity.Authorization;
+import com.ClinicaDeYmid.admissions_service.module.entity.ConfigurationService;
+import com.ClinicaDeYmid.admissions_service.module.enums.UserActionType;
 import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionMapper;
+import com.ClinicaDeYmid.admissions_service.module.mapper.AuthorizationMapper;
 import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepository;
 import com.ClinicaDeYmid.admissions_service.module.repository.ConfigurationServiceRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +18,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -25,140 +31,94 @@ public class AttentionRecordService {
     private final AttentionRepository attentionRepository;
     private final ConfigurationServiceRepository configurationServiceRepository;
     private final AttentionMapper attentionMapper;
+    private final AuthorizationMapper authorizationMapper;
+    private final AttentionEnrichmentService attentionEnrichmentService;
 
     @Transactional
-    public AttentionSummary createAttention(CreateAttentionRequestDto request) {
-        log.info("Creating new attention for patient ID: {}", request.patientId());
+    public AttentionResponseDto createAttention(AttentionRequestDto requestDto) {
+        log.info("Creating new attention for patient ID: {}", requestDto.patientId());
 
-        ConfigurationService configService = configurationServiceRepository
-                .findById(request.configurationServiceId().id())
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "ConfigurationService not found with ID: " + request.configurationServiceId().id()));
+        ConfigurationService configService = configurationServiceRepository.findById(requestDto.configurationServiceId())
+                .orElseThrow(() -> new EntityNotFoundException("Configuration Service not found with ID: " + requestDto.configurationServiceId()));
 
-        if (!configService.isActive()) {
-            throw new ValidationException("ConfigurationService is not active");
-        }
-
-        // Verificar si existe una atención activa para el mismo paciente (solo informativo)
-        String activeAttentionWarning = checkForActiveAttentionForPatient(request.patientId());
-
-        Attention attention = attentionMapper.toEntity(request);
+        Attention attention = attentionMapper.toEntity(requestDto);
         attention.setConfigurationService(configService);
 
-        Attention savedAttention = attentionRepository.save(attention);
+        attention.setCreatedAt(LocalDateTime.now());
+        attention.setUpdatedAt(LocalDateTime.now());
+        attention.setAdmissionDateTime(LocalDateTime.now());
 
-        log.info("Successfully created attention with ID: {} for patient ID: {}",
-                savedAttention.getId(), request.patientId());
+        attention.addUserAction(requestDto.userId(), UserActionType.CREATED, "Atención creada inicialmente.");
 
-        AttentionSummary summary = attentionMapper.toSummary(savedAttention);
+        attention = attentionRepository.save(attention);
 
-        // Agregar warning si existe una atención activa
-        if (activeAttentionWarning != null) {
-            return new AttentionSummary(
-                    summary.id(),
-                    summary.patientId(),
-                    summary.doctorId(),
-                    summary.healthProviderNits(),
-                    summary.status(),
-                    summary.admissionDateTime(),
-                    summary.dischargeDateTime(),
-                    summary.triageLevel(),
-                    summary.cause(),
-                    summary.mainDiagnosisCode(),
-                    summary.invoiced(),
-                    summary.configurationService(),
-                    List.of(activeAttentionWarning)
-            );
+        if (requestDto.authorizations() != null && !requestDto.authorizations().isEmpty()) {
+            List<Authorization> authorizations = new ArrayList<>();
+            for (AuthorizationRequestDto authDto : requestDto.authorizations()) {
+                Authorization authorization = authorizationMapper.toEntity(authDto);
+                authorization.setAttention(attention); // Asociar la autorización con la atención
+                authorization.setCreatedAt(LocalDateTime.now());
+                authorization.setUpdatedAt(LocalDateTime.now());
+                authorizations.add(authorization);
+            }
+
+            attention.setAuthorizations(authorizations);
+            attentionRepository.save(attention);
         }
 
-        return summary;
+        log.info("Attention created successfully with ID: {}", attention.getId());
+
+        return attentionEnrichmentService.enrichAttentionResponseDto(attention);
     }
 
     @Transactional
-    public AttentionSummary updateAttention(Long attentionId, CreateAttentionRequestDto request) {
-        log.info("Updating attention with ID: {}", attentionId);
+    public AttentionResponseDto updateAttention(Long id, AttentionRequestDto requestDto) {
+        log.info("Updating attention with ID: {}", id);
 
-        Attention existingAttention = attentionRepository.findById(attentionId)
-                .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + attentionId));
+        Attention existingAttention = attentionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + id));
 
-        // VALIDACIÓN PRINCIPAL: Verificar si la atención está facturada
-        validateAttentionNotInvoiced(existingAttention);
-
-        // Otras validaciones
-        validateUpdateRequest(request, existingAttention);
-
-        // Verificar ConfigurationService si se está actualizando
-        if (request.configurationServiceId() != null) {
-            ConfigurationService configService = configurationServiceRepository
-                    .findById(request.configurationServiceId().id())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "ConfigurationService not found with ID: " + request.configurationServiceId().id()));
-
-            if (!configService.isActive()) {
-                throw new ValidationException("ConfigurationService is not active");
-            }
-            existingAttention.setConfigurationService(configService);
+        if (existingAttention.isInvoiced()) {
+            throw new ValidationException("Cannot update an attention that has already been invoiced.");
         }
 
-        attentionMapper.updateEntityFromDto(request, existingAttention);
+        ConfigurationService configService = configurationServiceRepository.findById(requestDto.configurationServiceId())
+                .orElseThrow(() -> new EntityNotFoundException("Configuration Service not found with ID: " + requestDto.configurationServiceId()));
 
-        Attention updatedAttention = attentionRepository.save(existingAttention);
+        attentionMapper.updateEntityFromDto(requestDto, existingAttention);
+        existingAttention.setConfigurationService(configService);
 
-        log.info("Successfully updated attention with ID: {}", attentionId);
+        existingAttention.setUpdatedAt(LocalDateTime.now());
 
-        return attentionMapper.toSummary(updatedAttention);
-    }
-
-    /**
-     * Validación específica para verificar que la atención no esté facturada
-     * @param attention la atención a validar
-     * @throws ValidationException si la atención está facturada
-     */
-    private void validateAttentionNotInvoiced(Attention attention) {
-        if (attention.isInvoiced()) {
-            log.warn("Attempt to update invoiced attention with ID: {} and invoice number: {}",
-                    attention.getId(), attention.getInvoiceNumber());
-
-            String errorMessage = String.format(
-                    "Cannot update attention with ID: %d because it is already invoiced (Invoice #%s)",
-                    attention.getId(),
-                    attention.getInvoiceNumber() != null ? attention.getInvoiceNumber() : "N/A"
-            );
-
-            throw new ValidationException(errorMessage);
-        }
-    }
+        existingAttention.addUserAction(requestDto.userId(), UserActionType.UPDATED, "Atención actualizada.");
 
 
-    private void validateUpdateRequest(CreateAttentionRequestDto request, Attention existingAttention) {
-        // Validar que no se puede cambiar el paciente
-        if (request.patientId() != null && !request.patientId().equals(existingAttention.getPatientId())) {
-            throw new ValidationException("Cannot change patient ID for existing attention");
-        }
-    }
+        if (requestDto.authorizations() != null) {
 
-    /**
-     * Verifica si existe una atención activa para el paciente
-     * @param patientId ID del paciente
-     * @return mensaje de advertencia si existe atención activa, null en caso contrario
-     */
-    private String checkForActiveAttentionForPatient(Long patientId) {
-        Optional<Attention> activeAttention = attentionRepository
-                .findByPatientIdAndDischargeeDateTimeIsNull(patientId);
-
-        if (activeAttention.isPresent()) {
-            String warningMessage = String.format(
-                    "Patient already has an active attention with ID: %d",
-                    activeAttention.get().getId()
-            );
-
-            log.warn("WARNING: Patient ID {} already has an active attention with ID: {}. Creating additional attention.",
-                    patientId, activeAttention.get().getId());
-
-            return warningMessage;
+            existingAttention.getAuthorizations().clear();
+            Attention finalExistingAttention = existingAttention;
+            List<Authorization> updatedAuthorizations = requestDto.authorizations().stream()
+                    .map(authDto -> {
+                        Authorization auth = authorizationMapper.toEntity(authDto);
+                        auth.setAttention(finalExistingAttention);
+                        if (auth.getId() == null) {
+                            auth.setCreatedAt(LocalDateTime.now());
+                        }
+                        auth.setUpdatedAt(LocalDateTime.now());
+                        return auth;
+                    })
+                    .collect(Collectors.toList());
+            existingAttention.setAuthorizations(updatedAuthorizations);
+        } else {
+            existingAttention.getAuthorizations().clear();
         }
 
-        return null;
+
+        existingAttention = attentionRepository.save(existingAttention);
+
+        log.info("Attention with ID: {} updated successfully.", id);
+
+        return attentionEnrichmentService.enrichAttentionResponseDto(existingAttention);
     }
 
     /**
