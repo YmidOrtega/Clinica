@@ -10,5 +10,5 @@ public record UserResponseDTO(
         String email,
         boolean active,
         StatusUser status,
-        Set<RoleDTO> roles
+        RoleDTO role
 ) {}

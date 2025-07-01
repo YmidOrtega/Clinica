@@ -47,9 +47,6 @@ public interface AttentionMapper {
     @Mapping(target = "userHistory", source = "userHistory", qualifiedByName = "ToUserHistoryResponseDto")
     @Mapping(target = "authorizations", source = "authorizations", qualifiedByName = "ToAuthorizationResponseDto")
     @Mapping(target = "configurationService", source = "configurationService", qualifiedByName = "ToConfigurationServiceResponseDto")
-    @Mapping(target = "createdByUserId", expression = "java(entity.getCreatedByUserId())")
-    @Mapping(target = "lastUpdatedByUserId", expression = "java(entity.getLastUpdatedByUserId())")
-    @Mapping(target = "invoicedByUserId", expression = "java(entity.getInvoicedByUserId())")
     AttentionResponseDto toResponseDto(Attention entity);
 
     // Métodos para colecciones

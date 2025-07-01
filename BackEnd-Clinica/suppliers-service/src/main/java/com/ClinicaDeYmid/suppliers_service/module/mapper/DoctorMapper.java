@@ -13,7 +13,6 @@ public interface DoctorMapper {
 
     DoctorResponseDTO toDto(Doctor doctor,
                             List<SubSpecialtyDto> subspecialties,
-                            List<ServiceTypeDto> services,
                             List<AttentionGetDto> attentions);
 
     DoctorResponseDTO toResponse(Doctor doctor);

@@ -14,9 +14,7 @@ public class TriageLevelRequiredForEmergencyValidator implements ConstraintValid
             return true;
         }
 
-        /* Verificar si el tipo de servicio es de emergencia
-        if (attentionRequestDto.configurationServiceId()
-        ().serviceType().name().equals("EMERGENCY")) {
+        if (attentionRequestDto.configurationServiceId() == 4L) {
             // Verificar si el nivel de Triage está presente
             if (attentionRequestDto.triageLevel() == null) {
                 context.disableDefaultConstraintViolation();
@@ -26,7 +24,7 @@ public class TriageLevelRequiredForEmergencyValidator implements ConstraintValid
                         .addConstraintViolation();
                 return false;
             }
-        }*/
+        }
 
 
         return true;

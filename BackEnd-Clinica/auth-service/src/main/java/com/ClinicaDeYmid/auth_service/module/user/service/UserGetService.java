@@ -35,6 +35,7 @@ public class UserGetService {
                 .orElseThrow(() -> new UserNotFoundException("Usuario con ID " + id + " no encontrado"));
 
         log.debug("Usuario encontrado: {}", user.getUsername());
+        System.out.println(user.getRole());
         return userMapper.toUserResponseDTO(user);
     }
 

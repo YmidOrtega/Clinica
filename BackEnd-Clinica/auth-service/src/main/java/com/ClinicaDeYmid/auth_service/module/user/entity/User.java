@@ -32,9 +32,7 @@ public class User implements UserDetails {
     private String uuid;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "role_id", nullable = false,
-            foreignKey = @ForeignKey(name = "fk_user_role"))
-
+    @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
 
@@ -84,7 +82,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email;
+        return username;
     }
 
     @Override

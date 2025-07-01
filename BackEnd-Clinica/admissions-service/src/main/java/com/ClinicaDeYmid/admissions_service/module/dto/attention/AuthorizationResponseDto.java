@@ -8,6 +8,8 @@ public record AuthorizationResponseDto(
         Long id,
         String authorizationNumber,
         TypeOfAuthorization typeOfAuthorization,
+        String authorizationBy,
+        Double copaymentValue,
         List<Long> authorizedPortfolioIds,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

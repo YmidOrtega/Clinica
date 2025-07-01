@@ -19,6 +19,5 @@ public record DoctorResponseDTO(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         List<SubSpecialtyDto> subSpecialties,
-        List<ServiceTypeDto> allowedServiceTypes,
         List<AttentionGetDto> attentions
 ) {}

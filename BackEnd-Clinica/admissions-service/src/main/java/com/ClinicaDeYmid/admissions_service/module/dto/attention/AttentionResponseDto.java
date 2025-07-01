@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.admissions_service.module.dto.attention;
 
+import com.ClinicaDeYmid.admissions_service.module.dto.user.GetUserDto;
 import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
 import com.ClinicaDeYmid.admissions_service.module.enums.TriageLevel;
 import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
@@ -16,9 +17,7 @@ public record AttentionResponseDto(
         boolean isActiveAttention,
         boolean isPreAdmission,
         boolean invoiced,
-        Long patientId,
         GetPatientDto patientDetails,
-        Long doctorId,
         GetDoctorDto doctorDetails,
         List<String> healthProviderNit,
         List<GetHealthProviderDto> healthProviderDetails,
@@ -39,8 +38,5 @@ public record AttentionResponseDto(
         TriageLevel triageLevel,
         CompanionDto companion,
         String observations,
-        String billingObservations,
-        Long createdByUserId,
-        Long lastUpdatedByUserId,
-        Long invoicedByUserId
+        String billingObservations
 ) {}

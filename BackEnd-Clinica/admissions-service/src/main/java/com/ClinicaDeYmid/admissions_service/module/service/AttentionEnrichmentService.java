@@ -8,10 +8,12 @@ import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionUserHi
 import com.ClinicaDeYmid.admissions_service.module.dto.clients.GetHealthProviderDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.GetDoctorDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.user.GetUserDto;
 import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.DoctorClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.PatientClient;
+import com.ClinicaDeYmid.admissions_service.module.feignclient.UserClient; //
 import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionMapper;
 import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionUserHistoryMapper;
 import com.ClinicaDeYmid.admissions_service.module.mapper.AuthorizationMapper;
@@ -31,6 +33,7 @@ public class AttentionEnrichmentService {
     private final PatientClient patientClient;
     private final DoctorClient doctorClient;
     private final HealthProviderClient healthProviderClient;
+    private final UserClient userClient; //
     private final AttentionMapper attentionMapper;
     private final AuthorizationMapper authorizationMapper;
     private final AttentionUserHistoryMapper attentionUserHistoryMapper;
@@ -69,28 +72,50 @@ public class AttentionEnrichmentService {
                     .collect(Collectors.toList());
         }
 
-        // Mapear colecciones anidadas
         List<AttentionUserHistoryResponseDto> userHistory = Collections.emptyList();
-        if (attention.getUserHistory() != null) {
-            userHistory = attentionUserHistoryMapper.toResponseDtoList(attention.getUserHistory());
+        if (attention.getUserHistory() != null) { //
+            userHistory = attention.getUserHistory().stream()
+                    .map(history -> {
+                        GetUserDto userDetailsForHistory = null;
+                        if (history.getUserId() != null) {
+                            try {
+                                log.info("Calling UserClient for userId: {}", history.getUserId()); // <-- Agregar este log
+                                userDetailsForHistory = userClient.getUserById(history.getUserId());
+                                log.info("User details retrieved: {}", userDetailsForHistory); // <-- Y este
+                            } catch (Exception e) {
+                                log.error("Could not retrieve user details for ID {}: {}", history.getUserId(), e.getMessage(), e); // <-- Cambiar a error
+                            }
+                        } else {
+                            log.warn("UserId is null for history ID: {}", history.getId()); // <-- Y este
+                        }
+                        return new AttentionUserHistoryResponseDto(
+                                history.getId(),
+                                userDetailsForHistory,
+                                history.getActionType(),
+                                history.getActionTimestamp(),
+                                history.getObservations()
+                        );
+                    })
+                    .collect(Collectors.toList());
         }
 
-        List<AuthorizationResponseDto> authorizations = Collections.emptyList();
-        if (attention.getAuthorizations() != null) {
-            authorizations = authorizationMapper.toResponseDtoList(attention.getAuthorizations());
+        List<AuthorizationResponseDto> authorizations = Collections.emptyList(); //
+        if (attention.getAuthorizations() != null) { //
+            authorizations = authorizationMapper.toResponseDtoList(attention.getAuthorizations()); //
         }
 
         // Mapear ConfigurationService
         ConfigurationServiceResponseDto configServiceDto = null;
-        if (attention.getConfigurationService() != null) {
-            configServiceDto = attentionMapper.mapConfigurationServiceToResponseDto(attention.getConfigurationService());
+        if (attention.getConfigurationService() != null) { //
+            configServiceDto = attentionMapper.mapConfigurationServiceToResponseDto(attention.getConfigurationService()); //
         }
 
         // Mapear Companion
         CompanionDto companionDto = null;
-        if (attention.getCompanion() != null) {
-            companionDto = attentionMapper.toCompanionDto(attention.getCompanion());
+        if (attention.getCompanion() != null) { //
+            companionDto = attentionMapper.toCompanionDto(attention.getCompanion()); //
         }
+
 
         // Construir el DTO final
         return new AttentionResponseDto(
@@ -100,9 +125,7 @@ public class AttentionEnrichmentService {
                 attention.isActiveAttention(),
                 attention.isPreAdmission(),
                 attention.isInvoiced(),
-                attention.getPatientId(),
                 patientDetails,
-                attention.getDoctorId(),
                 doctorDetails,
                 attention.getHealthProviderNit(),
                 healthProviderDetails,
@@ -123,10 +146,7 @@ public class AttentionEnrichmentService {
                 attention.getTriageLevel(),
                 companionDto,
                 attention.getObservations(),
-                attention.getBillingObservations(),
-                attention.getCreatedByUserId(),
-                attention.getLastUpdatedByUserId(),
-                attention.getInvoicedByUserId()
+                attention.getBillingObservations()
         );
     }
 }

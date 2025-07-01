@@ -7,6 +7,7 @@ import com.ClinicaDeYmid.suppliers_service.module.repository.DoctorRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -17,13 +18,14 @@ public class DoctorGetService {
     private final DoctorRepository doctorRepository;
     private final DoctorMapper doctorMapper;
 
+    @Transactional(readOnly = true)
     public DoctorResponseDTO getDoctorById(Long id) {
         Doctor doctor = doctorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + id));
         return doctorMapper.toResponse(doctor);
     }
 
-
+    @Transactional(readOnly = true)
     public List<DoctorResponseDTO> getAllDoctors() {
         return doctorRepository.findAll()
                 .stream()

@@ -49,11 +49,6 @@ public class Doctor {
     )
     private List<SubSpecialty> subSpecialties = new ArrayList<>();
 
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "doctor_service_types", joinColumns = @JoinColumn(name = "doctor_id"))
-    @Column(name = "service_type_id")
-    private List<Long> allowedServiceTypeIds = new ArrayList<>();
-
     @Column(name = "phone_number", nullable = false)
     private String phoneNumber;
 
@@ -99,10 +94,6 @@ public class Doctor {
 
     public String getFullName() {
         return name + " " + lastName;
-    }
-
-    public boolean canProvideService(Long serviceTypeId) {
-        return allowedServiceTypeIds.contains(serviceTypeId);
     }
 
     @PrePersist

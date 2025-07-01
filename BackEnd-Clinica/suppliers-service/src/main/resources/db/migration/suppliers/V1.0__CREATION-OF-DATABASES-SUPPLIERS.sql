@@ -119,21 +119,3 @@ CREATE TABLE doctor_subspecialties (
     INDEX idx_doctor_subspecialties_doctor (doctor_id),
     INDEX idx_doctor_subspecialties_subspecialty (subspecialty_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- 5. TABLA DOCTOR_SERVICE_TYPES (Tipos de servicio permitidos)
--- =====================================================
-CREATE TABLE doctor_service_types (
-    doctor_id BIGINT NOT NULL,
-    service_type_id BIGINT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    PRIMARY KEY (doctor_id, service_type_id),
-
-    -- Clave foránea
-    CONSTRAINT fk_doctor_service_types_doctor FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
-
-    -- Índices para rendimiento
-    INDEX idx_doctor_service_types_doctor (doctor_id),
-    INDEX idx_doctor_service_types_service (service_type_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

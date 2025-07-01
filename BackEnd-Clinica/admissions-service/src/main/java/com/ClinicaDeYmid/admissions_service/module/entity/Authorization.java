@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -32,6 +33,12 @@ public class Authorization {
     @Enumerated(EnumType.STRING)
     @Column(name = "type_of_authorization", nullable = false)
     private TypeOfAuthorization typeOfAuthorization;
+
+    @Column(name = "authorization_by", nullable = false)
+    private String authorizationBy;
+
+    @Column(name = "copayment_value", nullable = false, precision = 10, scale = 2)
+    private BigDecimal copaymentValue;
 
     @ElementCollection
     @CollectionTable(name = "authorization_portfolio_items", joinColumns = @JoinColumn(name = "authorization_id"))
