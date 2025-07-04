@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.admissions_service.module.dto.suppliers;
 
-public record SubSpecialtyDto(
+public record SubSpecialtyDetailsDto(
         String name,
-        SpecialityDto speciality
-) {}
+        int codeSubSpecialty
+) {
+}

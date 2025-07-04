@@ -14,7 +14,7 @@ import java.util.List;
 public interface AttentionUserHistoryMapper {
 
     @Named("ToUserHistoryResponseDto")
-    @Mapping(target = "userId", expression = "java(null)")
+    @Mapping(target = "user", expression = "java(null)")
     AttentionUserHistoryResponseDto toResponseDto(AttentionUserHistory entity);
 
     @Named("ToUserHistoryResponseDto")

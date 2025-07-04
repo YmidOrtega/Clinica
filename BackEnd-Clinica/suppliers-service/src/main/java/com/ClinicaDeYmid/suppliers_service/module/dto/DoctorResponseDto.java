@@ -3,7 +3,7 @@ package com.ClinicaDeYmid.suppliers_service.module.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public record DoctorResponseDTO(
+public record DoctorResponseDto(
         Long id,
         Integer providerCode,
         String name,
@@ -18,6 +18,6 @@ public record DoctorResponseDTO(
         Boolean active,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<SubSpecialtyDto> subSpecialties,
+        List<DoctorSpecialtyDto> specialties,
         List<AttentionGetDto> attentions
 ) {}

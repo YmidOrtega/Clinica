@@ -4,7 +4,9 @@ import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderDataAcces
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderNotActiveException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderNotFoundException;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
+import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
+import com.ClinicaDeYmid.clients_service.module.enums.ContractStatus;
 import com.ClinicaDeYmid.clients_service.module.mapper.HealthProviderMapper;
 import com.ClinicaDeYmid.clients_service.module.repository.HealthProviderRepository;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderResponseDto;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -47,12 +50,23 @@ public class GetHealthProviderService {
 
             HealthProvider healthProvider = healthProviderOpt.get();
 
+            List<Contract> activeContracts = healthProvider.getContracts().stream()
+                    .filter(contract -> ContractStatus.ACTIVE.equals(contract.getStatus()))
+                    .collect(Collectors.toList());
+
+            if (activeContracts.isEmpty()) {
+                log.warn("Proveedor de salud sin contratos activos - NIT: {}", nit);
+                throw new HealthProviderNotActiveException(healthProvider.getSocialReason(), nit);
+            }
+
             // Verificar si el proveedor está activo
             if (!healthProvider.getActive()) {
                 log.warn("Intento de consultar proveedor inactivo - NIT: {}, Razón Social: {}",
                         nit, healthProvider.getSocialReason());
                 throw new HealthProviderNotActiveException(healthProvider.getSocialReason(), nit);
             }
+
+            healthProvider.setContracts(activeContracts);
 
             log.info("Proveedor de salud encontrado exitosamente - NIT: {}, Razón Social: {}",
                     nit, healthProvider.getSocialReason());

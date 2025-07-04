@@ -11,6 +11,5 @@ public record AuthorizationResponseDto(
         String authorizationBy,
         Double copaymentValue,
         List<Long> authorizedPortfolioIds,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime createdAt
 ) {}

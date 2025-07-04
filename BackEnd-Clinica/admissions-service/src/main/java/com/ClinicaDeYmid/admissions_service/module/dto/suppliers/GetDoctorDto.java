@@ -6,6 +6,6 @@ public record GetDoctorDto(
         String identificationNumber,
         String name,
         String lastName,
-        List<SubSpecialtyDto>subSpecialties
+        List<DoctorSpecialtyDto> specialties
 ) {
 }

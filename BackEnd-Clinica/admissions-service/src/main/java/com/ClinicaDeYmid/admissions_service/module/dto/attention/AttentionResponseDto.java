@@ -1,15 +1,16 @@
 package com.ClinicaDeYmid.admissions_service.module.dto.attention;
 
-import com.ClinicaDeYmid.admissions_service.module.dto.user.GetUserDto;
 import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
 import com.ClinicaDeYmid.admissions_service.module.enums.TriageLevel;
 import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.GetDoctorDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.clients.GetHealthProviderDto;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record AttentionResponseDto(
         Long id,
         boolean active,
@@ -19,20 +20,18 @@ public record AttentionResponseDto(
         boolean invoiced,
         GetPatientDto patientDetails,
         GetDoctorDto doctorDetails,
-        List<String> healthProviderNit,
         List<GetHealthProviderDto> healthProviderDetails,
         Long invoiceNumber,
         List<AttentionUserHistoryResponseDto> userHistory,
         List<AuthorizationResponseDto> authorizations,
         ConfigurationServiceResponseDto configurationService,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt,
         LocalDateTime admissionDateTime,
         LocalDateTime dischargeDateTime,
         AttentionStatus status,
         String entryMethod,
         String referringEntity,
-        Boolean isReferral,
+        Boolean referred,
         String mainDiagnosisCode,
         List<String> secondaryDiagnosisCodes,
         TriageLevel triageLevel,

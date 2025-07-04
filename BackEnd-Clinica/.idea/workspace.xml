@@ -5,10 +5,27 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.properties" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/attention/AttentionResponseDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/attention/AttentionResponseDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/attention/AttentionUserHistoryResponseDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/attention/AttentionUserHistoryResponseDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/attention/AuthorizationResponseDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/attention/AuthorizationResponseDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/clients/ContractDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/clients/ContractDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/clients/GetHealthProviderDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/clients/GetHealthProviderDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/patient/GetPatientDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/patient/GetPatientDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/GetDoctorDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/GetDoctorDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/SpecialityDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/SubSpecialtyDetailsDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/SubSpecialtyDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/DoctorSpecialtyDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/mapper/AttentionUserHistoryMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/mapper/AttentionUserHistoryMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/repository/AttentionSpecifications.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/repository/AttentionSpecifications.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionEnrichmentService.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionEnrichmentService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/service/GetHealthProviderService.java" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/java/com/ClinicaDeYmid/clients_service/module/service/GetHealthProviderService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/controller/DoctorController.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/controller/DoctorController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorResponseDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorResponseDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/SpecialityDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/SubSpecialtyDetailsDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/SubSpecialtyDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorSpecialtyDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/mapper/DoctorMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/mapper/DoctorMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorGetService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorGetService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorRecordService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorRecordService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -117,7 +134,7 @@
       <recent name="com.ClinicaDeYmid.api_gateway.dto" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.ApiGatewayApplication">
+  <component name="RunManager" selected="Application.SuppliersServiceApplication">
     <configuration name="AdmissionsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="envFilePaths">
         <option value="$PROJECT_DIR$/.env" />
@@ -182,19 +199,6 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="EurekaServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.eureka_service.EurekaServiceApplication" />
-      <module name="eureka-service" />
-      <extension name="coverage">
-        <pattern>
-          <option name="PATTERN" value="com.ClinicaDeYmid.eureka_service.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
     <configuration name="PatientServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="envFilePaths">
         <option value="$PROJECT_DIR$/.env" />
@@ -211,6 +215,22 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="SuppliersServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="envFilePaths">
+        <option value="$PROJECT_DIR$/.env" />
+      </option>
+      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.suppliers_service.SuppliersServiceApplication" />
+      <module name="suppliers-service" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ClinicaDeYmid.suppliers_service.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration default="true" type="docker-deploy" factoryName="docker-compose.yml" temporary="true">
       <deployment type="docker-compose.yml">
         <settings />
@@ -219,19 +239,19 @@
     </configuration>
     <list>
       <item itemvalue="Application.AuthServiceApplication" />
+      <item itemvalue="Application.SuppliersServiceApplication" />
       <item itemvalue="Application.ApiGatewayApplication" />
       <item itemvalue="Application.PatientServiceApplication" />
       <item itemvalue="Application.AdmissionsServiceApplication" />
       <item itemvalue="Application.ClientsServiceApplication" />
-      <item itemvalue="Application.EurekaServiceApplication" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.ApiGatewayApplication" />
         <item itemvalue="Application.AdmissionsServiceApplication" />
-        <item itemvalue="Application.PatientServiceApplication" />
+        <item itemvalue="Application.SuppliersServiceApplication" />
         <item itemvalue="Application.ClientsServiceApplication" />
-        <item itemvalue="Application.EurekaServiceApplication" />
+        <item itemvalue="Application.ApiGatewayApplication" />
+        <item itemvalue="Application.PatientServiceApplication" />
       </list>
     </recent_temporary>
   </component>

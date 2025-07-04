@@ -79,14 +79,14 @@ public class AttentionEnrichmentService {
                         GetUserDto userDetailsForHistory = null;
                         if (history.getUserId() != null) {
                             try {
-                                log.info("Calling UserClient for userId: {}", history.getUserId()); // <-- Agregar este log
+                                log.info("Calling UserClient for user: {}", history.getUserId());
                                 userDetailsForHistory = userClient.getUserById(history.getUserId());
-                                log.info("User details retrieved: {}", userDetailsForHistory); // <-- Y este
+                                log.info("User details retrieved: {}", userDetailsForHistory);
                             } catch (Exception e) {
-                                log.error("Could not retrieve user details for ID {}: {}", history.getUserId(), e.getMessage(), e); // <-- Cambiar a error
+                                log.error("Could not retrieve user details for ID {}: {}", history.getUserId(), e.getMessage(), e);
                             }
                         } else {
-                            log.warn("UserId is null for history ID: {}", history.getId()); // <-- Y este
+                            log.warn("UserId is null for history ID: {}", history.getId());
                         }
                         return new AttentionUserHistoryResponseDto(
                                 history.getId(),
@@ -99,21 +99,21 @@ public class AttentionEnrichmentService {
                     .collect(Collectors.toList());
         }
 
-        List<AuthorizationResponseDto> authorizations = Collections.emptyList(); //
+        List<AuthorizationResponseDto> authorizations = Collections.emptyList();
         if (attention.getAuthorizations() != null) { //
-            authorizations = authorizationMapper.toResponseDtoList(attention.getAuthorizations()); //
+            authorizations = authorizationMapper.toResponseDtoList(attention.getAuthorizations());
         }
 
         // Mapear ConfigurationService
         ConfigurationServiceResponseDto configServiceDto = null;
-        if (attention.getConfigurationService() != null) { //
-            configServiceDto = attentionMapper.mapConfigurationServiceToResponseDto(attention.getConfigurationService()); //
+        if (attention.getConfigurationService() != null) {
+            configServiceDto = attentionMapper.mapConfigurationServiceToResponseDto(attention.getConfigurationService());
         }
 
         // Mapear Companion
         CompanionDto companionDto = null;
-        if (attention.getCompanion() != null) { //
-            companionDto = attentionMapper.toCompanionDto(attention.getCompanion()); //
+        if (attention.getCompanion() != null) {
+            companionDto = attentionMapper.toCompanionDto(attention.getCompanion());
         }
 
 
@@ -127,14 +127,12 @@ public class AttentionEnrichmentService {
                 attention.isInvoiced(),
                 patientDetails,
                 doctorDetails,
-                attention.getHealthProviderNit(),
                 healthProviderDetails,
                 attention.getInvoiceNumber(),
                 userHistory,
                 authorizations,
                 configServiceDto,
                 attention.getCreatedAt(),
-                attention.getUpdatedAt(),
                 attention.getAdmissionDateTime(),
                 attention.getDischargeDateTime(),
                 attention.getStatus(),

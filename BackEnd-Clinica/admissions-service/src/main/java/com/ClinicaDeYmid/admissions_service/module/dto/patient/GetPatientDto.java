@@ -6,7 +6,6 @@ public record GetPatientDto(
         String lastName,
         String dateOfBirth,
         String gender,
-        String healthProviderName,
         String healthPolicyNumber
 ) {
 }

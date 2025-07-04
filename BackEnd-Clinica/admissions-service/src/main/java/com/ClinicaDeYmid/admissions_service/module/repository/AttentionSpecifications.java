@@ -43,7 +43,7 @@ public class AttentionSpecifications {
 
     public static Specification<Attention> isReferral(Boolean isReferral) {
         return (root, query, criteriaBuilder) ->
-                criteriaBuilder.equal(root.get("isReferral"), isReferral);
+                criteriaBuilder.equal(root.get("referred"), isReferral);
     }
 
     public static Specification<Attention> hasTriageLevel(TriageLevel triageLevel) {
