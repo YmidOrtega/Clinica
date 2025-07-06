@@ -77,15 +77,30 @@ public class AttentionEnrichmentService {
 
         // Construcción final del DTO de respuesta
         return new AttentionResponseDto(
-                attention.getId(), attention.isActive(), attention.isHasMovements(),
-                attention.isActiveAttention(), attention.isPreAdmission(), attention.isInvoiced(),
-                patientDetails, doctorDetails, healthProviderDetails, attention.getInvoiceNumber(),
-                userHistory, authorizations, configServiceDto, attention.getCreatedAt(),
-                attention.getAdmissionDateTime(), attention.getDischargeDateTime(), attention.getStatus(),
-                attention.getEntryMethod(), attention.getReferringEntity(), attention.getIsReferral(),
-                attention.getMainDiagnosisCode(), attention.getSecondaryDiagnosisCodes(),
-                attention.getTriageLevel(), companionDto, attention.getObservations(),
-                attention.getBillingObservations()
+                attention.getId(),
+                attention.isActive(),
+                attention.isHasMovements(),
+                attention.isActiveAttention(),
+                attention.isPreAdmission(),
+                attention.isInvoiced(),
+                configServiceDto,
+                patientDetails,
+                doctorDetails,
+                healthProviderDetails,
+                attention.getInvoiceNumber(),
+                userHistory,
+                authorizations,
+                attention.getCreatedAt(),
+                attention.getDischargeDateTime(),
+                attention.getUpdatedAt(),
+                attention.getStatus(),
+                attention.getCause(),
+                attention.getEntryMethod(),
+                attention.getDiagnosticCodes(),
+                attention.getTriageLevel(),
+                companionDto,
+                attention.getObservations()
+
         );
     }
 }

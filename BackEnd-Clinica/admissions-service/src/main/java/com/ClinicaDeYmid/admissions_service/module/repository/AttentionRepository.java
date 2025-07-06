@@ -14,5 +14,9 @@ public interface AttentionRepository extends JpaRepository<Attention, Long>, Jpa
     List<Attention> findByDoctorId(Long doctorId);
     List<Attention> findByHealthProviderNitContaining(String nit);
     List<Attention> findByConfigurationServiceId(Long configurationServiceId);
+    List<Attention> findByActiveTrue();
+    List<Attention> findByInvoicedTrue();
+    List<Attention> findByIsActiveAttentionTrue();
+    List<Attention> findByIsPreAdmissionTrue();
 
 }

@@ -89,7 +89,7 @@ public class AttentionGetService {
         log.info("Performing attention search with criteria: {}", searchRequest);
         validateSearchRequest(searchRequest);
 
-        Specification<Attention> spec = Specification.where(null);
+        Specification<Attention> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
 
         if (searchRequest.patientId() != null) {
             spec = spec.and(hasPatientId(searchRequest.patientId()));
@@ -114,12 +114,6 @@ public class AttentionGetService {
         }
         if (searchRequest.triageLevel() != null) {
             spec = spec.and(hasTriageLevel(searchRequest.triageLevel()));
-        }
-        if (searchRequest.admissionDateFrom() != null) {
-            spec = spec.and(hasAdmissionDateAfter(searchRequest.admissionDateFrom()));
-        }
-        if (searchRequest.admissionDateTo() != null) {
-            spec = spec.and(hasAdmissionDateBefore(searchRequest.admissionDateTo()));
         }
         if (searchRequest.dischargeDateFrom() != null) {
             spec = spec.and(hasDischargeDateAfter(searchRequest.dischargeDateFrom()));
@@ -160,11 +154,6 @@ public class AttentionGetService {
     }
 
     private void validateSearchRequest(AttentionSearchRequest searchRequest) {
-        if (searchRequest.admissionDateFrom() != null && searchRequest.admissionDateTo() != null) {
-            if (searchRequest.admissionDateFrom().isAfter(searchRequest.admissionDateTo())) {
-                throw new ValidationException("Admission date from cannot be after admission date to");
-            }
-        }
 
         if (searchRequest.dischargeDateFrom() != null && searchRequest.dischargeDateTo() != null) {
             if (searchRequest.dischargeDateFrom().isAfter(searchRequest.dischargeDateTo())) {

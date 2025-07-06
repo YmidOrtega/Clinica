@@ -44,46 +44,44 @@ services:
       command: --log-bin-trust-function-creators=1
 
    admissions-db:
-      image: mysql:8.0
+      image: postgres:16
       container_name: admissions-db
       restart: always
       environment:
-         MYSQL_ROOT_PASSWORD: ${ADMISSIONS_DB_ROOT_PASSWORD}
-         MYSQL_DATABASE: ${ADMISSIONS_DB_NAME}
-         MYSQL_USER: ${ADMISSIONS_DB_USER}
-         MYSQL_PASSWORD: ${ADMISSIONS_DB_PASSWORD}
+         POSTGRES_DB: ${ADMISSIONS_DB_NAME}
+         POSTGRES_USER: ${ADMISSIONS_DB_USER}
+         POSTGRES_PASSWORD: ${ADMISSIONS_DB_PASSWORD}
       ports:
-         - "3309:3306"
+         - "3309:5432"
       volumes:
-         - admissions_data:/var/lib/mysql
+         - admissions_data:/var/lib/postgresql/data
       networks:
          - clinica-net
       healthcheck:
-         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-         timeout: 20s
-         retries: 10
-      command: --log-bin-trust-function-creators=1
+         test: [ "CMD-SHELL", "pg_isready -U ${ADMISSIONS_DB_USER}" ]
+         interval: 10s
+         timeout: 5s
+         retries: 5
 
    ai-assistant-db:
-      image: mysql:8.0
+      image: postgres:16
       container_name: ai-assistant-db
       restart: always
       environment:
-         MYSQL_ROOT_PASSWORD: ${AI_ASSISTANT_DB_ROOT_PASSWORD}
-         MYSQL_DATABASE: ${AI_ASSISTANT_DB_NAME}
-         MYSQL_USER: ${AI_ASSISTANT_DB_USER}
-         MYSQL_PASSWORD: ${AI_ASSISTANT_DB_PASSWORD}
+         POSTGRES_DB: ${AI_ASSISTANT_DB_NAME}
+         POSTGRES_USER: ${AI_ASSISTANT_DB_USER}
+         POSTGRES_PASSWORD: ${AI_ASSISTANT_DB_PASSWORD}
       ports:
-         - "3310:3306"
+         - "3310:5432"
       volumes:
-         - ai_assistant_data:/var/lib/mysql
+         - ai_assistant_data:/var/lib/postgresql/data
       networks:
          - clinica-net
       healthcheck:
-         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-         timeout: 20s
-         retries: 10
-      command: --log-bin-trust-function-creators=1
+         test: [ "CMD-SHELL", "pg_isready -U ${AI_ASSISTANT_DB_USER}" ]
+         interval: 10s
+         timeout: 5s
+         retries: 5
 
    # Base de datos para proveedores
    suppliers-db:

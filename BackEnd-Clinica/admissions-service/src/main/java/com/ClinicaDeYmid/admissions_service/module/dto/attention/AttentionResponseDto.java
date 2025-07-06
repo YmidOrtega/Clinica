@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.admissions_service.module.dto.attention;
 
 import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
+import com.ClinicaDeYmid.admissions_service.module.enums.Cause;
 import com.ClinicaDeYmid.admissions_service.module.enums.TriageLevel;
 import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.GetDoctorDto;
@@ -18,24 +19,21 @@ public record AttentionResponseDto(
         boolean isActiveAttention,
         boolean isPreAdmission,
         boolean invoiced,
+        ConfigurationServiceResponseDto configurationService,
         GetPatientDto patientDetails,
         GetDoctorDto doctorDetails,
         List<GetHealthProviderDto> healthProviderDetails,
         Long invoiceNumber,
         List<AttentionUserHistoryResponseDto> userHistory,
         List<AuthorizationResponseDto> authorizations,
-        ConfigurationServiceResponseDto configurationService,
         LocalDateTime createdAt,
-        LocalDateTime admissionDateTime,
+        LocalDateTime updatedAt,
         LocalDateTime dischargeDateTime,
         AttentionStatus status,
+        Cause cause,
         String entryMethod,
-        String referringEntity,
-        Boolean referred,
-        String mainDiagnosisCode,
-        List<String> secondaryDiagnosisCodes,
+        List<String> diagnosticCodes,
         TriageLevel triageLevel,
         CompanionDto companion,
-        String observations,
-        String billingObservations
+        String observations
 ) {}

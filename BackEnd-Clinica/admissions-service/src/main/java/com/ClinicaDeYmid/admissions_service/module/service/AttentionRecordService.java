@@ -63,7 +63,6 @@ public class AttentionRecordService {
         attention.setConfigurationService(configService);
         attention.setCreatedAt(LocalDateTime.now());
         attention.setUpdatedAt(LocalDateTime.now());
-        attention.setAdmissionDateTime(LocalDateTime.now());
         attention.addUserAction(requestDto.userId(), UserActionType.CREATED, "Atención creada inicialmente.");
 
         if (requestDto.authorizations() != null) {

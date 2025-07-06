@@ -8,7 +8,6 @@ import com.ClinicaDeYmid.admissions_service.module.entity.*;
 import org.mapstruct.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring",
         uses = {AuthorizationMapper.class, AttentionUserHistoryMapper.class},
@@ -20,24 +19,21 @@ public interface AttentionMapper {
     @Mapping(target = "invoiceNumber", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "admissionDateTime", ignore = true)
     @Mapping(target = "dischargeDateTime", ignore = true)
     @Mapping(target = "userHistory", ignore = true)
     @Mapping(target = "configurationService", source = "configurationServiceId", qualifiedByName = "mapConfigurationServiceIdToEntity")
     @Mapping(target = "authorizations", ignore = true)
-    @Mapping(target = "healthProviderNit", source = "healthProviderNit")
     Attention toEntity(AttentionRequestDto dto);
 
     // Actualización de Entidad desde Request DTO
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "admissionDateTime", ignore = true)
     @Mapping(target = "dischargeDateTime", ignore = true)
     @Mapping(target = "userHistory", ignore = true)
     @Mapping(target = "configurationService", source = "configurationServiceId", qualifiedByName = "mapConfigurationServiceIdToEntity")
     @Mapping(target = "authorizations", ignore = true)
-    @Mapping(target = "healthProviderNit", source = "healthProviderNit")
+
     void updateEntityFromDto(AttentionRequestDto dto, @MappingTarget Attention entity);
 
     // Mapeo de Entidad a Response DTO
@@ -61,8 +57,6 @@ public interface AttentionMapper {
         return configService;
     }
 
-
-    // Metodo para mapear ConfigurationService a ConfigurationServiceResponseDto
     @Named("ToConfigurationServiceResponseDto")
     default ConfigurationServiceResponseDto mapConfigurationServiceToResponseDto(ConfigurationService configService) {
         if (configService == null) {

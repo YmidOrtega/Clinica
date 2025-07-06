@@ -83,8 +83,6 @@ public class Attention {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "admission_date_time")
-    private LocalDateTime admissionDateTime;
 
     @Column(name = "discharge_date_time")
     private LocalDateTime dischargeDateTime;
@@ -96,19 +94,11 @@ public class Attention {
     @Column(name = "entry_method", length = 50)
     private String entryMethod;
 
-    @Column(name = "referring_entity", length = 100)
-    private String referringEntity;
-
-    @Column(name = "is_referral")
-    private Boolean isReferral;
-
-    @Column(name = "main_diagnosis_code", length = 20)
-    private String mainDiagnosisCode;
 
     @ElementCollection
-    @CollectionTable(name = "attention_secondary_diagnoses", joinColumns = @JoinColumn(name = "attention_id"))
-    @Column(name = "diagnosis_code")
-    private List<String> secondaryDiagnosisCodes;
+    @CollectionTable(name = "attention_diagnostic_codes", joinColumns = @JoinColumn(name = "attention_id"))
+    @Column(name = "diagnostic_codes")
+    private List<String> diagnosticCodes;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "triage_level", length = 20)
@@ -123,9 +113,6 @@ public class Attention {
 
     @Column(length = 1000)
     private String observations;
-
-    @Column(length = 1000)
-    private String billingObservations;
 
     @Transient
     public Long getCreatedByUserId() {

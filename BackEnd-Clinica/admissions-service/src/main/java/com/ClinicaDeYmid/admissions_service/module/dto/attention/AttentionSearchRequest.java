@@ -9,7 +9,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 
-
 public record AttentionSearchRequest(
         Long patientId,
         Long doctorId,
@@ -19,12 +18,17 @@ public record AttentionSearchRequest(
         String entryMethod,
         Boolean isReferral,
         TriageLevel triageLevel,
+        Boolean active,
+        Boolean hasMovements,
+        Boolean isActiveAttention,
+        Boolean isPreAdmission,
+        Boolean invoiced,
 
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-        LocalDate admissionDateFrom,
+        LocalDate createdDateFrom,
 
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-        LocalDate admissionDateTo,
+        LocalDate createdDateTo,
 
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate dischargeDateFrom,
@@ -32,9 +36,7 @@ public record AttentionSearchRequest(
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate dischargeDateTo,
 
-        Boolean invoiced,
         Long configurationServiceId,
-
 
         @Min(value = 0, message = "El número de página no puede ser negativo")
         Integer page,

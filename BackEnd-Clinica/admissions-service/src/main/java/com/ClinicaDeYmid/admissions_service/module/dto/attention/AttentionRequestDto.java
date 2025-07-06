@@ -31,18 +31,17 @@ public record AttentionRequestDto(
         @Size(min = 1, message = "Debe haber al menos un proveedor de salud")
         List<@NotBlank String> healthProviderNit,
 
-        @Size(max = 50) String entryMethod,
-        @Size(max = 100) String referringEntity,
-        Boolean isReferral,
-        @Size(max = 20) String mainDiagnosisCode,
-        List<@Size(max = 20) String> secondaryDiagnosisCodes,
+        List<@Size(max = 20) String> diagnosticCodes,
+
         TriageLevel triageLevel,
+
+        @Size(max = 50, message = "El método de entrada no puede exceder 50 caracteres")
+        String entryMethod,
 
         @Valid
         CompanionDto companion,
 
         @Size(max = 1000) String observations,
-        @Size(max = 1000) String billingObservations,
 
         List<@Valid AuthorizationRequestDto> authorizations,
 
