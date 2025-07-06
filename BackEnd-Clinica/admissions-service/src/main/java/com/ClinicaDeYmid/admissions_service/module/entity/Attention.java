@@ -7,7 +7,9 @@ import com.ClinicaDeYmid.admissions_service.module.enums.UserActionType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -89,6 +91,7 @@ public class Attention {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private AttentionStatus status;
 
     @Column(name = "entry_method", length = 50)
@@ -102,10 +105,12 @@ public class Attention {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "triage_level", length = 20)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private TriageLevel triageLevel;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
+    @Column(name = "cause", nullable = false, length = 50)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private Cause cause;
 
     @Embedded

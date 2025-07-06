@@ -4,6 +4,8 @@ import com.ClinicaDeYmid.admissions_service.module.enums.UserActionType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -28,6 +30,7 @@ public class AttentionUserHistory {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "action_type", nullable = false, length = 20)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private UserActionType actionType;
 
     @CreationTimestamp
