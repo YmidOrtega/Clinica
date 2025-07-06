@@ -49,9 +49,7 @@ public interface AttentionMapper {
     @Mapping(target = "configurationService", source = "configurationService", qualifiedByName = "ToConfigurationServiceResponseDto")
     AttentionResponseDto toResponseDto(Attention entity);
 
-    // Métodos para colecciones
     List<AttentionResponseDto> toResponseDtoList(List<Attention> entities);
-
 
     @Named("mapConfigurationServiceIdToEntity")
     default ConfigurationService mapConfigurationServiceIdToEntity(Long configurationServiceId) {
@@ -70,13 +68,23 @@ public interface AttentionMapper {
         if (configService == null) {
             return null;
         }
+
+        String careTypeName = null;
+        if (configService.getServiceType() != null && configService.getServiceType().getCareTypes() != null) {
+            careTypeName = configService.getServiceType().getCareTypes().stream()
+                    .findFirst()
+                    .map(CareType::getName)
+                    .orElse(null);
+        }
+
+        String serviceTypeName = configService.getServiceType() != null ? configService.getServiceType().getName() : null;
+        String locationName = configService.getLocation() != null ? configService.getLocation().getName() : null;
+
         return new ConfigurationServiceResponseDto(
                 configService.getId(),
-                configService.getServiceType() != null ? configService.getServiceType().getName() : null,
-                configService.getServiceType() != null && configService.getServiceType()
-                        .getCareTypes() != null ? configService.getServiceType().getCareTypes().iterator().next().getName() :
-                        null,
-                configService.getLocation() != null ? configService.getLocation().getName() : null,
+                serviceTypeName,
+                careTypeName,
+                locationName,
                 configService.isActive()
         );
     }

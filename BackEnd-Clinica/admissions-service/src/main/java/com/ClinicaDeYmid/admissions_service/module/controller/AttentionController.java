@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionRespon
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionSearchRequest;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionGetService;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionRecordService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -14,6 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +36,7 @@ public class AttentionController {
     private final AttentionRecordService attentionRecordService;
 
     @PostMapping
+    @CircuitBreaker(name = "admissions-service", fallbackMethod = "createAttentionFallback")
     public ResponseEntity<AttentionResponseDto> createAttention(
             @Valid @RequestBody AttentionRequestDto requestDto,
             UriComponentsBuilder uriBuilder) {
@@ -152,5 +156,12 @@ public class AttentionController {
 
         String invoiceStatus = attentionRecordService.getInvoiceStatus(id);
         return ResponseEntity.ok(invoiceStatus);
+    }
+
+    private ResponseEntity<AttentionResponseDto> createAttentionFallback(
+            AttentionRequestDto requestDto, UriComponentsBuilder uriBuilder, Throwable throwable) {
+
+        log.error("Error creating attention: {}", throwable.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
     }
 }

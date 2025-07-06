@@ -5,21 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/infra/exception/ExternalServiceUnavailableException.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/admissions-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/infra/GlobalException.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/infra/GlobalException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/feignclient/DoctorClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/feignclient/DoctorClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/mapper/AttentionMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/mapper/AttentionMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionEnrichmentService.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionEnrichmentService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionRecordService.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionRecordService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/admissions-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-assistant-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.properties" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/auth-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/billing-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/billing-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -128,7 +123,7 @@
       <recent name="com.ClinicaDeYmid.api_gateway.dto" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.SuppliersServiceApplication">
+  <component name="RunManager" selected="Application.ApiGatewayApplication">
     <configuration name="AdmissionsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="envFilePaths">
         <option value="$PROJECT_DIR$/.env" />
@@ -193,6 +188,19 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="EurekaServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.eureka_service.EurekaServiceApplication" />
+      <module name="eureka-service" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ClinicaDeYmid.eureka_service.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="PatientServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="envFilePaths">
         <option value="$PROJECT_DIR$/.env" />
@@ -209,22 +217,6 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="SuppliersServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="envFilePaths">
-        <option value="$PROJECT_DIR$/.env" />
-      </option>
-      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.suppliers_service.SuppliersServiceApplication" />
-      <module name="suppliers-service" />
-      <extension name="coverage">
-        <pattern>
-          <option name="PATTERN" value="com.ClinicaDeYmid.suppliers_service.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
     <configuration default="true" type="docker-deploy" factoryName="docker-compose.yml" temporary="true">
       <deployment type="docker-compose.yml">
         <settings />
@@ -233,7 +225,7 @@
     </configuration>
     <list>
       <item itemvalue="Application.AuthServiceApplication" />
-      <item itemvalue="Application.SuppliersServiceApplication" />
+      <item itemvalue="Application.EurekaServiceApplication" />
       <item itemvalue="Application.ApiGatewayApplication" />
       <item itemvalue="Application.PatientServiceApplication" />
       <item itemvalue="Application.AdmissionsServiceApplication" />
@@ -242,10 +234,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Application.AdmissionsServiceApplication" />
-        <item itemvalue="Application.SuppliersServiceApplication" />
         <item itemvalue="Application.ClientsServiceApplication" />
-        <item itemvalue="Application.ApiGatewayApplication" />
         <item itemvalue="Application.PatientServiceApplication" />
+        <item itemvalue="Application.ApiGatewayApplication" />
+        <item itemvalue="Application.EurekaServiceApplication" />
       </list>
     </recent_temporary>
   </component>
@@ -298,54 +290,9 @@
           <option name="timeStamp" value="8" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java</url>
-          <line>41</line>
-          <option name="timeStamp" value="39" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java</url>
-          <line>36</line>
-          <option name="timeStamp" value="42" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java</url>
-          <line>39</line>
-          <option name="timeStamp" value="43" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java</url>
-          <line>34</line>
-          <option name="timeStamp" value="44" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/infra/GlobalException.java</url>
           <line>69</line>
           <option name="timeStamp" value="45" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionRecordService.java</url>
-          <line>50</line>
-          <option name="timeStamp" value="51" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionRecordService.java</url>
-          <line>48</line>
-          <option name="timeStamp" value="52" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionRecordService.java</url>
-          <line>65</line>
-          <option name="timeStamp" value="53" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionRecordService.java</url>
-          <line>64</line>
-          <option name="timeStamp" value="54" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionRecordService.java</url>
-          <line>70</line>
-          <option name="timeStamp" value="55" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/user/dto/UserResponseDTO.java</url>
@@ -360,15 +307,6 @@
             <option name="WATCH_EXIT" value="false" />
           </properties>
           <option name="timeStamp" value="3" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-method">
-          <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java</url>
-          <line>35</line>
-          <properties class="com.ClinicaDeYmid.admissions_service.module.controller.AttentionController" method="createAttention">
-            <option name="EMULATED" value="true" />
-            <option name="WATCH_EXIT" value="false" />
-          </properties>
-          <option name="timeStamp" value="41" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-method">
           <url>file://$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/infra/GlobalException.java</url>

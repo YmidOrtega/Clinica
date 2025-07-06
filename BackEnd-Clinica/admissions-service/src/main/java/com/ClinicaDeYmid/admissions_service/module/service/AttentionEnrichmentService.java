@@ -1,10 +1,7 @@
 package com.ClinicaDeYmid.admissions_service.module.service;
 
-import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionResponseDto;
-import com.ClinicaDeYmid.admissions_service.module.dto.attention.AuthorizationResponseDto;
-import com.ClinicaDeYmid.admissions_service.module.dto.attention.CompanionDto;
-import com.ClinicaDeYmid.admissions_service.module.dto.attention.ConfigurationServiceResponseDto;
-import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionUserHistoryResponseDto;
+import com.ClinicaDeYmid.admissions_service.infra.exception.ExternalServiceUnavailableException;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.*;
 import com.ClinicaDeYmid.admissions_service.module.dto.clients.GetHealthProviderDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.GetDoctorDto;
@@ -13,9 +10,8 @@ import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.DoctorClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.PatientClient;
-import com.ClinicaDeYmid.admissions_service.module.feignclient.UserClient; //
+import com.ClinicaDeYmid.admissions_service.module.feignclient.UserClient;
 import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionMapper;
-import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionUserHistoryMapper;
 import com.ClinicaDeYmid.admissions_service.module.mapper.AuthorizationMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +19,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,117 +31,60 @@ public class AttentionEnrichmentService {
     private final PatientClient patientClient;
     private final DoctorClient doctorClient;
     private final HealthProviderClient healthProviderClient;
-    private final UserClient userClient; //
+    private final UserClient userClient;
     private final AttentionMapper attentionMapper;
     private final AuthorizationMapper authorizationMapper;
-    private final AttentionUserHistoryMapper attentionUserHistoryMapper;
+
+    private <T> T fetchExternalResource(Supplier<T> supplier, String resourceName, Object id) {
+        try {
+            return supplier.get();
+        } catch (Exception e) {
+            log.error("Error fetching {}: {}. Details: {}", resourceName, id, e.getMessage());
+            throw new ExternalServiceUnavailableException(String.format("No se pudo obtener %s con ID/NIT %s", resourceName, id));
+        }
+    }
 
     public AttentionResponseDto enrichAttentionResponseDto(Attention attention) {
-        GetPatientDto patientDetails = null;
-        if (attention.getPatientId() != null) {
-            try {
-                patientDetails = patientClient.getPatientByIdentificationNumber(attention.getPatientId().toString());
-            } catch (Exception e) {
-                log.warn("Could not retrieve patient details for ID {}: {}", attention.getPatientId(), e.getMessage());
-            }
-        }
 
-        GetDoctorDto doctorDetails = null;
-        if (attention.getDoctorId() != null) {
-            try {
-                doctorDetails = doctorClient.getDoctorById(attention.getDoctorId());
-            } catch (Exception e) {
-                log.warn("Could not retrieve doctor details for ID {}: {}", attention.getDoctorId(), e.getMessage());
-            }
-        }
+        // Obtención de detalles del paciente
+        GetPatientDto patientDetails = (attention.getPatientId() != null) ?
+                fetchExternalResource(() -> patientClient.getPatientByIdentificationNumber(attention.getPatientId().toString()), "paciente", attention.getPatientId()) : null;
 
-        List<GetHealthProviderDto> healthProviderDetails = Collections.emptyList();
-        if (attention.getHealthProviderNit() != null && !attention.getHealthProviderNit().isEmpty()) {
-            healthProviderDetails = attention.getHealthProviderNit().stream()
-                    .map(nit -> {
-                        try {
-                            return healthProviderClient.getHealthProviderByNit(nit);
-                        } catch (Exception e) {
-                            log.warn("Could not retrieve health provider details for NIT {}: {}", nit, e.getMessage());
-                            return null;
-                        }
-                    })
-                    .filter(java.util.Objects::nonNull)
-                    .collect(Collectors.toList());
-        }
+        // Obtención de detalles del doctor
+        GetDoctorDto doctorDetails = (attention.getDoctorId() != null) ?
+                fetchExternalResource(() -> doctorClient.getDoctorById(attention.getDoctorId()), "doctor", attention.getDoctorId()) : null;
 
-        List<AttentionUserHistoryResponseDto> userHistory = Collections.emptyList();
-        if (attention.getUserHistory() != null) { //
-            userHistory = attention.getUserHistory().stream()
-                    .map(history -> {
-                        GetUserDto userDetailsForHistory = null;
-                        if (history.getUserId() != null) {
-                            try {
-                                log.info("Calling UserClient for user: {}", history.getUserId());
-                                userDetailsForHistory = userClient.getUserById(history.getUserId());
-                                log.info("User details retrieved: {}", userDetailsForHistory);
-                            } catch (Exception e) {
-                                log.error("Could not retrieve user details for ID {}: {}", history.getUserId(), e.getMessage(), e);
-                            }
-                        } else {
-                            log.warn("UserId is null for history ID: {}", history.getId());
-                        }
-                        return new AttentionUserHistoryResponseDto(
-                                history.getId(),
-                                userDetailsForHistory,
-                                history.getActionType(),
-                                history.getActionTimestamp(),
-                                history.getObservations()
-                        );
-                    })
-                    .collect(Collectors.toList());
-        }
+        // Obtención de prestadores de salud
+        List<GetHealthProviderDto> healthProviderDetails = (attention.getHealthProviderNit() != null) ?
+                attention.getHealthProviderNit().stream()
+                        .map(nit -> fetchExternalResource(() -> healthProviderClient.getHealthProviderByNit(nit), "prestador", nit))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList()) : Collections.emptyList();
 
-        List<AuthorizationResponseDto> authorizations = Collections.emptyList();
-        if (attention.getAuthorizations() != null) { //
-            authorizations = authorizationMapper.toResponseDtoList(attention.getAuthorizations());
-        }
+        // Obtención de historial de usuario
+        List<AttentionUserHistoryResponseDto> userHistory = (attention.getUserHistory() != null) ?
+                attention.getUserHistory().stream()
+                        .map(history -> {
+                            GetUserDto userDetails = fetchExternalResource(() -> userClient.getUserById(history.getUserId()), "usuario", history.getUserId());
+                            return new AttentionUserHistoryResponseDto(history.getId(), userDetails, history.getActionType(), history.getActionTimestamp(), history.getObservations());
+                        })
+                        .collect(Collectors.toList()) : Collections.emptyList();
 
-        // Mapear ConfigurationService
-        ConfigurationServiceResponseDto configServiceDto = null;
-        if (attention.getConfigurationService() != null) {
-            configServiceDto = attentionMapper.mapConfigurationServiceToResponseDto(attention.getConfigurationService());
-        }
+        // Mapeos que no requieren llamadas externas
+        List<AuthorizationResponseDto> authorizations = authorizationMapper.toResponseDtoList(attention.getAuthorizations());
+        ConfigurationServiceResponseDto configServiceDto = attentionMapper.mapConfigurationServiceToResponseDto(attention.getConfigurationService());
+        CompanionDto companionDto = attentionMapper.toCompanionDto(attention.getCompanion());
 
-        // Mapear Companion
-        CompanionDto companionDto = null;
-        if (attention.getCompanion() != null) {
-            companionDto = attentionMapper.toCompanionDto(attention.getCompanion());
-        }
-
-
-        // Construir el DTO final
+        // Construcción final del DTO de respuesta
         return new AttentionResponseDto(
-                attention.getId(),
-                attention.isActive(),
-                attention.isHasMovements(),
-                attention.isActiveAttention(),
-                attention.isPreAdmission(),
-                attention.isInvoiced(),
-                patientDetails,
-                doctorDetails,
-                healthProviderDetails,
-                attention.getInvoiceNumber(),
-                userHistory,
-                authorizations,
-                configServiceDto,
-                attention.getCreatedAt(),
-                attention.getAdmissionDateTime(),
-                attention.getDischargeDateTime(),
-                attention.getStatus(),
-                attention.getEntryMethod(),
-                attention.getReferringEntity(),
-                attention.getIsReferral(),
-                attention.getMainDiagnosisCode(),
-                attention.getSecondaryDiagnosisCodes(),
-                attention.getTriageLevel(),
-                companionDto,
-                attention.getObservations(),
+                attention.getId(), attention.isActive(), attention.isHasMovements(),
+                attention.isActiveAttention(), attention.isPreAdmission(), attention.isInvoiced(),
+                patientDetails, doctorDetails, healthProviderDetails, attention.getInvoiceNumber(),
+                userHistory, authorizations, configServiceDto, attention.getCreatedAt(),
+                attention.getAdmissionDateTime(), attention.getDischargeDateTime(), attention.getStatus(),
+                attention.getEntryMethod(), attention.getReferringEntity(), attention.getIsReferral(),
+                attention.getMainDiagnosisCode(), attention.getSecondaryDiagnosisCodes(),
+                attention.getTriageLevel(), companionDto, attention.getObservations(),
                 attention.getBillingObservations()
         );
     }

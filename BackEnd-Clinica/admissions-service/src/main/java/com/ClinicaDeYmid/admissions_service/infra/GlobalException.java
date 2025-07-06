@@ -341,4 +341,17 @@ public class GlobalException {
         response.put("errorType", "INTERNAL_SERVER_ERROR");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
+
+    @ExceptionHandler(ExternalServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleExternalServiceUnavailable(ExternalServiceUnavailableException ex, HttpServletRequest request) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("timestamp", ZonedDateTime.now());
+        response.put("status", HttpStatus.BAD_GATEWAY.value());
+        response.put("error", "Servicio externo no disponible");
+        response.put("message", ex.getMessage());
+        response.put("path", request.getRequestURI());
+        response.put("errorType", "EXTERNAL_SERVICE_UNAVAILABLE");
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(response);
+    }
+
 }

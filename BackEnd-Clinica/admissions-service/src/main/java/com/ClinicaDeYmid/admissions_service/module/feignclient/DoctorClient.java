@@ -11,5 +11,4 @@ public interface DoctorClient {
     @GetMapping("/{id}")
     GetDoctorDto getDoctorById(@PathVariable("id") Long id);
 
-
 }
