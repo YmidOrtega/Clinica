@@ -5,8 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/controller/ChatController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/entity/Attention.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/entity/Attention.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-assistant-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,6 +48,7 @@
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
     &quot;Application.AdmissionsServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.AiAssistantServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Application.ApiGatewayApplication.executor&quot;: &quot;Run&quot;,
     &quot;Application.AuthServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Application.ClientsServiceApplication.executor&quot;: &quot;Run&quot;,
@@ -116,7 +119,7 @@
       <recent name="com.ClinicaDeYmid.api_gateway.dto" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.AdmissionsServiceApplication">
+  <component name="RunManager" selected="Application.AiAssistantServiceApplication">
     <configuration name="AdmissionsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="envFilePaths">
         <option value="$PROJECT_DIR$/.env" />
@@ -126,6 +129,22 @@
       <extension name="coverage">
         <pattern>
           <option name="PATTERN" value="com.ClinicaDeYmid.admissions_service.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="AiAssistantServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="envFilePaths">
+        <option value="$PROJECT_DIR$/.env" />
+      </option>
+      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.ai_assistant_service.AiAssistantServiceApplication" />
+      <module name="ai-assistant-service" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ClinicaDeYmid.ai_assistant_service.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -194,22 +213,6 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="SuppliersServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="envFilePaths">
-        <option value="$PROJECT_DIR$/.env" />
-      </option>
-      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.suppliers_service.SuppliersServiceApplication" />
-      <module name="suppliers-service" />
-      <extension name="coverage">
-        <pattern>
-          <option name="PATTERN" value="com.ClinicaDeYmid.suppliers_service.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
     <configuration default="true" type="docker-deploy" factoryName="docker-compose.yml" temporary="true">
       <deployment type="docker-compose.yml">
         <settings />
@@ -218,19 +221,19 @@
     </configuration>
     <list>
       <item itemvalue="Application.AuthServiceApplication" />
+      <item itemvalue="Application.AiAssistantServiceApplication" />
       <item itemvalue="Application.AdmissionsServiceApplication" />
       <item itemvalue="Application.EurekaServiceApplication" />
-      <item itemvalue="Application.SuppliersServiceApplication" />
       <item itemvalue="Application.ApiGatewayApplication" />
       <item itemvalue="Application.ClientsServiceApplication" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.AiAssistantServiceApplication" />
         <item itemvalue="Application.AdmissionsServiceApplication" />
         <item itemvalue="Application.ApiGatewayApplication" />
         <item itemvalue="Application.ClientsServiceApplication" />
         <item itemvalue="Application.EurekaServiceApplication" />
-        <item itemvalue="Application.SuppliersServiceApplication" />
       </list>
     </recent_temporary>
   </component>
