@@ -6,6 +6,8 @@ import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionSearch
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionGetService;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionRecordService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -30,6 +32,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/attentions")
 @RequiredArgsConstructor
+@Tag(name = "Attention Management", description = "Operations related to patient attentions")
 public class AttentionController {
 
     private final AttentionGetService attentionGetService;
@@ -37,6 +40,7 @@ public class AttentionController {
 
     @PostMapping
     @CircuitBreaker(name = "admissions-service", fallbackMethod = "createAttentionFallback")
+    @Operation (summary = "Create a new attention", description = "Creates a new attention record for a patient.")
     public ResponseEntity<AttentionResponseDto> createAttention(
             @Valid @RequestBody AttentionRequestDto requestDto,
             UriComponentsBuilder uriBuilder) {
@@ -54,6 +58,7 @@ public class AttentionController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Retrieve attention by ID", description = "Fetches the details of an attention record by its ID.")
     public ResponseEntity<AttentionResponseDto> getAttentionById(
             @PathVariable @NotNull @Positive(message = "Attention ID must be positive") Long id) {
 
@@ -64,6 +69,7 @@ public class AttentionController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Update attention by ID", description = "Updates the details of an existing attention record.")
     public ResponseEntity<AttentionResponseDto> updateAttention(
             @PathVariable @NotNull @Positive(message = "Attention ID must be positive") Long id,
             @Valid @RequestBody AttentionRequestDto requestDto) {
@@ -77,6 +83,7 @@ public class AttentionController {
     }
 
     @GetMapping("/patient/{patientId}")
+    @Operation(summary = "Retrieve attentions by patient ID", description = "Fetches all attentions associated with a specific patient.")
     public ResponseEntity<List<AttentionResponseDto>> getAttentionsByPatientId(
             @PathVariable @NotNull @Positive(message = "Patient ID must be positive") Long patientId) {
 
@@ -87,6 +94,7 @@ public class AttentionController {
     }
 
     @GetMapping("/patient/{patientId}/active")
+    @Operation(summary = "Retrieve active attention by patient ID", description = "Fetches the active attention record for a specific patient.")
     public ResponseEntity<AttentionResponseDto> getActiveAttentionByPatientId(
             @PathVariable @NotNull @Positive(message = "Patient ID must be positive") Long patientId) {
 
@@ -97,6 +105,7 @@ public class AttentionController {
     }
 
     @GetMapping("/doctor/{doctorId}")
+    @Operation(summary = "Retrieve attentions by doctor ID", description = "Fetches all attentions associated with a specific doctor.")
     public ResponseEntity<List<AttentionResponseDto>> getAttentionsByDoctorId(
             @PathVariable @NotNull @Positive(message = "Doctor ID must be positive") Long doctorId) {
 
@@ -107,6 +116,7 @@ public class AttentionController {
     }
 
     @GetMapping("/health-provider/{healthProviderNit}")
+    @Operation(summary = "Retrieve attentions by health provider NIT", description = "Fetches all attentions associated with a specific health provider.")
     public ResponseEntity<List<AttentionResponseDto>> getAttentionsByHealthProviderId(
             @PathVariable @NotNull String healthProviderNit) {
 
@@ -117,6 +127,7 @@ public class AttentionController {
     }
 
     @GetMapping("/configuration-service/{configServiceId}")
+    @Operation(summary = "Retrieve attentions by configuration service ID", description = "Fetches all attentions associated with a specific configuration service.")
     public ResponseEntity<List<AttentionResponseDto>> getAttentionsByConfigurationServiceId(
             @PathVariable @NotNull @Positive(message = "Configuration service ID must be positive") Long configServiceId) {
 
@@ -127,6 +138,7 @@ public class AttentionController {
     }
 
     @GetMapping("/search")
+    @Operation(summary = "Search attentions", description = "Searches for attentions based on various criteria.")
     public ResponseEntity<PagedModel<EntityModel<AttentionResponseDto>>> searchAttentions(
             @Valid AttentionSearchRequest searchRequest,
             PagedResourcesAssembler<AttentionResponseDto> assembler) {
@@ -139,6 +151,7 @@ public class AttentionController {
     }
 
     @GetMapping("/{id}/can-update")
+    @Operation(summary = "Check if attention can be updated", description = "Checks if an attention record can be updated based on its ID.")
     public ResponseEntity<Boolean> canUpdateAttention(
             @PathVariable @NotNull @Positive(message = "Attention ID must be positive") Long id) {
 
@@ -149,6 +162,7 @@ public class AttentionController {
     }
 
     @GetMapping("/{id}/invoice-status")
+    @Operation(summary = "Get invoice status for attention", description = "Retrieves the invoice status for a specific attention record by its ID.")
     public ResponseEntity<String> getInvoiceStatus(
             @PathVariable @NotNull @Positive(message = "Attention ID must be positive") Long id) {
 

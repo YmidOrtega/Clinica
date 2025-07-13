@@ -6,6 +6,8 @@ import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorUpdateRequestDTO;
 import com.ClinicaDeYmid.suppliers_service.module.service.DoctorGetService;
 import com.ClinicaDeYmid.suppliers_service.module.service.DoctorRecordService;
 import com.ClinicaDeYmid.suppliers_service.module.service.DoctorStatusService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/suppliers/doctors")
 @RequiredArgsConstructor
+@Tag(name = "Doctors", description = "Operations related to doctors in the healthcare system")
 public class DoctorController {
 
     private final DoctorRecordService doctorRecordService;
@@ -29,6 +32,10 @@ public class DoctorController {
     private final DoctorStatusService doctorStatusService;
 
     @PostMapping
+    @Operation(
+            summary = "Create a new doctor",
+            description = "Create a new doctor in the system with the provided details. " +
+                    "The provider code must be unique.")
     public ResponseEntity<DoctorResponseDto> createDoctor(
             @Valid @RequestBody DoctorCreateRequestDTO request,
             UriComponentsBuilder uriBuilder) {
@@ -46,6 +53,10 @@ public class DoctorController {
     }
 
     @PutMapping("/{id}")
+    @Operation(
+            summary = "Update an existing doctor",
+            description = "Update the details of an existing doctor identified by ID. " +
+                    "The provider code must remain unique.")
     public ResponseEntity<DoctorResponseDto> updateDoctor(
             @PathVariable Long id,
             @Valid @RequestBody DoctorUpdateRequestDTO request) {
@@ -56,6 +67,9 @@ public class DoctorController {
     }
 
     @GetMapping("/{id}")
+    @Operation(
+            summary = "Get doctor by ID",
+            description = "Retrieve the details of a doctor by their unique ID.")
     public ResponseEntity<DoctorResponseDto> getDoctorById(@PathVariable Long id) {
         log.info("Fetching doctor with ID: {}", id);
         DoctorResponseDto response = doctorGetService.getDoctorById(id);
@@ -63,12 +77,19 @@ public class DoctorController {
     }
 
     @GetMapping
+    @Operation(
+            summary = "Get all doctors",
+            description = "Retrieve a list of all doctors in the system.")
     public ResponseEntity<List<DoctorResponseDto>> getAllDoctors() {
         log.info("Fetching all doctors");
         return ResponseEntity.ok(doctorGetService.getAllDoctors());
     }
 
     @PatchMapping("/{id}/activate")
+    @Operation(
+            summary = "Activate a doctor",
+            description = "Activate a doctor by their unique ID. " +
+                    "An active doctor can be assigned to appointments and perform medical duties.")
     public ResponseEntity<Void> activateDoctor(@PathVariable Long id) {
         log.info("Activating doctor with ID: {}", id);
         doctorStatusService.activateDoctor(id);
@@ -76,6 +97,10 @@ public class DoctorController {
     }
 
     @PatchMapping("/{id}/deactivate")
+    @Operation(
+            summary = "Deactivate a doctor",
+            description = "Deactivate a doctor by their unique ID. " +
+                    "A deactivated doctor cannot be assigned to appointments or perform medical duties.")
     public ResponseEntity<Void> deactivateDoctor(@PathVariable Long id) {
         log.info("Deactivating doctor with ID: {}", id);
         doctorStatusService.deactivateDoctor(id);

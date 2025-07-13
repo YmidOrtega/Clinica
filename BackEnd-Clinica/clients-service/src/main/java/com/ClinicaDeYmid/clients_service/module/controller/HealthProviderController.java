@@ -5,6 +5,8 @@ import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 import com.ClinicaDeYmid.clients_service.module.service.*;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderResponseDto;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -28,6 +30,7 @@ import java.net.URI;
 @RestController
 @RequestMapping("/api/v1/billing-service/health-providers")
 @RequiredArgsConstructor
+@Tag(name = "Health Provider Management", description = "Operations related to health provider management")
 public class HealthProviderController {
 
     private final HeathProviderRecordService registrationService;
@@ -39,6 +42,7 @@ public class HealthProviderController {
      * Crear un nuevo proveedor de salud
      */
     @PostMapping
+    @Operation (summary = "Create a new health provider", description = "Creates a new health provider in the system.")
     public ResponseEntity<HealthProvider> createHealthProvider(
             @Valid @RequestBody CreateHealthProviderDto createDto,
             UriComponentsBuilder uriBuilder) {
@@ -60,6 +64,7 @@ public class HealthProviderController {
      * Obtener todos los proveedores de salud
      */
     @GetMapping
+    @Operation(summary = "Retrieve all health providers", description = "Retrieves a paginated list of all health providers.")
     public ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> searchAllHealthProviders(
             Pageable pageable, PagedResourcesAssembler<HealthProviderListDto> assembler) {
         log.info("Retrieving all health providers with pagination: {}", pageable);
@@ -73,6 +78,7 @@ public class HealthProviderController {
      * Obtener un proveedor de salud por NIT
      */
     @GetMapping("/{nit}")
+    @Operation(summary = "Retrieve a health provider by NIT", description = "Retrieves a health provider by their NIT.")
     public ResponseEntity<HealthProviderResponseDto> getHealthProviderByNit(
             @PathVariable @NotNull(message = "El NIT no puede ser nulo")
             @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
@@ -91,6 +97,7 @@ public class HealthProviderController {
      * Actualizar un proveedor de salud
      */
     @PutMapping("/{nit}")
+    @Operation(summary = "Update a health provider", description = "Updates the details of an existing health provider by their NIT.")
     public ResponseEntity<HealthProvider> updateHealthProvider(
             @PathVariable @NotNull @Positive(message = "ID must be positive") String nit,
             @Valid @RequestBody HealthProvider updatedProviderDetails) {
@@ -107,6 +114,7 @@ public class HealthProviderController {
      * Activar un proveedor de salud
      */
     @PatchMapping("/{id}/activate")
+    @Operation (summary = "Activate a health provider", description = "Activates a health provider by their ID.")
     public ResponseEntity<HealthProvider> activateHealthProvider(
             @PathVariable @NotNull @Positive(message = "ID must be positive") Long id) {
 
@@ -122,6 +130,7 @@ public class HealthProviderController {
      * Desactivar un proveedor de salud
      */
     @PatchMapping("/{id}/deactivate")
+    @Operation (summary = "Deactivate a health provider", description = "Deactivates a health provider by their ID.")
     public ResponseEntity<HealthProvider> deactivateHealthProvider(
             @PathVariable @NotNull @Positive(message = "ID must be positive") Long id) {
 
@@ -137,6 +146,7 @@ public class HealthProviderController {
      * Eliminar un proveedor de salud
      */
     @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a health provider", description = "Deletes a health provider by their ID.")
     public ResponseEntity<Void> deleteHealthProvider(
             @PathVariable @NotNull @Positive(message = "ID must be positive") Long id) {
 

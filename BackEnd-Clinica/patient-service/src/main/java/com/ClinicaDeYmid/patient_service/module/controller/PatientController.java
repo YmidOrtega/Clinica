@@ -6,6 +6,8 @@ import com.ClinicaDeYmid.patient_service.module.service.GetPatientInformationSer
 import com.ClinicaDeYmid.patient_service.module.service.PatientRecordService;
 import com.ClinicaDeYmid.patient_service.module.service.PatientSearchService;
 import com.ClinicaDeYmid.patient_service.module.service.UpdatePatientInformationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import java.net.URI;
 @RestController
 @RequestMapping("/api/v1/patients")
 @RequiredArgsConstructor
+@Tag(name = "Patient Management", description = "Operations related to patient management")
 public class PatientController {
 
     private final PatientRecordService patientRecordService;
@@ -38,6 +41,7 @@ public class PatientController {
 
 
     @PostMapping
+    @Operation(summary = "Create a new patient", description = "Creates a new patient record in the system.")
     public ResponseEntity<PatientResponseDto> createPatient(
             @Valid @RequestBody NewPatientDto newPatientDto,
             UriComponentsBuilder uriBuilder) {
@@ -56,6 +60,7 @@ public class PatientController {
 
 
     @GetMapping("/{identificationNumber}")
+    @Operation(summary = "Get patient information", description = "Retrieves detailed information about a patient by their identification number.")
     public ResponseEntity<GetPatientDto> getPatient(
             @PathVariable  @NotBlank(message = "Identification cannot be blank") String identificationNumber) {
 
@@ -69,6 +74,7 @@ public class PatientController {
 
 
     @GetMapping("/search")
+    @Operation(summary = "Search patients", description = "Searches for patients based on a query string.")
     public ResponseEntity<PagedModel<EntityModel<PatientsListDto>>> searchPatients(
             @RequestParam(name = "q") @NotBlank(message = "Search query cannot be blank") String query,
             Pageable pageable,
@@ -83,6 +89,7 @@ public class PatientController {
     }
 
     @PutMapping
+    @Operation(summary = "Update patient information", description = "Updates the information of an existing patient by their identification number.")
     public ResponseEntity<PatientResponseDto> updatePatient(
             @Valid @RequestBody UpdatePatientDto updatePatientDto,
             @RequestParam @NotBlank(message = "Identification number cannot be blank") String identificationNumber) {

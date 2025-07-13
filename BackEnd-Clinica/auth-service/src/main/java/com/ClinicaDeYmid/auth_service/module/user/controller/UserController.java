@@ -5,6 +5,8 @@ import com.ClinicaDeYmid.auth_service.module.user.enums.StatusUser;
 import com.ClinicaDeYmid.auth_service.module.user.service.UserGetService;
 import com.ClinicaDeYmid.auth_service.module.user.service.UserRecordService;
 import com.ClinicaDeYmid.auth_service.module.user.service.UserStatusService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/auth/users")
 @RequiredArgsConstructor
+@Tag(name = "User Management", description = "Operations related to user management")
 public class UserController {
 
     private final UserRecordService userRecordService;
@@ -34,6 +37,7 @@ public class UserController {
      * Crea un nuevo usuario
      */
     @PostMapping
+    @Operation (summary = "Create a new user", description = "Creates a new user in the system.")
     public ResponseEntity<UserResponseDTO> createUser(
             @Valid @RequestBody UserRequestDTO request,
             UriComponentsBuilder uriBuilder) {
@@ -54,6 +58,7 @@ public class UserController {
      * Actualiza un usuario existente (actualización parcial)
      */
     @PutMapping("/{id}")
+    @Operation (summary = "Update an existing user", description = "Updates an existing user in the system.")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UserUpdateDTO request) {
@@ -68,6 +73,7 @@ public class UserController {
      * Elimina un usuario (soft delete)
      */
     @DeleteMapping("/{id}")
+    @Operation (summary = "Delete a user", description = "Deletes a user from the system (soft delete).")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         log.info("Deleting user with ID: {}", id);
         userRecordService.deleteUser(id);
@@ -79,6 +85,7 @@ public class UserController {
      * Obtiene un usuario por ID
      */
     @GetMapping("/{id}")
+    @Operation (summary = "Get user by ID", description = "Retrieves a user by their ID.")
     public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
         log.info("Fetching user with ID: {}", id);
         UserResponseDTO response = userGetService.getUserById(id);
@@ -89,6 +96,7 @@ public class UserController {
      * Obtiene un usuario por UUID
      */
     @GetMapping("/uuid/{uuid}")
+    @Operation (summary = "Get user by UUID", description = "Retrieves a user by their UUID.")
     public ResponseEntity<UserResponseDTO> getUserByUuid(@PathVariable String uuid) {
         log.info("Fetching user with UUID: {}", uuid);
         UserResponseDTO response = userGetService.getUserByUuid(uuid);
@@ -99,6 +107,7 @@ public class UserController {
      * Obtiene un usuario por email
      */
     @GetMapping("/email/{email}")
+    @Operation (summary = "Get user by email", description = "Retrieves a user by their email address.")
     public ResponseEntity<UserResponseDTO> getUserByEmail(@PathVariable String email) {
         log.info("Fetching user with email: {}", email);
         UserResponseDTO response = userGetService.getUserByEmail(email);
@@ -109,6 +118,7 @@ public class UserController {
      * Obtiene página de usuarios activos (resumen)
      */
     @GetMapping
+    @Operation (summary = "Get active users", description = "Retrieves a paginated list of active users.")
     public ResponseEntity<Page<UserSummaryDTO>> getActiveUsers(
             @PageableDefault(size = 20, sort = "username") Pageable pageable) {
 
@@ -127,6 +137,7 @@ public class UserController {
      * Obtiene página completa de usuarios para administración
      */
     @GetMapping("/admin")
+    @Operation (summary = "Get all users for admin", description = "Retrieves a paginated list of all users for administrative purposes.")
     public ResponseEntity<Page<UserListDTO>> getAllUsersForAdmin(
             @PageableDefault(size = 20, sort = "id") Pageable pageable) {
 
@@ -145,6 +156,7 @@ public class UserController {
      * Obtiene usuarios filtrados por estado
      */
     @GetMapping("/status/{status}")
+@Operation (summary = "Get users by status", description = "Retrieves a paginated list of users filtered by their status.")
     public ResponseEntity<Page<UserListDTO>> getUsersByStatus(
             @PathVariable StatusUser status,
             @PageableDefault(size = 20, sort = "id") Pageable pageable) {
@@ -158,6 +170,7 @@ public class UserController {
      * Obtiene usuarios filtrados por rol
      */
     @GetMapping("/role/{roleId}")
+    @Operation (summary = "Get users by role", description = "Retrieves a paginated list of users filtered by their role ID.")
     public ResponseEntity<Page<UserListDTO>> getUsersByRole(
             @PathVariable Long roleId,
             @PageableDefault(size = 20, sort = "username") Pageable pageable) {
@@ -171,6 +184,7 @@ public class UserController {
      * Busca usuarios por término de búsqueda
      */
     @GetMapping("/search")
+    @Operation (summary = "Search users", description = "Searches for users based on a query string.")
     public ResponseEntity<Page<UserListDTO>> searchUsers(
             @RequestParam String q,
             @PageableDefault(size = 20, sort = "username") Pageable pageable) {
@@ -184,6 +198,7 @@ public class UserController {
      * Obtiene todos los usuarios activos (sin paginación)
      */
     @GetMapping("/active/all")
+    @Operation (summary = "Get all active users", description = "Retrieves a list of all active users without pagination.")
     public ResponseEntity<List<UserSummaryDTO>> getAllActiveUsers() {
         log.info("Fetching all active users without pagination");
         List<UserSummaryDTO> response = userGetService.getAllActiveUsers();
@@ -195,6 +210,7 @@ public class UserController {
      * Activa un usuario
      */
     @PatchMapping("/{id}/activate")
+    @Operation (summary = "Activate a user", description = "Activates a user by their ID.")
     public ResponseEntity<UserResponseDTO> activateUser(@PathVariable Long id) {
         log.info("Activating user with ID: {}", id);
         UserResponseDTO response = userStatusService.activateUser(id);
@@ -206,6 +222,7 @@ public class UserController {
      * Desactiva un usuario
      */
     @PatchMapping("/{id}/deactivate")
+    @Operation (summary = "Deactivate a user", description = "Deactivates a user by their ID.")
     public ResponseEntity<UserResponseDTO> deactivateUser(@PathVariable Long id) {
         log.info("Deactivating user with ID: {}", id);
         UserResponseDTO response = userStatusService.deactivateUser(id);
@@ -217,6 +234,7 @@ public class UserController {
      * Suspende un usuario
      */
     @PatchMapping("/{id}/suspend")
+    @Operation (summary = "Suspend a user", description = "Suspends a user by their ID.")
     public ResponseEntity<UserResponseDTO> suspendUser(@PathVariable Long id) {
         log.info("Suspending user with ID: {}", id);
         UserResponseDTO response = userStatusService.suspendUser(id);
@@ -228,6 +246,7 @@ public class UserController {
      * Reactiva un usuario suspendido
      */
     @PatchMapping("/{id}/reactivate")
+    @Operation (summary = "Reactivate a suspended user", description = "Reactivates a suspended user by their ID.")
     public ResponseEntity<UserResponseDTO> reactivateUser(@PathVariable Long id) {
         log.info("Reactivating suspended user with ID: {}", id);
         UserResponseDTO response = userStatusService.reactivateUser(id);
@@ -239,6 +258,7 @@ public class UserController {
      * Alterna el estado activo/inactivo de un usuario
      */
     @PatchMapping("/{id}/toggle-status")
+    @Operation (summary = "Toggle user active status", description = "Toggles the active status of a user by their ID.")
     public ResponseEntity<UserResponseDTO> toggleUserActiveStatus(@PathVariable Long id) {
         log.info("Toggling active status for user with ID: {}", id);
         UserResponseDTO response = userStatusService.toggleUserActiveStatus(id);
@@ -250,6 +270,7 @@ public class UserController {
      * Actualiza el estado de un usuario
      */
     @PatchMapping("/{id}/status")
+    @Operation (summary = "Update user status", description = "Updates the status of a user by their ID.")
     public ResponseEntity<UserResponseDTO> updateUserStatus(
             @PathVariable Long id,
             @Valid @RequestBody UserStatusUpdateDTO request) {
@@ -264,6 +285,7 @@ public class UserController {
      * Obtiene el estado actual de un usuario
      */
     @GetMapping("/{id}/status")
+    @Operation (summary = "Get user status", description = "Retrieves the current status of a user by their ID.")
     public ResponseEntity<UserResponseDTO> getUserStatus(@PathVariable Long id) {
         log.info("Fetching status for user with ID: {}", id);
         UserResponseDTO response = userStatusService.getUserStatus(id);
@@ -276,6 +298,7 @@ public class UserController {
      * Actualiza la contraseña de un usuario
      */
     @PatchMapping("/{id}/password")
+    @Operation (summary = "Update user password", description = "Updates the password of a user by their ID.")
     public ResponseEntity<Void> updatePassword(
             @PathVariable Long id,
             @Valid @RequestBody UserPasswordUpdateDTO request) {
@@ -292,6 +315,7 @@ public class UserController {
      * Verifica si existe un usuario con el email dado
      */
     @GetMapping("/exists/email/{email}")
+    @Operation (summary = "Check if user exists by email", description = "Checks if a user exists with the given email address.")
     public ResponseEntity<Boolean> existsByEmail(@PathVariable String email) {
         log.debug("Checking if user exists with email: {}", email);
         boolean exists = userGetService.existsByEmail(email);
@@ -302,6 +326,7 @@ public class UserController {
      * Verifica si existe un usuario con el username dado
      */
     @GetMapping("/exists/username/{username}")
+    @Operation (summary = "Check if user exists by username", description = "Checks if a user exists with the given username.")
     public ResponseEntity<Boolean> existsByUsername(@PathVariable String username) {
         log.debug("Checking if user exists with username: {}", username);
         boolean exists = userGetService.existsByUsername(username);
@@ -312,6 +337,7 @@ public class UserController {
      * Verifica si un usuario está activo
      */
     @GetMapping("/{id}/active")
+    @Operation (summary = "Check if user is active", description = "Checks if a user is currently active by their ID.")
     public ResponseEntity<Boolean> isUserActive(@PathVariable Long id) {
         log.debug("Checking if user with ID: {} is active", id);
         boolean isActive = userStatusService.isUserActive(id);
@@ -324,6 +350,7 @@ public class UserController {
      * Obtiene el conteo de usuarios activos
      */
     @GetMapping("/count/active")
+    @Operation (summary = "Count active users", description = "Counts the number of active users in the system.")
     public ResponseEntity<Long> countActiveUsers() {
         log.debug("Counting active users");
         long count = userGetService.countActiveUsers();
@@ -334,6 +361,7 @@ public class UserController {
      * Obtiene el conteo de usuarios por estado
      */
     @GetMapping("/count/status/{status}")
+    @Operation (summary = "Count users by status", description = "Counts the number of users by their status.")
     public ResponseEntity<Long> countUsersByStatus(@PathVariable StatusUser status) {
         log.debug("Counting users with status: {}", status);
         long count = userGetService.countUsersByStatus(status);

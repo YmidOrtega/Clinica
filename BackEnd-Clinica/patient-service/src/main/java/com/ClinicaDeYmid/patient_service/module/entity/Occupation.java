@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.patient_service.module.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 @Table(name = "occupations")
 @Data
 @EqualsAndHashCode(of = "id")
+@Schema(description = "Represents an occupation in the healthcare system.")
 public class Occupation {
 
     @Id
