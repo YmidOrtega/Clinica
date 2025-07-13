@@ -122,7 +122,6 @@ public class Patient {
     private String fathersName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "zone_type", nullable = false)
     private Zone zone;
 
     @ManyToOne(fetch = FetchType.LAZY)

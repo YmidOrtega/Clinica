@@ -21,3 +21,12 @@ springdoc:
     filter: true
     doc-expansion: none
   show-actuator: true
+
+# Para personalizar la documentación
+api:
+  title: API-GATEWAY
+  description: Microservicio para la gestión de peticiones a otros microservicios
+  version: 1.0.0
+  contact:
+    name: Development Team
+    email: dev@example.com
