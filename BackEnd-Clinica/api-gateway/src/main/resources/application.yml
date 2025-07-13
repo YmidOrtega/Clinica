@@ -12,6 +12,7 @@ eureka:
 springdoc:
   api-docs:
     path: /api-docs
+    enabled: true
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
@@ -20,13 +21,55 @@ springdoc:
     tags-sorter: alpha
     filter: true
     doc-expansion: none
+    urls:
+      - name: "API Gateway"
+        url: "/api-docs"
+      - name: "Auth Service"
+        url: "/v3/api-docs/auth-service"
+      - name: "Patient Service"
+        url: "/v3/api-docs/patient-service"
+      - name: "Billing Service"
+        url: "/v3/api-docs/billing-service"
+      - name: "Admissions Service"
+        url: "/v3/api-docs/admissions-service"
+      - name: "AI Assistant Service"
+        url: "/v3/api-docs/ai-assistant-service"
+      - name: "Suppliers Service"
+        url: "/v3/api-docs/suppliers-service"
+      - name: "Clients Service"
+        url: "/v3/api-docs/clients-service"
   show-actuator: true
+  cache:
+    disabled: false
+  group-configs:
+    - group: auth-service
+      display-name: "Auth Service"
+      paths-to-match: /api/v1/auth/**
+    - group: patient-service
+      display-name: "Patient Service"
+      paths-to-match: /api/v1/patients/**
+    - group: billing-service
+      display-name: "Billing Service"
+      paths-to-match: /api/v1/billing/**
+    - group: admissions-service
+      display-name: "Admissions Service"
+      paths-to-match: /api/v1/attentions/**
+    - group: ai-assistant-service
+      display-name: "AI Assistant Service"
+      paths-to-match: /api/v1/ai-assistant/**
+    - group: suppliers-service
+      display-name: "Suppliers Service"
+      paths-to-match: /api/v1/suppliers/**
+    - group: clients-service
+      display-name: "Clients Service"
+      paths-to-match: /api/v1/billing-service/health-providers/**
 
 # Para personalizar la documentación
 api:
-  title: API-GATEWAY
-  description: Microservicio para la gestión de peticiones a otros microservicios
+  title: API-GATEWAY - Clínica de Ymid
+  description: Microservicio para la gestión de peticiones a otros microservicios del sistema de clínica médica
   version: 1.0.0
   contact:
     name: Development Team
-    email: dev@example.com
+    email: dev@clinicadeymid.com
+    url: https://clinicadeymid.com
