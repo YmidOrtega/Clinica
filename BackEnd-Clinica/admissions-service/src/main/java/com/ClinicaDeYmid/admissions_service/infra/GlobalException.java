@@ -25,6 +25,7 @@ import java.util.*;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalException {
 
+     /*
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex, HttpServletRequest request) {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -340,6 +341,15 @@ public class GlobalException {
         response.put("path", request.getRequestURI());
         response.put("errorType", "INTERNAL_SERVER_ERROR");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }*/
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleAll(Exception ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", ex.getClass().getSimpleName());
+        body.put("message", ex.getMessage());
+        body.put("cause", ex.getCause() != null ? ex.getCause().toString() : "No cause");
+        return ResponseEntity.status(500).body(body);
     }
 
     @ExceptionHandler(ExternalServiceUnavailableException.class)

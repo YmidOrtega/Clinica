@@ -3,6 +3,9 @@ package com.ClinicaDeYmid.admissions_service.module.controller;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionRequestDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionResponseDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionSearchRequest;
+import com.ClinicaDeYmid.admissions_service.module.dto.clients.HealthProviderWithAttentionsResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.patient.PatientWithAttentionsResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.DoctorWithAttentionsResponse;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionGetService;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionRecordService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -18,7 +21,6 @@ import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -84,45 +86,45 @@ public class AttentionController {
 
     @GetMapping("/patient/{patientId}")
     @Operation(summary = "Retrieve attentions by patient ID", description = "Fetches all attentions associated with a specific patient.")
-    public ResponseEntity<List<AttentionResponseDto>> getAttentionsByPatientId(
+    public ResponseEntity<List<PatientWithAttentionsResponse>> getAttentionsByPatientId(
             @PathVariable @NotNull @Positive(message = "Patient ID must be positive") Long patientId) {
 
         log.info("Retrieving attentions for patient ID: {}", patientId);
 
-        List<AttentionResponseDto> attentions = attentionGetService.getAttentionsByPatientId(patientId);
+        List<PatientWithAttentionsResponse> attentions = attentionGetService.getAttentionsByPatientId(patientId);
         return ResponseEntity.ok(attentions);
     }
 
     @GetMapping("/patient/{patientId}/active")
     @Operation(summary = "Retrieve active attention by patient ID", description = "Fetches the active attention record for a specific patient.")
-    public ResponseEntity<AttentionResponseDto> getActiveAttentionByPatientId(
+    public ResponseEntity<List<PatientWithAttentionsResponse>> getActiveAttentionByPatientId(
             @PathVariable @NotNull @Positive(message = "Patient ID must be positive") Long patientId) {
 
         log.info("Retrieving active attention for patient ID: {}", patientId);
 
-        AttentionResponseDto responseDto = attentionGetService.getActiveAttentionByPatientId(patientId);
+        List<PatientWithAttentionsResponse> responseDto = attentionGetService.getActiveAttentionByPatientId(patientId);
         return ResponseEntity.ok(responseDto);
     }
 
     @GetMapping("/doctor/{doctorId}")
     @Operation(summary = "Retrieve attentions by doctor ID", description = "Fetches all attentions associated with a specific doctor.")
-    public ResponseEntity<List<AttentionResponseDto>> getAttentionsByDoctorId(
+    public ResponseEntity<List<DoctorWithAttentionsResponse>> getAttentionsByDoctorId(
             @PathVariable @NotNull @Positive(message = "Doctor ID must be positive") Long doctorId) {
 
         log.info("Retrieving attentions for doctor ID: {}", doctorId);
 
-        List<AttentionResponseDto> attentions = attentionGetService.getAttentionsByDoctorId(doctorId);
+        List<DoctorWithAttentionsResponse> attentions = attentionGetService.getAttentionsByDoctorId(doctorId);
         return ResponseEntity.ok(attentions);
     }
 
     @GetMapping("/health-provider/{healthProviderNit}")
     @Operation(summary = "Retrieve attentions by health provider NIT", description = "Fetches all attentions associated with a specific health provider.")
-    public ResponseEntity<List<AttentionResponseDto>> getAttentionsByHealthProviderId(
+    public ResponseEntity<List<HealthProviderWithAttentionsResponse>> getAttentionsByHealthProviderId(
             @PathVariable @NotNull String healthProviderNit) {
 
         log.info("Retrieving attentions for health provider NIT: {}", healthProviderNit);
 
-        List<AttentionResponseDto> attentions = attentionGetService.getAttentionsByHealthProviderId(healthProviderNit);
+        List<HealthProviderWithAttentionsResponse> attentions = attentionGetService.getGroupedAttentionsByHealthProvider(healthProviderNit);
         return ResponseEntity.ok(attentions);
     }
 

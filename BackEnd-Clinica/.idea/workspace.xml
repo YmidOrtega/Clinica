@@ -5,19 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/DoctorResponseDto.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/dto/AIResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/dto/SqlResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/enums/SqlOperation.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/feignclient/AdmissionsClient.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/clients/HealthProviderAttentionShortResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/clients/HealthProviderWithAttentionsResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/patient/PatientAttentionShortResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/patient/PatientWithAttentionsResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/DoctorWithAttentionsResponse.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/infra/GlobalException.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/infra/GlobalException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/mapper/AttentionMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/mapper/AttentionMapper.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionGetService.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/AttentionGetService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/AiAssistantServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/AiAssistantServiceApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/controller/ChatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/controller/AgentController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/dto/ChatResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/dto/ChatResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/dto/RequestParams.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/java/com/ClinicaDeYmid/ai_assistant_service/dto/RequestParams.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/prompts/ prompt-text.st" beforeDir="false" afterPath="$PROJECT_DIR$/ai-assistant-service/src/main/resources/prompts/ prompt-text.st" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/AttentionGetDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/AttentionGetDto.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

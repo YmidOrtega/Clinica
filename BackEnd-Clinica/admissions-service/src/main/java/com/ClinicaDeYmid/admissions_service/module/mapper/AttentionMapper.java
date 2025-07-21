@@ -4,10 +4,16 @@ import com.ClinicaDeYmid.admissions_service.module.dto.attention.*;
 import com.ClinicaDeYmid.admissions_service.module.dto.catalog.CareTypeDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.catalog.LocationDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.catalog.ServiceTypeDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.clients.HealthProviderAttentionShortResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.clients.HealthProviderWithAttentionsResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.patient.PatientAttentionShortResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.patient.PatientWithAttentionsResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.DoctorWithAttentionsResponse;
 import com.ClinicaDeYmid.admissions_service.module.entity.*;
 import org.mapstruct.*;
 
 import java.util.List;
+import java.util.function.Function;
 
 @Mapper(componentModel = "spring",
         uses = {AuthorizationMapper.class, AttentionUserHistoryMapper.class},
@@ -118,4 +124,136 @@ public interface AttentionMapper {
                 serviceType.isActive()
         );
     }
+
+    // Mapeos para PatientAttentionShortResponse
+    @Mapping(target = "attentionId", source = "id")
+    @Mapping(target = "configurationServiceName", source = "configurationService", qualifiedByName = "getConfigurationServiceName")
+    @Mapping(target = "createdAt", source = "createdAt")
+    @Mapping(target = "invoiced", source = "invoiced")
+    PatientAttentionShortResponse toPatientAttentionShortResponse(Attention attention);
+
+    @Named("getConfigurationServiceName")
+    default String getConfigurationServiceName(ConfigurationService configService) {
+        if (configService == null) {
+            return null;
+        }
+
+        StringBuilder serviceName = new StringBuilder();
+
+        if (configService.getServiceType() != null) {
+            serviceName.append(configService.getServiceType().getName());
+        }
+
+
+        if (configService.getServiceType() != null &&
+                configService.getServiceType().getCareTypes() != null &&
+                !configService.getServiceType().getCareTypes().isEmpty()) {
+            String careTypeName = configService.getServiceType().getCareTypes().stream()
+                    .findFirst()
+                    .map(CareType::getName)
+                    .orElse(null);
+            if (careTypeName != null) {
+                serviceName.append(" - ").append(careTypeName);
+            }
+        }
+
+        if (configService.getLocation() != null) {
+            serviceName.append(" (").append(configService.getLocation().getName()).append(")");
+        }
+
+        return serviceName.toString();
+    }
+
+
+    default PatientWithAttentionsResponse toPatientWithAttentionsResponse(String patientName, List<Attention> attentions) {
+        if (attentions == null || attentions.isEmpty()) {
+            return new PatientWithAttentionsResponse(patientName, List.of());
+        }
+
+        List<PatientAttentionShortResponse> attentionResponses = attentions.stream()
+                .map(this::toPatientAttentionShortResponse)
+                .toList();
+
+        return new PatientWithAttentionsResponse(patientName, attentionResponses);
+    }
+
+    default DoctorWithAttentionsResponse toDoctorWithAttentionsResponse(
+            String doctorName,
+            List<PatientWithAttentionsResponse> patientAttentions) {
+        return new DoctorWithAttentionsResponse(doctorName, patientAttentions);
+    }
+
+    default List<PatientWithAttentionsResponse> groupAttentionsByPatient(
+            List<Attention> attentions,
+            java.util.function.Function<Long, String> patientNameResolver) {
+
+        if (attentions == null || attentions.isEmpty()) {
+            return List.of();
+        }
+
+        return attentions.stream()
+                .collect(java.util.stream.Collectors.groupingBy(Attention::getPatientId))
+                .entrySet()
+                .stream()
+                .map(entry -> {
+                    Long patientId = entry.getKey();
+                    List<Attention> patientAttentions = entry.getValue();
+                    String patientName = patientNameResolver.apply(patientId);
+                    return toPatientWithAttentionsResponse(patientName, patientAttentions);
+                })
+                .toList();
+    }
+
+    @Mapping(target = "attentionId", source = "id")
+    @Mapping(target = "authorizations", source = "authorizations")
+    @Mapping(target = "configurationServiceName", source = "configurationService", qualifiedByName = "getConfigurationServiceName")
+    @Mapping(target = "invoiceNumber", source = "invoiceNumber")
+    @Mapping(target = "diagnosticCodes", source = "diagnosticCodes")
+    @Mapping(target = "status", source = "status")
+    @Mapping(target = "createdAt", source = "createdAt")
+    HealthProviderAttentionShortResponse toHealthProviderAttentionShortResponse(Attention attention);
+
+    default HealthProviderWithAttentionsResponse toHealthProviderWithAttentionsResponse(
+            String contractName,
+            List<Attention> attentions) {
+        if (attentions == null || attentions.isEmpty()) {
+            return new HealthProviderWithAttentionsResponse(contractName, List.of());
+        }
+
+        List<HealthProviderAttentionShortResponse> attentionResponses = attentions.stream()
+                .map(this::toHealthProviderAttentionShortResponse)
+                .toList();
+
+        return new HealthProviderWithAttentionsResponse(contractName, attentionResponses);
+    }
+
+    default List<HealthProviderWithAttentionsResponse> groupAttentionsByHealthProvider(
+            List<Attention> attentions,
+            Function<String, String> contractNameResolver) {
+
+        if (attentions == null || attentions.isEmpty()) {
+            return List.of();
+        }
+
+        java.util.Map<String, List<Attention>> groupedByProvider = new java.util.HashMap<>();
+
+        for (Attention attention : attentions) {
+            if (attention.getHealthProviderNit() != null && !attention.getHealthProviderNit().isEmpty()) {
+                for (String nit : attention.getHealthProviderNit()) {
+                    groupedByProvider.computeIfAbsent(nit, k -> new java.util.ArrayList<>()).add(attention);
+                }
+            }
+        }
+
+        return groupedByProvider.entrySet()
+                .stream()
+                .map(entry -> {
+                    String nit = entry.getKey();
+                    List<Attention> providerAttentions = entry.getValue();
+                    String contractName = contractNameResolver.apply(nit);
+                    return toHealthProviderWithAttentionsResponse(contractName, providerAttentions);
+                })
+                .toList();
+    }
+
 }

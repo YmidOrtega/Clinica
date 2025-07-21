@@ -4,8 +4,20 @@ import com.ClinicaDeYmid.admissions_service.infra.exception.EntityNotFoundExcept
 import com.ClinicaDeYmid.admissions_service.infra.exception.ValidationException;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionResponseDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionSearchRequest;
+import com.ClinicaDeYmid.admissions_service.module.dto.clients.ContractDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.clients.GetHealthProviderDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.clients.HealthProviderAttentionShortResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.clients.HealthProviderWithAttentionsResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.patient.PatientWithAttentionsResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.DoctorWithAttentionsResponse;
+import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.GetDoctorDto;
 import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
 import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
+import com.ClinicaDeYmid.admissions_service.module.feignclient.DoctorClient;
+import com.ClinicaDeYmid.admissions_service.module.feignclient.HealthProviderClient;
+import com.ClinicaDeYmid.admissions_service.module.feignclient.PatientClient;
+import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionMapper;
 import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +32,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.ClinicaDeYmid.admissions_service.module.repository.AttentionSpecifications.*;
@@ -32,6 +47,10 @@ public class AttentionGetService {
 
     private final AttentionRepository attentionRepository;
     private final AttentionEnrichmentService attentionEnrichmentService;
+    private final AttentionMapper attentionMapper;
+    private final PatientClient patientClient;
+    private final DoctorClient doctorClient;
+    private final HealthProviderClient healthProviderClient;
 
     @Transactional(readOnly = true)
     public AttentionResponseDto getAttentionById(Long id) {
@@ -42,11 +61,12 @@ public class AttentionGetService {
             Hibernate.initialize(attention.getAuthorizations());
             Hibernate.initialize(attention.getDiagnosticCodes());
         }
+        assert attention != null;
         return attentionEnrichmentService.enrichAttentionResponseDto(attention);
     }
 
     @Transactional(readOnly = true)
-    public List<AttentionResponseDto> getAttentionsByPatientId(Long patientId) {
+    public List<PatientWithAttentionsResponse> getAttentionsByPatientId(Long patientId) {
         log.info("Fetching attentions for patient ID: {}", patientId);
         List<Attention> attentions = attentionRepository.findByPatientId(patientId);
 
@@ -57,25 +77,50 @@ public class AttentionGetService {
             });
         }
 
-        return attentions.stream()
-                .map(attentionEnrichmentService::enrichAttentionResponseDto)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public AttentionResponseDto getActiveAttentionByPatientId(Long patientId) {
-        log.info("Fetching active attention for patient ID: {}", patientId);
-        Attention activeAttention = attentionRepository.findByPatientIdAndStatus(patientId, AttentionStatus.CREATED)
-                .orElseThrow(() -> new EntityNotFoundException("No active attention found for patient ID: " + patientId));
-        if (activeAttention != null) {
-            Hibernate.initialize(activeAttention.getAuthorizations());
-            Hibernate.initialize(activeAttention.getDiagnosticCodes());
+        String patientName = "";
+        try {
+            GetPatientDto patient = patientClient.getPatientByIdentificationNumber(patientId.toString());
+            if (patient != null) {
+                patientName = patient.name() + (patient.lastName() != null ? " " + patient.lastName() : "");
+            }
+        } catch (Exception e) {
+            log.error("Error fetching patient name for id {}: {}", patientId, e.getMessage());
         }
-        return attentionEnrichmentService.enrichAttentionResponseDto(activeAttention);
+
+        return List.of(
+                attentionMapper.toPatientWithAttentionsResponse(patientName, attentions)
+        );
     }
 
     @Transactional(readOnly = true)
-    public List<AttentionResponseDto> getAttentionsByDoctorId(Long doctorId) {
+    public List<PatientWithAttentionsResponse> getActiveAttentionByPatientId(Long patientId) {
+        log.info("Fetching active attention for patient ID: {}", patientId);
+        List<Attention> activeAttention = Collections.singletonList(attentionRepository.findByPatientIdAndStatus(patientId,
+                        AttentionStatus.CREATED)
+                .orElseThrow(() -> new EntityNotFoundException("No active attention found for patient ID: " + patientId)));
+
+        activeAttention.forEach(attention -> {
+            Hibernate.initialize(attention.getAuthorizations());
+            Hibernate.initialize(attention.getDiagnosticCodes());
+        });
+
+        String patientName = "";
+        try {
+            GetPatientDto patient = patientClient.getPatientByIdentificationNumber(patientId.toString());
+            if (patient != null) {
+                patientName = patient.name() + (patient.lastName() != null ? " " + patient.lastName() : "");
+            }
+        } catch (Exception e) {
+            log.error("Error fetching patient name for id {}: {}", patientId, e.getMessage());
+        }
+
+        return List.of(
+                attentionMapper.toPatientWithAttentionsResponse(patientName, activeAttention)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<DoctorWithAttentionsResponse> getAttentionsByDoctorId(Long doctorId) {
         log.info("Fetching attentions for doctor ID: {}", doctorId);
         List<Attention> attentions = attentionRepository.findByDoctorId(doctorId);
 
@@ -85,24 +130,62 @@ public class AttentionGetService {
                 Hibernate.initialize(attention.getDiagnosticCodes());
             });
         }
-        return attentions.stream()
-                .map(attentionEnrichmentService::enrichAttentionResponseDto)
-                .collect(Collectors.toList());
+
+        String doctorName = "";
+        try {
+            GetDoctorDto doctor = doctorClient.getDoctorById(doctorId);
+            if (doctor != null) {
+                doctorName = doctor.name() + (doctor.lastName() != null ? " " + doctor.lastName() : "");
+            }
+        } catch (Exception e) {
+            log.error("Error fetching doctor name for id {}: {}", doctorId, e.getMessage());
+        }
+
+        Function<Long, String> patientNameResolver = (id) -> {
+            try {
+                GetPatientDto patient = patientClient.getPatientByIdentificationNumber(id.toString());
+                if (patient == null) return "";
+                return patient.name() + (patient.lastName() != null ? " " + patient.lastName() : "");
+            } catch (Exception e) {
+                log.error("Error fetching patient name for id {}: {}", id, e.getMessage());
+                return "";
+            }
+        };
+
+        List<PatientWithAttentionsResponse> grouped = attentionMapper.groupAttentionsByPatient(
+                attentions,
+                patientNameResolver
+        );
+
+        return List.of(
+                attentionMapper.toDoctorWithAttentionsResponse(doctorName, grouped));
     }
 
     @Transactional(readOnly = true)
-    public List<AttentionResponseDto> getAttentionsByHealthProviderId(String healthProviderNit) {
+    public List<HealthProviderWithAttentionsResponse> getGroupedAttentionsByHealthProvider(String healthProviderNit) {
         log.info("Fetching attentions for health provider NIT: {}", healthProviderNit);
+
         List<Attention> attentions = attentionRepository.findByHealthProviderNitContaining(healthProviderNit);
+
         if (attentions != null) {
             attentions.forEach(attention -> {
                 Hibernate.initialize(attention.getAuthorizations());
                 Hibernate.initialize(attention.getDiagnosticCodes());
+                Hibernate.initialize(attention.getUserHistory());
             });
         }
-        return attentions.stream()
-                .map(attentionEnrichmentService::enrichAttentionResponseDto)
-                .collect(Collectors.toList());
+
+        Function<String, String> contractNameResolver = nit -> {
+            try {
+                GetHealthProviderDto dto = healthProviderClient.getHealthProviderByNit(nit);
+                return dto.socialReason();
+            } catch (Exception ex) {
+                log.warn("No se encontró nombre social para NIT: {}", nit);
+                return nit;
+            }
+        };
+
+        return attentionMapper.groupAttentionsByHealthProvider(attentions, contractNameResolver);
     }
 
     @Transactional(readOnly = true)
@@ -117,6 +200,7 @@ public class AttentionGetService {
             });
         }
 
+        assert attentions != null;
         return attentions.stream()
                 .map(attentionEnrichmentService::enrichAttentionResponseDto)
                 .collect(Collectors.toList());
