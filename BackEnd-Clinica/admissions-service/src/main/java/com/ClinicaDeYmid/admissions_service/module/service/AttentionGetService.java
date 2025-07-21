@@ -9,6 +9,7 @@ import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
 import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +38,10 @@ public class AttentionGetService {
         log.info("Fetching attention with ID: {}", id);
         Attention attention = attentionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + id));
+        if (attention != null) {
+            Hibernate.initialize(attention.getAuthorizations());
+            Hibernate.initialize(attention.getDiagnosticCodes());
+        }
         return attentionEnrichmentService.enrichAttentionResponseDto(attention);
     }
 
@@ -44,6 +49,14 @@ public class AttentionGetService {
     public List<AttentionResponseDto> getAttentionsByPatientId(Long patientId) {
         log.info("Fetching attentions for patient ID: {}", patientId);
         List<Attention> attentions = attentionRepository.findByPatientId(patientId);
+
+        if (attentions != null) {
+            attentions.forEach(attention -> {
+                Hibernate.initialize(attention.getAuthorizations());
+                Hibernate.initialize(attention.getDiagnosticCodes());
+            });
+        }
+
         return attentions.stream()
                 .map(attentionEnrichmentService::enrichAttentionResponseDto)
                 .collect(Collectors.toList());
@@ -54,6 +67,10 @@ public class AttentionGetService {
         log.info("Fetching active attention for patient ID: {}", patientId);
         Attention activeAttention = attentionRepository.findByPatientIdAndStatus(patientId, AttentionStatus.CREATED)
                 .orElseThrow(() -> new EntityNotFoundException("No active attention found for patient ID: " + patientId));
+        if (activeAttention != null) {
+            Hibernate.initialize(activeAttention.getAuthorizations());
+            Hibernate.initialize(activeAttention.getDiagnosticCodes());
+        }
         return attentionEnrichmentService.enrichAttentionResponseDto(activeAttention);
     }
 
@@ -61,6 +78,13 @@ public class AttentionGetService {
     public List<AttentionResponseDto> getAttentionsByDoctorId(Long doctorId) {
         log.info("Fetching attentions for doctor ID: {}", doctorId);
         List<Attention> attentions = attentionRepository.findByDoctorId(doctorId);
+
+        if (attentions != null) {
+            attentions.forEach(attention -> {
+                Hibernate.initialize(attention.getAuthorizations());
+                Hibernate.initialize(attention.getDiagnosticCodes());
+            });
+        }
         return attentions.stream()
                 .map(attentionEnrichmentService::enrichAttentionResponseDto)
                 .collect(Collectors.toList());
@@ -70,6 +94,12 @@ public class AttentionGetService {
     public List<AttentionResponseDto> getAttentionsByHealthProviderId(String healthProviderNit) {
         log.info("Fetching attentions for health provider NIT: {}", healthProviderNit);
         List<Attention> attentions = attentionRepository.findByHealthProviderNitContaining(healthProviderNit);
+        if (attentions != null) {
+            attentions.forEach(attention -> {
+                Hibernate.initialize(attention.getAuthorizations());
+                Hibernate.initialize(attention.getDiagnosticCodes());
+            });
+        }
         return attentions.stream()
                 .map(attentionEnrichmentService::enrichAttentionResponseDto)
                 .collect(Collectors.toList());
@@ -79,6 +109,14 @@ public class AttentionGetService {
     public List<AttentionResponseDto> getAttentionsByConfigurationServiceId(Long configServiceId) {
         log.info("Fetching attentions for configuration service ID: {}", configServiceId);
         List<Attention> attentions = attentionRepository.findByConfigurationServiceId(configServiceId);
+
+        if (attentions != null) {
+            attentions.forEach(attention -> {
+                Hibernate.initialize(attention.getAuthorizations());
+                Hibernate.initialize(attention.getDiagnosticCodes());
+            });
+        }
+
         return attentions.stream()
                 .map(attentionEnrichmentService::enrichAttentionResponseDto)
                 .collect(Collectors.toList());
