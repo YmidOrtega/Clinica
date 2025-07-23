@@ -206,11 +206,12 @@ public interface AttentionMapper {
 
     @Mapping(target = "attentionId", source = "id")
     @Mapping(target = "authorizations", source = "authorizations")
-    @Mapping(target = "configurationServiceName", source = "configurationService", qualifiedByName = "getConfigurationServiceName")
+    @Mapping(target = "serviceName", source = "configurationService", qualifiedByName = "getConfigurationServiceName")
     @Mapping(target = "invoiceNumber", source = "invoiceNumber")
     @Mapping(target = "diagnosticCodes", source = "diagnosticCodes")
     @Mapping(target = "status", source = "status")
     @Mapping(target = "createdAt", source = "createdAt")
+    @Mapping(target = "invoicedByUserId", source = "invoicedByUserId")
     HealthProviderAttentionShortResponse toHealthProviderAttentionShortResponse(Attention attention);
 
     default HealthProviderWithAttentionsResponse toHealthProviderWithAttentionsResponse(

@@ -13,6 +13,8 @@ public record HealthProviderAttentionShortResponse(
         Long invoiceNumber,
         List<String> diagnosticCodes,
         AttentionStatus status,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long invoicedByUserId
+
 ) {
 }

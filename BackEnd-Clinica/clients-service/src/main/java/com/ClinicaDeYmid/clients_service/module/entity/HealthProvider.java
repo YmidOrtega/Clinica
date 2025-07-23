@@ -80,9 +80,6 @@ public class HealthProvider {
     @Builder.Default
     private List<Contract> contracts = new ArrayList<>();
 
-    @Transient
-    private List<AttentionResponseDTO> attentions;
-
     @Override
     public String toString() {
         return "HealthProvider{" +

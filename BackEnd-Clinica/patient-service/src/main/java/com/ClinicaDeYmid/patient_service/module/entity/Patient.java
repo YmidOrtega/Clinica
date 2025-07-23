@@ -151,7 +151,7 @@ public class Patient {
     private Status status = Status.ALIVE;
 
     @Column(name = "updated_at", nullable = false)
-@Schema(description = "Timestamp when the patient record was last updated.")
+    @Schema(description = "Timestamp when the patient record was last updated.")
     private LocalDateTime updatedAt;
 
     @PrePersist
@@ -160,11 +160,6 @@ public class Patient {
             uuid = UUID.randomUUID().toString();
         }
     }
-
-
-    @Transient
-    @Schema(description = "List of attentions associated with the patient.")
-    private List<AttentionDto> attentions = new ArrayList<>();
 
     public String getFullName() {
         return lastName + "," + name;

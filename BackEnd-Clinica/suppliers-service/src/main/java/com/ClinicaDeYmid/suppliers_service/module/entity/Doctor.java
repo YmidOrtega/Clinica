@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.suppliers_service.module.entity;
 
-import com.ClinicaDeYmid.suppliers_service.module.dto.AttentionGetDto;
+import com.ClinicaDeYmid.suppliers_service.module.dto.attention.AttentionGetDto;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -75,9 +75,6 @@ public class Doctor {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
-    @Transient
-    private List<AttentionGetDto> attentions;
 
     // Métodos de utilidad
     public boolean isActive() {

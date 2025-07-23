@@ -32,7 +32,6 @@ public class DoctorGetService {
 
         List<DoctorSpecialtyDto> groupedSpecialties = groupSubSpecialtiesBySpecialty(doctor.getSubSpecialties());
 
-
         return doctorMapper.toDoctorDetailsWithGroupedSpecialties(doctor, groupedSpecialties);
     }
 

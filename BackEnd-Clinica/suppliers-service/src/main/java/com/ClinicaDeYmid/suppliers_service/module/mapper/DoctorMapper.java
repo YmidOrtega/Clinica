@@ -20,6 +20,7 @@ public interface DoctorMapper {
     @Mapping(target = "name", source = "doctor.name")
     @Mapping(target = "lastName", source = "doctor.lastName")
     @Mapping(target = "specialties", source = "groupedSpecialties")
+
     DoctorResponseDto toDoctorDetailsWithGroupedSpecialties(Doctor doctor, List<DoctorSpecialtyDto> groupedSpecialties);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
