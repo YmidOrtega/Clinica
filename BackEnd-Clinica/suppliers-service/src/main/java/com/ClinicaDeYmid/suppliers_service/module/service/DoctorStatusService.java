@@ -1,7 +1,6 @@
 package com.ClinicaDeYmid.suppliers_service.module.service;
 
 import com.ClinicaDeYmid.suppliers_service.module.entity.Doctor;
-import com.ClinicaDeYmid.suppliers_service.module.mapper.DoctorMapper;
 import com.ClinicaDeYmid.suppliers_service.module.repository.DoctorRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +13,6 @@ import org.springframework.stereotype.Service;
 public class DoctorStatusService {
 
     private final DoctorRepository doctorRepository;
-    private final DoctorMapper doctorMapper;
-
 
     public void activateDoctor(Long id) {
         Doctor doctor = doctorRepository.findById(id)

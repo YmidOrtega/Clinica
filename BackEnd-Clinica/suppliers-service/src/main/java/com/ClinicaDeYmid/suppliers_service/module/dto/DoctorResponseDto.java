@@ -49,8 +49,5 @@ public record DoctorResponseDto(
         LocalDateTime updatedAt,
 
         @Schema(description = "List of doctor's specialties")
-        List<DoctorSpecialtyDto> specialties,
-
-        @Schema(description = "List of attentions provided by the doctor")
-        List<AttentionGetDto> attentions
+        List<DoctorSpecialtyDto> specialties
 ) {}
