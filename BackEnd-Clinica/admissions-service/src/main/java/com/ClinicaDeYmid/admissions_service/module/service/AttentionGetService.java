@@ -165,7 +165,7 @@ public class AttentionGetService {
     public List<HealthProviderWithAttentionsResponse> getGroupedAttentionsByHealthProvider(String healthProviderNit) {
         log.info("Fetching attentions for health provider NIT: {}", healthProviderNit);
 
-        List<Attention> attentions = attentionRepository.findByHealthProviderNitContaining(healthProviderNit);
+        List<Attention> attentions = attentionRepository.findByHealthProviderNit(healthProviderNit);
 
         if (attentions != null) {
             attentions.forEach(attention -> {
@@ -185,7 +185,12 @@ public class AttentionGetService {
             }
         };
 
-        return attentionMapper.groupAttentionsByHealthProvider(attentions, contractNameResolver);
+        String contractName = contractNameResolver.apply(healthProviderNit);
+
+        HealthProviderWithAttentionsResponse response =
+                attentionMapper.toHealthProviderWithAttentionsResponse(contractName, attentions);
+
+        return List.of(response);
     }
 
     @Transactional(readOnly = true)

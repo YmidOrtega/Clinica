@@ -12,7 +12,7 @@ public interface AttentionRepository extends JpaRepository<Attention, Long>, Jpa
     List<Attention> findByPatientId(Long patientId);
     Optional<Attention> findByPatientIdAndStatus(Long patientId, AttentionStatus status);
     List<Attention> findByDoctorId(Long doctorId);
-    List<Attention> findByHealthProviderNitContaining(String nit);
+    List<Attention> findByHealthProviderNit(String nit);
     List<Attention> findByConfigurationServiceId(Long configurationServiceId);
 
 }

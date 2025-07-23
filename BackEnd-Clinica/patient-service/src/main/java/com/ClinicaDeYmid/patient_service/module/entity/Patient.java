@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.patient_service.module.entity;
 
-import com.ClinicaDeYmid.patient_service.module.dto.AttentionDto;
 import com.ClinicaDeYmid.patient_service.module.dto.GetHealthProviderDto;
 import com.ClinicaDeYmid.patient_service.module.enums.*;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -10,8 +9,6 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity

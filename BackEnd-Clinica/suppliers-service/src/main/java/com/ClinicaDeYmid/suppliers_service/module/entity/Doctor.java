@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.suppliers_service.module.entity;
 
-import com.ClinicaDeYmid.suppliers_service.module.dto.attention.AttentionGetDto;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

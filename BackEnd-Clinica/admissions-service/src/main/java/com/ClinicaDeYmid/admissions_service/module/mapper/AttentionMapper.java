@@ -236,25 +236,9 @@ public interface AttentionMapper {
             return List.of();
         }
 
-        java.util.Map<String, List<Attention>> groupedByProvider = new java.util.HashMap<>();
-
-        for (Attention attention : attentions) {
-            if (attention.getHealthProviderNit() != null && !attention.getHealthProviderNit().isEmpty()) {
-                for (String nit : attention.getHealthProviderNit()) {
-                    groupedByProvider.computeIfAbsent(nit, k -> new java.util.ArrayList<>()).add(attention);
-                }
-            }
-        }
-
-        return groupedByProvider.entrySet()
-                .stream()
-                .map(entry -> {
-                    String nit = entry.getKey();
-                    List<Attention> providerAttentions = entry.getValue();
-                    String contractName = contractNameResolver.apply(nit);
-                    return toHealthProviderWithAttentionsResponse(contractName, providerAttentions);
-                })
-                .toList();
+        String nit = attentions.get(0).getHealthProviderNit().toString();
+        String contractName = contractNameResolver.apply(nit);
+        return List.of(toHealthProviderWithAttentionsResponse(contractName, attentions));
     }
 
 }
