@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.suppliers_service.module.dto;
 
-import com.ClinicaDeYmid.suppliers_service.module.dto.attention.AttentionGetDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
