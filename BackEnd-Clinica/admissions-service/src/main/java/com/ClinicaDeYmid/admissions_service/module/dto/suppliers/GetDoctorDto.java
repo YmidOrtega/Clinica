@@ -8,4 +8,7 @@ public record GetDoctorDto(
         String lastName,
         List<DoctorSpecialtyDto> specialties
 ) {
+    public String fullName() {
+        return name + " " + lastName;
+    }
 }

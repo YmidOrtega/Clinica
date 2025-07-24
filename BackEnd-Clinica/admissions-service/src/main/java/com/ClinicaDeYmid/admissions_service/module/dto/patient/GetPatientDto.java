@@ -8,4 +8,7 @@ public record GetPatientDto(
         String gender,
         String healthPolicyNumber
 ) {
+    public String fullName() {
+        return name + " " + lastName;
+    }
 }
