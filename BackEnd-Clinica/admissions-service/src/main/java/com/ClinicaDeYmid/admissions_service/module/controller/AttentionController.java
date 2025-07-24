@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.admissions_service.module.dto.patient.PatientWithAttent
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.DoctorWithAttentionsResponse;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionGetService;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionRecordService;
+import com.ClinicaDeYmid.admissions_service.module.service.PdfGeneratorService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,7 +21,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -39,6 +42,7 @@ public class AttentionController {
 
     private final AttentionGetService attentionGetService;
     private final AttentionRecordService attentionRecordService;
+    private final PdfGeneratorService pdfGeneratorService;
 
     @PostMapping
     @CircuitBreaker(name = "admissions-service", fallbackMethod = "createAttentionFallback")
@@ -179,5 +183,28 @@ public class AttentionController {
 
         log.error("Error creating attention: {}", throwable.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
+    @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Generate PDF for attention", description = "Generates a PDF document with the details of an attention record.")
+    public ResponseEntity<byte[]> generateAttentionPdf(
+            @PathVariable @NotNull @Positive(message = "Attention ID must be positive") Long id) {
+
+        log.info("Generating PDF for attention with ID: {}", id);
+
+        // Obtener la atención
+        AttentionResponseDto attention = attentionGetService.getAttentionById(id);
+
+        // Generar el PDF
+        byte[] pdfContent = pdfGeneratorService.generateAttentionPdf(attention);
+
+        // Configurar headers para la descarga
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "atencion-" + id + ".pdf");
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        log.info("PDF generated successfully for attention with ID: {}", id);
+        return new ResponseEntity<>(pdfContent, headers, HttpStatus.OK);
     }
 }

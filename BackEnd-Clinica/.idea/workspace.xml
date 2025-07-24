@@ -5,10 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/service/PdfGeneratorService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/patient/GetPatientDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/patient/GetPatientDto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/GetDoctorDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto/suppliers/GetDoctorDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/controller/AttentionController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -124,7 +123,7 @@
       <recent name="com.ClinicaDeYmid.admissions_service.module.dto.suppliers" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.SuppliersServiceApplication">
+  <component name="RunManager" selected="Application.PatientServiceApplication">
     <configuration name="AdmissionsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
@@ -191,17 +190,17 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="EurekaServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+    <configuration name="PatientServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
       <option name="envFilePaths">
         <option value="$PROJECT_DIR$/.env" />
       </option>
-      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.eureka_service.EurekaServiceApplication" />
-      <module name="eureka-service" />
+      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.patient_service.PatientServiceApplication" />
+      <module name="patient-service" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.ClinicaDeYmid.eureka_service.*" />
+          <option name="PATTERN" value="com.ClinicaDeYmid.patient_service.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -245,19 +244,19 @@
     </configuration>
     <list>
       <item itemvalue="Application.AuthServiceApplication" />
+      <item itemvalue="Application.PatientServiceApplication" />
       <item itemvalue="Application.SuppliersServiceApplication" />
       <item itemvalue="Application.AdmissionsServiceApplication" />
       <item itemvalue="Application.ApiGatewayApplication" />
-      <item itemvalue="Application.EurekaServiceApplication" />
       <item itemvalue="Application.ClientsServiceApplication" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.SuppliersServiceApplication" />
-        <item itemvalue="Application.AdmissionsServiceApplication" />
-        <item itemvalue="Application.ClientsServiceApplication" />
+        <item itemvalue="Application.PatientServiceApplication" />
         <item itemvalue="Application.ApiGatewayApplication" />
-        <item itemvalue="Application.EurekaServiceApplication" />
+        <item itemvalue="Application.ClientsServiceApplication" />
+        <item itemvalue="Application.AdmissionsServiceApplication" />
+        <item itemvalue="Application.SuppliersServiceApplication" />
       </list>
     </recent_temporary>
   </component>
