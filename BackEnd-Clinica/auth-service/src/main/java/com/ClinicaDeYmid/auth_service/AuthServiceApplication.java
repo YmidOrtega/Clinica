@@ -8,8 +8,8 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
 @EnableCaching
-@EnableDiscoveryClient
 @EnableFeignClients
+@EnableDiscoveryClient
 public class AuthServiceApplication {
 
 	public static void main(String[] args) {

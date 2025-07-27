@@ -2,7 +2,6 @@ package com.ClinicaDeYmid.api_gateway.filter;
 
 import com.ClinicaDeYmid.api_gateway.security.JwtValidatorService;
 import com.ClinicaDeYmid.api_gateway.security.TokenBlacklistServiceGateway;
-import com.auth0.jwt.interfaces.DecodedJWT;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -62,39 +61,42 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
             String token = authHeader.substring(7);
 
-            try {
-                // Validar el token
-                DecodedJWT decodedJWT = jwtValidatorService.validateAndDecodeToken(token);
+            return jwtValidatorService.validateAndDecodeToken(token)
+                    .flatMap(decodedJWT -> {
+                        return tokenBlacklistServiceGateway.isTokenBlacklisted(token)
+                                .flatMap(isBlacklisted -> {
+                                    if (isBlacklisted) {
+                                        logger.warning("Token está en la blacklist");
+                                        return onError(exchange, "Token inválido (revocado o en blacklist)", HttpStatus.UNAUTHORIZED);
+                                    }
 
-                // Verificar si el token está en la blacklist
-                if (tokenBlacklistServiceGateway.isTokenBlacklisted(token)) {
-                    logger.warning("Token está en la blacklist");
-                    return onError(exchange, "Token inválido (revocado o en blacklist)", HttpStatus.UNAUTHORIZED);
-                }
+                                    String userId = decodedJWT.getSubject();
+                                    String userEmail = decodedJWT.getClaim("email").asString();
 
-                // Extraer información del usuario
-                String userId = decodedJWT.getSubject();
-                String userEmail = decodedJWT.getClaim("email").asString();
+                                    logger.info("Token validado exitosamente para usuario: " + userEmail);
 
-                logger.info("Token validado exitosamente para usuario: " + userEmail);
+                                    // Crear el request mutado con los headers adicionales
+                                    ServerHttpRequest mutatedRequest = request.mutate()
+                                            .header("X-User-ID", userId)
+                                            .header("X-User-Email", userEmail)
+                                            .build();
 
-                // Crear el request mutado con los headers adicionales
-                ServerHttpRequest mutatedRequest = request.mutate()
-                        .header("X-User-ID", userId)
-                        .header("X-User-Email", userEmail)
-                        .build();
+                                    // Crear el exchange mutado
+                                    ServerWebExchange mutatedExchange = exchange.mutate()
+                                            .request(mutatedRequest)
+                                            .build();
 
-                // Crear el exchange mutado
-                ServerWebExchange mutatedExchange = exchange.mutate()
-                        .request(mutatedRequest)
-                        .build();
-
-                return chain.filter(mutatedExchange);
-
-            } catch (RuntimeException e) {
-                logger.warning("Error de validación de token: " + e.getMessage());
-                return onError(exchange, "Token de autenticación inválido", HttpStatus.UNAUTHORIZED);
-            }
+                                    return chain.filter(mutatedExchange);
+                                });
+                    })
+                    .onErrorResume(e -> {
+                        logger.warning("Error de validación de token: " + e.getMessage());
+                        // Si el mensaje contiene "no se pudo inicializar el algoritmo" o "Auth-Service está disponible", responde 503
+                        if (e.getMessage() != null && e.getMessage().toLowerCase().contains("auth-service")) {
+                            return onError(exchange, "El sistema de autenticación está temporalmente fuera de servicio. Intenta más tarde.", HttpStatus.SERVICE_UNAVAILABLE);
+                        }
+                        return onError(exchange, "Token de autenticación inválido", HttpStatus.UNAUTHORIZED);
+                    });
         };
     }
 
@@ -112,7 +114,5 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         return response.writeWith(Mono.just(buffer));
     }
 
-    public static class Config {
-
-    }
+    public static class Config {}
 }

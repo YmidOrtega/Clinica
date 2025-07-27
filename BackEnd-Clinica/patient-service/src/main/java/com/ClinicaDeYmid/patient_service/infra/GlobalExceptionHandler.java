@@ -14,16 +14,19 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.*;
 
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler {
-
+    /*
     // Maneja errores de validación de argumentos (400)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex, HttpServletRequest request) {
@@ -253,4 +256,19 @@ public class GlobalExceptionHandler {
         response.put("path", request.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
+    */
+
+        @ExceptionHandler(Exception.class)
+        public ResponseEntity<Map<String, Object>> handleAllExceptions(Exception ex, WebRequest request) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("timestamp", LocalDateTime.now());
+            body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+            body.put("error", "Internal Server Error");
+            body.put("message", ex.getMessage()); // Muestra el mensaje real
+            body.put("exception", ex.getClass().getName());
+            body.put("path", ((ServletWebRequest)request).getRequest().getRequestURI());
+
+            return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
 }

@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.api_gateway.security;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 @Service
 public class TokenBlacklistServiceGateway {
@@ -13,8 +14,10 @@ public class TokenBlacklistServiceGateway {
         this.redisTemplate = redisTemplate;
     }
 
-    public boolean isTokenBlacklisted(String token) {
-        String hashed = DigestUtils.sha256Hex(token);
-        return redisTemplate.hasKey(hashed);
+    public Mono<Boolean> isTokenBlacklisted(String token) {
+        return Mono.fromCallable(() -> {
+            String hashed = DigestUtils.sha256Hex(token);
+            return redisTemplate.hasKey(hashed);
+        });
     }
 }

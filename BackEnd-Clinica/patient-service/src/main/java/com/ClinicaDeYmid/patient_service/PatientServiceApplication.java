@@ -7,8 +7,8 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 
 @SpringBootApplication
-@EnableDiscoveryClient
 @EnableFeignClients
+@EnableDiscoveryClient
 public class PatientServiceApplication {
 
 	public static void main(String[] args) {
