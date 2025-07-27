@@ -62,7 +62,7 @@ public record NewPatientDto(
         String affiliationNumber,
 
         @Schema(description = "Health provider object in stringified JSON")
-        @NotNull String getHealthProviderDto,
+        @NotNull String healthProviderNit,
 
         @Schema(description = "Health policy number", example = "POL-0001")
         String healthPolicyNumber,

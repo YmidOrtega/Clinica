@@ -3,7 +3,7 @@ package com.ClinicaDeYmid.patient_service.module.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
-public record GetHealthProviderDto(
+public record HealthProviderNitDto(
         @Schema(description = "NIT (tax ID number) of the health provider", example = "900123456-7")
         String nit,
 

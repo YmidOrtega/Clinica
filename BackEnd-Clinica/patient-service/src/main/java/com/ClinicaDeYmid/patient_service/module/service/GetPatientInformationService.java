@@ -3,7 +3,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotActiveException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
-import com.ClinicaDeYmid.patient_service.module.dto.GetHealthProviderDto;
+import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderNitDto;
 import com.ClinicaDeYmid.patient_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
 import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
@@ -34,9 +34,9 @@ public class GetPatientInformationService {
                 throw new PatientNotActiveException(patient.getStatus().getDisplayName());
             }
 
-            GetHealthProviderDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
+            HealthProviderNitDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
 
-            return patientMapper.toPatientDTO(patient, provider);
+            return patientMapper.toGetPatientDto(patient, provider);
 
         } catch (DataAccessException ex) {
             throw new PatientDataAccessException("obtener información del paciente", ex);

@@ -2,7 +2,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientNotFoundException;
-import com.ClinicaDeYmid.patient_service.module.dto.GetHealthProviderDto;
+import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderNitDto;
 import com.ClinicaDeYmid.patient_service.module.dto.PatientResponseDto;
 import com.ClinicaDeYmid.patient_service.module.dto.UpdatePatientDto;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
@@ -30,9 +30,9 @@ public class UpdatePatientInformationService {
             Patient patient = patientRepository.findByIdentificationNumber(identification)
                     .orElseThrow(() -> new PatientNotFoundException(identification));
 
-            GetHealthProviderDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
+            HealthProviderNitDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
 
-            patientMapper.updatePatientFromDTO(updatePatientDto, patient);
+            patientMapper.updatePatientFromDto(updatePatientDto, patient);
 
             Patient updatedPatient = patientRepository.save(patient);
 

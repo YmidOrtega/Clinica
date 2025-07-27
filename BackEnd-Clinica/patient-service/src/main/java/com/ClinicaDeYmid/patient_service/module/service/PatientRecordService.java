@@ -2,7 +2,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientAlreadyExistsException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
-import com.ClinicaDeYmid.patient_service.module.dto.GetHealthProviderDto;
+import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderNitDto;
 import com.ClinicaDeYmid.patient_service.module.dto.NewPatientDto;
 import com.ClinicaDeYmid.patient_service.module.dto.PatientResponseDto;
 import com.ClinicaDeYmid.patient_service.module.feignclient.HealthProviderClient;
@@ -34,11 +34,15 @@ public class PatientRecordService {
 
             Patient newPatient = patientMapper.toPatient(newPatientDto);
 
-            GetHealthProviderDto provider = healthProviderClient.getHealthProviderByNit(newPatient.getHealthProviderNit());
+            System.out.println("provider nit: " + newPatientDto.healthProviderNit());
+
+            HealthProviderNitDto provider = healthProviderClient.getHealthProviderByNit(newPatientDto.healthProviderNit());
+
 
             patientRepository.save(newPatient);
 
             return patientMapper.toPatientResponseDto(newPatient, provider);
+
 
     }catch (DataAccessException ex) {
             throw new PatientDataAccessException("crear paciente", ex);

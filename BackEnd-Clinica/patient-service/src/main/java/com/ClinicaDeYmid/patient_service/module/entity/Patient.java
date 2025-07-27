@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.patient_service.module.entity;
 
-import com.ClinicaDeYmid.patient_service.module.dto.GetHealthProviderDto;
+import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderNitDto;
 import com.ClinicaDeYmid.patient_service.module.enums.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -104,7 +104,7 @@ public class Patient {
 
     @Transient
     @Schema(description = "DTO containing details of the healthcare provider associated with the patient.")
-    private GetHealthProviderDto getHealthProviderDto;;
+    private HealthProviderNitDto healthProviderNitDto;;
 
     @Column(name = "health_policy_number")
     @Schema(description = "Health policy number of the patient.", example = "POL123456")
