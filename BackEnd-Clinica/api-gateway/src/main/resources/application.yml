@@ -7,6 +7,18 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+
+resilience4j:
+  retry:
+    instances:
+      public-key-retry:
+        max-attempts: 5
+        wait-duration: 2s
+        retry-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientRequestException
 
 # Configuración de Swagger/OpenAPI
 springdoc:
@@ -66,10 +78,12 @@ springdoc:
 
 # Para personalizar la documentación
 api:
-  title: API-GATEWAY - Clínica de Ymid
-  description: Microservicio para la gestión de peticiones a otros microservicios del sistema de clínica médica
   version: 1.0.0
+  name: API-GATEWAY
+  description: Microservicio para la gestión de peticiones a otros microservicios del sistema de clínica médica
   contact:
     name: Development Team
-    email: dev@clinicadeymid.com
-    url: https://clinicadeymid.com
+    email: dev@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html

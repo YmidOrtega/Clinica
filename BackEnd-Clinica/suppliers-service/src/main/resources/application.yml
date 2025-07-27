@@ -5,7 +5,7 @@ spring:
   application:
     name: suppliers-service
   flyway:
-      location: classpath:db/migration/suppliers
+    location: classpath:db/migration/suppliers
 
 eureka:
   client:
@@ -13,11 +13,14 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
 
 # Configuración de Swagger/OpenAPI
 springdoc:
   api-docs:
-    path: /api-docs
+    path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
@@ -28,12 +31,14 @@ springdoc:
     doc-expansion: none
   show-actuator: true
 
-
-# Para personalizar la documentación
+# Información de la API
 api:
-  title: Suppliers Service API
-  description: Microservicio para la gestión de proveedores
   version: 1.0.0
+  name: Suppliers Service API
+  description: Microservicio para la gestión de proveedores
   contact:
     name: Development Team
     email: dev@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html

@@ -1,11 +1,22 @@
 spring:
-  profiles:
-    active: dev
+  application:
+    name: auth-service
+  flyway:
+    location: classpath:db/migration/auth
 
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
 # Configuración de Swagger/OpenAPI
 springdoc:
   api-docs:
-    path: /api-docs
+    path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
@@ -17,9 +28,12 @@ springdoc:
   show-actuator: true
 
 api:
-  title: Auth Service API
-  description: Microservicio para la gestión de autenticación y autorización
   version: 1.0.0
+  name: Auth Service API
+  description: Microservicio para la gestión de autenticación y autorización
   contact:
     name: Development Team
     email: dev@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
