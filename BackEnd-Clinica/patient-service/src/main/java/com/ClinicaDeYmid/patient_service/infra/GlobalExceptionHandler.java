@@ -26,7 +26,7 @@ import java.util.*;
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler {
-    /*
+    
     // Maneja errores de validación de argumentos (400)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex, HttpServletRequest request) {
@@ -256,19 +256,5 @@ public class GlobalExceptionHandler {
         response.put("path", request.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
-    */
-
-        @ExceptionHandler(Exception.class)
-        public ResponseEntity<Map<String, Object>> handleAllExceptions(Exception ex, WebRequest request) {
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("timestamp", LocalDateTime.now());
-            body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-            body.put("error", "Internal Server Error");
-            body.put("message", ex.getMessage()); // Muestra el mensaje real
-            body.put("exception", ex.getClass().getName());
-            body.put("path", ((ServletWebRequest)request).getRequest().getRequestURI());
-
-            return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
 
 }
