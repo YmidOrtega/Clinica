@@ -6,7 +6,11 @@ public record GetPatientDto(
         String lastName,
         String dateOfBirth,
         String gender,
-        String healthPolicyNumber
+        String occupationName,
+        String healthPolicyNumber,
+        String localityName,
+        String address,
+        String mobile
 ) {
     public String fullName() {
         return name + " " + lastName;
