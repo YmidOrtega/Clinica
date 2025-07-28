@@ -32,9 +32,9 @@ public record AttentionRequestDto(
         @NotNull(message = "La causa de la atención no puede ser nulo")
         Cause cause,
 
-        @Schema(description = "Lista de NITs de proveedores de salud", example = "[\"900123456-1\"]", required = true)
+        @Schema(description = "Lista de prestadores de salud con sus contratos", required = true)
         @Size(min = 1, message = "Debe haber al menos un proveedor de salud")
-        List<@NotBlank String> healthProviderNit,
+        List<@Valid HealthProviderRequestDto> healthProviders,
 
         @Schema(description = "Lista de códigos de diagnóstico (CIE10)", example = "[\"A01\", \"B02\"]")
         List<@Size(max = 20) String> diagnosticCodes,

@@ -6,6 +6,6 @@ public record GetHealthProviderDto(
         String nit,
         String socialReason,
         String typeProvider,
-        List<ContractDto> contracts
+        ContractDto contract
 ) {
 }

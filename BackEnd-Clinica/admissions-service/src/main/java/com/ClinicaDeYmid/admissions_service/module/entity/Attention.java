@@ -61,7 +61,7 @@ public class Attention {
     @ElementCollection
     @CollectionTable(name = "attention_health_providers", joinColumns = @JoinColumn(name = "attention_id"))
     @Column(name = "health_provider_nit")
-    private List<String> healthProviderNit = new ArrayList<>();
+    private List<HealthProviderInfo> healthProviderNit = new ArrayList<>();
 
     @Column(name = "invoice_number")
     private Long invoiceNumber;
