@@ -85,6 +85,7 @@ public class PdfGeneratorService {
                 table.addCell(cell1);
                 table.addCell(cell2);
                 table.addCell(cell3);
+                table.addCell(cell4);
 
                 // Datos
                 for (var provider : attention.healthProviderDetails()) {
