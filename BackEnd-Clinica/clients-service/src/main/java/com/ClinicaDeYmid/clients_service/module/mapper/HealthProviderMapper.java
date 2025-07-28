@@ -1,8 +1,10 @@
 package com.ClinicaDeYmid.clients_service.module.mapper;
 
 
+import com.ClinicaDeYmid.clients_service.module.dto.ContractDto;
 import com.ClinicaDeYmid.clients_service.module.dto.CreateHealthProviderDto;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
+import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderResponseDto;
@@ -27,12 +29,14 @@ public interface HealthProviderMapper {
 
     HealthProviderListDto toHealthProviderListDto(HealthProvider healthProvider);
 
-    /*
-    // Mapeo de Update DTO a Entidad (para PUT/PATCH)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "contracts", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    void updateEntityFromDto(UpdateHealthProviderDto updateHealthProviderDto, @MappingTarget HealthProvider healthProvider);
-    */
+    @Mapping(source = "contract.id", target = "id")
+    @Mapping(source = "contract.contractName", target = "contractName")
+    @Mapping(source = "contract.contractNumber", target = "contractNumber")
+    @Mapping(source = "contract.agreedTariff", target = "agreedTariff")
+    @Mapping(source = "contract.startDate", target = "startDate")
+    @Mapping(source = "contract.endDate", target = "endDate")
+    @Mapping(source = "contract.status", target = "status")
+    @Mapping(source = "contract.active", target = "active")
+    ContractDto toContractDto(Contract contract);
+
 }
