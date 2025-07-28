@@ -14,6 +14,7 @@ import org.mapstruct.*;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring",
         uses = {AuthorizationMapper.class, AttentionUserHistoryMapper.class},
@@ -29,6 +30,7 @@ public interface AttentionMapper {
     @Mapping(target = "userHistory", ignore = true)
     @Mapping(target = "configurationService", source = "configurationServiceId", qualifiedByName = "mapConfigurationServiceIdToEntity")
     @Mapping(target = "authorizations", ignore = true)
+    @Mapping(target = "healthProviderNit", source = "healthProviders", qualifiedByName = "mapHealthProviderRequestToHealthProviderInfo")
     Attention toEntity(AttentionRequestDto dto);
 
     // Actualización de Entidad desde Request DTO
@@ -39,7 +41,7 @@ public interface AttentionMapper {
     @Mapping(target = "userHistory", ignore = true)
     @Mapping(target = "configurationService", source = "configurationServiceId", qualifiedByName = "mapConfigurationServiceIdToEntity")
     @Mapping(target = "authorizations", ignore = true)
-
+    @Mapping(target = "healthProviderNit", source = "healthProviders", qualifiedByName = "mapHealthProviderRequestToHealthProviderInfo")
     void updateEntityFromDto(AttentionRequestDto dto, @MappingTarget Attention entity);
 
     // Mapeo de Entidad a Response DTO
@@ -61,6 +63,30 @@ public interface AttentionMapper {
         ConfigurationService configService = new ConfigurationService();
         configService.setId(configurationServiceId);
         return configService;
+    }
+
+    // Método para mapear List<HealthProviderRequestDto> a List<HealthProviderInfo>
+    @Named("mapHealthProviderRequestToHealthProviderInfo")
+    default List<HealthProviderInfo> mapHealthProviderRequestToHealthProviderInfo(List<HealthProviderRequestDto> healthProviderRequests) {
+        if (healthProviderRequests == null || healthProviderRequests.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+
+        return healthProviderRequests.stream()
+                .map(request -> new HealthProviderInfo(request.nit(), request.contractId()))
+                .collect(Collectors.toList());
+    }
+
+    // Método para extraer solo los NITs de HealthProviderInfo
+    @Named("extractNitsFromHealthProviderInfo")
+    default List<String> extractNitsFromHealthProviderInfo(List<HealthProviderInfo> healthProviderInfoList) {
+        if (healthProviderInfoList == null || healthProviderInfoList.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+
+        return healthProviderInfoList.stream()
+                .map(HealthProviderInfo::getHealthProviderNit)
+                .collect(Collectors.toList());
     }
 
     @Named("ToConfigurationServiceResponseDto")
@@ -144,7 +170,6 @@ public interface AttentionMapper {
             serviceName.append(configService.getServiceType().getName());
         }
 
-
         if (configService.getServiceType() != null &&
                 configService.getServiceType().getCareTypes() != null &&
                 !configService.getServiceType().getCareTypes().isEmpty()) {
@@ -163,7 +188,6 @@ public interface AttentionMapper {
 
         return serviceName.toString();
     }
-
 
     default PatientWithAttentionsResponse toPatientWithAttentionsResponse(String patientName, List<Attention> attentions) {
         if (attentions == null || attentions.isEmpty()) {
@@ -236,9 +260,9 @@ public interface AttentionMapper {
             return List.of();
         }
 
-        String nit = attentions.get(0).getHealthProviderNit().toString();
+        // Actualizado para trabajar con HealthProviderInfo
+        String nit = attentions.get(0).getHealthProviderNit().get(0).getHealthProviderNit();
         String contractName = contractNameResolver.apply(nit);
         return List.of(toHealthProviderWithAttentionsResponse(contractName, attentions));
     }
-
 }

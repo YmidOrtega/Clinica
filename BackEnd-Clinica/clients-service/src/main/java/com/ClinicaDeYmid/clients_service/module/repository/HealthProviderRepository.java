@@ -12,7 +12,7 @@ import java.util.Optional;
 @Repository
 public interface HealthProviderRepository extends JpaRepository <HealthProvider, Long> {
 
-    Optional<HealthProvider> findByNit_Value(String nitValue);
+    Optional<HealthProvider> findByNit_Value(String nit);
 
     Page<HealthProvider> findAllByActiveTrue (Pageable pageable);
 

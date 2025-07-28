@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.admissions_service.infra.exception.ExternalServiceUnava
 import com.ClinicaDeYmid.admissions_service.infra.exception.ValidationException;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionRequestDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionResponseDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.HealthProviderRequestDto;
 import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
 import com.ClinicaDeYmid.admissions_service.module.entity.Authorization;
 import com.ClinicaDeYmid.admissions_service.module.entity.ConfigurationService;
@@ -179,9 +180,13 @@ public class AttentionRecordService {
             validateExternalResource(() -> userClient.getUserById(requestDto.userId()), requestDto.userId(), MSG_USER_NOT_FOUND);
         }
 
-        if (requestDto.healthProviderNit() != null && !requestDto.healthProviderNit().isEmpty()) {
-            for (String nit : requestDto.healthProviderNit()) {
-                validateExternalResource(() -> healthProviderClient.getHealthProviderByNit(nit), nit, MSG_HEALTH_PROVIDER_NOT_FOUND);
+        if (requestDto.healthProviders() != null && !requestDto.healthProviders().isEmpty()) {
+            for (HealthProviderRequestDto hp : requestDto.healthProviders()) {
+                validateExternalResource(
+                        () -> healthProviderClient.getHealthProviderByNitAndContract(hp.nit(), hp.contractId()),
+                        hp.nit(),
+                        MSG_HEALTH_PROVIDER_NOT_FOUND
+                );
             }
         }
 

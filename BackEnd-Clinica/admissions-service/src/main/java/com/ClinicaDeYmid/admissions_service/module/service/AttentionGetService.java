@@ -4,15 +4,14 @@ import com.ClinicaDeYmid.admissions_service.infra.exception.EntityNotFoundExcept
 import com.ClinicaDeYmid.admissions_service.infra.exception.ValidationException;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionResponseDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionSearchRequest;
-import com.ClinicaDeYmid.admissions_service.module.dto.clients.ContractDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.clients.GetHealthProviderDto;
-import com.ClinicaDeYmid.admissions_service.module.dto.clients.HealthProviderAttentionShortResponse;
 import com.ClinicaDeYmid.admissions_service.module.dto.clients.HealthProviderWithAttentionsResponse;
 import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.patient.PatientWithAttentionsResponse;
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.DoctorWithAttentionsResponse;
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.GetDoctorDto;
 import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
+import com.ClinicaDeYmid.admissions_service.module.entity.HealthProviderInfo;
 import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.DoctorClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.HealthProviderClient;
@@ -34,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -175,17 +173,25 @@ public class AttentionGetService {
             });
         }
 
-        Function<String, String> contractNameResolver = nit -> {
-            try {
-                GetHealthProviderDto dto = healthProviderClient.getHealthProviderByNit(nit);
-                return dto.socialReason();
-            } catch (Exception ex) {
-                log.warn("No se encontró nombre social para NIT: {}", nit);
-                return nit;
+        Long contractId = null;
+        if (!attentions.isEmpty() && attentions.get(0).getHealthProviderNit() != null && !attentions.get(0).getHealthProviderNit().isEmpty()) {
+            HealthProviderInfo providerInfo = attentions.get(0).getHealthProviderNit().stream()
+                    .filter(hp -> healthProviderNit.equals(hp.getHealthProviderNit()))
+                    .findFirst()
+                    .orElse(null);
+            if (providerInfo != null) {
+                contractId = providerInfo.getContractId();
             }
-        };
+        }
 
-        String contractName = contractNameResolver.apply(healthProviderNit);
+        String contractName;
+        try {
+            GetHealthProviderDto dto = healthProviderClient.getHealthProviderByNitAndContract(healthProviderNit, contractId);
+            contractName = dto.socialReason();
+        } catch (Exception ex) {
+            log.warn("No se encontró nombre social para NIT: {}", healthProviderNit);
+            contractName = healthProviderNit;
+        }
 
         HealthProviderWithAttentionsResponse response =
                 attentionMapper.toHealthProviderWithAttentionsResponse(contractName, attentions);
