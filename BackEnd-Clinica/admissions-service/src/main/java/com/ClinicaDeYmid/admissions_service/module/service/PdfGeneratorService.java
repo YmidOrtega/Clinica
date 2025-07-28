@@ -37,10 +37,65 @@ public class PdfGeneratorService {
             document.open();
 
             // Título del documento
-            Paragraph title = new Paragraph("Informe de Atención Médica", TITLE_FONT);
+            Paragraph title = new Paragraph("HOJA DE ADMISION: " + attention.configurationService().serviceTypeName(), TITLE_FONT);
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
             document.add(Chunk.NEWLINE);
+
+            // Información del paciente
+            if (attention.patientDetails() != null) {
+
+                PdfPTable tableDatos = new PdfPTable(2);
+                tableDatos.setWidthPercentage(100);
+                tableDatos.addCell(new PdfPCell(new Phrase("Apellidos y Nombres",BOLD_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase(attention.patientDetails().fullName() , NORMAL_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase("Identificación", BOLD_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase(attention.patientDetails().identificationNumber(), NORMAL_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase("Fecha de Nacimiento",BOLD_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase(attention.patientDetails().dateOfBirth(), NORMAL_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase("Sexo",BOLD_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase(attention.patientDetails().gender(), NORMAL_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase("Vivienda",BOLD_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase(attention.patientDetails().address(), NORMAL_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase("Celular",BOLD_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase(attention.patientDetails().mobile(), NORMAL_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase("Procedencia", BOLD_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase(attention.patientDetails().localityName(), NORMAL_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase("Ocupación", BOLD_FONT)));
+                tableDatos.addCell(new PdfPCell(new Phrase(attention.patientDetails().occupationName(), NORMAL_FONT)));
+                document.add(tableDatos);
+                document.add(new Paragraph(" "));
+                document.add(Chunk.NEWLINE);
+            }
+
+            // Proveedores de salud
+            if (attention.healthProviderDetails() != null && !attention.healthProviderDetails().isEmpty()) {
+                document.add(Chunk.NEWLINE);
+                document.add(new Paragraph("PROVEEDORES DE SALUD", SUBTITLE_FONT));
+
+                PdfPTable table = new PdfPTable(3);
+                table.setWidthPercentage(100);
+
+                // Encabezados
+                PdfPCell cell1 = new PdfPCell(new Phrase("ENTIDAD", BOLD_FONT));
+                PdfPCell cell2 = new PdfPCell(new Phrase("PLAN", BOLD_FONT));
+                PdfPCell cell3 = new PdfPCell(new Phrase("TIPO DE AFILIACION", BOLD_FONT));
+                PdfPCell cell4 = new PdfPCell(new Phrase("NIT", BOLD_FONT));
+
+                table.addCell(cell1);
+                table.addCell(cell2);
+                table.addCell(cell3);
+
+                // Datos
+                for (var provider : attention.healthProviderDetails()) {
+                    table.addCell(new Phrase(provider.socialReason(), NORMAL_FONT));
+                    table.addCell(new Phrase(provider.contracts().toString(), NORMAL_FONT));
+                    table.addCell(new Phrase(provider.typeProvider(), NORMAL_FONT));
+                    table.addCell(new Phrase(provider.nit(), NORMAL_FONT));
+                }
+
+                document.add(table);
+            }
 
             // Información básica de la atención
             document.add(new Paragraph("ID de Atención: " + attention.id(), BOLD_FONT));
@@ -49,14 +104,6 @@ public class PdfGeneratorService {
                     (attention.createdAt() != null ? attention.createdAt().format(DATE_FORMATTER) : "N/A"), NORMAL_FONT));
             document.add(Chunk.NEWLINE);
 
-            // Información del paciente
-            if (attention.patientDetails() != null) {
-                document.add(new Paragraph("Información del Paciente", SUBTITLE_FONT));
-                document.add(new Paragraph("Nombre: " + attention.patientDetails().fullName(), NORMAL_FONT));
-                document.add(new Paragraph("Documento: " + attention.patientDetails().identificationNumber(), NORMAL_FONT));
-                document.add(new Paragraph("Tipo de documento: " + attention.patientDetails().dateOfBirth(), NORMAL_FONT));
-                document.add(Chunk.NEWLINE);
-            }
 
             // Información del médico
             if (attention.doctorDetails() != null) {
@@ -89,32 +136,6 @@ public class PdfGeneratorService {
                 document.add(new Paragraph("Numero Celular: " + attention.companion().phoneNumber(), NORMAL_FONT));
             }
 
-            // Proveedores de salud
-            if (attention.healthProviderDetails() != null && !attention.healthProviderDetails().isEmpty()) {
-                document.add(Chunk.NEWLINE);
-                document.add(new Paragraph("Proveedores de Salud", SUBTITLE_FONT));
-
-                PdfPTable table = new PdfPTable(3);
-                table.setWidthPercentage(100);
-
-                // Encabezados
-                PdfPCell cell1 = new PdfPCell(new Phrase("NIT", BOLD_FONT));
-                PdfPCell cell2 = new PdfPCell(new Phrase("Nombre", BOLD_FONT));
-                PdfPCell cell3 = new PdfPCell(new Phrase("Tipo", BOLD_FONT));
-
-                table.addCell(cell1);
-                table.addCell(cell2);
-                table.addCell(cell3);
-
-                // Datos
-                for (var provider : attention.healthProviderDetails()) {
-                    table.addCell(new Phrase(provider.nit(), NORMAL_FONT));
-                    table.addCell(new Phrase(provider.socialReason(), NORMAL_FONT));
-                    table.addCell(new Phrase(provider.typeProvider(), NORMAL_FONT));
-                }
-
-                document.add(table);
-            }
 
             document.close();
             return outputStream.toByteArray();

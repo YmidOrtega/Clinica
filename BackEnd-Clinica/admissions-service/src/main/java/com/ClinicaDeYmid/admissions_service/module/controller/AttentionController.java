@@ -198,6 +198,8 @@ public class AttentionController {
         // Generar el PDF
         byte[] pdfContent = pdfGeneratorService.generateAttentionPdf(attention);
 
+        
+
         // Configurar headers para la descarga
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
