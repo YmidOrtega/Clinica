@@ -169,8 +169,17 @@ Frontend
 
 El sistema incluye documentación automática de APIs con Swagger/OpenAPI:
 
-    API Gateway Swagger: http://localhost:8080/swagger-ui.html
+    Swagger UI: http://localhost:{port}/swagger-ui.html
+    API Docs: http://localhost:{port}/v3/api-docs
     Documentación centralizada de todos los microservicios disponible a través del API Gateway
+
+Endpoints de Monitoreo
+
+Cada servicio expone endpoints de Actuator para monitoreo:
+
+    Health: /actuator/{service}/health
+    Metrics: /actuator/{service}/metrics
+    Info: /actuator/{service}/info
 
 🔧 Desarrollo
 Backend
@@ -201,21 +210,6 @@ pnpm preview          # Preview del build
     Caché Redis: Optimización de rendimiento
     Service Discovery: Descubrimiento automático de servicios
 
-Endpoints de Monitoreo
-
-Cada servicio expone endpoints de Actuator para monitoreo:
-
-    Health: /actuator/{service}/health
-    Metrics: /actuator/{service}/metrics
-    Info: /actuator/{service}/info
-
-Documentación API
-
-Cada servicio incluye documentación Swagger/OpenAPI disponible en:
-
-    Swagger UI: http://localhost:{port}/swagger-ui.html
-    API Docs: http://localhost:{port}/v3/api-docs
-
 Notes
 
 Este proyecto implementa una arquitectura de microservicios completa para un sistema hospitalario, utilizando tecnologías modernas como Spring Boot 3.5.0, Java 21, y Astro para el frontend. El sistema está diseñado para ser escalable y mantenible, con cada servicio especializado en una funcionalidad específica del dominio médico. La configuración con Docker Compose facilita el despliegue y desarrollo del sistema completo. Algunos servicios (billing, admissions, ai-assistant) están comentados en el docker-compose, ya que están en desarrollo o deshabilitados temporalmente.
@@ -224,3 +218,4 @@ Wiki pages you might want to explore:
 
     Database Architecture (YmidOrtega/Clinica)
     Configuration and Operations (YmidOrtega/Clinica)
+    [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YmidOrtega/Clinica)
