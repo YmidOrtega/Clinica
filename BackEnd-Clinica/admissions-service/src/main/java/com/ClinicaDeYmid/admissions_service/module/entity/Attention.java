@@ -19,7 +19,6 @@ import java.util.List;
 @Table(name = "attentions", indexes = {
         @Index(name = "idx_attention_patient_id", columnList = "patientId"),
         @Index(name = "idx_attention_doctor_id", columnList = "doctorId"),
-        @Index(name = "idx_attention_health_provider_nit", columnList = "healthProviderNit"),
 })
 @Data
 @AllArgsConstructor
