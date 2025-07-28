@@ -44,6 +44,7 @@ public class HealthProviderController {
     private final StatusContractService statusContractService;
     private final UpdateContractService updateContractService;
     private final ContractMapper contractMapper;
+    private final GetHealthProviderContractService getHealthProviderContractService;
 
     /**
      * Crear un nuevo proveedor de salud
@@ -176,24 +177,23 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "404", description = "Health provider or contract not found"),
             @ApiResponse(responseCode = "400", description = "Invalid NIT or contract ID format")
     })
-    public ResponseEntity<ContractDto> getContractById(
+    public ResponseEntity<GetHealthProviderDto> getContractById(
             @PathVariable @NotNull(message = "El NIT no puede ser nulo")
-            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
-            String nit,
-
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")  String nit,
             @PathVariable @NotNull(message = "El ID del contrato no puede ser nulo")
-            @Min(value = 1, message = "El ID del contrato debe ser un número positivo")
-            Long contractId) {
+            @Min(value = 1, message = "El ID del contrato debe ser un número positivo") Long contractId) {
 
         log.info("Retrieving contract with ID: {} for health provider with NIT: {}", contractId, nit);
 
 
-        getHealthProviderService.getHealthProviderByNit(nit);
-
         ContractDto contractDto = getContractService.getContractById(contractId);
-
         log.info("Contract found with ID: {} for health provider NIT: {}", contractId, nit);
-        return ResponseEntity.ok(contractDto);
+
+        Contract contract = getContractService.getEntityContractById(contractId);
+
+        GetHealthProviderDto dto = getHealthProviderContractService.getProviderWithContract(nit, contract);
+
+        return ResponseEntity.ok(dto);
     }
 
     @PutMapping("/{nit}/contracts/{contractId}")
@@ -205,26 +205,20 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "400", description = "Invalid input data"),
             @ApiResponse(responseCode = "409", description = "Contract number conflict")
     })
-    public ResponseEntity<ContractDto> updateContract(
+    public ResponseEntity<GetHealthProviderDto> updateContract(
             @PathVariable @NotNull(message = "El NIT no puede ser nulo")
-            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
-            String nit,
-
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")String nit,
             @PathVariable @NotNull(message = "El ID del contrato no puede ser nulo")
-            @Min(value = 1, message = "El ID del contrato debe ser un número positivo")
-            Long contractId,
-
+            @Min(value = 1, message = "El ID del contrato debe ser un número positivo") Long contractId,
             @RequestBody @Valid UpdateContractDto updateContractDto) {
 
         log.info("Updating contract with ID: {} for health provider with NIT: {}", contractId, nit);
 
-        getHealthProviderService.getHealthProviderByNit(nit);
-
         Contract updatedContract = updateContractService.updateContract(contractId, updateContractDto);
-        ContractDto contractDto = contractMapper.toContractDto(updatedContract);
+        GetHealthProviderDto dto = getHealthProviderContractService.getProviderWithContract(nit, updatedContract);
 
         log.info("Contract updated successfully with ID: {} for health provider NIT: {}", contractId, nit);
-        return ResponseEntity.ok(contractDto);
+        return ResponseEntity.ok(dto);
     }
 
     @PatchMapping("/{nit}/contracts/{contractId}/activate")
@@ -236,24 +230,19 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "409", description = "Contract is already active"),
             @ApiResponse(responseCode = "400", description = "Invalid NIT or contract ID format")
     })
-    public ResponseEntity<ContractDto> activateContract(
+    public ResponseEntity<GetHealthProviderDto> activateContract(
             @PathVariable @NotNull(message = "El NIT no puede ser nulo")
-            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
-            String nit,
-
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.") String nit,
             @PathVariable @NotNull(message = "El ID del contrato no puede ser nulo")
-            @Min(value = 1, message = "El ID del contrato debe ser un número positivo")
-            Long contractId) {
+            @Min(value = 1, message = "El ID del contrato debe ser un número positivo")  Long contractId) {
 
         log.info("Activating contract with ID: {} for health provider with NIT: {}", contractId, nit);
 
-        getHealthProviderService.getHealthProviderByNit(nit);
-
         Contract activatedContract = statusContractService.activateContract(contractId);
-        ContractDto contractDto = contractMapper.toContractDto(activatedContract);
+        GetHealthProviderDto dto = getHealthProviderContractService.getProviderWithContract(nit, activatedContract);
 
         log.info("Contract activated successfully with ID: {} for health provider NIT: {}", contractId, nit);
-        return ResponseEntity.ok(contractDto);
+        return ResponseEntity.ok(dto);
     }
 
     @PatchMapping("/{nit}/contracts/{contractId}/deactivate")
@@ -265,24 +254,19 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "409", description = "Contract is already inactive"),
             @ApiResponse(responseCode = "400", description = "Invalid NIT or contract ID format")
     })
-    public ResponseEntity<ContractDto> deactivateContract(
+    public ResponseEntity<GetHealthProviderDto> deactivateContract(
             @PathVariable @NotNull(message = "El NIT no puede ser nulo")
-            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
-            String nit,
-
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.") String nit,
             @PathVariable @NotNull(message = "El ID del contrato no puede ser nulo")
-            @Min(value = 1, message = "El ID del contrato debe ser un número positivo")
-            Long contractId) {
+            @Min(value = 1, message = "El ID del contrato debe ser un número positivo") Long contractId) {
 
         log.info("Deactivating contract with ID: {} for health provider with NIT: {}", contractId, nit);
 
-        getHealthProviderService.getHealthProviderByNit(nit);
-
-        Contract deactivatedContract = statusContractService.deactivateContract(contractId);
-        ContractDto contractDto = contractMapper.toContractDto(deactivatedContract);
+        Contract activatedContract = statusContractService.activateContract(contractId);
+        GetHealthProviderDto dto = getHealthProviderContractService.getProviderWithContract(nit, activatedContract);
 
         log.info("Contract deactivated successfully with ID: {} for health provider NIT: {}", contractId, nit);
-        return ResponseEntity.ok(contractDto);
+        return ResponseEntity.ok(dto);
     }
 
     @DeleteMapping("/{nit}/contracts/{contractId}")

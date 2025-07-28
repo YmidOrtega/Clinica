@@ -1,13 +1,10 @@
 package com.ClinicaDeYmid.clients_service.module.mapper;
 
 
-import com.ClinicaDeYmid.clients_service.module.dto.ContractDto;
-import com.ClinicaDeYmid.clients_service.module.dto.CreateHealthProviderDto;
-import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
+import com.ClinicaDeYmid.clients_service.module.dto.*;
 import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 
-import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderResponseDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -38,5 +35,14 @@ public interface HealthProviderMapper {
     @Mapping(source = "contract.status", target = "status")
     @Mapping(source = "contract.active", target = "active")
     ContractDto toContractDto(Contract contract);
+
+    default GetHealthProviderDto toGetHealthProviderDto(HealthProvider provider, Contract contract) {
+        return new GetHealthProviderDto(
+                provider.getNit().getFormattedNit(),
+                provider.getSocialReason(),
+                provider.getTypeProvider().name(),
+                toContractDto(contract)
+        );
+    }
 
 }

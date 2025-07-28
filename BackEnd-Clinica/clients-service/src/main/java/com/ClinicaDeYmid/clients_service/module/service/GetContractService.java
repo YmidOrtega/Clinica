@@ -73,4 +73,10 @@ public class GetContractService {
             throw new IllegalArgumentException("El ID del contrato debe ser un número positivo");
         }
     }
+
+    @Transactional(readOnly = true)
+    public Contract getEntityContractById(Long contractId) {
+        return contractRepository.findById(contractId)
+                .orElseThrow(() -> new ContractNotFoundException(contractId));
+    }
 }

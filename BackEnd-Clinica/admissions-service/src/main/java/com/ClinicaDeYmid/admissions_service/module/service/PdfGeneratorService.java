@@ -89,7 +89,7 @@ public class PdfGeneratorService {
                 // Datos
                 for (var provider : attention.healthProviderDetails()) {
                     table.addCell(new Phrase(provider.socialReason(), NORMAL_FONT));
-                    table.addCell(new Phrase(provider.contracts().toString(), NORMAL_FONT));
+                    table.addCell(new Phrase(provider.contract().contractNumber(), NORMAL_FONT));
                     table.addCell(new Phrase(provider.typeProvider(), NORMAL_FONT));
                     table.addCell(new Phrase(provider.nit(), NORMAL_FONT));
                 }

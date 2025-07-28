@@ -7,6 +7,7 @@ import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.GetDoctorDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.user.GetUserDto;
 import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
+import com.ClinicaDeYmid.admissions_service.module.entity.HealthProviderInfo;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.DoctorClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.PatientClient;
@@ -50,14 +51,23 @@ public class AttentionEnrichmentService {
         GetPatientDto patientDetails = (attention.getPatientId() != null) ?
                 fetchExternalResource(() -> patientClient.getPatientByIdentificationNumber(attention.getPatientId().toString()), "paciente", attention.getPatientId()) : null;
 
-        // Obtención de detalles del doctor
+        // Obtencion de detalles del doctor
         GetDoctorDto doctorDetails = (attention.getDoctorId() != null) ?
                 fetchExternalResource(() -> doctorClient.getDoctorById(attention.getDoctorId()), "doctor", attention.getDoctorId()) : null;
 
-        // Obtención de prestadores de salud
-        List<GetHealthProviderDto> healthProviderDetails = (attention.getHealthProviderNit() != null) ?
+        // Obtencion de prestadores de salud
+        List<GetHealthProviderDto> healthProviderDetails = (attention.getHealthProviderNit() != null && !attention.getHealthProviderNit().isEmpty()) ?
                 attention.getHealthProviderNit().stream()
-                        .map(nit -> fetchExternalResource(() -> healthProviderClient.getHealthProviderByNit(nit), "prestador", nit))
+                        .map(healthProviderInfo -> {
+                            String nit = healthProviderInfo.getHealthProviderNit();
+                            Long contractId = healthProviderInfo.getContractId();
+                            try {
+                                return healthProviderClient.getHealthProviderByNitAndContract(nit, contractId);
+                            } catch (Exception e) {
+                                log.warn("No se encontró proveedor para NIT {} y contrato {}: {}", nit, contractId, e.getMessage());
+                                return null;
+                            }
+                        })
                         .filter(Objects::nonNull)
                         .collect(Collectors.toList()) : Collections.emptyList();
 
@@ -100,7 +110,29 @@ public class AttentionEnrichmentService {
                 attention.getTriageLevel(),
                 companionDto,
                 attention.getObservations()
-
         );
+    }
+
+    // Método adicional para extraer NITs de HealthProviderInfo
+    private List<String> extractNitsFromHealthProviderInfo(List<HealthProviderInfo> healthProviderInfoList) {
+        if (healthProviderInfoList == null || healthProviderInfoList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return healthProviderInfoList.stream()
+                .map(HealthProviderInfo::getHealthProviderNit)
+                .collect(Collectors.toList());
+    }
+
+    // Método adicional para obtener información de contratos si se necesita
+    public List<Long> extractContractIdsFromHealthProviderInfo(List<HealthProviderInfo> healthProviderInfoList) {
+        if (healthProviderInfoList == null || healthProviderInfoList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return healthProviderInfoList.stream()
+                .map(HealthProviderInfo::getContractId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 }
