@@ -1,125 +1,205 @@
-README - ClinicaDeYmid
+Sistema de Gestión de Clínica Médica
 
-Este proyecto es un sistema de microservicios para la gestión de una clínica médica, desarrollado con Spring Boot y arquitectura de microservicios . El sistema implementa un patrón de base de datos por servicio con persistencia poliglota usando MySQL 8.0 y PostgreSQL 16 docker-compose.yml:46-84.
+📋 Descripción del Proyecto
 
-Arquitectura del Sistema
+Este es un sistema completo de gestión de clínica médica construido con arquitectura de microservicios. El sistema incluye un backend desarrollado en Spring Boot con múltiples microservicios y un frontend desarrollado en Astro. pom.xml:14-17
+🏗️ Arquitectura del Sistema
+Backend - Microservicios
 
-El sistema está compuesto por los siguientes microservicios:
+El backend está compuesto por los siguientes microservicios:
 
-    eureka-service (Puerto 8761): Registro y descubrimiento de servicios docker-compose.yml:172-191
-    api-gateway (Puerto 8080): Gateway de entrada al sistema docker-compose.yml:385-425
-    auth-service (Puerto 8086): Autenticación y autorización application.yml:1-6
-    patient-service (Puerto 8081): Gestión de pacientes application.yml:4-6
-    suppliers-service (Puerto 8085): Gestión de proveedores docker-compose.yml:301-325
-    clients-service (Puerto 8087): Gestión de clientes docker-compose.yml:355-382
-    billing-service (Puerto 8082): Facturación (comentado)
-    admissions-service (Puerto 8083): Admisiones (comentado)
-    ai-assistant-service (Puerto 8084): Asistente IA (comentado)
+    eureka-service: Servidor de descubrimiento de servicios
+    api-gateway: Gateway principal para enrutamiento de peticiones
+    auth-service: Servicio de autenticación y autorización
+    patient-service: Gestión de pacientes
+    billing-service: Gestión de facturación
+    admissions-service: Gestión de admisiones hospitalarias
+    ai-assistant-service: Asistente inteligente con IA
+    suppliers-service: Gestión de proveedores
+    clients-service: Gestión de clientes/aseguradoras
 
-Variables de Entorno Requeridas
-Variables de Base de Datos
+Frontend
 
-MySQL Services:
+    Astro Framework: Interface de usuario moderna y reactiva
 
-# Auth Service  
-AUTH_DB_ROOT_PASSWORD=  
-AUTH_DB_NAME=  
-AUTH_DB_USER=  
-AUTH_DB_PASSWORD=  
-AUTH_DB_HOST=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME}  
-  
-# Patient Service    
-PATIENT_DB_ROOT_PASSWORD=  
-PATIENT_DB_NAME=  
-PATIENT_DB_USER=  
-PATIENT_DB_PASSWORD=  
-PATIENT_DB_HOST=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}  
-  
-# Suppliers Service  
-SUPPLIERS_DB_ROOT_PASSWORD=  
-SUPPLIERS_DB_NAME=  
-SUPPLIERS_DB_USER=  
-SUPPLIERS_DB_PASSWORD=  
-SUPPLIERS_DB_HOST=jdbc:mysql://suppliers-db:3306/${SUPPLIERS_DB_NAME}  
-  
-# Clients Service  
-CLIENTS_DB_ROOT_PASSWORD=  
-CLIENTS_DB_NAME=  
-CLIENTS_DB_USER=  
-CLIENTS_DB_PASSWORD=  
-CLIENTS_DB_HOST=jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}  
-  
-# Billing Service  
-BILLING_DB_ROOT_PASSWORD=  
-BILLING_DB_NAME=  
-BILLING_DB_USER=  
-BILLING_DB_PASSWORD=
+Bases de Datos
 
-docker-compose.yml:108-150
+El sistema utiliza múltiples bases de datos especializadas:
 
-PostgreSQL Services:
+    MySQL 8.0: Para patient-db, billing-db, suppliers-db, auth-db, clients-db
+    PostgreSQL 16: Para admissions-db, ai-assistant-db
+    Redis 7: Para caché y sesiones
 
-# Admissions Service  
-ADMISSIONS_DB_NAME=  
-ADMISSIONS_DB_USER=  
-ADMISSIONS_DB_PASSWORD=  
-  
-# AI Assistant Service  
-AI_ASSISTANT_DB_NAME=  
-AI_ASSISTANT_DB_USER=  
-AI_ASSISTANT_DB_PASSWORD=
+🛠️ Tecnologías Utilizadas
+Backend
 
-docker-compose.yml:46-84
-Variables de Infraestructura
+    Java 21
+    Spring Boot 3.5.0
+    Spring Cloud 2025.0.0
+    Maven: Gestión de dependencias
+    Lombok: Reducción de código boilerplate
+    MapStruct: Mapeo de objetos
+    SpringDoc OpenAPI: Documentación de APIs
+    Docker: Containerización
 
-# Redis Cache  
-REDIS_PASSWORD=  
-  
-# JWT Configuration (Auth Service)  
-JWT_SECRET=  
-JWT_EXPIRATION=  
-JWT_PUBLIC_KEY_PATH=  
-JWT_PRIVATE_KEY_PATH=
+Frontend
 
-docker-compose.yml:152-169
-Configuración de Desarrollo vs Producción
-Desarrollo
+    Astro: Framework de desarrollo web
+    pnpm: Gestor de paquetes
 
-    Configuración en application-dev.properties application-dev.properties:1-5
-    Logging detallado con SQL habilitado application-dev.properties:20-25
-    Exposición completa de errores application-dev.properties:13-18
+⚙️ Variables de Entorno Requeridas
+Bases de Datos MySQL
 
-Docker/Producción
+Patient Database:
 
-    Configuración en application-docker.properties application-docker.properties:1-5
-    Pool de conexiones HikariCP optimizado application-docker.properties:7-14
-    Logging mínimo para producción application-docker.properties:43-52
+PATIENT_DB_ROOT_PASSWORD=tu_password_root  
+PATIENT_DB_NAME=patient_db  
+PATIENT_DB_USER=patient_user  
+PATIENT_DB_PASSWORD=tu_password
 
-Tecnologías Utilizadas
+Billing Database:
 
-    Spring Boot: Framework principal
-    Spring Cloud Netflix Eureka: Descubrimiento de servicios
-    MySQL 8.0: Base de datos principal
-    PostgreSQL 16: Base de datos para servicios específicos
-    Redis 7: Cache y gestión de sesiones
-    HikariCP: Pool de conexiones
-    Flyway: Migraciones de base de datos application.yml:7-8
-    Resilience4j: Circuit breakers
-    Docker & Docker Compose: Containerización
+BILLING_DB_ROOT_PASSWORD=tu_password_root  
+BILLING_DB_NAME=billing_db  
+BILLING_DB_USER=billing_user  
+BILLING_DB_PASSWORD=tu_password
 
-Comandos de Ejecución
+Suppliers Database:
 
-# Levantar todo el sistema  
-docker-compose up -d  
-  
-# Levantar servicios específicos  
-docker-compose up -d eureka-service auth-service patient-service  
-  
-# Ver logs  
-docker-compose logs -f [service-name]  
-  
-# Parar el sistema  
-docker-compose down
+SUPPLIERS_DB_ROOT_PASSWORD=tu_password_root  
+SUPPLIERS_DB_NAME=suppliers_db  
+SUPPLIERS_DB_USER=suppliers_user  
+SUPPLIERS_DB_PASSWORD=tu_password
+
+Auth Database:
+
+AUTH_DB_ROOT_PASSWORD=tu_password_root  
+AUTH_DB_NAME=auth_db  
+AUTH_DB_USER=auth_user  
+AUTH_DB_PASSWORD=tu_password
+
+Clients Database:
+
+CLIENTS_DB_ROOT_PASSWORD=tu_password_root  
+CLIENTS_DB_NAME=clients_db  
+CLIENTS_DB_USER=clients_user  
+CLIENTS_DB_PASSWORD=tu_password
+
+Bases de Datos PostgreSQL
+
+Admissions Database:
+
+ADMISSIONS_DB_NAME=admissions_db  
+ADMISSIONS_DB_USER=admissions_user  
+ADMISSIONS_DB_PASSWORD=tu_password
+
+AI Assistant Database:
+
+AI_ASSISTANT_DB_NAME=ai_assistant_db  
+AI_ASSISTANT_DB_USER=ai_user  
+AI_ASSISTANT_DB_PASSWORD=tu_password
+
+Redis y JWT
+
+Redis:
+
+REDIS_PASSWORD=tu_redis_password
+
+JWT Configuration:
+
+JWT_SECRET=tu_jwt_secret_key  
+JWT_EXPIRATION=86400000
+
+🚀 Instalación y Ejecución
+Prerrequisitos
+
+    Docker y Docker Compose
+    Java 21 (para desarrollo local)
+    Maven (para desarrollo local)
+    Node.js y pnpm (para el frontend)
+
+Pasos de Instalación
+
+    Clonar el repositorio:
+
+    git clone https://github.com/YmidOrtega/Clinica.git  
+    cd Clinica
+
+    Configurar variables de entorno:
+    Crear un archivo .env en la carpeta BackEnd-Clinica con todas las variables mencionadas anteriormente.
+
+    Ejecutar con Docker Compose:
+
+    cd BackEnd-Clinica  
+    docker-compose up -d
+
+    Configurar Frontend:
+
+    cd FrontEnd-Clinica  
+    pnpm install  
+    pnpm dev
+
+🌐 Puertos y Endpoints
+Servicios Backend docker-compose.yml:172-425
+
+    Eureka Server: http://localhost:8761
+    API Gateway: http://localhost:8080
+    Patient Service: http://localhost:8081
+    Suppliers Service: http://localhost:8085
+    Auth Service: http://localhost:8086
+    Clients Service: http://localhost:8087
+
+Bases de Datos
+
+    Patient DB: localhost:3307
+    Billing DB: localhost:3308
+    Admissions DB: localhost:3309
+    AI Assistant DB: localhost:3310
+    Suppliers DB: localhost:3311
+    Auth DB: localhost:3312
+    Clients DB: localhost:3313
+    Redis: localhost:6379
+    Redis Insight: http://localhost:8001
+
+Frontend
+
+    Astro Dev Server: http://localhost:4321
+
+📚 Documentación de APIs
+
+El sistema incluye documentación automática de APIs con Swagger/OpenAPI:
+
+    API Gateway Swagger: http://localhost:8080/swagger-ui.html
+    Documentación centralizada de todos los microservicios disponible a través del API Gateway
+
+🔧 Desarrollo
+Backend
+
+Para desarrollo local de los microservicios:
+
+cd BackEnd-Clinica  
+mvn clean install
+
+Frontend README.md:35-44
+
+cd FrontEnd-Clinica  
+pnpm install          # Instalar dependencias  
+pnpm dev              # Servidor de desarrollo  
+pnpm build            # Build de producción  
+pnpm preview          # Preview del build
+
+🏥 Funcionalidades del Sistema
+
+    Gestión de Pacientes: Registro, consulta y administración de pacientes
+    Sistema de Facturación: Gestión completa de facturación médica
+    Control de Admisiones: Gestión de ingresos y egresos hospitalarios
+    Asistente IA: Asistente inteligente para apoyo médico
+    Gestión de Proveedores: Administración de proveedores médicos
+    Gestión de Aseguradoras: Control de clientes y aseguradoras
+    Autenticación y Autorización: Sistema de seguridad robusto
+    Arquitectura de Microservicios: Escalabilidad y mantenibilidad
+    Caché Redis: Optimización de rendimiento
+    Service Discovery: Descubrimiento automático de servicios
 
 Endpoints de Monitoreo
 
@@ -127,18 +207,18 @@ Cada servicio expone endpoints de Actuator para monitoreo:
 
     Health: /actuator/{service}/health
     Metrics: /actuator/{service}/metrics
-    Info: /actuator/{service}/info application-docker.properties:54-57
+    Info: /actuator/{service}/info
 
 Documentación API
 
 Cada servicio incluye documentación Swagger/OpenAPI disponible en:
 
     Swagger UI: http://localhost:{port}/swagger-ui.html
-    API Docs: http://localhost:{port}/v3/api-docs application.yml:19-31
+    API Docs: http://localhost:{port}/v3/api-docs
 
 Notes
 
-El sistema utiliza un patrón de arquitectura de microservicios con base de datos por servicio, implementando persistencia poliglota. Algunos servicios (billing, admissions, ai-assistant) están comentados en el docker-compose, indicando que están en desarrollo o deshabilitados temporalmente. La configuración está optimizada para ambientes de desarrollo y producción con diferentes niveles de logging y exposición de errores.
+Este proyecto implementa una arquitectura de microservicios completa para un sistema hospitalario, utilizando tecnologías modernas como Spring Boot 3.5.0, Java 21, y Astro para el frontend. El sistema está diseñado para ser escalable y mantenible, con cada servicio especializado en una funcionalidad específica del dominio médico. La configuración con Docker Compose facilita el despliegue y desarrollo del sistema completo. Algunos servicios (billing, admissions, ai-assistant) están comentados en el docker-compose, ya que están en desarrollo o deshabilitados temporalmente.
 
 Wiki pages you might want to explore:
 
