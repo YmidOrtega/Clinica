@@ -216,6 +216,7 @@ Este proyecto implementa una arquitectura de microservicios completa para un sis
 
 Wiki pages you might want to explore:
 
-    Database Architecture (YmidOrtega/Clinica)
-    Configuration and Operations (YmidOrtega/Clinica)
-    [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YmidOrtega/Clinica)
+Database Architecture (YmidOrtega/Clinica)
+Configuration and Operations (YmidOrtega/Clinica)
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YmidOrtega/Clinica)
