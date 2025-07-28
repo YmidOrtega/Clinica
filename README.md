@@ -2,8 +2,8 @@ Sistema de Gestión de Clínica Médica
 
 📋 Descripción del Proyecto
 
-Este es un sistema completo de gestión de clínica médica construido con arquitectura de microservicios. El sistema incluye un backend desarrollado en Spring Boot con múltiples microservicios y un frontend desarrollado en Astro. pom.xml:14-17
-🏗️ Arquitectura del Sistema
+Este es un sistema completo de gestión de clínica médica construido con arquitectura de microservicios. El sistema incluye un backend desarrollado en Spring Boot con múltiples microservicios y un frontend desarrollado en Astro.
+
 Backend - Microservicios
 
 El backend está compuesto por los siguientes microservicios:
@@ -140,7 +140,7 @@ Pasos de Instalación
     pnpm dev
 
 🌐 Puertos y Endpoints
-Servicios Backend docker-compose.yml:172-425
+Servicios Backend
 
     Eureka Server: http://localhost:8761
     API Gateway: http://localhost:8080
