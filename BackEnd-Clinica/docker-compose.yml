@@ -246,31 +246,31 @@ services:
    #    networks:
    #       - clinica-net
 
-   # admissions-service:
-   #    build: ./admissions-service
-   #    container_name: admissions-service
-   #    depends_on:
-   #       admissions-db:
-   #          condition: service_healthy
-   #       eureka-service:
-   #          condition: service_healthy
-   #       redis-cache:
-   #          condition: service_healthy
-   #    environment:
-   #       - SPRING_DATASOURCE_URL=jdbc:mysql://admissions-db:3306/${ADMISSIONS_DB_NAME}
-   #       - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
-   #       - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
-   #       - SPRING_REDIS_HOST=redis-cache
-   #       - SPRING_REDIS_PORT=6379
-   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-   #       - SPRING_REDIS_TIMEOUT=2000ms
-   #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-   #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-   #       - SPRING_PROFILES_ACTIVE=docker
-   #    ports:
-   #       - "8083:8083"
-   #    networks:
-   #       - clinica-net
+   admissions-service:
+      build: ./admissions-service
+      container_name: admissions-service
+      depends_on:
+         admissions-db:
+            condition: service_healthy
+         eureka-service:
+            condition: service_healthy
+         redis-cache:
+            condition: service_healthy
+      environment:
+         - SPRING_DATASOURCE_URL=jdbc:postgresql://admissions-db:5432/${ADMISSIONS_DB_NAME}
+         - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
+         - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
+         - SPRING_REDIS_HOST=redis-cache
+         - SPRING_REDIS_PORT=6379
+         - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
+         - SPRING_REDIS_TIMEOUT=2000ms
+         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+         - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+         - SPRING_PROFILES_ACTIVE=docker
+      ports:
+         - "8083:8083"
+      networks:
+         - clinica-net
 
    # ai-assistant-service:
    #    build: ./ai-assistant-service
@@ -394,8 +394,8 @@ services:
             condition: service_healthy
          # billing-service:
          #    condition: service_healthy
-         # admissions-service:
-         #    condition: service_healthy
+         admissions-service:
+            condition: service_healthy
          # ai-assistant-service:
          #    condition: service_healthy
          suppliers-service:
@@ -407,7 +407,7 @@ services:
       environment:
          - PATIENT_SERVICE_URL=http://patient-service:8081
          # - BILLING_SERVICE_URL=http://billing-service:8082
-         # - ADMISSIONS_SERVICE_URL=http://admissions-service:8083
+         - ADMISSIONS_SERVICE_URL=http://admissions-service:8083
          # - AI_ASSISTANT_SERVICE_URL=http://ai-assistant-service:8084
          - SUPPLIERS_SERVICE_URL=http://suppliers-service:8085
          - AUTH_SERVICE_URL=http://auth-service:8086
