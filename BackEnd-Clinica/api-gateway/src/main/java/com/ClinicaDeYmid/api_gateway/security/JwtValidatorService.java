@@ -24,10 +24,10 @@ public class JwtValidatorService {
     private static final Logger logger = Logger.getLogger(JwtValidatorService.class.getName());
     private static final String ISSUER = "ClinicaDeYmid";
 
-    @Value("${jwt.secret:}")
+    @Value("${jwt.secret}")
     private String hmacSecret;
 
-    @Value("${jwt.algorithm:RS256}")
+    @Value("${jwt.algorithm}")
     private String algorithmType;
 
     @Value("${auth-service.url:http://auth-service}")
