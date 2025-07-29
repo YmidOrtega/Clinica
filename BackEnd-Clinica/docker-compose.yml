@@ -1,4 +1,3 @@
-version: "3.8"
 services:
    # Bases de datos
    patient-db:
@@ -22,26 +21,26 @@ services:
          retries: 10
       command: --log-bin-trust-function-creators=1
 
-   billing-db:
-      image: mysql:8.0
-      container_name: billing-db
-      restart: always
-      environment:
-         MYSQL_ROOT_PASSWORD: ${BILLING_DB_ROOT_PASSWORD}
-         MYSQL_DATABASE: ${BILLING_DB_NAME}
-         MYSQL_USER: ${BILLING_DB_USER}
-         MYSQL_PASSWORD: ${BILLING_DB_PASSWORD}
-      ports:
-         - "3308:3306"
-      volumes:
-         - billing_data:/var/lib/mysql
-      networks:
-         - clinica-net
-      healthcheck:
-         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-         timeout: 20s
-         retries: 10
-      command: --log-bin-trust-function-creators=1
+   #   billing-db:
+   #      image: mysql:8.0
+   #      container_name: billing-db
+   #      restart: always
+   #      environment:
+   #         MYSQL_ROOT_PASSWORD: ${BILLING_DB_ROOT_PASSWORD}
+   #         MYSQL_DATABASE: ${BILLING_DB_NAME}
+   #         MYSQL_USER: ${BILLING_DB_USER}
+   #         MYSQL_PASSWORD: ${BILLING_DB_PASSWORD}
+   #      ports:
+   #         - "3308:3306"
+   #      volumes:
+   #         - billing_data:/var/lib/mysql
+   #      networks:
+   #         - clinica-net
+   #      healthcheck:
+   #         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+   #         timeout: 20s
+   #         retries: 10
+   #      command: --log-bin-trust-function-creators=1
 
    admissions-db:
       image: postgres:16
@@ -58,30 +57,30 @@ services:
       networks:
          - clinica-net
       healthcheck:
-         test: ["CMD-SHELL", "pg_isready -U ${ADMISSIONS_DB_USER}"]
+         test: ["CMD-SHELL", "pg_isready -U ${ADMISSIONS_DB_USER} -d ${ADMISSIONS_DB_NAME}"]
          interval: 10s
          timeout: 5s
          retries: 5
 
-   ai-assistant-db:
-      image: postgres:16
-      container_name: ai-assistant-db
-      restart: always
-      environment:
-         POSTGRES_DB: ${AI_ASSISTANT_DB_NAME}
-         POSTGRES_USER: ${AI_ASSISTANT_DB_USER}
-         POSTGRES_PASSWORD: ${AI_ASSISTANT_DB_PASSWORD}
-      ports:
-         - "3310:5432"
-      volumes:
-         - ai_assistant_data:/var/lib/postgresql/data
-      networks:
-         - clinica-net
-      healthcheck:
-         test: ["CMD-SHELL", "pg_isready -U ${AI_ASSISTANT_DB_USER}"]
-         interval: 10s
-         timeout: 5s
-         retries: 5
+#   ai-assistant-db:
+#      image: postgres:16
+#      container_name: ai-assistant-db
+#      restart: always
+#      environment:
+#         POSTGRES_DB: ${AI_ASSISTANT_DB_NAME}
+#         POSTGRES_USER: ${AI_ASSISTANT_DB_USER}
+#         POSTGRES_PASSWORD: ${AI_ASSISTANT_DB_PASSWORD}
+#      ports:
+#         - "3310:5432"
+#      volumes:
+#         - ai_assistant_data:/var/lib/postgresql/data
+#      networks:
+#         - clinica-net
+#      healthcheck:
+#         test: ["CMD-SHELL", "pg_isready -U ${AI_ASSISTANT_DB_USER} -d ${AI_ASSISTANT_DB_NAME}"]
+#         interval: 10s
+#         timeout: 5s
+#         retries: 5
 
    # Base de datos para proveedores
    suppliers-db:
@@ -115,6 +114,7 @@ services:
          MYSQL_DATABASE: ${AUTH_DB_NAME}
          MYSQL_USER: ${AUTH_DB_USER}
          MYSQL_PASSWORD: ${AUTH_DB_PASSWORD}
+
       ports:
          - "3312:3306"
       volumes:
@@ -154,7 +154,9 @@ services:
       image: redis:7-alpine
       container_name: redis-cache
       restart: always
-      command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+      environment:
+         - REDIS_PASSWORD=${REDIS_PASSWORD}
+      command: sh -c 'redis-server --requirepass "$REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy allkeys-lru'
       ports:
          - "6379:6379"
       volumes:
@@ -162,7 +164,7 @@ services:
       networks:
          - clinica-net
       healthcheck:
-         test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+         test: [ "CMD", "sh", "-c", "redis-cli -a $REDIS_PASSWORD ping" ]
          interval: 30s
          timeout: 10s
          retries: 5
@@ -190,7 +192,7 @@ services:
          retries: 5
          start_period: 60s
 
-   #Servicios Spring Boot (con configuración Redis)
+   #Servicios Spring Boot (con configuración Redis estandarizada)
    patient-service:
       build: ./patient-service
       container_name: patient-service
@@ -205,13 +207,13 @@ services:
          - SPRING_DATASOURCE_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
          - SPRING_DATASOURCE_USERNAME=${PATIENT_DB_USER}
          - SPRING_DATASOURCE_PASSWORD=${PATIENT_DB_PASSWORD}
-         - SPRING_REDIS_HOST=redis-cache
-         - SPRING_REDIS_PORT=6379
-         - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_REDIS_TIMEOUT=2000ms
-         - SPRING_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
-         - SPRING_REDIS_LETTUCE_POOL_MAX_IDLE=8
-         - SPRING_REDIS_LETTUCE_POOL_MIN_IDLE=0
+         - SPRING_DATA_REDIS_HOST=redis-cache
+         - SPRING_DATA_REDIS_PORT=6379
+         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+         - SPRING_DATA_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
@@ -234,10 +236,10 @@ services:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://billing-db:3306/${BILLING_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${BILLING_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${BILLING_DB_PASSWORD}
-   #       - SPRING_REDIS_HOST=redis-cache
-   #       - SPRING_REDIS_PORT=6379
-   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-   #       - SPRING_REDIS_TIMEOUT=2000ms
+   #       - SPRING_DATA_REDIS_HOST=redis-cache
+   #       - SPRING_DATA_REDIS_PORT=6379
+   #       - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_DATA_REDIS_TIMEOUT=2000ms
    #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
    #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
    #       - SPRING_PROFILES_ACTIVE=docker
@@ -260,10 +262,10 @@ services:
          - SPRING_DATASOURCE_URL=jdbc:postgresql://admissions-db:5432/${ADMISSIONS_DB_NAME}
          - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
          - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
-         - SPRING_REDIS_HOST=redis-cache
-         - SPRING_REDIS_PORT=6379
-         - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_HOST=redis-cache
+         - SPRING_DATA_REDIS_PORT=6379
+         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+         - SPRING_DATA_REDIS_TIMEOUT=2000ms
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
@@ -286,10 +288,10 @@ services:
    #       - SPRING_DATASOURCE_URL=jdbc:mysql://ai-assistant-db:3306/${AI_ASSISTANT_DB_NAME}
    #       - SPRING_DATASOURCE_USERNAME=${AI_ASSISTANT_DB_USER}
    #       - SPRING_DATASOURCE_PASSWORD=${AI_ASSISTANT_DB_PASSWORD}
-   #       - SPRING_REDIS_HOST=redis-cache
-   #       - SPRING_REDIS_PORT=6379
-   #       - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-   #       - SPRING_REDIS_TIMEOUT=2000ms
+   #       - SPRING_DATA_REDIS_HOST=redis-cache
+   #       - SPRING_DATA_REDIS_PORT=6379
+   #       - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+   #       - SPRING_DATA_REDIS_TIMEOUT=2000ms
    #       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
    #       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
    #       - SPRING_PROFILES_ACTIVE=docker
@@ -312,10 +314,10 @@ services:
          - SPRING_DATASOURCE_URL=jdbc:mysql://suppliers-db:3306/${SUPPLIERS_DB_NAME}
          - SPRING_DATASOURCE_USERNAME=${SUPPLIERS_DB_USER}
          - SPRING_DATASOURCE_PASSWORD=${SUPPLIERS_DB_PASSWORD}
-         - SPRING_REDIS_HOST=redis-cache
-         - SPRING_REDIS_PORT=6379
-         - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_HOST=redis-cache
+         - SPRING_DATA_REDIS_PORT=6379
+         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+         - SPRING_DATA_REDIS_TIMEOUT=2000ms
          - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
@@ -338,10 +340,10 @@ services:
          - SPRING_DATASOURCE_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME}
          - SPRING_DATASOURCE_USERNAME=${AUTH_DB_USER}
          - SPRING_DATASOURCE_PASSWORD=${AUTH_DB_PASSWORD}
-         - SPRING_REDIS_HOST=redis-cache
-         - SPRING_REDIS_PORT=6379
-         - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_HOST=redis-cache
+         - SPRING_DATA_REDIS_PORT=6379
+         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+         - SPRING_DATA_REDIS_TIMEOUT=2000ms
          - JWT_SECRET=${JWT_SECRET}
          - JWT_EXPIRATION=${JWT_EXPIRATION}
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
@@ -366,13 +368,13 @@ services:
          - SPRING_DATASOURCE_URL=jdbc:mysql://clients-db:3306/${CLIENTS_DB_NAME}
          - SPRING_DATASOURCE_USERNAME=${CLIENTS_DB_USER}
          - SPRING_DATASOURCE_PASSWORD=${CLIENTS_DB_PASSWORD}
-         - SPRING_REDIS_HOST=redis-cache
-         - SPRING_REDIS_PORT=6379
-         - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_REDIS_TIMEOUT=2000ms
-         - SPRING_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
-         - SPRING_REDIS_LETTUCE_POOL_MAX_IDLE=8
-         - SPRING_REDIS_LETTUCE_POOL_MIN_IDLE=0
+         - SPRING_DATA_REDIS_HOST=redis-cache
+         - SPRING_DATA_REDIS_PORT=6379
+         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+         - SPRING_DATA_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=prod
@@ -412,13 +414,15 @@ services:
          - SUPPLIERS_SERVICE_URL=http://suppliers-service:8085
          - AUTH_SERVICE_URL=http://auth-service:8086
          - CLIENTS_SERVICE_URL=http://clients-service:8087
-         - SPRING_REDIS_HOST=redis-cache
-         - SPRING_REDIS_PORT=6379
-         - SPRING_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_HOST=redis-cache
+         - SPRING_DATA_REDIS_PORT=6379
+         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+         - SPRING_DATA_REDIS_TIMEOUT=2000ms
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
+         - JWT_SECRET=${JWT_SECRET}
+         - JWT_EXPIRATION=${JWT_EXPIRATION}
       ports:
          - "8080:8080"
       networks:

@@ -33,22 +33,22 @@ public class TokenService {
     private static final String ISSUER = "ClinicaDeYmid";
     private static final String ALGORITHM_TYPE = "RSA";
 
-    @Value("${jwt.rsa.private-key-path:classpath:keys/private_key.pem}")
+    @Value("${jwt.rsa.private-key-path}")
     private String privateKeyPath;
 
-    @Value("${jwt.rsa.public-key-path:classpath:keys/public_key.pem}")
+    @Value("${jwt.rsa.public-key-path}")
     private String publicKeyPath;
 
-    @Value("${jwt.access-token.expiration:900}")
+    @Value("${jwt.access-token.expiration}")
     private Long accessTokenExpiration;
 
-    @Value("${jwt.refresh-token.expiration:604800}")
+    @Value("${jwt.refresh-token.expiration}")
     private Long refreshTokenExpiration;
 
-    @Value("${jwt.secret:}")
+    @Value("${jwt.secret}")
     private String hmacSecret;
 
-    @Value("${jwt.algorithm:RS256}")
+    @Value("${jwt.algorithm}")
     private String algorithmType;
 
     private final ResourceLoader resourceLoader;
