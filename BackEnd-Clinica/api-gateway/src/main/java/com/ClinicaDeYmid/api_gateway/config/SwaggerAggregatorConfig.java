@@ -13,19 +13,19 @@ public class SwaggerAggregatorConfig {
     public RouteLocator swaggerRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
                 // Rutas para obtener documentación de cada microservicio
-                .route("auth-service-swagger", r -> r.path("api-docs")
+                .route("auth-service-swagger", r -> r.path("/v3/api-docs")
                         .uri("lb://auth-service"))
-                .route("patient-service-swagger", r -> r.path("api-docs")
+                .route("patient-service-swagger", r -> r.path("/v3/api-docs")
                         .uri("lb://patient-service"))
-                .route("billing-service-swagger", r -> r.path("api-docs")
+                .route("billing-service-swagger", r -> r.path("/v3/api-docs")
                         .uri("lb://billing-service"))
-                .route("admissions-service-swagger", r -> r.path("/api-docs")
+                .route("admissions-service-swagger", r -> r.path("/v3/api-docs")
                         .uri("lb://admissions-service"))
-                .route("ai-assistant-service-swagger", r -> r.path("/api-docs")
+                .route("ai-assistant-service-swagger", r -> r.path("/v3/api-docs")
                         .uri("lb://ai-assistant-service"))
-                .route("suppliers-service-swagger", r -> r.path("/api-docs")
+                .route("suppliers-service-swagger", r -> r.path("/v3/api-docs")
                         .uri("lb://suppliers-service"))
-                .route("clients-service-swagger", r -> r.path("/api-docs")
+                .route("clients-service-swagger", r -> r.path("/v3/api-docs")
                         .uri("lb://clients-service"))
                 .build();
     }
