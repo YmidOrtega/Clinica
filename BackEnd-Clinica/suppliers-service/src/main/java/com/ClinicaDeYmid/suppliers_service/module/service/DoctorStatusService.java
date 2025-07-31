@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.suppliers_service.module.repository.DoctorRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -23,6 +24,7 @@ public class DoctorStatusService {
     }
 
 
+    @CacheEvict(value = "doctor_cache", key = "#id")
     public void deactivateDoctor(Long id) {
         Doctor doctor = doctorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + id));
