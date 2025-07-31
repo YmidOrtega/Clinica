@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.suppliers_service.module.mapper.DoctorMapper;
 import com.ClinicaDeYmid.suppliers_service.module.repository.DoctorRepository;
 import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ public class DoctorRecordService {
     private final DoctorRepository doctorRepository;
     private final DoctorMapper doctorMapper;
 
+    @CachePut(value = "doctor_cache", key = "#result.id")
     public DoctorResponseDto createDoctor(DoctorCreateRequestDTO request) {
 
         Doctor doctor = doctorMapper.toEntity(request);
@@ -34,6 +36,7 @@ public class DoctorRecordService {
         return doctorMapper.toDoctorDetailsWithGroupedSpecialties(savedDoctor, groupedSpecialties);
     }
 
+    @CachePut(value = "doctor_cache", key = "#result.id")
     public DoctorResponseDto updateDoctor(Long id, DoctorUpdateRequestDTO request) {
         Doctor doctor = doctorRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Doctor not found"));
