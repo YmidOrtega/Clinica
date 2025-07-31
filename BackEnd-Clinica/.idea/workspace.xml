@@ -5,22 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/config/RedisCacheConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/resources/application-dev.properties" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/resources/application-dev.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/admissions-service/src/main/resources/application-docker.properties" beforeDir="false" afterPath="$PROJECT_DIR$/admissions-service/src/main/resources/application-docker.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/java/com/ClinicaDeYmid/api_gateway/config/SwaggerAggregatorConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/java/com/ClinicaDeYmid/api_gateway/config/SwaggerAggregatorConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/java/com/ClinicaDeYmid/api_gateway/config/SwaggerConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/java/com/ClinicaDeYmid/api_gateway/config/SwaggerConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/java/com/ClinicaDeYmid/api_gateway/security/JwtValidatorService.java" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/java/com/ClinicaDeYmid/api_gateway/security/JwtValidatorService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.properties" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-dev.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application-docker.properties" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application-docker.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/TokenService.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/service/TokenService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application-docker.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application-docker.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/billing-service/src/main/resources/application-docker.properties" beforeDir="false" afterPath="$PROJECT_DIR$/billing-service/src/main/resources/application-docker.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clients-service/src/main/resources/application-docker.properties" beforeDir="false" afterPath="$PROJECT_DIR$/clients-service/src/main/resources/application-docker.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/patient-service/src/main/resources/application-docker.properties" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/resources/application-docker.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/resources/application-docker.properties" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/resources/application-docker.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/SuppliersServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/SuppliersServiceApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorGetService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorGetService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorRecordService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorRecordService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorStatusService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorStatusService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/resources/application-dev.properties" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/resources/application-dev.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -69,53 +61,53 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Application.AdmissionsServiceApplication.executor": "Run",
-    "Application.AiAssistantServiceApplication.executor": "Run",
-    "Application.ApiGatewayApplication.executor": "Run",
-    "Application.AuthServiceApplication.executor": "Debug",
-    "Application.ClientsServiceApplication.executor": "Run",
-    "Application.ClinicaDeYmidApplication.executor": "Run",
-    "Application.EurekaServiceApplication.executor": "Run",
-    "Application.PatientServiceApplication.executor": "Run",
-    "Application.SuppliersServiceApplication.executor": "Run",
-    "Docker.docker-compose.yml.admissions-db: Compose Deployment.executor": "Run",
-    "Docker.docker-compose.yml.suppliers-db: Compose Deployment.executor": "Run",
-    "JUnit.EurekaServiceApplicationTests.executor": "Run",
-    "Maven.admissions-service [clean].executor": "Run",
-    "Maven.admissions-service [package].executor": "Run",
-    "Maven.ai-assistant-service [clean].executor": "Run",
-    "Maven.api-gateway [clean].executor": "Run",
-    "Maven.api-gateway [package].executor": "Run",
-    "Maven.auth-service [clean].executor": "Run",
-    "Maven.auth-service [compile].executor": "Run",
-    "Maven.auth-service [package].executor": "Run",
-    "Maven.clients-service [clean].executor": "Run",
-    "Maven.clients-service [package].executor": "Run",
-    "Maven.common-module [clean].executor": "Run",
-    "Maven.common-module [package].executor": "Run",
-    "Maven.eureka-service [clean].executor": "Run",
-    "Maven.eureka-service [install].executor": "Run",
-    "Maven.eureka-service [package].executor": "Run",
-    "Maven.microservice [clean].executor": "Run",
-    "Maven.microservice [install].executor": "Run",
-    "Maven.patient-service [clean].executor": "Run",
-    "Maven.patient-service [package].executor": "Run",
-    "Maven.suppliers-service [clean].executor": "Run",
-    "Maven.suppliers-service [package].executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "last_directory_selection": "C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto",
-    "last_opened_file_path": "C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/admissions-service",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "Jupyter Settings"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.AdmissionsServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.AiAssistantServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.ApiGatewayApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.AuthServiceApplication.executor&quot;: &quot;Debug&quot;,
+    &quot;Application.ClientsServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.ClinicaDeYmidApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.EurekaServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.PatientServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Application.SuppliersServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Docker.docker-compose.yml.admissions-db: Compose Deployment.executor&quot;: &quot;Run&quot;,
+    &quot;Docker.docker-compose.yml.suppliers-db: Compose Deployment.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.EurekaServiceApplicationTests.executor&quot;: &quot;Run&quot;,
+    &quot;Maven.admissions-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.admissions-service [package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.ai-assistant-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.api-gateway [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.api-gateway [package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.auth-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.auth-service [compile].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.auth-service [package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.clients-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.clients-service [package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.common-module [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.common-module [package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.eureka-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.eureka-service [install].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.eureka-service [package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.microservice [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.microservice [install].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.patient-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.patient-service [package].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.suppliers-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.suppliers-service [package].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_directory_selection&quot;: &quot;C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/admissions-service&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;Jupyter Settings&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CreateClassDialog.RecentsKey">
       <recent name="com.ClinicaDeYmid.admissions_service.module.dto.clients" />
@@ -152,7 +144,7 @@
       <recent name="com.ClinicaDeYmid.patient_service.module.service" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.AuthServiceApplication">
+  <component name="RunManager" selected="Application.SuppliersServiceApplication">
     <configuration name="AdmissionsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="temurin-21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
@@ -288,10 +280,10 @@
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.SuppliersServiceApplication" />
         <item itemvalue="Application.EurekaServiceApplication" />
         <item itemvalue="Application.AdmissionsServiceApplication" />
         <item itemvalue="JUnit.EurekaServiceApplicationTests" />
-        <item itemvalue="Application.SuppliersServiceApplication" />
         <item itemvalue="Application.PatientServiceApplication" />
       </list>
     </recent_temporary>
