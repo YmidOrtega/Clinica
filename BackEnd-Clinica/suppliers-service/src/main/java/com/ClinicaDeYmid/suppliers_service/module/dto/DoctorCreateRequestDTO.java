@@ -2,7 +2,6 @@ package com.ClinicaDeYmid.suppliers_service.module.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
-
 import java.util.List;
 
 public record DoctorCreateRequestDTO(
@@ -18,8 +17,11 @@ public record DoctorCreateRequestDTO(
         @Schema(description = "Identification number", example = "123456789", required = true)
         @NotBlank String identificationNumber,
 
-        @Schema(description = "List of sub-specialty IDs", example = "[1,2,3]", required = false)
-        List<DoctorSpecialtyDto> specialties,
+        @Schema(description = "List of specialty IDs", example = "[1,2]", required = true)
+        @NotEmpty List<Long> specialtyIds,
+
+        @Schema(description = "List of sub-specialty IDs", example = "[10,12]", required = false)
+        List<Long> subSpecialtyIds,
 
         @Schema(description = "Phone number", example = "+573011234567", required = true)
         @NotBlank String phoneNumber,

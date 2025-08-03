@@ -40,13 +40,21 @@ public class Doctor {
     @Column(name = "identification_number", nullable = false, unique = true)
     private String identificationNumber;
 
-    @ManyToMany(cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
+    @ManyToMany(cascade = CascadeType.MERGE, fetch = FetchType.LAZY)
     @JoinTable(
             name = "doctor_specialties",
             joinColumns = @JoinColumn(name = "doctor_id"),
             inverseJoinColumns = @JoinColumn(name = "specialty_id")
     )
-    private List<Speciality> specialties;
+    private List<Speciality> specialties = new ArrayList<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "doctor_subspecialties",
+            joinColumns = @JoinColumn(name = "doctor_id"),
+            inverseJoinColumns = @JoinColumn(name = "subspecialty_id")
+    )
+    private List<SubSpecialty> subSpecialties = new ArrayList<>();
 
     @Column(name = "phone_number", nullable = false)
     private String phoneNumber;
