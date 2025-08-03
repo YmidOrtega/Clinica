@@ -30,8 +30,5 @@ public class SubSpecialty {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "speciality_id")
     private Speciality speciality;
-
-    @ManyToMany(mappedBy = "subSpecialties")
-    private List<Doctor> doctors = new ArrayList<>();
 }
 
