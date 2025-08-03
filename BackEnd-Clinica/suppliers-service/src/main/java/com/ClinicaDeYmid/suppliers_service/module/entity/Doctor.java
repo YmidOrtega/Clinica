@@ -40,13 +40,13 @@ public class Doctor {
     @Column(name = "identification_number", nullable = false, unique = true)
     private String identificationNumber;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinTable(
-            name = "doctor_subspecialties",
+            name = "doctor_specialties",
             joinColumns = @JoinColumn(name = "doctor_id"),
-            inverseJoinColumns = @JoinColumn(name = "subspecialty_id")
+            inverseJoinColumns = @JoinColumn(name = "specialty_id")
     )
-    private List<SubSpecialty> subSpecialties = new ArrayList<>();
+    private List<Speciality> specialties;
 
     @Column(name = "phone_number", nullable = false)
     private String phoneNumber;

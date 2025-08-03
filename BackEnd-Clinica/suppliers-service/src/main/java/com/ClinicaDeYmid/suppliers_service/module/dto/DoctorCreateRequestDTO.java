@@ -18,6 +18,9 @@ public record DoctorCreateRequestDTO(
         @Schema(description = "Identification number", example = "123456789", required = true)
         @NotBlank String identificationNumber,
 
+        @Schema(description = "List of sub-specialty IDs", example = "[1,2,3]", required = false)
+        List<DoctorSpecialtyDto> specialties,
+
         @Schema(description = "Phone number", example = "+573011234567", required = true)
         @NotBlank String phoneNumber,
 
@@ -31,11 +34,5 @@ public record DoctorCreateRequestDTO(
         String address,
 
         @Schema(description = "Hourly rate charged by the doctor", example = "100.0", required = false)
-        Double hourlyRate,
-
-        @Schema(description = "List of sub-specialty IDs", example = "[1,2,3]", required = false)
-        List<Long> subSpecialtyIds,
-
-        @Schema(description = "List of allowed service type IDs", example = "[1,2]", required = false)
-        List<Long> allowedServiceTypeIds
+        Double hourlyRate
 ) {}

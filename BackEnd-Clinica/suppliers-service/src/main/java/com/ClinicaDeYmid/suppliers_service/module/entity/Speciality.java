@@ -27,8 +27,11 @@ public class Speciality {
     @Column(nullable = false, unique = true)
     private String name;
 
+    @ManyToMany(mappedBy = "specialties")
+    private List<Doctor> doctors;
+
     @OneToMany(mappedBy = "speciality", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SubSpecialty> subSpecialties = new ArrayList<>();
+    private List<SubSpecialty> subSpecialties;
 
     @Builder.Default
     private Boolean active = true;
