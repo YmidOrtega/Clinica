@@ -47,6 +47,6 @@ public record DoctorResponseDto(
         @Schema(description = "Date and time when the doctor was last updated", example = "2024-07-12T12:00:00")
         LocalDateTime updatedAt,
 
-        @Schema(description = "List of doctor's specialties")
-        List<DoctorSpecialtyDto> specialties
+        @Schema(description = "List of specialties and sub-specialties for the doctor")
+        List<SpecialtyDetailsDto> specialties
 ) {}

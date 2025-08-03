@@ -22,9 +22,9 @@ public record DoctorUpdateRequestDTO(
         @Schema(description = "Indicates if the doctor is active", example = "true")
         Boolean active,
 
-        @Schema(description = "List of sub-specialty IDs", example = "[1,2,3]")
-        List<Long> subSpecialtyIds,
+        @Schema(description = "List of specialty IDs", example = "[1,2,3]")
+        List<Long> specialtyIds,
 
-        @Schema(description = "List of allowed service type IDs", example = "[1,2]")
-        List<Long> allowedServiceTypeIds
+        @Schema(description = "List of sub-specialty IDs", example = "[10,12]")
+        List<Long> subSpecialtyIds
 ) {}
