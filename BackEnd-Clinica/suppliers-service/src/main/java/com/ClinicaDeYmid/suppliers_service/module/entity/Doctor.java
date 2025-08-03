@@ -40,7 +40,7 @@ public class Doctor {
     @Column(name = "identification_number", nullable = false, unique = true)
     private String identificationNumber;
 
-    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ManyToMany(cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
     @JoinTable(
             name = "doctor_specialties",
             joinColumns = @JoinColumn(name = "doctor_id"),
