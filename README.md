@@ -1,9 +1,5 @@
 Sistema de Gestión de Clínica Médica
 
-📋 Descripción del Proyecto
-
-Este es un sistema completo de gestión de clínica médica construido con arquitectura de microservicios. El sistema incluye un backend desarrollado en Spring Boot con múltiples microservicios y un frontend desarrollado en Astro.
-
 Backend - Microservicios
 
 El backend está compuesto por los siguientes microservicios:
