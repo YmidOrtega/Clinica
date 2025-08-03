@@ -30,7 +30,7 @@ public class Speciality {
     @ManyToMany(mappedBy = "specialties")
     private List<Doctor> doctors;
 
-    @OneToMany(mappedBy = "speciality", cascade = CascadeType.PERSIST, orphanRemoval = true)
+    @OneToMany(mappedBy = "speciality", cascade = CascadeType.MERGE, orphanRemoval = true)
     private List<SubSpecialty> subSpecialties;
 
     @Builder.Default

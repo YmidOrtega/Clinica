@@ -44,7 +44,7 @@ public class DoctorController {
 
         DoctorResponseDto response = doctorRecordService.createDoctor(request);
 
-        URI uri = uriBuilder.path("/api/v1/doctors/{id}")
+        URI uri = uriBuilder.path("//api/v1/suppliers/doctors/{id}")
                 .buildAndExpand(response.id())
                 .toUri();
 

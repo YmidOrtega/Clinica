@@ -5,10 +5,24 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/suppliers-service/src/main/resources/db/migration/suppliers/V2.0__DOCTOR-specialties_table.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/repository/SpecialtyRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/repository/SubSpecialtyRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/SuppliersServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/SuppliersServiceApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/controller/DoctorController.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/controller/DoctorController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorCreateRequestDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorCreateRequestDTO.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorResponseDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorResponseDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorSpecialtyDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/SpecialtyDetailsDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorUpdateRequestDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/DoctorUpdateRequestDTO.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/SubSpecialtyDetailsDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/dto/SubSpecialtyDetailsDto.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/Doctor.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/Doctor.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/Speciality.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/Speciality.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/SubSpecialty.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/SubSpecialty.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/mapper/DoctorMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/mapper/DoctorMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/repository/DoctorRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/repository/DoctorRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorGetService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorGetService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorRecordService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorRecordService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/resources/db/migration/suppliers/V2.0__DOCTOR-specialties_table.sql" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/resources/db/migration/suppliers/V2.0__DOCTOR-specialties_table.sql" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,10 +35,10 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="Interface" />
         <option value="Enum" />
         <option value="Record" />
         <option value="Class" />
+        <option value="Interface" />
       </list>
     </option>
   </component>
