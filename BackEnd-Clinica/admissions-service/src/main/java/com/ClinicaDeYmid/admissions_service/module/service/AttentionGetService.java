@@ -21,6 +21,7 @@ import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepositor
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -50,6 +51,7 @@ public class AttentionGetService {
     private final DoctorClient doctorClient;
     private final HealthProviderClient healthProviderClient;
 
+    @Cacheable(value = "attention_cache", key = "#id")
     @Transactional(readOnly = true)
     public AttentionResponseDto getAttentionById(Long id) {
         log.info("Fetching attention with ID: {}", id);
@@ -63,6 +65,7 @@ public class AttentionGetService {
         return attentionEnrichmentService.enrichAttentionResponseDto(attention);
     }
 
+    @Cacheable(value = "attention_cache", key = "#patientId")
     @Transactional(readOnly = true)
     public List<PatientWithAttentionsResponse> getAttentionsByPatientId(Long patientId) {
         log.info("Fetching attentions for patient ID: {}", patientId);
@@ -90,6 +93,7 @@ public class AttentionGetService {
         );
     }
 
+    @Cacheable(value = "attention_cache", key = "#patientId")
     @Transactional(readOnly = true)
     public List<PatientWithAttentionsResponse> getActiveAttentionByPatientId(Long patientId) {
         log.info("Fetching active attention for patient ID: {}", patientId);
@@ -117,6 +121,7 @@ public class AttentionGetService {
         );
     }
 
+    @Cacheable(value = "attention_cache", key = "#doctorId")
     @Transactional(readOnly = true)
     public List<DoctorWithAttentionsResponse> getAttentionsByDoctorId(Long doctorId) {
         log.info("Fetching attentions for doctor ID: {}", doctorId);
@@ -159,6 +164,7 @@ public class AttentionGetService {
                 attentionMapper.toDoctorWithAttentionsResponse(doctorName, grouped));
     }
 
+    @Cacheable(value = "attention_cache", key = "#healthProviderNit")
     @Transactional(readOnly = true)
     public List<HealthProviderWithAttentionsResponse> getGroupedAttentionsByHealthProvider(String healthProviderNit) {
         log.info("Fetching attentions for health provider NIT: {}", healthProviderNit);
@@ -199,6 +205,7 @@ public class AttentionGetService {
         return List.of(response);
     }
 
+    @Cacheable(value = "attention_cache", key = "#configServiceId")
     @Transactional(readOnly = true)
     public List<AttentionResponseDto> getAttentionsByConfigurationServiceId(Long configServiceId) {
         log.info("Fetching attentions for configuration service ID: {}", configServiceId);
