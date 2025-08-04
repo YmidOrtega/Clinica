@@ -26,17 +26,20 @@ public class DoctorGetService {
     private final DoctorRepository doctorRepository;
     private final DoctorMapper doctorMapper;
 
+
     @Cacheable(value = "doctor_cache", key = "#id")
     @Transactional(readOnly = true)
     public DoctorResponseDto getDoctorById(Long id) {
-        Doctor doctor = doctorRepository.findById(id)
+        Doctor doctor = doctorRepository.findByIdWithSpecialtiesAndSubSpecialties(id)
                 .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + id));
+
         return doctorMapper.toDoctorResponseDto(doctor);
     }
 
     @Transactional(readOnly = true)
     public List<DoctorResponseDto> getAllDoctors() {
-        return doctorRepository.findAll()
+        List<Doctor> doctors = doctorRepository.findAllActiveWithSpecialtiesAndSubSpecialties();
+        return doctors
                 .stream()
                 .map(doctorMapper::toDoctorResponseDto)
                 .collect(Collectors.toList());

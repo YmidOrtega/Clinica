@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.suppliers_service.module.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -7,9 +8,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "doctors", indexes = {
@@ -21,6 +21,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
+@ToString(exclude = {"specialties", "subSpecialties"})
 @Builder
 public class Doctor {
 
@@ -46,15 +47,17 @@ public class Doctor {
             joinColumns = @JoinColumn(name = "doctor_id"),
             inverseJoinColumns = @JoinColumn(name = "specialty_id")
     )
-    private List<Speciality> specialties = new ArrayList<>();
+    @JsonManagedReference("doctor-specialties")
+    private Set<Speciality> specialties = new HashSet<>();
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "doctor_subspecialties",
             joinColumns = @JoinColumn(name = "doctor_id"),
             inverseJoinColumns = @JoinColumn(name = "subspecialty_id")
     )
-    private List<SubSpecialty> subSpecialties = new ArrayList<>();
+    @JsonManagedReference("doctor-subspecialties")
+    private Set<SubSpecialty> subSpecialties = new HashSet<>();
 
     @Column(name = "phone_number", nullable = false)
     private String phoneNumber;
@@ -122,6 +125,7 @@ public class Doctor {
     public String toString() {
         return "Doctor{" +
                 "id=" + id +
+                ", providerCode=" + providerCode +
                 ", name='" + getFullName() + '\'' +
                 ", email='" + email + '\'' +
                 ", active=" + active +
