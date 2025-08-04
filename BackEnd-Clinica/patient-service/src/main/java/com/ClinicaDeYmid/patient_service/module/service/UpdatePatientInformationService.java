@@ -10,6 +10,7 @@ import com.ClinicaDeYmid.patient_service.module.feignclient.HealthProviderClient
 import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class UpdatePatientInformationService {
     private final PatientMapper patientMapper;
     private final HealthProviderClient healthProviderClient;
 
+    @CachePut(value = "patient_cache", key = "#result.identificationNumber")
     @Transactional
     public PatientResponseDto updatePatientInformation(UpdatePatientDto updatePatientDto, String identification) {
 
