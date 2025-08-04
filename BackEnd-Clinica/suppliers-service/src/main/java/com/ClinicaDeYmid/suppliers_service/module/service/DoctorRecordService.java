@@ -8,16 +8,16 @@ import com.ClinicaDeYmid.suppliers_service.module.mapper.DoctorMapper;
 import com.ClinicaDeYmid.suppliers_service.module.repository.DoctorRepository;
 import com.ClinicaDeYmid.suppliers_service.module.repository.SpecialtyRepository;
 import com.ClinicaDeYmid.suppliers_service.module.repository.SubSpecialtyRepository;
-import jakarta.ws.rs.NotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +29,7 @@ public class DoctorRecordService {
     private final DoctorMapper doctorMapper;
 
     @CachePut(value = "doctor_cache", key = "#result.id")
+    @Transactional
     public DoctorResponseDto createDoctor(DoctorCreateRequestDTO request) {
 
         Doctor doctor = new Doctor();
@@ -44,43 +45,74 @@ public class DoctorRecordService {
         doctor.setHourlyRate(BigDecimal.valueOf(request.hourlyRate()));
 
         if (request.specialtyIds() != null && !request.specialtyIds().isEmpty()) {
-            List<Speciality> specialties = specialtyRepository.findAllById(request.specialtyIds());
-            doctor.setSpecialties(specialties);
+            List<Speciality> specialtiesList = specialtyRepository.findAllById(request.specialtyIds());
+            Set<Speciality> specialtiesSet = new HashSet<>(specialtiesList);
+            doctor.setSpecialties(specialtiesSet);
         }
 
         if (request.subSpecialtyIds() != null && !request.subSpecialtyIds().isEmpty()) {
-            List<SubSpecialty> subSpecialties = subSpecialtyRepository.findAllById(request.subSpecialtyIds());
-            doctor.setSubSpecialties(subSpecialties);
+            List<SubSpecialty> subSpecialtiesList = subSpecialtyRepository.findAllById(request.subSpecialtyIds());
+            Set<SubSpecialty> subSpecialtiesSet = new HashSet<>(subSpecialtiesList);
+            doctor.setSubSpecialties(subSpecialtiesSet);
         }
 
         Doctor saved = doctorRepository.save(doctor);
 
-        Doctor loaded = doctorRepository.findById(saved.getId())
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+        Doctor loaded = doctorRepository.findByIdWithSpecialtiesAndSubSpecialties(saved.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Doctor not found after creation"));
 
         return doctorMapper.toDoctorResponseDto(loaded);
     }
 
     @CachePut(value = "doctor_cache", key = "#result.id")
+    @Transactional
     public DoctorResponseDto updateDoctor(Long id, DoctorUpdateRequestDTO request) {
         Doctor doctor = doctorRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Doctor not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + id));
 
         doctorMapper.updateDoctorFromDto(request, doctor);
 
         if (request.specialtyIds() != null) {
-            List<Speciality> specialties = specialtyRepository.findAllById(request.specialtyIds());
-            doctor.setSpecialties(specialties);
+            if (request.specialtyIds().isEmpty()) {
+                doctor.setSpecialties(new HashSet<>());
+            } else {
+                List<Speciality> specialtiesList = specialtyRepository.findAllById(request.specialtyIds());
+                Set<Speciality> specialtiesSet = new HashSet<>(specialtiesList);
+                doctor.setSpecialties(specialtiesSet);
+            }
         }
 
         if (request.subSpecialtyIds() != null) {
-            List<SubSpecialty> subSpecialties = subSpecialtyRepository.findAllById(request.subSpecialtyIds());
-            doctor.setSubSpecialties(subSpecialties);
+            if (request.subSpecialtyIds().isEmpty()) {
+                doctor.setSubSpecialties(new HashSet<>());
+            } else {
+                List<SubSpecialty> subSpecialtiesList = subSpecialtyRepository.findAllById(request.subSpecialtyIds());
+                Set<SubSpecialty> subSpecialtiesSet = new HashSet<>(subSpecialtiesList);
+                doctor.setSubSpecialties(subSpecialtiesSet);
+            }
         }
 
         Doctor updatedDoctor = doctorRepository.save(doctor);
-        return doctorMapper.toDoctorResponseDto(updatedDoctor);
+
+        Doctor loadedDoctor = doctorRepository.findByIdWithSpecialtiesAndSubSpecialties(updatedDoctor.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Doctor not found after update"));
+
+        return doctorMapper.toDoctorResponseDto(loadedDoctor);
     }
 
-}
+    private void validateSpecialtiesAndSubSpecialties(List<Long> specialtyIds, List<Long> subSpecialtyIds) {
+        if (specialtyIds != null && !specialtyIds.isEmpty()) {
+            List<Speciality> foundSpecialties = specialtyRepository.findAllById(specialtyIds);
+            if (foundSpecialties.size() != specialtyIds.size()) {
+                throw new EntityNotFoundException("Some specialties not found");
+            }
+        }
 
+        if (subSpecialtyIds != null && !subSpecialtyIds.isEmpty()) {
+            List<SubSpecialty> foundSubSpecialties = subSpecialtyRepository.findAllById(subSpecialtyIds);
+            if (foundSubSpecialties.size() != subSpecialtyIds.size()) {
+                throw new EntityNotFoundException("Some subspecialties not found");
+            }
+        }
+    }
+}

@@ -1,13 +1,11 @@
 package com.ClinicaDeYmid.suppliers_service.module.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "sub_specialties")
@@ -15,10 +13,13 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(exclude = {"speciality", "doctors"})
 public class SubSpecialty {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(unique = true, nullable = false)
@@ -29,9 +30,10 @@ public class SubSpecialty {
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "speciality_id")
+    @JsonBackReference("speciality-subspecialties") // Evita la serialización circular con Speciality
     private Speciality speciality;
 
     @ManyToMany(mappedBy = "subSpecialties", fetch = FetchType.LAZY)
-    private List<Doctor> doctors = new ArrayList<>();
+    @JsonBackReference("doctor-subspecialties") // Evita la serialización circular con Doctor
+    private Set<Doctor> doctors = new HashSet<>();
 }
-
