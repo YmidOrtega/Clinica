@@ -5,16 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="09b455dc-4fe9-4b08-84b6-80e76da996c5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/config/RedisCacheConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/SuppliersServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/SuppliersServiceApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/config/RedisCacheConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/config/RedisCacheConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/Doctor.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/Doctor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/Speciality.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/Speciality.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/SubSpecialty.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/entity/SubSpecialty.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/mapper/DoctorMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/mapper/DoctorMapper.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/repository/DoctorRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/repository/DoctorRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorGetService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorGetService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorRecordService.java" beforeDir="false" afterPath="$PROJECT_DIR$/suppliers-service/src/main/java/com/ClinicaDeYmid/suppliers_service/module/service/DoctorRecordService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application-dev.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/PatientServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/PatientServiceApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/service/GetPatientInformationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/service/GetPatientInformationService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/service/PatientRecordService.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/service/PatientRecordService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/service/UpdatePatientInformationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/service/UpdatePatientInformationService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -68,7 +66,7 @@
     "Application.AdmissionsServiceApplication.executor": "Run",
     "Application.AiAssistantServiceApplication.executor": "Run",
     "Application.ApiGatewayApplication.executor": "Run",
-    "Application.AuthServiceApplication.executor": "Debug",
+    "Application.AuthServiceApplication.executor": "Run",
     "Application.ClientsServiceApplication.executor": "Run",
     "Application.ClinicaDeYmidApplication.executor": "Run",
     "Application.EurekaServiceApplication.executor": "Run",
@@ -103,7 +101,7 @@
     "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "main",
     "last_directory_selection": "C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/admissions-service/src/main/java/com/ClinicaDeYmid/admissions_service/module/dto",
-    "last_opened_file_path": "C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/admissions-service",
+    "last_opened_file_path": "C:/Users/Ymid/Dev/Clinica/BackEnd-Clinica/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module",
     "project.structure.last.edited": "Modules",
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2",
@@ -119,6 +117,7 @@
       <recent name="com.ClinicaDeYmid.admissions_service.module.validation" />
     </key>
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\patient-service\src\main\java\com\ClinicaDeYmid\patient_service\module" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\admissions-service" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\auth-service\src\main\java\com\ClinicaDeYmid\auth_service\infra" />
       <recent name="C:\Users\Ymid\Dev\Clinica\BackEnd-Clinica\admissions-service\src\main\resources\db\migration\admissions" />
@@ -146,19 +145,19 @@
       <recent name="com.ClinicaDeYmid.patient_service.module.service" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.SuppliersServiceApplication">
-    <configuration name="AdmissionsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+  <component name="RunManager" selected="Application.ApiGatewayApplication">
+    <configuration name="ApiGatewayApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="temurin-21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
       <option name="envFilePaths">
         <option value="$PROJECT_DIR$/.env" />
       </option>
-      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.admissions_service.AdmissionsServiceApplication" />
-      <module name="admissions-service" />
+      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.api_gateway.ApiGatewayApplication" />
+      <module name="api-gateway" />
       <option name="VM_PARAMETERS" value="-Dspring.profiles.active=dev" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.ClinicaDeYmid.admissions_service.*" />
+          <option name="PATTERN" value="com.ClinicaDeYmid.api_gateway.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -178,6 +177,25 @@
       <extension name="coverage">
         <pattern>
           <option name="PATTERN" value="com.ClinicaDeYmid.auth_service.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ClientsServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="ALTERNATIVE_JRE_PATH" value="temurin-21" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+      <option name="envFilePaths">
+        <option value="$PROJECT_DIR$/.env" />
+      </option>
+      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.clients_service.ClientsServiceApplication" />
+      <module name="clients-service" />
+      <option name="VM_PARAMETERS" value="-Dspring.profiles.active=dev" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.ClinicaDeYmid.clients_service.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -251,21 +269,6 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="EurekaServiceApplicationTests" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
-      <module name="eureka-service" />
-      <extension name="coverage">
-        <pattern>
-          <option name="PATTERN" value="com.ClinicaDeYmid.eureka_service.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <option name="PACKAGE_NAME" value="com.ClinicaDeYmid.eureka_service" />
-      <option name="MAIN_CLASS_NAME" value="com.ClinicaDeYmid.eureka_service.EurekaServiceApplicationTests" />
-      <option name="TEST_OBJECT" value="class" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
     <configuration default="true" type="docker-deploy" factoryName="docker-compose.yml" temporary="true">
       <deployment type="docker-compose.yml">
         <settings />
@@ -274,19 +277,19 @@
     </configuration>
     <list>
       <item itemvalue="Application.AuthServiceApplication" />
-      <item itemvalue="Application.AdmissionsServiceApplication" />
+      <item itemvalue="Application.ApiGatewayApplication" />
+      <item itemvalue="Application.ClientsServiceApplication" />
       <item itemvalue="Application.EurekaServiceApplication" />
       <item itemvalue="Application.PatientServiceApplication" />
       <item itemvalue="Application.SuppliersServiceApplication" />
-      <item itemvalue="JUnit.EurekaServiceApplicationTests" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.ClientsServiceApplication" />
+        <item itemvalue="Application.ApiGatewayApplication" />
+        <item itemvalue="Application.PatientServiceApplication" />
         <item itemvalue="Application.SuppliersServiceApplication" />
         <item itemvalue="Application.EurekaServiceApplication" />
-        <item itemvalue="JUnit.EurekaServiceApplicationTests" />
-        <item itemvalue="Application.AdmissionsServiceApplication" />
-        <item itemvalue="Application.PatientServiceApplication" />
       </list>
     </recent_temporary>
   </component>
@@ -318,16 +321,6 @@
           <url>file://$PROJECT_DIR$/patient-service/src/main/java/com/ClinicaDeYmid/patient_service/module/controller/PatientController.java</url>
           <line>50</line>
           <option name="timeStamp" value="7" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java</url>
-          <line>38</line>
-          <option name="timeStamp" value="8" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/controller/AuthController.java</url>
-          <line>41</line>
-          <option name="timeStamp" value="9" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/auth-service/src/main/java/com/ClinicaDeYmid/auth_service/module/auth/security/SecurityFilter.java</url>

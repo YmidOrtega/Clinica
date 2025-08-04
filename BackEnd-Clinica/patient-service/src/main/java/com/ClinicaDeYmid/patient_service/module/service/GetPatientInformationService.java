@@ -11,6 +11,7 @@ import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.enums.Status;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class GetPatientInformationService {
     private final PatientMapper patientMapper;
     private final HealthProviderClient healthProviderClient;
 
+    @Cacheable(value = "patient_cache", key = "#identificationNumber")
     @Transactional(readOnly = true)
     public GetPatientDto getPatientDto(String identificationNumber) {
 
