@@ -20,6 +20,7 @@ import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepositor
 import com.ClinicaDeYmid.admissions_service.module.repository.ConfigurationServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +52,7 @@ public class AttentionRecordService {
     private final HealthProviderClient healthProviderClient;
     private final UserClient userClient;
 
+    @CachePut(value = "attention_cache", key = "#result.id")
     @Transactional
     public AttentionResponseDto createAttention(AttentionRequestDto requestDto) {
         log.info("Creating new attention for patient ID: {}", requestDto.patientId());
@@ -97,6 +99,7 @@ public class AttentionRecordService {
         return responseDto;
     }
 
+    @CachePut(value = "attention_cache", key = "#result.id")
     @Transactional
     public AttentionResponseDto updateAttention(Long id, AttentionRequestDto requestDto) {
         log.info("Updating attention with ID: {}", id);
