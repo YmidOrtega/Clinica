@@ -1,11 +1,7 @@
 package com.ClinicaDeYmid.suppliers_service.module.service;
 
 import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorResponseDto;
-import com.ClinicaDeYmid.suppliers_service.module.dto.SpecialtyDetailsDto;
-import com.ClinicaDeYmid.suppliers_service.module.dto.SubSpecialtyDetailsDto;
 import com.ClinicaDeYmid.suppliers_service.module.entity.Doctor;
-import com.ClinicaDeYmid.suppliers_service.module.entity.Speciality;
-import com.ClinicaDeYmid.suppliers_service.module.entity.SubSpecialty;
 import com.ClinicaDeYmid.suppliers_service.module.mapper.DoctorMapper;
 import com.ClinicaDeYmid.suppliers_service.module.repository.DoctorRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -14,9 +10,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service

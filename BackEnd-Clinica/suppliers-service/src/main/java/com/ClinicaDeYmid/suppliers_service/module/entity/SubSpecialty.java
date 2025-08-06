@@ -30,10 +30,10 @@ public class SubSpecialty {
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "speciality_id")
-    @JsonBackReference("speciality-subspecialties") // Evita la serialización circular con Speciality
+    @JsonBackReference("speciality-subspecialties")
     private Speciality speciality;
 
     @ManyToMany(mappedBy = "subSpecialties", fetch = FetchType.LAZY)
-    @JsonBackReference("doctor-subspecialties") // Evita la serialización circular con Doctor
+    @JsonBackReference("doctor-subspecialties")
     private Set<Doctor> doctors = new HashSet<>();
 }
