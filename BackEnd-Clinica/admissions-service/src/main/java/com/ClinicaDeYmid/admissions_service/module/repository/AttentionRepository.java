@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AttentionRepository extends JpaRepository<Attention, Long>, JpaSpecificationExecutor<Attention> {
+    
     List<Attention> findByPatientId(Long patientId);
     Optional<Attention> findByPatientIdAndStatus(Long patientId, AttentionStatus status);
     List<Attention> findByDoctorId(Long doctorId);
