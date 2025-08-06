@@ -20,7 +20,8 @@ public class AgentController {
 
     private final AIService aiService;
 
-    @PostMapping(/chat)
+    @PostMapping("/chat")
+
     public ResponseEntity<ChatResponse> chat(@RequestBody RequestParams requestParams) {
 
         String conversationId = (requestParams.user_id() == null) ?
@@ -30,7 +31,7 @@ public class AgentController {
         return ResponseEntity.ok(new ChatResponse();
                 conversationId,
                 response.answer()
-        ));
+        );
     }
 
 }

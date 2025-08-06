@@ -6,7 +6,6 @@ import com.ClinicaDeYmid.admissions_service.module.enums.Cause;
 import com.ClinicaDeYmid.admissions_service.module.enums.TriageLevel;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.time.LocalDateTime;
 import java.time.LocalDate;
 
 public class AttentionSpecifications {
