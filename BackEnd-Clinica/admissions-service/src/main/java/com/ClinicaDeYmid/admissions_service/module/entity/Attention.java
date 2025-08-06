@@ -70,7 +70,7 @@ public class Attention {
     private List<AttentionUserHistory> userHistory = new ArrayList<>();
 
     @OneToMany(mappedBy = "attention", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<Authorization> authorizations;
+    private List<Authorization> authorizations = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "configuration_service_id")
