@@ -122,9 +122,38 @@ class AttentionRecordServiceTest {
 
     }
 
-    @Test
-    void updateAttention() {
-    }
+@Test
+@DisplayName("Deberia actualizar una atencion correctamente")
+void updateAttention() {
+    // Arrange
+    Long id = 1L;
+    AttentionRequestDto requestDto = createSampleRequestDto();
+    Attention existingAttention = new Attention();
+    AttentionResponseDto expectedResponse = createExpectedResponseDto();
+    ConfigurationService configService = new ConfigurationService();
+
+    when(attentionRepository.findById(id))
+            .thenReturn(Optional.of(existingAttention));
+    when(configurationServiceRepository.findById(requestDto.configurationServiceId()))
+            .thenReturn(Optional.of(configService));
+    doNothing().when(attentionMapper).updateEntityFromDto(requestDto, existingAttention);
+    when(attentionRepository.save(existingAttention))
+            .thenReturn(existingAttention);
+    when(attentionEnrichmentService.enrichAttentionResponseDto(existingAttention))
+            .thenReturn(expectedResponse);
+
+    // Act
+    AttentionResponseDto actualResponse = attentionRecordService.updateAttention(id, requestDto);
+
+    // Assert
+    assertNotNull(actualResponse);
+    assertEquals(expectedResponse, actualResponse);
+    verify(attentionRepository, times(1)).findById(id);
+    verify(configurationServiceRepository, times(1)).findById(requestDto.configurationServiceId());
+    verify(attentionMapper, times(1)).updateEntityFromDto(requestDto, existingAttention);
+    verify(attentionRepository, times(1)).save(existingAttention);
+    verify(attentionEnrichmentService, times(1)).enrichAttentionResponseDto(existingAttention);
+}
 
     @Test
     void canUpdateAttention() {
