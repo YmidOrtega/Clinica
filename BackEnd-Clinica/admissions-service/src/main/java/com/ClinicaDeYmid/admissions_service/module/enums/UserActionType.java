@@ -1,7 +1,6 @@
 package com.ClinicaDeYmid.admissions_service.module.enums;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.Getter;
 
 @Getter
