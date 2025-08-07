@@ -430,18 +430,18 @@ services:
 
    # Redis Insight para monitoreo
    redis-insight:
-      image: redislabs/redisinsight:latest
-      container_name: redis-insight
-      restart: always
-      depends_on:
-         redis-cache:
-            condition: service_healthy
-      ports:
-         - "8001:8001"
-      volumes:
-         - redis_insight_data:/db
-      networks:
-         - clinica-net
+     image: redis/redisinsight:latest
+     container_name: redis-insight
+     restart: always
+     depends_on:
+       redis-cache:
+         condition: service_healthy
+     ports:
+       - "8002:5540"
+     volumes:
+       - redis_insight_data:/db
+     networks:
+       - clinica-net
 
 # Volúmenes para persistencia de datos
 volumes:
