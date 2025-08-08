@@ -27,6 +27,7 @@ public class ConfigurationService {
     @JoinColumn(name = "location_id", nullable = false)
     private Location location;
 
+    @Builder.Default
     @Column(nullable = false)
     private boolean active = true;
 

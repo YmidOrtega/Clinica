@@ -35,12 +35,13 @@ public class GlobalException {
         response.put("path", request.getRequestURI());
 
         List<Map<String, String>> errors = ex.getBindingResult().getFieldErrors().stream().map(error -> {
-            Map<String, String> err = new LinkedHashMap<>();
-            err.put("field", error.getField());
-            err.put("message", error.getDefaultMessage());
-            err.put("rejectedValue", error.getRejectedValue() != null ? error.getRejectedValue().toString() : null);
-            return err;
-        }).toList();
+    Map<String, String> err = new LinkedHashMap<>();
+    err.put("field", error.getField());
+    err.put("message", error.getDefaultMessage());
+    Object rejected = error.getRejectedValue(); 
+    err.put("rejectedValue", rejected != null ? rejected.toString() : null);
+    return err;
+}).toList();
 
         response.put("validationErrors", errors);
         return ResponseEntity.badRequest().body(response);
@@ -92,19 +93,42 @@ public class GlobalException {
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Tipo de parámetro incorrecto");
-        assert ex.getRequiredType() != null;
-        response.put("message", "El parámetro '" + ex.getName() + "' debe ser de tipo " + ex.getRequiredType().getSimpleName());
-        response.put("path", request.getRequestURI());
-        response.put("parameter", ex.getName());
-        response.put("providedValue", ex.getValue());
-        response.put("expectedType", ex.getRequiredType().getSimpleName());
-        return ResponseEntity.badRequest().body(response);
+public ResponseEntity<Map<String, Object>> handleTypeMismatch(
+        MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("timestamp", ZonedDateTime.now());
+    response.put("status", HttpStatus.BAD_REQUEST.value());
+    response.put("error", "Tipo de parámetro incorrecto");
+    response.put("path", request.getRequestURI());
+    response.put("parameter", ex.getName());
+    response.put("providedValue", ex.getValue());
+
+    Class<?> required = ex.getRequiredType();
+    String requiredTypeName = (required == null) ? "desconocido" : required.getSimpleName();
+    response.put("expectedType", requiredTypeName);
+
+    StringBuilder message = new StringBuilder("El parámetro '")
+            .append(ex.getName())
+            .append("' debe ser de tipo ")
+            .append(requiredTypeName);
+
+    if (required != null && required.isEnum()) {
+        Object[] constants = required.getEnumConstants();
+        if (constants != null && constants.length > 0) {
+            String allowed = Arrays.stream(constants)
+                    .map(Object::toString)
+                    .sorted()
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("");
+            message.append(". Valores permitidos: [").append(allowed).append("]");
+        }
     }
+
+    response.put("message", message.toString());
+    return ResponseEntity.badRequest().body(response);
+}
+
 
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

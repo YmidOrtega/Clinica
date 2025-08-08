@@ -21,7 +21,6 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = {"specialties", "subSpecialties"})
 @Builder
 public class Doctor {
 
@@ -41,6 +40,7 @@ public class Doctor {
     @Column(name = "identification_number", nullable = false, unique = true)
     private String identificationNumber;
 
+    @Builder.Default
     @ManyToMany(cascade = CascadeType.MERGE, fetch = FetchType.LAZY)
     @JoinTable(
             name = "doctor_specialties",
@@ -50,6 +50,7 @@ public class Doctor {
     @JsonManagedReference("doctor-specialties")
     private Set<Speciality> specialties = new HashSet<>();
 
+    @Builder.Default
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "doctor_subspecialties",
