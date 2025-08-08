@@ -180,7 +180,7 @@ public class AttentionGetService {
         }
 
         Long contractId = null;
-        if (!attentions.isEmpty() && attentions.get(0).getHealthProviderNit() != null && !attentions.get(0).getHealthProviderNit().isEmpty()) {
+        if (attentions != null && !attentions.isEmpty() && attentions.get(0).getHealthProviderNit() != null && !attentions.get(0).getHealthProviderNit().isEmpty()) {
             HealthProviderInfo providerInfo = attentions.get(0).getHealthProviderNit().stream()
                     .filter(hp -> healthProviderNit.equals(hp.getHealthProviderNit()))
                     .findFirst()
