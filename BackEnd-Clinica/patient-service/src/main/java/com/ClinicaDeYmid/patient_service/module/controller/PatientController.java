@@ -1,7 +1,6 @@
 package com.ClinicaDeYmid.patient_service.module.controller;
 
 import com.ClinicaDeYmid.patient_service.module.dto.*;
-import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
 import com.ClinicaDeYmid.patient_service.module.service.GetPatientInformationService;
 import com.ClinicaDeYmid.patient_service.module.service.PatientRecordService;
 import com.ClinicaDeYmid.patient_service.module.service.PatientSearchService;
@@ -36,7 +35,6 @@ public class PatientController {
     private final PatientRecordService patientRecordService;
     private final GetPatientInformationService getPatientInformationService;
     private final UpdatePatientInformationService updatePatientInformationService;
-    private final PatientRepository patientRepository;
     private final PatientSearchService patientSearchService;
 
 

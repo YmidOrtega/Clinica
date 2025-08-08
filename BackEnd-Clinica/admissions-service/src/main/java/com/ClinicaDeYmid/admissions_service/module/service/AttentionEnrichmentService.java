@@ -113,16 +113,6 @@ public class AttentionEnrichmentService {
         );
     }
 
-    // Método adicional para extraer NITs de HealthProviderInfo
-    private List<String> extractNitsFromHealthProviderInfo(List<HealthProviderInfo> healthProviderInfoList) {
-        if (healthProviderInfoList == null || healthProviderInfoList.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        return healthProviderInfoList.stream()
-                .map(HealthProviderInfo::getHealthProviderNit)
-                .collect(Collectors.toList());
-    }
 
     // Método adicional para obtener información de contratos si se necesita
     public List<Long> extractContractIdsFromHealthProviderInfo(List<HealthProviderInfo> healthProviderInfoList) {

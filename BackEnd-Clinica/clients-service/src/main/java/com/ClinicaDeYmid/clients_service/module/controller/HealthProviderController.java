@@ -3,7 +3,6 @@ package com.ClinicaDeYmid.clients_service.module.controller;
 import com.ClinicaDeYmid.clients_service.module.dto.*;
 import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
-import com.ClinicaDeYmid.clients_service.module.mapper.ContractMapper;
 import com.ClinicaDeYmid.clients_service.module.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -43,7 +42,6 @@ public class HealthProviderController {
     private final GetContractService getContractService;
     private final StatusContractService statusContractService;
     private final UpdateContractService updateContractService;
-    private final ContractMapper contractMapper;
     private final GetHealthProviderContractService getHealthProviderContractService;
 
     /**
@@ -185,8 +183,6 @@ public class HealthProviderController {
 
         log.info("Retrieving contract with ID: {} for health provider with NIT: {}", contractId, nit);
 
-
-        ContractDto contractDto = getContractService.getContractById(contractId);
         log.info("Contract found with ID: {} for health provider NIT: {}", contractId, nit);
 
         Contract contract = getContractService.getEntityContractById(contractId);

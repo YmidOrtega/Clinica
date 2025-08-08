@@ -100,19 +100,4 @@ public class DoctorRecordService {
         return doctorMapper.toDoctorResponseDto(loadedDoctor);
     }
 
-    private void validateSpecialtiesAndSubSpecialties(List<Long> specialtyIds, List<Long> subSpecialtyIds) {
-        if (specialtyIds != null && !specialtyIds.isEmpty()) {
-            List<Speciality> foundSpecialties = specialtyRepository.findAllById(specialtyIds);
-            if (foundSpecialties.size() != specialtyIds.size()) {
-                throw new EntityNotFoundException("Some specialties not found");
-            }
-        }
-
-        if (subSpecialtyIds != null && !subSpecialtyIds.isEmpty()) {
-            List<SubSpecialty> foundSubSpecialties = subSpecialtyRepository.findAllById(subSpecialtyIds);
-            if (foundSubSpecialties.size() != subSpecialtyIds.size()) {
-                throw new EntityNotFoundException("Some subspecialties not found");
-            }
-        }
-    }
 }

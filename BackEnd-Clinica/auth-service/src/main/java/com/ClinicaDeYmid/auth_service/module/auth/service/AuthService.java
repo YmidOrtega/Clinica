@@ -10,7 +10,6 @@ import com.ClinicaDeYmid.auth_service.module.user.mapper.UserMapper;
 import com.ClinicaDeYmid.auth_service.module.user.service.UserGetService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;

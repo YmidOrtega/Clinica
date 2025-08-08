@@ -6,7 +6,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
-import java.util.regex.Pattern;
 
 @Getter
 @EqualsAndHashCode
@@ -14,7 +13,6 @@ import java.util.regex.Pattern;
 public class Nit {
 
     private final String value;
-    private static final Pattern NIT_PATTERN = Pattern.compile("^\\d{9,10}$|^\\d{9,10}-\\d{1}$");
 
     protected Nit() {
         this.value = null;
@@ -28,7 +26,7 @@ public class Nit {
 
         String cleanedValue = rawValue.trim().replace(".", "").replace("-", "");
 
-        if (!cleanedValue.matches("^\\d{9,11}$")) { // Assuming cleaned value is 9 to 11 digits
+        if (!cleanedValue.matches("^\\d{9,11}$")) {
             throw new IllegalArgumentException("Formato de NIT inválido.");
         }
 
@@ -36,7 +34,7 @@ public class Nit {
     }
 
     public String getFormattedNit() {
-        if (value == null) { // Handle case where default constructor might be used
+        if (value == null) {
             return null;
         }
         if (value.length() >= 2) {

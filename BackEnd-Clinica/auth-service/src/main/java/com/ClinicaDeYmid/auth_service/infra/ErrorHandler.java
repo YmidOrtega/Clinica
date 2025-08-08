@@ -18,6 +18,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -206,13 +207,14 @@ public class ErrorHandler {
     // Errores de tipo de parámetro
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        String message = String.format("El parámetro '%s' debe ser de tipo %s",
-                ex.getName(), ex.getRequiredType().getSimpleName());
+        String requiredTypeName = Optional.ofNullable(ex.getRequiredType())
+        .map(Class::getSimpleName)
+        .orElse("desconocido");
 
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "Invalid Parameter Type",
-                message,
+                "El parámetro '" + ex.getName() + "' debe ser de tipo " + requiredTypeName,
                 "/api/v1/users"
         );
 

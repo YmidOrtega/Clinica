@@ -33,6 +33,7 @@ public class SubSpecialty {
     @JsonBackReference("speciality-subspecialties")
     private Speciality speciality;
 
+    @Builder.Default
     @ManyToMany(mappedBy = "subSpecialties", fetch = FetchType.LAZY)
     @JsonBackReference("doctor-subspecialties")
     private Set<Doctor> doctors = new HashSet<>();

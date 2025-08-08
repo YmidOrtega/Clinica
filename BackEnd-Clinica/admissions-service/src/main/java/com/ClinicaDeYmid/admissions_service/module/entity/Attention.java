@@ -57,6 +57,7 @@ public class Attention {
     @Column(name = "doctor_id", nullable = false)
     private Long doctorId;
 
+    @Builder.Default
     @ElementCollection
     @CollectionTable(name = "attention_health_providers", joinColumns = @JoinColumn(name = "attention_id"))
     @Column(name = "health_provider_nit")
@@ -65,10 +66,12 @@ public class Attention {
     @Column(name = "invoice_number")
     private Long invoiceNumber;
 
+    @Builder.Default
     @OneToMany(mappedBy = "attention", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("actionTimestamp ASC")
     private List<AttentionUserHistory> userHistory = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "attention", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Authorization> authorizations = new ArrayList<>();
 

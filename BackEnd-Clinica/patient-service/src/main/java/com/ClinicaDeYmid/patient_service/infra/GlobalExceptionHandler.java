@@ -93,21 +93,48 @@ public class GlobalExceptionHandler {
 
     // Maneja tipos de parámetros incorrectos (400)
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Tipo de parámetro inválido");
-        response.put("message", "El parámetro '" + ex.getName() + "' debe ser de tipo " + ex.getRequiredType().getSimpleName());
-        response.put("path", request.getRequestURI());
-        response.put("parameter", ex.getName());
-        response.put("providedValue", ex.getValue());
-        return ResponseEntity.badRequest().body(response);
+public ResponseEntity<Map<String, Object>> handleTypeMismatch(
+        MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("timestamp", ZonedDateTime.now());
+    response.put("status", HttpStatus.BAD_REQUEST.value());
+    response.put("error", "Tipo de parámetro inválido");
+    response.put("path", request.getRequestURI());
+    response.put("parameter", ex.getName());
+    response.put("providedValue", ex.getValue());
+
+
+    Class<?> required = ex.getRequiredType();
+    String requiredTypeName = Optional.ofNullable(required)
+            .map(Class::getSimpleName)
+            .orElse("desconocido");
+            
+    StringBuilder msg = new StringBuilder("El parámetro '")
+            .append(ex.getName())
+            .append("' debe ser de tipo ")
+            .append(requiredTypeName);
+
+    if (required != null && required.isEnum()) {
+        Object[] constants = required.getEnumConstants();
+        if (constants != null && constants.length > 0) {
+            String allowed = Arrays.stream(constants)
+                    .map(Object::toString)
+                    .sorted()
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("");
+            msg.append(". Valores permitidos: [").append(allowed).append("]");
+        }
     }
+
+    response.put("message", msg.toString());
+    return ResponseEntity.badRequest().body(response);
+}
 
     // Maneja métodos HTTP no permitidos (405)
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<Map<String, Object>> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("timestamp", ZonedDateTime.now());
         response.put("status", HttpStatus.METHOD_NOT_ALLOWED.value());
@@ -115,12 +142,17 @@ public class GlobalExceptionHandler {
         response.put("message", "El método '" + ex.getMethod() + "' no está permitido para este endpoint.");
         response.put("path", request.getRequestURI());
 
-        Set<String> allowedMethodsAsStrings = ex.getSupportedHttpMethods().stream()
-                .map(method -> method.name())
+        Set<org.springframework.http.HttpMethod> supported =
+                Optional.ofNullable(ex.getSupportedHttpMethods()).orElse(Collections.emptySet());
+
+        Set<String> allowedMethodsAsStrings = supported.stream()
+                .map(org.springframework.http.HttpMethod::name)
                 .collect(java.util.stream.Collectors.toSet());
+
         response.put("allowedMethods", allowedMethodsAsStrings);
 
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
+    
     }
 
     // Maneja rutas no encontradas (404)
