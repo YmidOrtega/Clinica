@@ -242,14 +242,14 @@ public interface AttentionMapper {
             String contractName,
             List<Attention> attentions) {
         if (attentions == null || attentions.isEmpty()) {
-            return new HealthProviderWithAttentionsResponse(contractName, List.of());
+            return new HealthProviderWithAttentionsResponse<HealthProviderAttentionShortResponse>(contractName, List.of());
         }
 
         List<HealthProviderAttentionShortResponse> attentionResponses = attentions.stream()
                 .map(this::toHealthProviderAttentionShortResponse)
                 .toList();
 
-        return new HealthProviderWithAttentionsResponse(contractName, attentionResponses);
+        return new HealthProviderWithAttentionsResponse<HealthProviderAttentionShortResponse>(contractName, attentionResponses);
     }
 
     default List<HealthProviderWithAttentionsResponse> groupAttentionsByHealthProvider(

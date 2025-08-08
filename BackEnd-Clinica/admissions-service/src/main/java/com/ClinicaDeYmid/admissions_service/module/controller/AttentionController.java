@@ -178,6 +178,7 @@ public class AttentionController {
         return ResponseEntity.ok(invoiceStatus);
     }
 
+    @SuppressWarnings("unused")
     private ResponseEntity<AttentionResponseDto> createAttentionFallback(
             AttentionRequestDto requestDto, UriComponentsBuilder uriBuilder, Throwable throwable) {
 

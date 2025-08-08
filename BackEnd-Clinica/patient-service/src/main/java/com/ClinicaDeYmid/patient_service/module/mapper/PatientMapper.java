@@ -17,20 +17,15 @@ import java.time.LocalDateTime;
         unmappedTargetPolicy = ReportingPolicy.WARN
 )
 public interface PatientMapper {
-
-    // ==================== CREATION MAPPING ====================
-
     @Mappings({
             @Mapping(target = "id", ignore = true),
-            @Mapping(target = "uuid", ignore = true), // Se genera en @PrePersist
-            @Mapping(target = "createdAt", ignore = true), // Se maneja con @CreationTimestamp
+            @Mapping(target = "uuid", ignore = true),
+            @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(LocalDateTime.now())"),
             @Mapping(target = "status", constant = "ALIVE"),
-            @Mapping(target = "healthProviderNitDto", ignore = true) // Es @Transient
+            @Mapping(target = "healthProviderNitDto", ignore = true)
     })
     Patient toPatient(NewPatientDto newPatientDTO);
-
-    // ==================== GET PATIENT DTO MAPPING ====================
 
     @Mappings({
             @Mapping(target = "identificationType", source = "patient.identificationType", qualifiedByName = "enumToDisplayName"),
@@ -49,35 +44,28 @@ public interface PatientMapper {
     })
     GetPatientDto toGetPatientDto(Patient patient, HealthProviderNitDto healthProviderNitDto);
 
-    // ==================== PATIENT RESPONSE DTO MAPPING ====================
-
     @Mappings({
             @Mapping(target = "clientInfo", source = "healthProviderNitDto", qualifiedByName = "healthProviderToClientInfo")
     })
     PatientResponseDto toPatientResponseDto(Patient patient, HealthProviderNitDto healthProviderNitDto);
 
-    // ==================== PATIENTS LIST DTO MAPPING ====================
-
     PatientsListDto toPatientsListDto(Patient patient);
-
-    // ==================== UPDATE MAPPING ====================
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings({
             @Mapping(target = "id", ignore = true),
             @Mapping(target = "uuid", ignore = true),
-            @Mapping(target = "identificationType", ignore = true), // No se puede cambiar
-            @Mapping(target = "identificationNumber", ignore = true), // No se puede cambiar
+            @Mapping(target = "identificationType", ignore = true),
+            @Mapping(target = "identificationNumber", ignore = true),
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(LocalDateTime.now())"),
             @Mapping(target = "status", ignore = true),
-            @Mapping(target = "healthProviderNit", ignore = true), // Se maneja por separado
+            @Mapping(target = "healthProviderNit", ignore = true),
             @Mapping(target = "healthProviderNitDto", ignore = true),
-            // Mapeos que requieren transformación de String a Entity/Enum
-            @Mapping(target = "placeOfBirth", ignore = true), // Requiere lógica especial
-            @Mapping(target = "placeOfIssuance", ignore = true), // Requiere lógica especial
-            @Mapping(target = "locality", ignore = true), // Requiere lógica especial
-            @Mapping(target = "occupation", ignore = true), // Requiere lógica especial
+            @Mapping(target = "placeOfBirth", ignore = true),
+            @Mapping(target = "placeOfIssuance", ignore = true),
+            @Mapping(target = "locality", ignore = true), 
+            @Mapping(target = "occupation", ignore = true), 
             @Mapping(target = "disability", source = "disability", qualifiedByName = "stringToDisability"),
             @Mapping(target = "language", source = "language", qualifiedByName = "stringToLanguage"),
             @Mapping(target = "gender", source = "gender", qualifiedByName = "stringToGender"),
@@ -87,14 +75,10 @@ public interface PatientMapper {
             @Mapping(target = "zone", source = "zone", qualifiedByName = "stringToZone")
     })
     void updatePatientFromDto(UpdatePatientDto updatePatientDto, @MappingTarget Patient patient);
-
-    // ==================== HELPER METHODS ====================
-
     @Named("enumToDisplayName")
     default String enumToDisplayName(Object enumValue) {
         if (enumValue == null) return null;
 
-        // Usar reflexión para obtener el displayName de cualquier enum que lo tenga
         try {
             var method = enumValue.getClass().getMethod("getDisplayName");
             return (String) method.invoke(enumValue);
@@ -129,15 +113,13 @@ public interface PatientMapper {
         );
     }
 
-    // ==================== STRING TO ENUM CONVERTERS ====================
-
     @Named("stringToDisability")
     default Disability stringToDisability(String disability) {
         if (disability == null || disability.trim().isEmpty()) return null;
         try {
             return Disability.valueOf(disability.toUpperCase().replace(" ", "_"));
         } catch (IllegalArgumentException e) {
-            // Buscar por displayName
+
             for (Disability d : Disability.values()) {
                 if (d.getDisplayName().equalsIgnoreCase(disability)) {
                     return d;

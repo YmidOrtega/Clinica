@@ -218,7 +218,9 @@ public class AttentionGetService {
             });
         }
 
-        assert attentions != null;
+        if (attentions == null) {
+            attentions = Collections.emptyList();
+        }
         return attentions.stream()
                 .map(attentionEnrichmentService::enrichAttentionResponseDto)
                 .collect(Collectors.toList());

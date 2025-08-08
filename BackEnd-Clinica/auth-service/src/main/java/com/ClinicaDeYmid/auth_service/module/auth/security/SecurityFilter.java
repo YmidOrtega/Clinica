@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.auth_service.module.auth.security;
 
-import com.ClinicaDeYmid.auth_service.infra.exceptions.UserNotFoundException;
 import com.ClinicaDeYmid.auth_service.module.auth.service.TokenService;
 import com.ClinicaDeYmid.auth_service.module.user.entity.User;
 import com.ClinicaDeYmid.auth_service.module.user.repository.UserRepository;
