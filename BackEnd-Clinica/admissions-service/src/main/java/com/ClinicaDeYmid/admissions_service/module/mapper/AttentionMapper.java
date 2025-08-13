@@ -65,7 +65,6 @@ public interface AttentionMapper {
         return configService;
     }
 
-    // Método para mapear List<HealthProviderRequestDto> a List<HealthProviderInfo>
     @Named("mapHealthProviderRequestToHealthProviderInfo")
     default List<HealthProviderInfo> mapHealthProviderRequestToHealthProviderInfo(List<HealthProviderRequestDto> healthProviderRequests) {
         if (healthProviderRequests == null || healthProviderRequests.isEmpty()) {
@@ -77,7 +76,6 @@ public interface AttentionMapper {
                 .collect(Collectors.toList());
     }
 
-    // Método para extraer solo los NITs de HealthProviderInfo
     @Named("extractNitsFromHealthProviderInfo")
     default List<String> extractNitsFromHealthProviderInfo(List<HealthProviderInfo> healthProviderInfoList) {
         if (healthProviderInfoList == null || healthProviderInfoList.isEmpty()) {
