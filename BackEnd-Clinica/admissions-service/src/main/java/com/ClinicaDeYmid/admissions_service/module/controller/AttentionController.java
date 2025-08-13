@@ -128,6 +128,8 @@ public class AttentionController {
 
         log.info("Retrieving attentions for health provider NIT: {}", healthProviderNit);
 
+        log.info("Clase real de attentionGetService: {}", attentionGetService.getClass().getName());
+
         List<HealthProviderWithAttentionsResponse> attentions = attentionGetService.getGroupedAttentionsByHealthProvider(healthProviderNit);
         return ResponseEntity.ok(attentions);
     }

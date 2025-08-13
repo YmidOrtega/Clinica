@@ -169,6 +169,7 @@ public class AttentionGetService {
     public List<HealthProviderWithAttentionsResponse> getGroupedAttentionsByHealthProvider(String healthProviderNit) {
         log.info("Fetching attentions for health provider NIT: {}", healthProviderNit);
 
+        System.out.println(healthProviderNit);
         List<Attention> attentions = attentionRepository.findByHealthProviderNit(healthProviderNit);
 
         if (attentions != null) {
