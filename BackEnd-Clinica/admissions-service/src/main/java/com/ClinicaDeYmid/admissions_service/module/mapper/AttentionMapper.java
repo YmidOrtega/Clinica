@@ -239,15 +239,16 @@ public interface AttentionMapper {
     default HealthProviderWithAttentionsResponse toHealthProviderWithAttentionsResponse(
             String contractName,
             List<Attention> attentions) {
+
         if (attentions == null || attentions.isEmpty()) {
-            return new HealthProviderWithAttentionsResponse<HealthProviderAttentionShortResponse>(contractName, List.of());
+            return new HealthProviderWithAttentionsResponse(contractName, List.of());
         }
 
         List<HealthProviderAttentionShortResponse> attentionResponses = attentions.stream()
                 .map(this::toHealthProviderAttentionShortResponse)
                 .toList();
 
-        return new HealthProviderWithAttentionsResponse<HealthProviderAttentionShortResponse>(contractName, attentionResponses);
+        return new HealthProviderWithAttentionsResponse(contractName, attentionResponses);
     }
 
     default List<HealthProviderWithAttentionsResponse> groupAttentionsByHealthProvider(
@@ -257,10 +258,9 @@ public interface AttentionMapper {
         if (attentions == null || attentions.isEmpty()) {
             return List.of();
         }
-
-        // Actualizado para trabajar con HealthProviderInfo
         String nit = attentions.get(0).getHealthProviderNit().get(0).getHealthProviderNit();
         String contractName = contractNameResolver.apply(nit);
+
         return List.of(toHealthProviderWithAttentionsResponse(contractName, attentions));
     }
 }
