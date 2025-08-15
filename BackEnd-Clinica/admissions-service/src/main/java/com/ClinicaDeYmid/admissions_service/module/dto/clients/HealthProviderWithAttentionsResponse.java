@@ -2,7 +2,8 @@ package com.ClinicaDeYmid.admissions_service.module.dto.clients;
 
 import java.util.List;
 
-public record HealthProviderWithAttentionsResponse<T>(
+
+public record HealthProviderWithAttentionsResponse(
         String reasonSocial,
-        List<T> attentions
+        List<HealthProviderAttentionShortResponse> attentions
 ) {}
