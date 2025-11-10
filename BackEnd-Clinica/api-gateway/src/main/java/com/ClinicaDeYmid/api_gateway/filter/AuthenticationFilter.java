@@ -42,7 +42,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             logger.info("Processing request to path: " + path);
 
             // Si la ruta NO requiere autenticación, permitir el paso
-            if (!routeValidator.isSecured.test(request)) {
+            if (!routeValidator.isSecured(request)) {
                 logger.info("Path is not secured, allowing request: " + path);
                 return chain.filter(exchange);
             }
