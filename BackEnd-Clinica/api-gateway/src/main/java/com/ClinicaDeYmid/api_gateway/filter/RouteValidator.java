@@ -21,15 +21,15 @@ public class RouteValidator {
             "/swagger-ui/**"
     );
 
-    public Predicate<ServerHttpRequest> isSecured = request -> {
+    public boolean isSecured(ServerHttpRequest request) {
         String requestPath = request.getURI().getPath();
 
-        boolean isSecured = openApiEndpoints.stream()
+        boolean secured = openApiEndpoints.stream()
                 .noneMatch(endpoint -> matchesEndpoint(requestPath, endpoint));
 
-        logger.info("Path: " + requestPath + " - Is secured: " + isSecured);
-        return isSecured;
-    };
+        logger.info("Path: " + requestPath + " - Is secured: " + secured);
+        return secured;
+    }
 
     private boolean matchesEndpoint(String requestPath, String endpoint) {
         if (endpoint.endsWith("/**")) {
