@@ -1,6 +1,9 @@
-# Archivos de configuración del entorno y secretos
+# Ignorar claves privadas - NO deben estar en el repositorio
+*.pem
 .env
-.pem
+*.key
+*.p12
+*.jks
 BackEnd-Clinica/.env 
 src/main/resources/keys/*.pem
 
