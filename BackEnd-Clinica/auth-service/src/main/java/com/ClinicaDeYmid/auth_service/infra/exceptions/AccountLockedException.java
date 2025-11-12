@@ -1,0 +1,7 @@
+package com.ClinicaDeYmid.auth_service.infra.exceptions;
+
+public class AccountLockedException extends RuntimeException {
+    public AccountLockedException(String message) {
+        super(message);
+    }
+}
