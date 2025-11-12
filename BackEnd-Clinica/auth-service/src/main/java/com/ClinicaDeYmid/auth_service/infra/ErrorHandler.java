@@ -41,6 +41,32 @@ public class ErrorHandler {
         }
     }
 
+    // ========== NUEVAS EXCEPCIONES DE SEGURIDAD ==========
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ErrorResponse> handleAccountLocked(AccountLockedException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.LOCKED.value(),
+                "Account Locked",
+                ex.getMessage(),
+                "/api/v1/auth/login"
+        );
+        return ResponseEntity.status(HttpStatus.LOCKED).body(errorResponse);
+    }
+
+    @ExceptionHandler(PasswordPolicyViolationException.class)
+    public ResponseEntity<ErrorResponse> handlePasswordPolicyViolation(PasswordPolicyViolationException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Password Policy Violation",
+                ex.getMessage(),
+                "/api/v1/auth/password"
+        );
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    // ========== EXCEPCIONES EXISTENTES ==========
+
     // Errores de validación (Bean Validation)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex) {
@@ -53,7 +79,7 @@ public class ErrorHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Validation Failed",
                 "Los datos enviados no son válidos",
-                "/api/v1/users", // Podrías obtener esto del request
+                "/api/v1/users",
                 errors
         );
 
@@ -79,7 +105,6 @@ public class ErrorHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
 
-    // Error de tipo de validación incorrecta (tu problema original)
     @ExceptionHandler(UnexpectedTypeException.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedTypeException(UnexpectedTypeException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
@@ -110,7 +135,7 @@ public class ErrorHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 "Bad Credentials",
-                "Usuario o contraseña incorrectos",
+                ex.getMessage(), // Usar el mensaje de la excepción para incluir los detalles
                 "/api/v1/auth/login"
         );
 
@@ -208,8 +233,8 @@ public class ErrorHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         String requiredTypeName = Optional.ofNullable(ex.getRequiredType())
-        .map(Class::getSimpleName)
-        .orElse("desconocido");
+                .map(Class::getSimpleName)
+                .orElse("desconocido");
 
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
@@ -234,7 +259,7 @@ public class ErrorHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
 
-    // Argumentos inválidos (IllegalArgumentException específico)
+    // Argumentos inválidos
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         ErrorResponse errorResponse = new ErrorResponse(
@@ -247,7 +272,7 @@ public class ErrorHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
 
-    // Error genérico para RuntimeException no manejadas específicamente
+    // Error genérico para RuntimeException
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
         ErrorResponse errorResponse = new ErrorResponse(

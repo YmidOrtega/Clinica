@@ -4,91 +4,100 @@ import com.ClinicaDeYmid.auth_service.module.auth.dto.LoginRequest;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.PublicKeyResponse;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.RefreshTokenRequest;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.TokenPair;
-
 import com.ClinicaDeYmid.auth_service.module.auth.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@Slf4j
+@Tag(name = "Authentication", description = "Endpoints de autenticación")
 public class AuthController {
 
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<TokenPair> login(@Valid @RequestBody LoginRequest loginRequest) {
-        try {
-            return ResponseEntity.ok(authService.login(loginRequest));
-        } catch (AuthenticationException e) {
-            log.warn("Error de autenticación: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            log.error("Error inesperado durante login", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @Operation(summary = "Login", description = "Autentica un usuario y retorna tokens")
+    public ResponseEntity<TokenPair> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+
+        String ipAddress = getClientIp(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        TokenPair tokenPair = authService.login(loginRequest, ipAddress, userAgent);
+        return ResponseEntity.ok(tokenPair);
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<TokenPair> refresh(@Valid @RequestBody RefreshTokenRequest refreshRequest) {
-        try {
-            return ResponseEntity.ok(authService.refresh(refreshRequest));
-        } catch (RuntimeException e) {
-            log.warn("Refresh token inválido: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            log.error("Error inesperado durante refresh", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @Operation(summary = "Refresh token", description = "Renueva los tokens usando un refresh token válido")
+    public ResponseEntity<TokenPair> refresh(@Valid @RequestBody RefreshTokenRequest refreshRequest, HttpServletRequest request) {
+
+        String ipAddress = getClientIp(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        TokenPair tokenPair = authService.refresh(refreshRequest, ipAddress, userAgent);
+        return ResponseEntity.ok(tokenPair);
     }
 
-    @GetMapping("/validate")
-    public ResponseEntity<Void> validateToken(@RequestHeader("Authorization") String authHeader) {
-        try {
-            authService.validate(authHeader);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @PostMapping("/validate")
+    @Operation(summary = "Validar token", description = "Valida si un access token es válido")
+    public ResponseEntity<Map<String, Boolean>> validate(@RequestHeader("Authorization") String authHeader) {
+
+        authService.validate(authHeader);
+        return ResponseEntity.ok(Map.of("valid", true));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
-        try {
-            authService.logout(authHeader);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Logout", description = "Cierra la sesión actual")
+    public ResponseEntity<Map<String, String>> logout(@RequestHeader("Authorization") String authHeader, HttpServletRequest request) {
+
+        String ipAddress = getClientIp(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        authService.logout(authHeader, ipAddress, userAgent);
+        return ResponseEntity.ok(Map.of("message", "Logout exitoso"));
+    }
+
+    @PostMapping("/logout-all")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Logout de todos los dispositivos", description = "Cierra todas las sesiones del usuario")
+    public ResponseEntity<Map<String, String>> logoutFromAllDevices(@RequestHeader("Authorization") String authHeader) {
+
+        authService.logoutFromAllDevices(authHeader);
+        return ResponseEntity.ok(Map.of(
+                "message", "Sesión cerrada en todos los dispositivos"
+        ));
     }
 
     @GetMapping("/public-key")
+    @Operation(summary = "Obtener clave pública", description = "Retorna la clave pública RSA para validar tokens")
     public ResponseEntity<PublicKeyResponse> getPublicKey() {
-        try {
-            PublicKeyResponse response = authService.getPublicKey();
-            log.debug("Clave pública solicitada exitosamente");
-            return ResponseEntity.ok(response);
+        PublicKeyResponse publicKey = authService.getPublicKey();
+        return ResponseEntity.ok(publicKey);
+    }
 
-        } catch (UnsupportedOperationException e) {
-            log.warn("Intento de obtener clave pública con algoritmo no soportado: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (Exception e) {
-            log.error("Error inesperado al obtener clave pública", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    // Método helper para obtener IP del cliente
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
         }
+
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+
+        return request.getRemoteAddr();
     }
 }
