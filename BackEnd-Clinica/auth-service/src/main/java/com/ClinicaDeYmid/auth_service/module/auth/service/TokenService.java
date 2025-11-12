@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.auth_service.module.auth.service;
 
 import com.ClinicaDeYmid.auth_service.module.auth.dto.TokenPair;
+import com.ClinicaDeYmid.auth_service.module.auth.entity.RefreshToken;
 import com.ClinicaDeYmid.auth_service.module.user.entity.User;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -8,6 +9,8 @@ import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -26,7 +29,9 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class TokenService {
 
     private static final String ISSUER = "ClinicaDeYmid";
@@ -52,15 +57,11 @@ public class TokenService {
 
     private final ResourceLoader resourceLoader;
     private final TokenBlacklistService tokenBlacklistService;
+    private final RefreshTokenService refreshTokenService;
 
     private RSAPrivateKey privateKey;
     private RSAPublicKey publicKey;
     private Algorithm algorithm;
-
-    public TokenService(ResourceLoader resourceLoader, TokenBlacklistService tokenBlacklistService) {
-        this.resourceLoader = resourceLoader;
-        this.tokenBlacklistService = tokenBlacklistService;
-    }
 
     @PostConstruct
     public void init() {
@@ -115,6 +116,20 @@ public class TokenService {
         this.publicKey = (RSAPublicKey) keyFactory.generatePublic(publicKeySpec);
     }
 
+    private Instant getAccessTokenExpirationTime() {
+        return Instant.now().plusSeconds(accessTokenExpiration);
+    }
+
+    private Instant getRefreshTokenExpirationTime() {
+        return Instant.now().plusSeconds(refreshTokenExpiration);
+    }
+
+    private void validateUser(User user) {
+        if (user == null || user.getUuid() == null || user.getEmail() == null) {
+            throw new IllegalArgumentException("Usuario inválido para generar token");
+        }
+    }
+
     public String generateAccessToken(User user) {
         validateUser(user);
         try {
@@ -126,6 +141,7 @@ public class TokenService {
                     .withJWTId(UUID.randomUUID().toString())
                     .withClaim("email", user.getEmail())
                     .withClaim("type", "access")
+                    .withClaim("role", user.getRole().getName())
                     .sign(algorithm);
         } catch (JWTCreationException e) {
             throw new RuntimeException("Error al generar el access token", e);
@@ -148,8 +164,17 @@ public class TokenService {
         }
     }
 
-    public TokenPair generateTokenPair(User user) {
-        return new TokenPair(generateAccessToken(user), generateRefreshToken(user));
+    /**
+     * Genera par de tokens y persiste el refresh token
+     */
+    public TokenPair generateTokenPair(User user, String ipAddress, String userAgent) {
+        String accessToken = generateAccessToken(user);
+        String refreshToken = generateRefreshToken(user);
+
+        // Persistir el refresh token
+        refreshTokenService.createRefreshToken(refreshToken, user, ipAddress, userAgent);
+
+        return new TokenPair(accessToken, refreshToken, "Bearer", accessTokenExpiration);
     }
 
     public String getSubject(String token) {
@@ -189,15 +214,39 @@ public class TokenService {
         if (!"refresh".equals(tokenType)) {
             throw new RuntimeException("Token no es de tipo refresh");
         }
+
+        // Verificar que el token esté en la base de datos y sea válido
+        RefreshToken refreshToken = refreshTokenService.findValidToken(token)
+                .orElseThrow(() -> new RuntimeException("Refresh token no válido o revocado"));
+
+        if (!refreshToken.isValid()) {
+            throw new RuntimeException("Refresh token expirado o revocado");
+        }
     }
 
-    public TokenPair refreshTokens(String refreshToken, User user) {
-        validateRefreshToken(refreshToken);
-        DecodedJWT decodedJWT = validateAndDecodeToken(refreshToken);
+    /**
+     * Refresca tokens con rotación automática
+     */
+    public TokenPair refreshTokens(String oldRefreshToken, User user, String ipAddress, String userAgent) {
+        validateRefreshToken(oldRefreshToken);
+
+        DecodedJWT decodedJWT = validateAndDecodeToken(oldRefreshToken);
         if (!user.getUuid().equals(decodedJWT.getSubject())) {
             throw new RuntimeException("Refresh token no pertenece al usuario");
         }
-        return generateTokenPair(user);
+
+        // Obtener el token de la BD
+        RefreshToken oldToken = refreshTokenService.findValidToken(oldRefreshToken)
+                .orElseThrow(() -> new RuntimeException("Refresh token no encontrado"));
+
+        // Generar nuevos tokens
+        String newAccessToken = generateAccessToken(user);
+        String newRefreshToken = generateRefreshToken(user);
+
+        // Rotar el refresh token
+        refreshTokenService.rotateToken(oldToken, newRefreshToken, ipAddress, userAgent);
+
+        return new TokenPair(newAccessToken, newRefreshToken, "Bearer", accessTokenExpiration);
     }
 
     public boolean isTokenValid(String token) {
@@ -215,27 +264,10 @@ public class TokenService {
         return (expiration.getTime() - System.currentTimeMillis()) / 1000;
     }
 
-
     public RSAPublicKey getPublicKey() {
         if (!"RS256".equalsIgnoreCase(algorithmType)) {
-            throw new UnsupportedOperationException("Clave pública solo disponible para algoritmo RS256");
+            throw new IllegalStateException("La clave pública solo está disponible con RS256");
         }
         return publicKey;
-    }
-
-    private Instant getAccessTokenExpirationTime() {
-        return Instant.now().plusSeconds(accessTokenExpiration);
-    }
-
-    private Instant getRefreshTokenExpirationTime() {
-        return Instant.now().plusSeconds(refreshTokenExpiration);
-    }
-
-    private void validateUser(User user) {
-        if (user == null) throw new IllegalArgumentException("El usuario no puede ser null");
-        if (user.getEmail() == null || user.getEmail().trim().isEmpty())
-            throw new IllegalArgumentException("El usuario debe tener un email válido");
-        if (user.getUuid() == null || user.getUuid().trim().isEmpty())
-            throw new IllegalArgumentException("El usuario debe tener un UUID válido");
     }
 }
