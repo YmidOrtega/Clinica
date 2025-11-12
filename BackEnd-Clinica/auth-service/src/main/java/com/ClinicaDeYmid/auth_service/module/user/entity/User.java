@@ -16,7 +16,9 @@ import java.util.Collection;
 @Table(name = "users", indexes = {
         @Index(name = "idx_user_email", columnList = "email"),
         @Index(name = "idx_user_username", columnList = "username"),
-        @Index(name = "idx_user_status", columnList = "status")
+        @Index(name = "idx_user_status", columnList = "status"),
+        @Index(name = "idx_account_locked_until", columnList = "account_locked_until"),
+        @Index(name = "idx_failed_login_attempts", columnList = "failed_login_attempts")
 })
 @Getter
 @Setter
@@ -29,12 +31,12 @@ public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String uuid;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
-
 
     @Column(nullable = false, unique = true, length = 50)
     private String username;
@@ -67,6 +69,28 @@ public class User implements UserDetails {
     @Builder.Default
     private StatusUser status = StatusUser.ACTIVE;
 
+    // ========== NUEVOS CAMPOS DE SEGURIDAD ==========
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    @Builder.Default
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "account_locked_until")
+    private LocalDateTime accountLockedUntil;
+
+    @Column(name = "last_password_change")
+    private LocalDateTime lastPasswordChange;
+
+    @Column(name = "password_never_expires", nullable = false)
+    @Builder.Default
+    private boolean passwordNeverExpires = false;
+
+    @Column(name = "require_password_change", nullable = false)
+    @Builder.Default
+    private boolean requirePasswordChange = false;
+
+    // ========== MÉTODOS DE NEGOCIO ==========
+
     public void activate() {
         this.active = true;
     }
@@ -75,6 +99,11 @@ public class User implements UserDetails {
         this.active = false;
     }
 
+    public boolean isAccountLocked() {
+        return accountLockedUntil != null && LocalDateTime.now().isBefore(accountLockedUntil);
+    }
+
+    // ========== MÉTODOS DE UserDetails ==========
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -98,7 +127,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return status != StatusUser.SUSPENDED;
+        return !isAccountLocked() && status != StatusUser.SUSPENDED;
     }
 
     @Override
@@ -108,7 +137,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return active && status == StatusUser.ACTIVE;
+        return active && status == StatusUser.ACTIVE && !isAccountLocked();
     }
-
 }
