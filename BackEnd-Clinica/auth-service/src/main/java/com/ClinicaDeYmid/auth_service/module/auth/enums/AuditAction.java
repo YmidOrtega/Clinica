@@ -1,0 +1,18 @@
+package com.ClinicaDeYmid.auth_service.module.auth.enums;
+
+public enum AuditAction {
+    LOGIN_SUCCESS,
+    LOGIN_FAILED,
+    LOGOUT,
+    PASSWORD_CHANGED,
+    PASSWORD_RESET_REQUESTED,
+    PASSWORD_RESET_COMPLETED,
+    ACCOUNT_LOCKED,
+    ACCOUNT_UNLOCKED,
+    USER_CREATED,
+    USER_UPDATED,
+    USER_DELETED,
+    REFRESH_TOKEN_USED,
+    TOKEN_REVOKED,
+    UNAUTHORIZED_ACCESS
+}
