@@ -1,31 +1,25 @@
 package com.ClinicaDeYmid.auth_service.module.user.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
+@Schema(description = "Request DTO for updating user password")
 public record UserPasswordUpdateDTO(
-        @Schema(description = "Contraseña actual del usuario", example = "PasswordActual$2024", required = true)
         @NotBlank(message = "La contraseña actual es obligatoria")
+        @Schema(description = "Contraseña actual del usuario", requiredMode = Schema.RequiredMode.REQUIRED)
         String currentPassword,
 
-        @Schema(
-                description = "Nueva contraseña. Debe tener al menos 1 minúscula, 1 mayúscula, 1 número y 1 carácter especial",
-                example = "NuevoPassword$2024",
-                required = true
-        )
         @NotBlank(message = "La nueva contraseña es obligatoria")
-        @Size(min = 8, max = 100, message = "La contraseña debe tener entre 8 y 100 caracteres")
-        @Pattern(
-                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-                message = "La contraseña debe contener al menos: 1 minúscula, 1 mayúscula, 1 número y 1 carácter especial"
-        )
+        @Size(min = 8, message = "La nueva contraseña debe tener al menos 8 caracteres")
+        @Schema(description = "Nueva contraseña del usuario", example = "NewSecurePass123!", requiredMode = Schema.RequiredMode.REQUIRED)
         String newPassword,
 
-        @Schema(description = "Confirmación de la nueva contraseña", example = "NuevoPassword$2024", required = true)
-        @NotBlank(message = "La confirmación de contraseña es obligatoria")
+        @NotBlank(message = "La confirmación de la contraseña es obligatoria")
+        @Schema(description = "Confirmación de la nueva contraseña", requiredMode = Schema.RequiredMode.REQUIRED)
         String confirmPassword
 ) {
-    public boolean isPasswordConfirmed() {
+    public boolean passwordsMatch() {
         return newPassword != null && newPassword.equals(confirmPassword);
     }
 }

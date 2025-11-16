@@ -30,6 +30,15 @@ public class SecurityFilter extends OncePerRequestFilter {
             @org.springframework.lang.NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+
+        // Permitir /refresh sin validación previa del token
+        // El endpoint refresh valida el refresh token en el body
+        if (path.equals("/api/v1/auth/refresh")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
             String token = extractToken(request);
             if (token != null) {

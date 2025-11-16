@@ -48,14 +48,6 @@ public class AuthController {
         return ResponseEntity.ok(tokenPair);
     }
 
-    @PostMapping("/validate")
-    @Operation(summary = "Validar token", description = "Valida si un access token es válido")
-    public ResponseEntity<Map<String, Boolean>> validate(@RequestHeader("Authorization") String authHeader) {
-
-        authService.validate(authHeader);
-        return ResponseEntity.ok(Map.of("valid", true));
-    }
-
     @PostMapping("/logout")
     @SecurityRequirement(name = "Bearer Authentication")
     @Operation(summary = "Logout", description = "Cierra la sesión actual")

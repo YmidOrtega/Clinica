@@ -1,14 +1,13 @@
 package com.ClinicaDeYmid.auth_service.module.auth.service;
 
 import com.ClinicaDeYmid.auth_service.infra.exceptions.AccountLockedException;
+import com.ClinicaDeYmid.auth_service.infra.exceptions.UserNotFoundException;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.LoginRequest;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.PublicKeyResponse;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.RefreshTokenRequest;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.TokenPair;
-import com.ClinicaDeYmid.auth_service.module.user.dto.UserResponseDTO;
 import com.ClinicaDeYmid.auth_service.module.user.entity.User;
-import com.ClinicaDeYmid.auth_service.module.user.mapper.UserMapper;
-import com.ClinicaDeYmid.auth_service.module.user.service.UserGetService;
+import com.ClinicaDeYmid.auth_service.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -29,8 +28,7 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
-    private final UserGetService userGetService;
-    private final UserMapper userMapper;
+    private final UserRepository userRepository;
     private final TokenHelper tokenHelper;
     private final TokenBlacklistService tokenBlacklistService;
     private final LoginAttemptService loginAttemptService;
@@ -121,8 +119,8 @@ public class AuthService {
         log.debug("Intento de refresh token desde IP: {}", ipAddress);
 
         String userUuid = tokenService.getSubject(refreshRequest.refreshToken());
-        UserResponseDTO userResponse = userGetService.getUserByUuid(userUuid);
-        User user = userMapper.toEntity2(userResponse);
+        User user = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new UserNotFoundException("Usuario no encontrado con UUID: " + userUuid));
 
         TokenPair newTokenPair = tokenService.refreshTokens(
                 refreshRequest.refreshToken(),
@@ -137,19 +135,14 @@ public class AuthService {
         return newTokenPair;
     }
 
-    public void validate(String authHeader) {
-        String token = tokenHelper.extractToken(authHeader);
-        tokenService.validateAccessToken(token);
-    }
-
     @Transactional
     public void logout(String authHeader, String ipAddress, String userAgent) {
         String token = tokenHelper.extractToken(authHeader);
         tokenService.validateAccessToken(token);
 
         String userUuid = tokenService.getSubject(token);
-        UserResponseDTO userResponse = userGetService.getUserByUuid(userUuid);
-        User user = userMapper.toEntity2(userResponse);
+        User user = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new UserNotFoundException("Usuario no encontrado con UUID: " + userUuid));
 
         // Agregar token a blacklist
         long expiration = tokenService.getExpirationInSeconds(token);
@@ -167,8 +160,8 @@ public class AuthService {
         tokenService.validateAccessToken(token);
 
         String userUuid = tokenService.getSubject(token);
-        UserResponseDTO userResponse = userGetService.getUserByUuid(userUuid);
-        User user = userMapper.toEntity2(userResponse);
+        User user = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new UserNotFoundException("Usuario no encontrado con UUID: " + userUuid));
 
         // Revocar todos los refresh tokens
         refreshTokenService.revokeAllUserTokens(user);

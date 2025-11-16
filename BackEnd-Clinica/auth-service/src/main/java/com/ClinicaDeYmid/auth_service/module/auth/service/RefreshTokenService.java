@@ -140,10 +140,11 @@ public class RefreshTokenService {
                     user.getEmail());
 
             // Revocar las sesiones más antiguas
+            // La lista viene ordenada por createdAt DESC, entonces saltamos los más recientes
             int tokensToRevoke = activeSessions.size() - maxActiveSessions;
 
             activeSessions.stream()
-                    .limit(tokensToRevoke)
+                    .skip(maxActiveSessions)  // Saltamos los tokens más recientes
                     .forEach(token -> {
                         token.revoke();
                         refreshTokenRepository.save(token);

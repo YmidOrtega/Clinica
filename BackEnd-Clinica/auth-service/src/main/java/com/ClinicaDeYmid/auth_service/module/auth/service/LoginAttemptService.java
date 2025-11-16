@@ -43,7 +43,7 @@ public class LoginAttemptService {
                 .email(email)
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
-                .successful(true)
+                .success(true)
                 .build();
 
         loginAttemptRepository.save(attempt);
@@ -66,7 +66,7 @@ public class LoginAttemptService {
                 .email(email)
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
-                .successful(false)
+                .success(false)
                 .failureReason(reason)
                 .build();
 

@@ -1,4 +1,3 @@
-
 -- Eliminar tablas en orden correcto (por dependencias)
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS role_permissions;
