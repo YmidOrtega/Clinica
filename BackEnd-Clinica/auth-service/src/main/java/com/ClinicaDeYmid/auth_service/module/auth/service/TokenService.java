@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.auth_service.module.auth.service;
 
+import com.ClinicaDeYmid.auth_service.infra.exceptions.InvalidTokenException;
 import com.ClinicaDeYmid.auth_service.module.auth.dto.TokenPair;
 import com.ClinicaDeYmid.auth_service.module.auth.entity.RefreshToken;
 import com.ClinicaDeYmid.auth_service.module.user.entity.User;
@@ -193,18 +194,35 @@ public class TokenService {
                     .build()
                     .verify(token);
         } catch (JWTVerificationException e) {
-            throw new RuntimeException("Token inválido o expirado: " + e.getMessage(), e);
+            log.warn("Token inválido: {}", e.getMessage());
+            throw new InvalidTokenException("Token inválido o expirado");
         }
     }
 
     public void validateAccessToken(String token) {
-        if (tokenBlacklistService.isTokenBlacklisted(token)) {
-            throw new RuntimeException("Token inválido (en blacklist)");
-        }
-        DecodedJWT decodedJWT = validateAndDecodeToken(token);
-        String tokenType = decodedJWT.getClaim("type").asString();
-        if (!"access".equals(tokenType)) {
-            throw new RuntimeException("Token no es de tipo access");
+        try {
+            log.debug("Verificando si token está en blacklist");
+            if (tokenBlacklistService.isTokenBlacklisted(token)) {
+                throw new InvalidTokenException("Token ha sido revocado");
+            }
+
+            log.debug("Decodificando y validando token");
+            DecodedJWT decodedJWT = validateAndDecodeToken(token);
+
+            log.debug("Verificando tipo de token");
+            String tokenType = decodedJWT.getClaim("type").asString();
+
+            if (!"access".equals(tokenType)) {
+                throw new InvalidTokenException("Se requiere un token de acceso");
+            }
+
+            log.debug("Token de acceso válido");
+
+        } catch (InvalidTokenException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error inesperado en validateAccessToken", e);
+            throw new InvalidTokenException("Error validando token: " + e.getMessage());
         }
     }
 

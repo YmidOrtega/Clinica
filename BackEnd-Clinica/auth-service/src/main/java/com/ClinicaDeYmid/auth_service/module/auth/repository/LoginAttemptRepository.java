@@ -21,7 +21,7 @@ public interface LoginAttemptRepository extends JpaRepository<LoginAttempt, Long
     @Query("""
         SELECT COUNT(la) FROM LoginAttempt la
         WHERE la.email = :email
-        AND la.successful = false
+        AND la.success = false
         AND la.attemptedAt > :since
         """)
     long countFailedAttemptsSince(
@@ -35,7 +35,7 @@ public interface LoginAttemptRepository extends JpaRepository<LoginAttempt, Long
     @Query("""
         SELECT COUNT(la) FROM LoginAttempt la
         WHERE la.ipAddress = :ipAddress
-        AND la.successful = false
+        AND la.success = false
         AND la.attemptedAt > :since
         """)
     long countFailedAttemptsByIpSince(
@@ -64,7 +64,7 @@ public interface LoginAttemptRepository extends JpaRepository<LoginAttempt, Long
      */
     @Query("""
         SELECT la FROM LoginAttempt la
-        WHERE la.successful = false
+        WHERE la.success = false
         AND la.attemptedAt > :since
         ORDER BY la.attemptedAt DESC
         """)
@@ -83,7 +83,7 @@ public interface LoginAttemptRepository extends JpaRepository<LoginAttempt, Long
     @Query("""
         SELECT la FROM LoginAttempt la
         WHERE la.email = :email
-        AND la.successful = true
+        AND la.success = true
         ORDER BY la.attemptedAt DESC
         LIMIT 1
         """)

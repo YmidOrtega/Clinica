@@ -275,10 +275,11 @@ public class ErrorHandler {
     // Error genérico para RuntimeException
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
+        ex.printStackTrace(); // Log completo del error
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",
-                "Ha ocurrido un error interno del servidor",
+                ex.getMessage() != null ? ex.getMessage() : "Ha ocurrido un error interno del servidor",
                 "/api/v1/*"
         );
 

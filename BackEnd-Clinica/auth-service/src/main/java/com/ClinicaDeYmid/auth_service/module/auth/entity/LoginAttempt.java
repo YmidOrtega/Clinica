@@ -1,14 +1,18 @@
+// src/main/java/com/ClinicaDeYmid/auth_service/module/auth/entity/LoginAttempt.java
+
 package com.ClinicaDeYmid.auth_service.module.auth.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "login_attempts", indexes = {
         @Index(name = "idx_email", columnList = "email"),
         @Index(name = "idx_ip_address", columnList = "ip_address"),
-        @Index(name = "idx_attempted_at", columnList = "attempted_at")
+        @Index(name = "idx_attempted_at", columnList = "attempted_at"),
+        @Index(name = "idx_email_attempted", columnList = "email, attempted_at")
 })
 @Getter
 @Setter
@@ -30,18 +34,19 @@ public class LoginAttempt {
     @Column(name = "user_agent", length = 255)
     private String userAgent;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean successful = false;
+    @Column(name = "attempted_at", nullable = false)
+    private LocalDateTime attemptedAt;
+
+    @Column(name = "success", nullable = false)
+    private boolean success;
 
     @Column(name = "failure_reason", length = 255)
     private String failureReason;
 
-    @Column(name = "attempted_at", nullable = false, updatable = false)
-    private LocalDateTime attemptedAt;
-
     @PrePersist
     protected void onCreate() {
-        attemptedAt = LocalDateTime.now();
+        if (attemptedAt == null) {
+            attemptedAt = LocalDateTime.now();
+        }
     }
 }

@@ -116,7 +116,7 @@ public class UserRecordService {
         log.info("Iniciando actualización de contraseña para usuario ID: {}", id);
 
 
-        if (!passwordUpdateDTO.isPasswordConfirmed()) {
+        if (!passwordUpdateDTO.confirmPassword().equals(passwordUpdateDTO.newPassword())) {
             throw new IllegalArgumentException("La nueva contraseña y su confirmación no coinciden");
         }
 
@@ -153,9 +153,7 @@ public class UserRecordService {
      */
     private void validateUserUniqueness(String email, String username, Long excludeUserId) {
         if (email != null) {
-            boolean emailExists = excludeUserId != null
-                    ? userRepository.existsByEmailAndIdNot(email, excludeUserId)
-                    : userRepository.existsByEmail(email);
+            boolean emailExists = excludeUserId != null ? userRepository.existsByEmailAndIdNot(email, excludeUserId) : userRepository.existsByEmail(email);
 
             if (emailExists) {
                 throw new IllegalArgumentException("Ya existe un usuario con el email: " + email);
@@ -163,9 +161,7 @@ public class UserRecordService {
         }
 
         if (username != null) {
-            boolean usernameExists = excludeUserId != null
-                    ? userRepository.existsByUsernameAndIdNot(username, excludeUserId)
-                    : userRepository.existsByUsername(username);
+            boolean usernameExists = excludeUserId != null ? userRepository.existsByUsernameAndIdNot(username, excludeUserId) : userRepository.existsByUsername(username);
 
             if (usernameExists) {
                 throw new IllegalArgumentException("Ya existe un usuario con el username: " + username);
