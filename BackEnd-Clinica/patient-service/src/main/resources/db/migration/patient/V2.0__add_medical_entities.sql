@@ -222,7 +222,7 @@ CREATE TABLE family_histories (
         'OTHER'
     ) NOT NULL,
                                   relative_name VARCHAR(200),
-                                  condition VARCHAR(200) NOT NULL,
+                                  condition_name VARCHAR(200) NOT NULL,
                                   icd10_code VARCHAR(10),
                                   age_of_onset INT,
                                   current_status VARCHAR(50),
@@ -253,7 +253,7 @@ CREATE TABLE family_histories (
                                   INDEX idx_family_history_patient (patient_id),
                                   INDEX idx_family_history_relationship (relationship),
                                   INDEX idx_family_history_active (active),
-                                  INDEX idx_family_history_condition (condition),
+                                  INDEX idx_family_history_condition (condition_name),
                                   INDEX idx_family_history_genetic (genetic_risk),
                                   INDEX idx_family_history_patient_active (patient_id, active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

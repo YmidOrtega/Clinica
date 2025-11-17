@@ -42,9 +42,9 @@ public class FamilyHistory {
     @Schema(description = "Nombre del familiar (opcional)", example = "Juan Pérez")
     private String relativeName;
 
-    @Column(name = "condition", nullable = false, length = 200)
+    @Column(name = "condition_name", nullable = false, length = 200)
     @Schema(description = "Condición o enfermedad del familiar", example = "Diabetes Tipo 2")
-    private String condition;
+    private String conditionName;
 
     @Column(name = "icd10_code", length = 10)
     @Schema(description = "Código CIE-10 de la condición", example = "E11")
