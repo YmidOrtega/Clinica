@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.BusinessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.ResourceNotFoundException;
+import com.ClinicaDeYmid.patient_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.patient_service.module.dto.allergy.AllergyRequestDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.allergy.AllergyResponseDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.allergy.AllergySummaryDTO;
@@ -34,20 +35,34 @@ public class AllergyService {
     private final AllergyMapper allergyMapper;
 
     /**
+     * Obtiene el userId del contexto de seguridad actual
+     */
+    private Long getCurrentUserId() {
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
+            return 1L;
+        }
+        return userId;
+    }
+
+    /**
      * Crea una nueva alergia para un paciente
      */
     @CacheEvict(value = "patientAllergies", key = "#patientId")
-    public AllergyResponseDTO create(Long patientId, AllergyRequestDTO requestDTO, Long userId) {
+    public AllergyResponseDTO create(Long patientId, AllergyRequestDTO requestDTO) {
         log.info("Creating allergy for patient: {}", patientId);
+
+        Long userId = getCurrentUserId();
 
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado con ID: " + patientId));
 
-        // Validar alergia crítica no verificada
         if ((requestDTO.severity() == AllergySeverity.SEVERE ||
                 requestDTO.severity() == AllergySeverity.LIFE_THREATENING) &&
                 !Boolean.TRUE.equals(requestDTO.verified())) {
-            log.warn("Creating critical allergy without verification for patient: {}", patientId);
+            log.warn("Creating critical allergy without verification for patient: {} by user: {}",
+                    patientId, userId);
         }
 
         Allergy allergy = allergyMapper.toEntity(requestDTO);
@@ -56,14 +71,11 @@ public class AllergyService {
         allergy.setUpdatedBy(userId);
 
         Allergy saved = allergyRepository.save(allergy);
-        log.info("Allergy created successfully with ID: {}", saved.getId());
+        log.info("Allergy created successfully with ID: {} by user: {}", saved.getId(), userId);
 
         return allergyMapper.toResponseDTO(saved);
     }
 
-    /**
-     * Obtiene una alergia por ID
-     */
     @Transactional(readOnly = true)
     public AllergyResponseDTO getById(Long allergyId) {
         log.debug("Fetching allergy with ID: {}", allergyId);
@@ -74,9 +86,6 @@ public class AllergyService {
         return allergyMapper.toResponseDTO(allergy);
     }
 
-    /**
-     * Obtiene todas las alergias activas de un paciente
-     */
     @Cacheable(value = "patientAllergies", key = "#patientId")
     @Transactional(readOnly = true)
     public List<AllergySummaryDTO> getAllByPatientId(Long patientId) {
@@ -86,9 +95,6 @@ public class AllergyService {
         return allergyMapper.toSummaryDTOList(allergies);
     }
 
-    /**
-     * Obtiene alergias de un paciente con paginación
-     */
     @Transactional(readOnly = true)
     public Page<AllergyResponseDTO> getAllByPatientIdPaginated(Long patientId, Pageable pageable) {
         log.debug("Fetching paginated allergies for patient: {}", patientId);
@@ -97,9 +103,6 @@ public class AllergyService {
                 .map(allergyMapper::toResponseDTO);
     }
 
-    /**
-     * Obtiene alergias críticas de un paciente
-     */
     @Transactional(readOnly = true)
     public List<AllergyResponseDTO> getCriticalAllergies(Long patientId) {
         log.debug("Fetching critical allergies for patient: {}", patientId);
@@ -110,9 +113,6 @@ public class AllergyService {
                 .toList();
     }
 
-    /**
-     * Obtiene alergias no verificadas
-     */
     @Transactional(readOnly = true)
     public List<AllergyResponseDTO> getUnverifiedAllergies() {
         log.debug("Fetching unverified allergies");
@@ -123,12 +123,11 @@ public class AllergyService {
                 .toList();
     }
 
-    /**
-     * Actualiza una alergia
-     */
     @CacheEvict(value = "patientAllergies", key = "#result.patientId")
-    public AllergyResponseDTO update(Long allergyId, AllergyUpdateDTO updateDTO, Long userId) {
+    public AllergyResponseDTO update(Long allergyId, AllergyUpdateDTO updateDTO) {
         log.info("Updating allergy with ID: {}", allergyId);
+
+        Long userId = getCurrentUserId();
 
         Allergy allergy = allergyRepository.findById(allergyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alergia no encontrada con ID: " + allergyId));
@@ -137,17 +136,16 @@ public class AllergyService {
         allergy.setUpdatedBy(userId);
 
         Allergy updated = allergyRepository.save(allergy);
-        log.info("Allergy updated successfully: {}", allergyId);
+        log.info("Allergy updated successfully: {} by user: {}", allergyId, userId);
 
         return allergyMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Marca una alergia como verificada
-     */
     @CacheEvict(value = "patientAllergies", key = "#result.patientId")
-    public AllergyResponseDTO verify(Long allergyId, Long userId) {
+    public AllergyResponseDTO verify(Long allergyId) {
         log.info("Verifying allergy with ID: {}", allergyId);
+
+        Long userId = getCurrentUserId();
 
         Allergy allergy = allergyRepository.findById(allergyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alergia no encontrada con ID: " + allergyId));
@@ -156,17 +154,16 @@ public class AllergyService {
         allergy.setUpdatedBy(userId);
 
         Allergy verified = allergyRepository.save(allergy);
-        log.info("Allergy verified successfully: {}", allergyId);
+        log.info("Allergy verified successfully: {} by user: {}", allergyId, userId);
 
         return allergyMapper.toResponseDTO(verified);
     }
 
-    /**
-     * Desactiva una alergia (soft delete)
-     */
     @CacheEvict(value = "patientAllergies", key = "#result.patientId")
-    public AllergyResponseDTO deactivate(Long allergyId, Long userId) {
+    public AllergyResponseDTO deactivate(Long allergyId) {
         log.info("Deactivating allergy with ID: {}", allergyId);
+
+        Long userId = getCurrentUserId();
 
         Allergy allergy = allergyRepository.findById(allergyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alergia no encontrada con ID: " + allergyId));
@@ -175,16 +172,13 @@ public class AllergyService {
         allergy.setUpdatedBy(userId);
 
         Allergy deactivated = allergyRepository.save(allergy);
-        log.info("Allergy deactivated successfully: {}", allergyId);
+        log.info("Allergy deactivated successfully: {} by user: {}", allergyId, userId);
 
         return allergyMapper.toResponseDTO(deactivated);
     }
 
-    /**
-     * Elimina permanentemente una alergia
-     */
     public void delete(Long allergyId, Long patientId) {
-        log.warn("Permanently deleting allergy with ID: {}", allergyId);
+        log.warn("Permanently deleting allergy with ID: {} by user: {}", allergyId, getCurrentUserId());
 
         Allergy allergy = allergyRepository.findById(allergyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alergia no encontrada con ID: " + allergyId));
@@ -197,17 +191,11 @@ public class AllergyService {
         log.info("Allergy permanently deleted: {}", allergyId);
     }
 
-    /**
-     * Verifica si un paciente tiene alergias críticas
-     */
     @Transactional(readOnly = true)
     public boolean hasCriticalAllergies(Long patientId) {
         return allergyRepository.hasCriticalAllergies(patientId);
     }
 
-    /**
-     * Cuenta alergias activas de un paciente
-     */
     @Transactional(readOnly = true)
     public long countActiveAllergies(Long patientId) {
         return allergyRepository.countByPatientIdAndActiveTrue(patientId);

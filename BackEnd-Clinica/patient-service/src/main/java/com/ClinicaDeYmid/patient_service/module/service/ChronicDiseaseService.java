@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.BusinessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.ResourceNotFoundException;
+import com.ClinicaDeYmid.patient_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.patient_service.module.dto.chronic.ChronicDiseaseRequestDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.chronic.ChronicDiseaseResponseDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.chronic.ChronicDiseaseSummaryDTO;
@@ -34,12 +35,20 @@ public class ChronicDiseaseService {
     private final PatientRepository patientRepository;
     private final ChronicDiseaseMapper chronicDiseaseMapper;
 
-    /**
-     * Crea una nueva enfermedad crónica
-     */
+    private Long getCurrentUserId() {
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
+            return 1L;
+        }
+        return userId;
+    }
+
     @CacheEvict(value = "patientChronicDiseases", key = "#patientId")
-    public ChronicDiseaseResponseDTO create(Long patientId, ChronicDiseaseRequestDTO requestDTO, Long userId) {
+    public ChronicDiseaseResponseDTO create(Long patientId, ChronicDiseaseRequestDTO requestDTO) {
         log.info("Creating chronic disease for patient: {}", patientId);
+
+        Long userId = getCurrentUserId();
 
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado con ID: " + patientId));
@@ -50,14 +59,11 @@ public class ChronicDiseaseService {
         disease.setUpdatedBy(userId);
 
         ChronicDisease saved = chronicDiseaseRepository.save(disease);
-        log.info("Chronic disease created successfully with ID: {}", saved.getId());
+        log.info("Chronic disease created successfully with ID: {} by user: {}", saved.getId(), userId);
 
         return chronicDiseaseMapper.toResponseDTO(saved);
     }
 
-    /**
-     * Obtiene una enfermedad por ID
-     */
     @Transactional(readOnly = true)
     public ChronicDiseaseResponseDTO getById(Long diseaseId) {
         log.debug("Fetching chronic disease with ID: {}", diseaseId);
@@ -68,9 +74,6 @@ public class ChronicDiseaseService {
         return chronicDiseaseMapper.toResponseDTO(disease);
     }
 
-    /**
-     * Obtiene todas las enfermedades activas de un paciente
-     */
     @Cacheable(value = "patientChronicDiseases", key = "#patientId")
     @Transactional(readOnly = true)
     public List<ChronicDiseaseSummaryDTO> getAllByPatientId(Long patientId) {
@@ -80,9 +83,6 @@ public class ChronicDiseaseService {
         return chronicDiseaseMapper.toSummaryDTOList(diseases);
     }
 
-    /**
-     * Obtiene enfermedades con paginación
-     */
     @Transactional(readOnly = true)
     public Page<ChronicDiseaseResponseDTO> getAllByPatientIdPaginated(Long patientId, Pageable pageable) {
         log.debug("Fetching paginated chronic diseases for patient: {}", patientId);
@@ -91,9 +91,6 @@ public class ChronicDiseaseService {
                 .map(chronicDiseaseMapper::toResponseDTO);
     }
 
-    /**
-     * Obtiene enfermedades críticas de un paciente
-     */
     @Transactional(readOnly = true)
     public List<ChronicDiseaseResponseDTO> getCriticalDiseases(Long patientId) {
         log.debug("Fetching critical diseases for patient: {}", patientId);
@@ -104,9 +101,6 @@ public class ChronicDiseaseService {
                 .toList();
     }
 
-    /**
-     * Obtiene enfermedades que requieren especialista
-     */
     @Transactional(readOnly = true)
     public List<ChronicDiseaseResponseDTO> getDiseasesRequiringSpecialist() {
         log.debug("Fetching diseases requiring specialist");
@@ -117,9 +111,6 @@ public class ChronicDiseaseService {
                 .toList();
     }
 
-    /**
-     * Obtiene enfermedades con brote reciente
-     */
     @Transactional(readOnly = true)
     public List<ChronicDiseaseResponseDTO> getRecentFlares(int daysAgo) {
         log.debug("Fetching diseases with flares in last {} days", daysAgo);
@@ -132,66 +123,65 @@ public class ChronicDiseaseService {
                 .toList();
     }
 
-    /**
-     * Actualiza una enfermedad
-     */
     @CacheEvict(value = "patientChronicDiseases", key = "#result.patientId")
-    public ChronicDiseaseResponseDTO update(Long diseaseId, ChronicDiseaseUpdateDTO updateDTO, Long userId) {
+    public ChronicDiseaseResponseDTO update(Long diseaseId, ChronicDiseaseUpdateDTO updateDTO) {
         log.info("Updating chronic disease with ID: {}", diseaseId);
 
-        ChronicDisease disease = chronicDiseaseRepository.findById(diseaseId).orElseThrow(() -> new ResourceNotFoundException("Enfermedad crónica no encontrada con ID: " + diseaseId));
+        Long userId = getCurrentUserId();
+
+        ChronicDisease disease = chronicDiseaseRepository.findById(diseaseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enfermedad crónica no encontrada con ID: " + diseaseId));
 
         chronicDiseaseMapper.updateEntityFromDTO(updateDTO, disease);
         disease.setUpdatedBy(userId);
 
         ChronicDisease updated = chronicDiseaseRepository.save(disease);
-        log.info("Chronic disease updated successfully: {}", diseaseId);
+        log.info("Chronic disease updated successfully: {} by user: {}", diseaseId, userId);
 
         return chronicDiseaseMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Actualiza la severidad de una enfermedad
-     */
     @CacheEvict(value = "patientChronicDiseases", key = "#result.patientId")
-    public ChronicDiseaseResponseDTO updateSeverity(Long diseaseId, DiseaseSeverity severity, Long userId) {
+    public ChronicDiseaseResponseDTO updateSeverity(Long diseaseId, DiseaseSeverity severity) {
         log.info("Updating severity for disease ID: {} to {}", diseaseId, severity);
 
-        ChronicDisease disease = chronicDiseaseRepository.findById(diseaseId).orElseThrow(() -> new ResourceNotFoundException("Enfermedad crónica no encontrada con ID: " + diseaseId));
+        Long userId = getCurrentUserId();
+
+        ChronicDisease disease = chronicDiseaseRepository.findById(diseaseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enfermedad crónica no encontrada con ID: " + diseaseId));
 
         disease.setSeverity(severity);
         disease.setUpdatedBy(userId);
 
         ChronicDisease updated = chronicDiseaseRepository.save(disease);
-        log.info("Disease severity updated successfully");
+        log.info("Disease severity updated successfully by user: {}", userId);
 
         return chronicDiseaseMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Registra un nuevo brote de la enfermedad
-     */
     @CacheEvict(value = "patientChronicDiseases", key = "#result.patientId")
-    public ChronicDiseaseResponseDTO registerFlare(Long diseaseId, LocalDate flareDate, Long userId) {
+    public ChronicDiseaseResponseDTO registerFlare(Long diseaseId, LocalDate flareDate) {
         log.info("Registering flare for disease ID: {} on date: {}", diseaseId, flareDate);
 
-        ChronicDisease disease = chronicDiseaseRepository.findById(diseaseId).orElseThrow(() -> new ResourceNotFoundException("Enfermedad crónica no encontrada con ID: " + diseaseId));
+        Long userId = getCurrentUserId();
+
+        ChronicDisease disease = chronicDiseaseRepository.findById(diseaseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enfermedad crónica no encontrada con ID: " + diseaseId));
 
         disease.setLastFlareDate(flareDate);
         disease.setUpdatedBy(userId);
 
         ChronicDisease updated = chronicDiseaseRepository.save(disease);
-        log.info("Flare registered successfully");
+        log.info("Flare registered successfully by user: {}", userId);
 
         return chronicDiseaseMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Desactiva una enfermedad
-     */
     @CacheEvict(value = "patientChronicDiseases", key = "#result.patientId")
-    public ChronicDiseaseResponseDTO deactivate(Long diseaseId, Long userId) {
+    public ChronicDiseaseResponseDTO deactivate(Long diseaseId) {
         log.info("Deactivating chronic disease with ID: {}", diseaseId);
+
+        Long userId = getCurrentUserId();
 
         ChronicDisease disease = chronicDiseaseRepository.findById(diseaseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enfermedad crónica no encontrada con ID: " + diseaseId));
@@ -200,16 +190,13 @@ public class ChronicDiseaseService {
         disease.setUpdatedBy(userId);
 
         ChronicDisease deactivated = chronicDiseaseRepository.save(disease);
-        log.info("Chronic disease deactivated successfully");
+        log.info("Chronic disease deactivated successfully by user: {}", userId);
 
         return chronicDiseaseMapper.toResponseDTO(deactivated);
     }
 
-    /**
-     * Elimina permanentemente una enfermedad
-     */
     public void delete(Long diseaseId, Long patientId) {
-        log.warn("Permanently deleting chronic disease with ID: {}", diseaseId);
+        log.warn("Permanently deleting chronic disease with ID: {} by user: {}", diseaseId, getCurrentUserId());
 
         ChronicDisease disease = chronicDiseaseRepository.findById(diseaseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enfermedad crónica no encontrada con ID: " + diseaseId));
@@ -222,17 +209,11 @@ public class ChronicDiseaseService {
         log.info("Chronic disease permanently deleted");
     }
 
-    /**
-     * Verifica si un paciente tiene enfermedades críticas
-     */
     @Transactional(readOnly = true)
     public boolean hasCriticalDiseases(Long patientId) {
         return chronicDiseaseRepository.hasCriticalDiseases(patientId);
     }
 
-    /**
-     * Cuenta enfermedades activas de un paciente
-     */
     @Transactional(readOnly = true)
     public long countActiveDiseases(Long patientId) {
         return chronicDiseaseRepository.countByPatientIdAndActiveTrue(patientId);
