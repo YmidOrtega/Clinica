@@ -1,14 +1,17 @@
 package com.ClinicaDeYmid.patient_service.infra;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.*;
+import com.ClinicaDeYmid.patient_service.infra.exception.base.BaseException;
+import com.ClinicaDeYmid.patient_service.infra.exception.base.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.dao.DataAccessException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -19,271 +22,559 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Slf4j
 public class GlobalExceptionHandler {
 
-    // Maneja errores de validación de argumentos (400)
+    /**
+     * Maneja ResourceNotFoundException
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Resource not found: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .errorCode(ex.getErrorCode())
+                .message(ex.getMessage())
+                .userMessage("El recurso solicitado no fue encontrado")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .operation(ex.getOperation())
+                .metadata(buildMetadata(ex))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Maneja BusinessException
+     */
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(
+            BusinessException ex,
+            HttpServletRequest request) {
+
+        log.warn("Business rule violation: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error(HttpStatus.UNPROCESSABLE_ENTITY.getReasonPhrase())
+                .errorCode(ex.getErrorCode())
+                .message(ex.getMessage())
+                .userMessage("No se puede completar la operación debido a una regla de negocio")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .operation(ex.getOperation())
+                .metadata(Map.of("businessRule", ex.getBusinessRule() != null ? ex.getBusinessRule() : "N/A"))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
+    }
+
+    /**
+     * Maneja ValidationException
+     */
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(
+            ValidationException ex,
+            HttpServletRequest request) {
+
+        log.warn("Validation error: {}", ex.getMessage());
+
+        List<ErrorResponse.ValidationError> validationErrors = ex.getFieldErrors().entrySet().stream()
+                .map(entry -> ErrorResponse.ValidationError.builder()
+                        .field(entry.getKey())
+                        .message(entry.getValue())
+                        .code("INVALID_" + entry.getKey().toUpperCase())
+                        .build())
+                .collect(Collectors.toList());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode(ex.getErrorCode())
+                .message(ex.getMessage())
+                .userMessage("Los datos proporcionados no son válidos")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .operation(ex.getOperation())
+                .validationErrors(validationErrors)
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Maneja MethodArgumentNotValidException (validaciones de @Valid)
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Validación fallida");
-        response.put("message", "Errores en los campos enviados.");
-        response.put("path", request.getRequestURI());
+    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
 
-        List<Map<String, String>> errors = ex.getBindingResult().getFieldErrors().stream().map(error -> {
-            Map<String, String> err = new LinkedHashMap<>();
-            err.put("field", error.getField());
-            err.put("message", error.getDefaultMessage());
-            return err;
-        }).toList();
+        log.warn("Validation failed: {}", ex.getMessage());
 
-        response.put("errors", errors);
-        return ResponseEntity.badRequest().body(response);
+        List<ErrorResponse.ValidationError> validationErrors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(error -> ErrorResponse.ValidationError.builder()
+                        .field(error.getField())
+                        .rejectedValue(error.getRejectedValue())
+                        .message(error.getDefaultMessage())
+                        .code(error.getCode())
+                        .build())
+                .collect(Collectors.toList());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("VALIDATION_FAILED")
+                .message("Error de validación en los datos de entrada")
+                .userMessage("Por favor revise los datos ingresados")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .validationErrors(validationErrors)
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
-    // Maneja violaciones de constraints de validación (400)
+    /**
+     * Maneja ConstraintViolationException
+     */
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Validación de parámetros fallida");
-        response.put("message", "Los parámetros enviados no cumplen con los requisitos.");
-        response.put("path", request.getRequestURI());
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+            ConstraintViolationException ex,
+            HttpServletRequest request) {
 
-        List<Map<String, String>> errors = ex.getConstraintViolations().stream().map(violation -> {
-            Map<String, String> err = new LinkedHashMap<>();
-            err.put("field", violation.getPropertyPath().toString());
-            err.put("message", violation.getMessage());
-            return err;
-        }).toList();
+        log.warn("Constraint violation: {}", ex.getMessage());
 
-        response.put("errors", errors);
-        return ResponseEntity.badRequest().body(response);
+        List<ErrorResponse.ValidationError> validationErrors = ex.getConstraintViolations()
+                .stream()
+                .map(violation -> ErrorResponse.ValidationError.builder()
+                        .field(getFieldName(violation))
+                        .rejectedValue(violation.getInvalidValue())
+                        .message(violation.getMessage())
+                        .build())
+                .collect(Collectors.toList());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("CONSTRAINT_VIOLATION")
+                .message("Violación de restricciones en los datos")
+                .userMessage("Los datos no cumplen con las restricciones requeridas")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .validationErrors(validationErrors)
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
-    // Maneja solicitudes con cuerpo inválido (400)
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidRequestBody(HttpMessageNotReadableException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Solicitud mal formada");
-        response.put("message", "El cuerpo de la solicitud contiene datos inválidos.");
-        response.put("path", request.getRequestURI());
-        return ResponseEntity.badRequest().body(response);
+    /**
+     * Maneja DuplicateResourceException
+     */
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateResource(
+            DuplicateResourceException ex,
+            HttpServletRequest request) {
+
+        log.warn("Duplicate resource: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .errorCode(ex.getErrorCode())
+                .message(ex.getMessage())
+                .userMessage("El recurso ya existe en el sistema")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .operation(ex.getOperation())
+                .metadata(buildMetadata(ex))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 
-    // Maneja parámetros requeridos faltantes (400)
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<Map<String, Object>> handleMissingParameter(MissingServletRequestParameterException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Parámetro requerido faltante");
-        response.put("message", "El parámetro '" + ex.getParameterName() + "' es requerido.");
-        response.put("path", request.getRequestURI());
-        response.put("parameter", ex.getParameterName());
-        return ResponseEntity.badRequest().body(response);
+    /**
+     * Maneja MedicalRecordException
+     */
+    @ExceptionHandler(MedicalRecordException.class)
+    public ResponseEntity<ErrorResponse> handleMedicalRecordException(
+            MedicalRecordException ex,
+            HttpServletRequest request) {
+
+        log.error("Medical record error: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error(HttpStatus.UNPROCESSABLE_ENTITY.getReasonPhrase())
+                .errorCode(ex.getErrorCode())
+                .message(ex.getMessage())
+                .userMessage("Error al procesar el registro médico")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .operation(ex.getOperation())
+                .metadata(buildMetadata(ex))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
     }
 
-    // Maneja tipos de parámetros incorrectos (400)
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-public ResponseEntity<Map<String, Object>> handleTypeMismatch(
-        MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+    /**
+     * Maneja CriticalAllergyException
+     */
+    @ExceptionHandler(CriticalAllergyException.class)
+    public ResponseEntity<ErrorResponse> handleCriticalAllergyException(
+            CriticalAllergyException ex,
+            HttpServletRequest request) {
 
-    Map<String, Object> response = new LinkedHashMap<>();
-    response.put("timestamp", ZonedDateTime.now());
-    response.put("status", HttpStatus.BAD_REQUEST.value());
-    response.put("error", "Tipo de parámetro inválido");
-    response.put("path", request.getRequestURI());
-    response.put("parameter", ex.getName());
-    response.put("providedValue", ex.getValue());
+        log.error("Critical allergy warning: {}", ex.getMessage());
 
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("patientId", ex.getPatientId());
+        metadata.put("allergen", ex.getAllergen());
+        metadata.put("severity", ex.getSeverity());
+        metadata.put("alertLevel", "CRITICAL");
 
-    Class<?> required = ex.getRequiredType();
-    String requiredTypeName = Optional.ofNullable(required)
-            .map(Class::getSimpleName)
-            .orElse("desconocido");
-            
-    StringBuilder msg = new StringBuilder("El parámetro '")
-            .append(ex.getName())
-            .append("' debe ser de tipo ")
-            .append(requiredTypeName);
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.PRECONDITION_FAILED.value())
+                .error("Critical Allergy Alert")
+                .errorCode(ex.getErrorCode())
+                .message(ex.getMessage())
+                .userMessage("ALERTA: Alergia crítica detectada - Se requiere atención inmediata")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .operation(ex.getOperation())
+                .metadata(metadata)
+                .traceId(generateTraceId())
+                .build();
 
-    if (required != null && required.isEnum()) {
-        Object[] constants = required.getEnumConstants();
-        if (constants != null && constants.length > 0) {
-            String allowed = Arrays.stream(constants)
-                    .map(Object::toString)
-                    .sorted()
-                    .reduce((a, b) -> a + ", " + b)
-                    .orElse("");
-            msg.append(". Valores permitidos: [").append(allowed).append("]");
+        return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED).body(errorResponse);
+    }
+
+    /**
+     * Maneja InvalidMedicalDataException
+     */
+    @ExceptionHandler(InvalidMedicalDataException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidMedicalData(
+            InvalidMedicalDataException ex,
+            HttpServletRequest request) {
+
+        log.warn("Invalid medical data: {}", ex.getMessage());
+
+        List<ErrorResponse.ValidationError> validationErrors = ex.getInvalidFields().entrySet().stream()
+                .map(entry -> ErrorResponse.ValidationError.builder()
+                        .field(entry.getKey())
+                        .message(entry.getValue())
+                        .code("INVALID_MEDICAL_DATA")
+                        .build())
+                .collect(Collectors.toList());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode(ex.getErrorCode())
+                .message(ex.getMessage())
+                .userMessage("Los datos médicos proporcionados no son válidos")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .operation(ex.getOperation())
+                .validationErrors(validationErrors)
+                .metadata(Map.of("dataType", ex.getDataType()))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Maneja DataIntegrityViolationException
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request) {
+
+        log.error("Data integrity violation: {}", ex.getMessage());
+
+        String message = "Error de integridad de datos";
+        String userMessage = "Los datos no pudieron ser guardados debido a restricciones de la base de datos";
+
+        if (ex.getMessage().contains("Duplicate entry")) {
+            message = "Registro duplicado";
+            userMessage = "Ya existe un registro con estos datos";
         }
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .errorCode("DATA_INTEGRITY_VIOLATION")
+                .message(message)
+                .userMessage(userMessage)
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
 
-    response.put("message", msg.toString());
-    return ResponseEntity.badRequest().body(response);
-}
+    /**
+     * Maneja HttpMessageNotReadableException
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request) {
 
-    // Maneja métodos HTTP no permitidos (405)
+        log.warn("Malformed JSON request: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("MALFORMED_JSON")
+                .message("El cuerpo de la petición no es válido")
+                .userMessage("El formato de los datos enviados no es correcto")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Maneja HttpRequestMethodNotSupportedException
+     */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<Map<String, Object>> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request) {
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.METHOD_NOT_ALLOWED.value());
-        response.put("error", "Método HTTP no permitido");
-        response.put("message", "El método '" + ex.getMethod() + "' no está permitido para este endpoint.");
-        response.put("path", request.getRequestURI());
+        log.warn("Method not supported: {} for {}", ex.getMethod(), request.getRequestURI());
 
-        Set<org.springframework.http.HttpMethod> supported =
-                Optional.ofNullable(ex.getSupportedHttpMethods()).orElse(Collections.emptySet());
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.METHOD_NOT_ALLOWED.value())
+                .error(HttpStatus.METHOD_NOT_ALLOWED.getReasonPhrase())
+                .errorCode("METHOD_NOT_ALLOWED")
+                .message(String.format("Método %s no está soportado para este endpoint", ex.getMethod()))
+                .userMessage("El método HTTP utilizado no es válido para esta operación")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of(
+                        "supportedMethods", ex.getSupportedHttpMethods() != null ?
+                                ex.getSupportedHttpMethods().toString() : "N/A"
+                ))
+                .traceId(generateTraceId())
+                .build();
 
-        Set<String> allowedMethodsAsStrings = supported.stream()
-                .map(org.springframework.http.HttpMethod::name)
-                .collect(java.util.stream.Collectors.toSet());
-
-        response.put("allowedMethods", allowedMethodsAsStrings);
-
-        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
-    
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(errorResponse);
     }
 
-    // Maneja rutas no encontradas (404)
+    /**
+     * Maneja HttpMediaTypeNotSupportedException
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException ex,
+            HttpServletRequest request) {
+
+        log.warn("Media type not supported: {}", ex.getContentType());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value())
+                .error(HttpStatus.UNSUPPORTED_MEDIA_TYPE.getReasonPhrase())
+                .errorCode("UNSUPPORTED_MEDIA_TYPE")
+                .message(String.format("Tipo de contenido %s no soportado", ex.getContentType()))
+                .userMessage("El formato de contenido enviado no es válido")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of(
+                        "supportedMediaTypes", ex.getSupportedMediaTypes().toString()
+                ))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(errorResponse);
+    }
+
+    /**
+     * Maneja MissingServletRequestParameterException
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestParameter(
+            MissingServletRequestParameterException ex,
+            HttpServletRequest request) {
+
+        log.warn("Missing request parameter: {}", ex.getParameterName());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("MISSING_PARAMETER")
+                .message(String.format("Parámetro requerido '%s' no está presente", ex.getParameterName()))
+                .userMessage("Falta un parámetro requerido en la petición")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of(
+                        "parameterName", ex.getParameterName(),
+                        "parameterType", ex.getParameterType()
+                ))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Maneja MethodArgumentTypeMismatchException
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+
+        log.warn("Type mismatch for parameter: {}", ex.getName());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("TYPE_MISMATCH")
+                .message(String.format("El parámetro '%s' debe ser de tipo %s",
+                        ex.getName(),
+                        ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown"))
+                .userMessage("El tipo de dato de un parámetro no es válido")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of(
+                        "parameterName", ex.getName(),
+                        "providedValue", ex.getValue() != null ? ex.getValue().toString() : "null",
+                        "requiredType", ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown"
+                ))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Maneja NoHandlerFoundException
+     */
     @ExceptionHandler(NoHandlerFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNoHandlerFound(NoHandlerFoundException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "Endpoint no encontrado");
-        response.put("message", "No se encontró un handler para " + ex.getHttpMethod() + " " + ex.getRequestURL());
-        response.put("path", request.getRequestURI());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    public ResponseEntity<ErrorResponse> handleNoHandlerFound(
+            NoHandlerFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("No handler found for: {} {}", ex.getHttpMethod(), ex.getRequestURL());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .errorCode("ENDPOINT_NOT_FOUND")
+                .message(String.format("No se encontró endpoint para %s %s", ex.getHttpMethod(), ex.getRequestURL()))
+                .userMessage("La ruta solicitada no existe")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
-    // ========== EXCEPCIONES PERSONALIZADAS DE PACIENTES ==========
-
-    // Maneja paciente ya existente (409)
-    @ExceptionHandler(PatientAlreadyExistsException.class)
-    public ResponseEntity<Map<String, Object>> handlePatientAlreadyExists(PatientAlreadyExistsException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.CONFLICT.value());
-        response.put("error", "Paciente ya existe");
-        response.put("message", ex.getMessage());
-        response.put("path", request.getRequestURI());
-        response.put("identification", ex.getIdentificationNumber());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-    }
-
-    // Maneja paciente no encontrado (404)
-    @ExceptionHandler(PatientNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handlePatientNotFound(PatientNotFoundException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "Paciente no encontrado");
-        response.put("message", ex.getMessage());
-        response.put("path", request.getRequestURI());
-        response.put("identification", ex.getIdentificationNumber());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
-
-    // Maneja paciente no activo (400)
-    @ExceptionHandler(PatientNotActiveException.class)
-    public ResponseEntity<Map<String, Object>> handlePatientNotActive(PatientNotActiveException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Paciente inactivo");
-        response.put("message", ex.getMessage());
-        response.put("path", request.getRequestURI());
-        response.put("patientStatus", ex.getStatus());
-        return ResponseEntity.badRequest().body(response);
-    }
-
-    // Maneja errores de actualización de paciente (400)
-    @ExceptionHandler(InvalidPatientUpdateException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidPatientUpdate(InvalidPatientUpdateException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Actualización inválida");
-        response.put("message", ex.getMessage());
-        response.put("path", request.getRequestURI());
-        response.put("field", ex.getField());
-        response.put("reason", ex.getReason());
-        return ResponseEntity.badRequest().body(response);
-    }
-
-    // Maneja búsquedas sin resultados (404)
-    @ExceptionHandler(PatientSearchNoResultsException.class)
-    public ResponseEntity<Map<String, Object>> handlePatientSearchNoResults(PatientSearchNoResultsException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "Sin resultados de búsqueda");
-        response.put("message", ex.getMessage());
-        response.put("path", request.getRequestURI());
-        response.put("query", ex.getQuery());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
-
-    // Maneja parámetros de búsqueda inválidos (400)
-    @ExceptionHandler(InvalidSearchParametersException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidSearchParameters(InvalidSearchParametersException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Parámetros de búsqueda inválidos");
-        response.put("message", ex.getMessage());
-        response.put("path", request.getRequestURI());
-        response.put("parameter", ex.getParameter());
-        response.put("value", ex.getValue());
-        return ResponseEntity.badRequest().body(response);
-    }
-
-    // Maneja errores de acceso a datos (500)
-    @ExceptionHandler(PatientDataAccessException.class)
-    public ResponseEntity<Map<String, Object>> handlePatientDataAccess(PatientDataAccessException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("error", "Error de acceso a datos");
-        response.put("message", ex.getMessage());
-        response.put("path", request.getRequestURI());
-        response.put("operation", ex.getOperation());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
-
-    // Maneja errores genéricos de base de datos (500)
-    @ExceptionHandler(DataAccessException.class)
-    public ResponseEntity<Map<String, Object>> handleDataAccessException(DataAccessException ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("error", "Error de base de datos");
-        response.put("message", "Ha ocurrido un error al acceder a la base de datos.");
-        response.put("path", request.getRequestURI());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
-
-    // Maneja cualquier otra excepción no contemplada (500)
+    /**
+     * Maneja excepciones genéricas
+     */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex, HttpServletRequest request) {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("timestamp", ZonedDateTime.now());
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("error", "Error interno del servidor");
-        response.put("message", "Ha ocurrido un error inesperado.");
-        response.put("path", request.getRequestURI());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    public ResponseEntity<ErrorResponse> handleGenericException(
+            Exception ex,
+            HttpServletRequest request) {
+
+        log.error("Unexpected error occurred", ex);
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
+                .errorCode("INTERNAL_SERVER_ERROR")
+                .message("Ha ocurrido un error inesperado")
+                .userMessage("Lo sentimos, algo salió mal. Por favor intente nuevamente más tarde")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
 
+    /**
+     * Construye metadata desde BaseException
+     */
+    private Map<String, Object> buildMetadata(BaseException ex) {
+        Map<String, Object> metadata = new HashMap<>();
+
+        if (ex instanceof ResourceNotFoundException) {
+            ResourceNotFoundException rnfEx = (ResourceNotFoundException) ex;
+            metadata.put("resourceType", rnfEx.getResourceType());
+            metadata.put("resourceId", rnfEx.getResourceId());
+        } else if (ex instanceof DuplicateResourceException) {
+            DuplicateResourceException drEx = (DuplicateResourceException) ex;
+            metadata.put("resourceType", drEx.getResourceType());
+            metadata.put("duplicateField", drEx.getDuplicateField());
+            metadata.put("duplicateValue", drEx.getDuplicateValue());
+        } else if (ex instanceof MedicalRecordException) {
+            MedicalRecordException mrEx = (MedicalRecordException) ex;
+            metadata.put("recordType", mrEx.getRecordType());
+            metadata.put("patientId", mrEx.getPatientId());
+        }
+
+        return metadata;
+    }
+
+    /**
+     * Extrae el nombre del campo de una ConstraintViolation
+     */
+    private String getFieldName(ConstraintViolation<?> violation) {
+        String propertyPath = violation.getPropertyPath().toString();
+        String[] parts = propertyPath.split("\\.");
+        return parts[parts.length - 1];
+    }
+
+    /**
+     * Genera un ID de traza único para debugging
+     */
+    private String generateTraceId() {
+        return UUID.randomUUID().toString();
+    }
 }
