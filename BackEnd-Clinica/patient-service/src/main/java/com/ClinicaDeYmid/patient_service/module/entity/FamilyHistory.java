@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
 @Table(name = "family_histories", indexes = {
         @Index(name = "idx_family_history_patient", columnList = "patient_id"),
         @Index(name = "idx_family_history_relationship", columnList = "relationship"),
-        @Index(name = "idx_family_history_active", columnList = "active")
+        @Index(name = "idx_family_history_active", columnList = "active"),
+        @Index(name = "idx_family_history_condition_name", columnList = "condition_name")
 })
 @Data
 @NoArgsConstructor
