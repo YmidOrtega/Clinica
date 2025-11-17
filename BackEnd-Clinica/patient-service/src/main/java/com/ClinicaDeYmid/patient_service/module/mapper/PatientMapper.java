@@ -1,6 +1,10 @@
 package com.ClinicaDeYmid.patient_service.module.mapper;
 
 import com.ClinicaDeYmid.patient_service.module.dto.*;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.GetPatientDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.PatientResponseDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.PatientsListDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.UpdatePatientDto;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.entity.Site;
 import com.ClinicaDeYmid.patient_service.module.entity.Occupation;

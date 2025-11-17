@@ -1,6 +1,10 @@
 package com.ClinicaDeYmid.patient_service.module.controller;
 
 import com.ClinicaDeYmid.patient_service.module.dto.*;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.GetPatientDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.PatientResponseDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.PatientsListDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.UpdatePatientDto;
 import com.ClinicaDeYmid.patient_service.module.service.GetPatientInformationService;
 import com.ClinicaDeYmid.patient_service.module.service.PatientRecordService;
 import com.ClinicaDeYmid.patient_service.module.service.PatientSearchService;

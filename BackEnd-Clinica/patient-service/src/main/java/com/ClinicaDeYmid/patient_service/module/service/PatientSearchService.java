@@ -3,7 +3,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 import com.ClinicaDeYmid.patient_service.infra.exception.InvalidSearchParametersException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientSearchNoResultsException;
-import com.ClinicaDeYmid.patient_service.module.dto.PatientsListDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.PatientsListDto;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
