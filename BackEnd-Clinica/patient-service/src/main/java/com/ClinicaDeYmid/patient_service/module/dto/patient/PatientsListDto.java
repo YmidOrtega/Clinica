@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.patient_service.module.dto;
+package com.ClinicaDeYmid.patient_service.module.dto.patient;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

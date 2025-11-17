@@ -6,7 +6,7 @@ import com.ClinicaDeYmid.patient_service.module.dto.ContractDto;
 import com.ClinicaDeYmid.patient_service.module.dto.GetClientDto;
 import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderNitDto;
 import com.ClinicaDeYmid.patient_service.module.dto.NewPatientDto;
-import com.ClinicaDeYmid.patient_service.module.dto.PatientResponseDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.PatientResponseDto;
 import com.ClinicaDeYmid.patient_service.module.entity.Occupation;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.entity.Site;
@@ -21,7 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDate;
