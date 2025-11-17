@@ -1,5 +1,6 @@
-package com.ClinicaDeYmid.patient_service.module.dto;
+package com.ClinicaDeYmid.patient_service.module.dto.patient;
 
+import com.ClinicaDeYmid.patient_service.module.dto.GetClientDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 
