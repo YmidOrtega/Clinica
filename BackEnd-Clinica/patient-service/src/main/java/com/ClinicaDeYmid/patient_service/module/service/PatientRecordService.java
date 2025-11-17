@@ -4,7 +4,7 @@ import com.ClinicaDeYmid.patient_service.infra.exception.PatientAlreadyExistsExc
 import com.ClinicaDeYmid.patient_service.infra.exception.PatientDataAccessException;
 import com.ClinicaDeYmid.patient_service.module.dto.HealthProviderNitDto;
 import com.ClinicaDeYmid.patient_service.module.dto.NewPatientDto;
-import com.ClinicaDeYmid.patient_service.module.dto.PatientResponseDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.PatientResponseDto;
 import com.ClinicaDeYmid.patient_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.patient_service.module.mapper.PatientMapper;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
