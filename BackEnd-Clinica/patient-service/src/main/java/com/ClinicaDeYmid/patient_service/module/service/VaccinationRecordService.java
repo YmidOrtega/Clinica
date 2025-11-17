@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.BusinessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.ResourceNotFoundException;
+import com.ClinicaDeYmid.patient_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.patient_service.module.dto.vaccination.VaccinationRecordRequestDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.vaccination.VaccinationRecordResponseDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.vaccination.VaccinationRecordUpdateDTO;
@@ -34,17 +35,24 @@ public class VaccinationRecordService {
     private final PatientRepository patientRepository;
     private final VaccinationRecordMapper vaccinationMapper;
 
-    /**
-     * Crea un nuevo registro de vacunación
-     */
+    private Long getCurrentUserId() {
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
+            return 1L;
+        }
+        return userId;
+    }
+
     @CacheEvict(value = "patientVaccinations", key = "#patientId")
-    public VaccinationRecordResponseDTO create(Long patientId, VaccinationRecordRequestDTO requestDTO, Long userId) {
+    public VaccinationRecordResponseDTO create(Long patientId, VaccinationRecordRequestDTO requestDTO) {
         log.info("Creating vaccination record for patient: {}", patientId);
+
+        Long userId = getCurrentUserId();
 
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado con ID: " + patientId));
 
-        // Validar fechas
         if (requestDTO.administeredDate().isAfter(LocalDate.now())) {
             throw new BusinessException("La fecha de administración no puede ser futura");
         }
@@ -59,7 +67,6 @@ public class VaccinationRecordService {
             throw new BusinessException("La fecha de vencimiento no puede ser anterior a la fecha de administración");
         }
 
-        // Validar esquema de vacunación
         if (requestDTO.totalDosesRequired() != null &&
                 requestDTO.doseNumber() > requestDTO.totalDosesRequired()) {
             throw new BusinessException("El número de dosis no puede ser mayor que el total de dosis requeridas");
@@ -71,14 +78,11 @@ public class VaccinationRecordService {
         vaccination.setUpdatedBy(userId);
 
         VaccinationRecord saved = vaccinationRepository.save(vaccination);
-        log.info("Vaccination record created successfully with ID: {}", saved.getId());
+        log.info("Vaccination record created successfully with ID: {} by user: {}", saved.getId(), userId);
 
         return vaccinationMapper.toResponseDTO(saved);
     }
 
-    /**
-     * Obtiene un registro por ID
-     */
     @Transactional(readOnly = true)
     public VaccinationRecordResponseDTO getById(Long vaccinationId) {
         log.debug("Fetching vaccination record with ID: {}", vaccinationId);
@@ -89,9 +93,6 @@ public class VaccinationRecordService {
         return vaccinationMapper.toResponseDTO(vaccination);
     }
 
-    /**
-     * Obtiene todos los registros de vacunación de un paciente
-     */
     @Cacheable(value = "patientVaccinations", key = "#patientId")
     @Transactional(readOnly = true)
     public List<VaccinationSummaryDTO> getAllByPatientId(Long patientId) {
@@ -101,9 +102,6 @@ public class VaccinationRecordService {
         return vaccinationMapper.toSummaryDTOList(vaccinations);
     }
 
-    /**
-     * Obtiene registros con paginación
-     */
     @Transactional(readOnly = true)
     public Page<VaccinationRecordResponseDTO> getAllByPatientIdPaginated(Long patientId, Pageable pageable) {
         log.debug("Fetching paginated vaccination records for patient: {}", patientId);
@@ -112,9 +110,6 @@ public class VaccinationRecordService {
                 .map(vaccinationMapper::toResponseDTO);
     }
 
-    /**
-     * Obtiene próximas dosis programadas
-     */
     @Transactional(readOnly = true)
     public List<VaccinationRecordResponseDTO> getUpcomingDoses(int daysAhead) {
         log.debug("Fetching upcoming doses in next {} days", daysAhead);
@@ -128,9 +123,6 @@ public class VaccinationRecordService {
                 .toList();
     }
 
-    /**
-     * Obtiene dosis atrasadas
-     */
     @Transactional(readOnly = true)
     public List<VaccinationRecordResponseDTO> getOverdueDoses() {
         log.debug("Fetching overdue doses");
@@ -141,9 +133,6 @@ public class VaccinationRecordService {
                 .toList();
     }
 
-    /**
-     * Obtiene esquemas de vacunación incompletos
-     */
     @Transactional(readOnly = true)
     public List<VaccinationRecordResponseDTO> getIncompleteSchemes(Long patientId) {
         log.debug("Fetching incomplete vaccination schemes for patient: {}", patientId);
@@ -154,9 +143,6 @@ public class VaccinationRecordService {
                 .toList();
     }
 
-    /**
-     * Obtiene esquemas completados
-     */
     @Transactional(readOnly = true)
     public List<VaccinationRecordResponseDTO> getCompletedSchemes(Long patientId) {
         log.debug("Fetching completed vaccination schemes for patient: {}", patientId);
@@ -167,9 +153,6 @@ public class VaccinationRecordService {
                 .toList();
     }
 
-    /**
-     * Obtiene vacunas con reacciones adversas
-     */
     @Transactional(readOnly = true)
     public List<VaccinationRecordResponseDTO> getVaccinesWithReactions(Long patientId) {
         log.debug("Fetching vaccines with adverse reactions for patient: {}", patientId);
@@ -180,9 +163,6 @@ public class VaccinationRecordService {
                 .toList();
     }
 
-    /**
-     * Obtiene vacunas válidas para viaje
-     */
     @Transactional(readOnly = true)
     public List<VaccinationRecordResponseDTO> getTravelValidVaccines(Long patientId) {
         log.debug("Fetching travel-valid vaccines for patient: {}", patientId);
@@ -193,12 +173,11 @@ public class VaccinationRecordService {
                 .toList();
     }
 
-    /**
-     * Actualiza un registro de vacunación
-     */
     @CacheEvict(value = "patientVaccinations", key = "#result.patientId")
-    public VaccinationRecordResponseDTO update(Long vaccinationId, VaccinationRecordUpdateDTO updateDTO, Long userId) {
+    public VaccinationRecordResponseDTO update(Long vaccinationId, VaccinationRecordUpdateDTO updateDTO) {
         log.info("Updating vaccination record with ID: {}", vaccinationId);
+
+        Long userId = getCurrentUserId();
 
         VaccinationRecord vaccination = vaccinationRepository.findById(vaccinationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Registro de vacunación no encontrado con ID: " + vaccinationId));
@@ -207,17 +186,16 @@ public class VaccinationRecordService {
         vaccination.setUpdatedBy(userId);
 
         VaccinationRecord updated = vaccinationRepository.save(vaccination);
-        log.info("Vaccination record updated successfully");
+        log.info("Vaccination record updated successfully by user: {}", userId);
 
         return vaccinationMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Marca un registro como verificado
-     */
     @CacheEvict(value = "patientVaccinations", key = "#result.patientId")
-    public VaccinationRecordResponseDTO verify(Long vaccinationId, String verifiedBy, Long userId) {
+    public VaccinationRecordResponseDTO verify(Long vaccinationId, String verifiedBy) {
         log.info("Verifying vaccination record with ID: {}", vaccinationId);
+
+        Long userId = getCurrentUserId();
 
         VaccinationRecord vaccination = vaccinationRepository.findById(vaccinationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Registro de vacunación no encontrado con ID: " + vaccinationId));
@@ -232,21 +210,19 @@ public class VaccinationRecordService {
         vaccination.setUpdatedBy(userId);
 
         VaccinationRecord verified = vaccinationRepository.save(vaccination);
-        log.info("Vaccination record verified successfully");
+        log.info("Vaccination record verified successfully by user: {}", userId);
 
         return vaccinationMapper.toResponseDTO(verified);
     }
 
-    /**
-     * Registra una reacción adversa
-     */
     @CacheEvict(value = "patientVaccinations", key = "#result.patientId")
     public VaccinationRecordResponseDTO registerReaction(
             Long vaccinationId,
             String reactions,
-            String severity,
-            Long userId) {
+            String severity) {
         log.info("Registering adverse reaction for vaccination ID: {}", vaccinationId);
+
+        Long userId = getCurrentUserId();
 
         VaccinationRecord vaccination = vaccinationRepository.findById(vaccinationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Registro de vacunación no encontrado con ID: " + vaccinationId));
@@ -257,16 +233,13 @@ public class VaccinationRecordService {
         vaccination.setUpdatedBy(userId);
 
         VaccinationRecord updated = vaccinationRepository.save(vaccination);
-        log.info("Adverse reaction registered successfully");
+        log.info("Adverse reaction registered successfully by user: {}", userId);
 
         return vaccinationMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Elimina un registro de vacunación
-     */
     public void delete(Long vaccinationId, Long patientId) {
-        log.warn("Permanently deleting vaccination record with ID: {}", vaccinationId);
+        log.warn("Permanently deleting vaccination record with ID: {} by user: {}", vaccinationId, getCurrentUserId());
 
         VaccinationRecord vaccination = vaccinationRepository.findById(vaccinationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Registro de vacunación no encontrado con ID: " + vaccinationId));
@@ -279,17 +252,11 @@ public class VaccinationRecordService {
         log.info("Vaccination record permanently deleted");
     }
 
-    /**
-     * Verifica si un paciente tiene esquema completo de una vacuna
-     */
     @Transactional(readOnly = true)
     public boolean hasCompletedVaccineScheme(Long patientId, String vaccineName) {
         return vaccinationRepository.hasCompletedVaccineScheme(patientId, vaccineName);
     }
 
-    /**
-     * Cuenta registros de vacunación de un paciente
-     */
     @Transactional(readOnly = true)
     public long countVaccinationRecords(Long patientId) {
         return vaccinationRepository.countByPatientId(patientId);

@@ -6,6 +6,14 @@ spring:
     name: patient-service
   flyway:
     location: classpath:db/migration/patient
+  security:
+    # Endpoints públicos adicionales
+    public-paths:
+      - /actuator/health
+      - /actuator/info
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
 
 eureka:
   client:
@@ -42,3 +50,15 @@ api:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+# JWT CONFIGURATION
+jwt:
+  secret: ${JWT_SECRET:YourSecretKeyMustBeAtLeast256BitsLongForHS256AlgorithmToWorkProperlyAndSecurely}
+  issuer: ${JWT_ISSUER:auth-service}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+# LOGGING PARA DEBUGGING DE SEGURIDAD
+logging:
+  level:
+    com.ClinicaDeYmid.patient_service.infra.security: DEBUG
+    org.springframework.security: DEBUG
