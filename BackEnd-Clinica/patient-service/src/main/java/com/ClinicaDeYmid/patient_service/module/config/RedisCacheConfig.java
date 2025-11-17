@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.patient_service.module.config;
 
-import com.ClinicaDeYmid.patient_service.module.dto.GetPatientDto;
+import com.ClinicaDeYmid.patient_service.module.dto.patient.GetPatientDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
