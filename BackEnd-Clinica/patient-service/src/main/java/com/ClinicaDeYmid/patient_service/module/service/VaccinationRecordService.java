@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.patient_service.infra.exception.ResourceNotFoundExcepti
 import com.ClinicaDeYmid.patient_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.patient_service.module.dto.vaccination.VaccinationRecordRequestDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.vaccination.VaccinationRecordResponseDTO;
+import com.ClinicaDeYmid.patient_service.module.dto.vaccination.VaccinationRecordUpdateDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.vaccination.VaccinationSummaryDTO;
 import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.entity.VaccinationRecord;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -165,4 +167,98 @@ public class VaccinationRecordService {
     public List<VaccinationRecordResponseDTO> getTravelValidVaccines(Long patientId) {
         log.debug("Fetching travel-valid vaccines for patient: {}", patientId);
 
-        return vaccinationRepository
+        return vaccinationRepository.findTravelValidVaccines(patientId)
+                .stream()
+                .map(vaccinationMapper::toResponseDTO)
+                .toList();
+    }
+
+    @CacheEvict(value = "patientVaccinations", key = "#result.patientId")
+    public VaccinationRecordResponseDTO update(Long vaccinationId, VaccinationRecordUpdateDTO updateDTO) {
+        log.info("Updating vaccination record with ID: {}", vaccinationId);
+
+        Long userId = getCurrentUserId();
+
+        VaccinationRecord vaccination = vaccinationRepository.findById(vaccinationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registro de vacunación no encontrado con ID: " + vaccinationId));
+
+        vaccinationMapper.updateEntityFromDTO(updateDTO, vaccination);
+        vaccination.setUpdatedBy(userId);
+
+        VaccinationRecord updated = vaccinationRepository.save(vaccination);
+        log.info("Vaccination record updated successfully by user: {}", userId);
+
+        return vaccinationMapper.toResponseDTO(updated);
+    }
+
+    @CacheEvict(value = "patientVaccinations", key = "#result.patientId")
+    public VaccinationRecordResponseDTO verify(Long vaccinationId, String verifiedBy) {
+        log.info("Verifying vaccination record with ID: {}", vaccinationId);
+
+        Long userId = getCurrentUserId();
+
+        VaccinationRecord vaccination = vaccinationRepository.findById(vaccinationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registro de vacunación no encontrado con ID: " + vaccinationId));
+
+        if (Boolean.TRUE.equals(vaccination.getVerified())) {
+            throw new BusinessException("El registro de vacunación ya está verificado");
+        }
+
+        vaccination.setVerified(true);
+        vaccination.setVerifiedBy(verifiedBy);
+        vaccination.setVerifiedDate(LocalDateTime.now());
+        vaccination.setUpdatedBy(userId);
+
+        VaccinationRecord verified = vaccinationRepository.save(vaccination);
+        log.info("Vaccination record verified successfully by user: {}", userId);
+
+        return vaccinationMapper.toResponseDTO(verified);
+    }
+
+    @CacheEvict(value = "patientVaccinations", key = "#result.patientId")
+    public VaccinationRecordResponseDTO registerReaction(
+            Long vaccinationId,
+            String reactions,
+            String severity) {
+        log.info("Registering adverse reaction for vaccination ID: {}", vaccinationId);
+
+        Long userId = getCurrentUserId();
+
+        VaccinationRecord vaccination = vaccinationRepository.findById(vaccinationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registro de vacunación no encontrado con ID: " + vaccinationId));
+
+        vaccination.setHadReaction(true);
+        vaccination.setAdverseReactions(reactions);
+        vaccination.setReactionSeverity(severity);
+        vaccination.setUpdatedBy(userId);
+
+        VaccinationRecord updated = vaccinationRepository.save(vaccination);
+        log.info("Adverse reaction registered successfully by user: {}", userId);
+
+        return vaccinationMapper.toResponseDTO(updated);
+    }
+
+    public void delete(Long vaccinationId, Long patientId) {
+        log.warn("Permanently deleting vaccination record with ID: {} by user: {}", vaccinationId, getCurrentUserId());
+
+        VaccinationRecord vaccination = vaccinationRepository.findById(vaccinationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registro de vacunación no encontrado con ID: " + vaccinationId));
+
+        if (!vaccination.getPatient().getId().equals(patientId)) {
+            throw new BusinessException("El registro de vacunación no pertenece al paciente especificado");
+        }
+
+        vaccinationRepository.delete(vaccination);
+        log.info("Vaccination record permanently deleted");
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasCompletedVaccineScheme(Long patientId, String vaccineName) {
+        return vaccinationRepository.hasCompletedVaccineScheme(patientId, vaccineName);
+    }
+
+    @Transactional(readOnly = true)
+    public long countVaccinationRecords(Long patientId) {
+        return vaccinationRepository.countByPatientId(patientId);
+    }
+}
