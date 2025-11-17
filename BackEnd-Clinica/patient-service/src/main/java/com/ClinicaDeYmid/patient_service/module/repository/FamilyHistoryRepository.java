@@ -40,9 +40,9 @@ public interface FamilyHistoryRepository extends JpaRepository<FamilyHistory, Lo
     @Query("""
         SELECT fh FROM FamilyHistory fh
         WHERE fh.active = true
-        AND LOWER(fh.condition) LIKE LOWER(CONCAT('%', :condition, '%'))
+        AND LOWER(fh.conditionName) LIKE LOWER(CONCAT('%', :conditionName, '%'))
         """)
-    List<FamilyHistory> findByCondition(@Param("condition") String condition);
+    List<FamilyHistory> findByCondition(@Param("conditionName") String conditionName);
 
     /**
      * Busca antecedentes con riesgo genético
@@ -124,18 +124,18 @@ public interface FamilyHistoryRepository extends JpaRepository<FamilyHistory, Lo
     @Query("""
         SELECT DISTINCT fh.patient.id FROM FamilyHistory fh
         WHERE fh.active = true
-        AND LOWER(fh.condition) LIKE LOWER(CONCAT('%', :condition, '%'))
+        AND LOWER(fh.conditionName) LIKE LOWER(CONCAT('%', :conditionName, '%'))
         """)
-    List<Long> findPatientIdsWithFamilyCondition(@Param("condition") String condition);
+    List<Long> findPatientIdsWithFamilyCondition(@Param("conditionName") String conditionName);
 
     /**
      * Condiciones familiares más comunes
      */
     @Query("""
-        SELECT fh.condition, COUNT(fh)
+        SELECT fh.conditionName, COUNT(fh)
         FROM FamilyHistory fh
         WHERE fh.active = true
-        GROUP BY fh.condition
+        GROUP BY fh.conditionName
         ORDER BY COUNT(fh) DESC
         """)
     List<Object[]> findMostCommonFamilyConditions(Pageable pageable);
@@ -147,10 +147,10 @@ public interface FamilyHistoryRepository extends JpaRepository<FamilyHistory, Lo
         SELECT fh FROM FamilyHistory fh
         WHERE fh.active = true
         AND fh.relationship = :relationship
-        AND LOWER(fh.condition) LIKE LOWER(CONCAT('%', :condition, '%'))
+        AND LOWER(fh.conditionName) LIKE LOWER(CONCAT('%', :conditionName, '%'))
         """)
     List<FamilyHistory> findByRelationshipAndCondition(
             @Param("relationship") FamilyRelationship relationship,
-            @Param("condition") String condition
+            @Param("conditionName") String conditionName
     );
 }
