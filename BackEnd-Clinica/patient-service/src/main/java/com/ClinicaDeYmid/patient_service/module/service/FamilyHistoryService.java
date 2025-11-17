@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.BusinessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.ResourceNotFoundException;
+import com.ClinicaDeYmid.patient_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.patient_service.module.dto.family.FamilyHistoryRequestDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.family.FamilyHistoryResponseDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.family.FamilyHistorySummaryDTO;
@@ -33,17 +34,24 @@ public class FamilyHistoryService {
     private final PatientRepository patientRepository;
     private final FamilyHistoryMapper familyHistoryMapper;
 
-    /**
-     * Crea un nuevo antecedente familiar
-     */
+    private Long getCurrentUserId() {
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
+            return 1L;
+        }
+        return userId;
+    }
+
     @CacheEvict(value = "patientFamilyHistory", key = "#patientId")
-    public FamilyHistoryResponseDTO create(Long patientId, FamilyHistoryRequestDTO requestDTO, Long userId) {
+    public FamilyHistoryResponseDTO create(Long patientId, FamilyHistoryRequestDTO requestDTO) {
         log.info("Creating family history for patient: {}", patientId);
+
+        Long userId = getCurrentUserId();
 
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado con ID: " + patientId));
 
-        // Validar consistencia de datos
         if (requestDTO.ageAtDeath() != null && requestDTO.ageOfOnset() != null
                 && requestDTO.ageAtDeath() < requestDTO.ageOfOnset()) {
             throw new BusinessException("La edad al fallecer no puede ser menor que la edad de inicio de la condición");
@@ -55,14 +63,11 @@ public class FamilyHistoryService {
         familyHistory.setUpdatedBy(userId);
 
         FamilyHistory saved = familyHistoryRepository.save(familyHistory);
-        log.info("Family history created successfully with ID: {}", saved.getId());
+        log.info("Family history created successfully with ID: {} by user: {}", saved.getId(), userId);
 
         return familyHistoryMapper.toResponseDTO(saved);
     }
 
-    /**
-     * Obtiene un antecedente por ID
-     */
     @Transactional(readOnly = true)
     public FamilyHistoryResponseDTO getById(Long historyId) {
         log.debug("Fetching family history with ID: {}", historyId);
@@ -73,9 +78,6 @@ public class FamilyHistoryService {
         return familyHistoryMapper.toResponseDTO(history);
     }
 
-    /**
-     * Obtiene todos los antecedentes activos de un paciente
-     */
     @Cacheable(value = "patientFamilyHistory", key = "#patientId")
     @Transactional(readOnly = true)
     public List<FamilyHistorySummaryDTO> getAllByPatientId(Long patientId) {
@@ -85,9 +87,6 @@ public class FamilyHistoryService {
         return familyHistoryMapper.toSummaryDTOList(histories);
     }
 
-    /**
-     * Obtiene antecedentes con paginación
-     */
     @Transactional(readOnly = true)
     public Page<FamilyHistoryResponseDTO> getAllByPatientIdPaginated(Long patientId, Pageable pageable) {
         log.debug("Fetching paginated family history for patient: {}", patientId);
@@ -96,9 +95,6 @@ public class FamilyHistoryService {
                 .map(familyHistoryMapper::toResponseDTO);
     }
 
-    /**
-     * Obtiene antecedentes con riesgo genético
-     */
     @Transactional(readOnly = true)
     public List<FamilyHistoryResponseDTO> getGeneticRiskHistories(Long patientId) {
         log.debug("Fetching family histories with genetic risk for patient: {}", patientId);
@@ -109,9 +105,6 @@ public class FamilyHistoryService {
                 .toList();
     }
 
-    /**
-     * Obtiene antecedentes que requieren screening
-     */
     @Transactional(readOnly = true)
     public List<FamilyHistoryResponseDTO> getScreeningRecommendedHistories(Long patientId) {
         log.debug("Fetching family histories requiring screening for patient: {}", patientId);
@@ -122,9 +115,6 @@ public class FamilyHistoryService {
                 .toList();
     }
 
-    /**
-     * Obtiene antecedentes no verificados
-     */
     @Transactional(readOnly = true)
     public List<FamilyHistoryResponseDTO> getUnverifiedHistories() {
         log.debug("Fetching unverified family histories");
@@ -135,25 +125,21 @@ public class FamilyHistoryService {
                 .toList();
     }
 
-    /**
-     * Obtiene antecedentes por condición específica
-     */
     @Transactional(readOnly = true)
-    public List<FamilyHistoryResponseDTO> getByCondition(String condition) {
-        log.debug("Fetching family histories by condition: {}", condition);
+    public List<FamilyHistoryResponseDTO> getByCondition(String conditionName) {
+        log.debug("Fetching family histories by condition: {}", conditionName);
 
-        return familyHistoryRepository.findByCondition(condition)
+        return familyHistoryRepository.findByCondition(conditionName)
                 .stream()
                 .map(familyHistoryMapper::toResponseDTO)
                 .toList();
     }
 
-    /**
-     * Actualiza un antecedente familiar
-     */
     @CacheEvict(value = "patientFamilyHistory", key = "#result.patientId")
-    public FamilyHistoryResponseDTO update(Long historyId, FamilyHistoryUpdateDTO updateDTO, Long userId) {
+    public FamilyHistoryResponseDTO update(Long historyId, FamilyHistoryUpdateDTO updateDTO) {
         log.info("Updating family history with ID: {}", historyId);
+
+        Long userId = getCurrentUserId();
 
         FamilyHistory history = familyHistoryRepository.findById(historyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Antecedente familiar no encontrado con ID: " + historyId));
@@ -162,17 +148,16 @@ public class FamilyHistoryService {
         history.setUpdatedBy(userId);
 
         FamilyHistory updated = familyHistoryRepository.save(history);
-        log.info("Family history updated successfully");
+        log.info("Family history updated successfully by user: {}", userId);
 
         return familyHistoryMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Marca un antecedente como verificado
-     */
     @CacheEvict(value = "patientFamilyHistory", key = "#result.patientId")
-    public FamilyHistoryResponseDTO verify(Long historyId, String verifiedBy, Long userId) {
+    public FamilyHistoryResponseDTO verify(Long historyId, String verifiedBy) {
         log.info("Verifying family history with ID: {}", historyId);
+
+        Long userId = getCurrentUserId();
 
         FamilyHistory history = familyHistoryRepository.findById(historyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Antecedente familiar no encontrado con ID: " + historyId));
@@ -187,17 +172,16 @@ public class FamilyHistoryService {
         history.setUpdatedBy(userId);
 
         FamilyHistory verified = familyHistoryRepository.save(history);
-        log.info("Family history verified successfully");
+        log.info("Family history verified successfully by user: {}", userId);
 
         return familyHistoryMapper.toResponseDTO(verified);
     }
 
-    /**
-     * Marca screening como recomendado
-     */
     @CacheEvict(value = "patientFamilyHistory", key = "#result.patientId")
-    public FamilyHistoryResponseDTO recommendScreening(Long historyId, String screeningDetails, Long userId) {
+    public FamilyHistoryResponseDTO recommendScreening(Long historyId, String screeningDetails) {
         log.info("Recommending screening for family history ID: {}", historyId);
+
+        Long userId = getCurrentUserId();
 
         FamilyHistory history = familyHistoryRepository.findById(historyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Antecedente familiar no encontrado con ID: " + historyId));
@@ -207,17 +191,16 @@ public class FamilyHistoryService {
         history.setUpdatedBy(userId);
 
         FamilyHistory updated = familyHistoryRepository.save(history);
-        log.info("Screening recommended successfully");
+        log.info("Screening recommended successfully by user: {}", userId);
 
         return familyHistoryMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Desactiva un antecedente (soft delete)
-     */
     @CacheEvict(value = "patientFamilyHistory", key = "#result.patientId")
-    public FamilyHistoryResponseDTO deactivate(Long historyId, Long userId) {
+    public FamilyHistoryResponseDTO deactivate(Long historyId) {
         log.info("Deactivating family history with ID: {}", historyId);
+
+        Long userId = getCurrentUserId();
 
         FamilyHistory history = familyHistoryRepository.findById(historyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Antecedente familiar no encontrado con ID: " + historyId));
@@ -226,16 +209,13 @@ public class FamilyHistoryService {
         history.setUpdatedBy(userId);
 
         FamilyHistory deactivated = familyHistoryRepository.save(history);
-        log.info("Family history deactivated successfully");
+        log.info("Family history deactivated successfully by user: {}", userId);
 
         return familyHistoryMapper.toResponseDTO(deactivated);
     }
 
-    /**
-     * Elimina permanentemente un antecedente
-     */
     public void delete(Long historyId, Long patientId) {
-        log.warn("Permanently deleting family history with ID: {}", historyId);
+        log.warn("Permanently deleting family history with ID: {} by user: {}", historyId, getCurrentUserId());
 
         FamilyHistory history = familyHistoryRepository.findById(historyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Antecedente familiar no encontrado con ID: " + historyId));
@@ -248,17 +228,11 @@ public class FamilyHistoryService {
         log.info("Family history permanently deleted");
     }
 
-    /**
-     * Verifica si un paciente tiene antecedentes con riesgo genético
-     */
     @Transactional(readOnly = true)
     public boolean hasGeneticRisk(Long patientId) {
         return familyHistoryRepository.hasGeneticRisk(patientId);
     }
 
-    /**
-     * Cuenta antecedentes activos de un paciente
-     */
     @Transactional(readOnly = true)
     public long countActiveHistories(Long patientId) {
         return familyHistoryRepository.countByPatientIdAndActiveTrue(patientId);
