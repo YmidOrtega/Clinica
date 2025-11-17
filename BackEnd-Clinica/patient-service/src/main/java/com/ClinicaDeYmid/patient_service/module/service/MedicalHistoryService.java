@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.patient_service.module.service;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.ResourceNotFoundException;
+import com.ClinicaDeYmid.patient_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.patient_service.module.dto.medical.MedicalHistoryRequestDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.medical.MedicalHistoryResponseDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.medical.MedicalHistoryUpdateDTO;
@@ -31,19 +32,26 @@ public class MedicalHistoryService {
     private final PatientRepository patientRepository;
     private final MedicalHistoryMapper medicalHistoryMapper;
 
-    /**
-     * Crea o actualiza la historia médica de un paciente
-     */
+    private Long getCurrentUserId() {
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
+            return 1L;
+        }
+        return userId;
+    }
+
     @CachePut(value = "medicalHistory", key = "#patientId")
-    public MedicalHistoryResponseDTO createOrUpdate(Long patientId, MedicalHistoryRequestDTO requestDTO, Long userId) {
+    public MedicalHistoryResponseDTO createOrUpdate(Long patientId, MedicalHistoryRequestDTO requestDTO) {
         log.info("Creating/updating medical history for patient: {}", patientId);
+
+        Long userId = getCurrentUserId();
 
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado con ID: " + patientId));
 
         MedicalHistory medicalHistory = medicalHistoryRepository.findByPatientId(patientId)
                 .map(existing -> {
-                    // Actualizar existente
                     medicalHistoryMapper.updateEntityFromDTO(
                             new MedicalHistoryUpdateDTO(
                                     requestDTO.bloodType(),
@@ -68,7 +76,6 @@ public class MedicalHistoryService {
                     return existing;
                 })
                 .orElseGet(() -> {
-                    // Crear nuevo
                     MedicalHistory newHistory = medicalHistoryMapper.toEntity(requestDTO);
                     newHistory.setPatient(patient);
                     newHistory.setCreatedBy(userId);
@@ -77,14 +84,11 @@ public class MedicalHistoryService {
                 });
 
         MedicalHistory savedHistory = medicalHistoryRepository.save(medicalHistory);
-        log.info("Medical history saved successfully for patient: {}", patientId);
+        log.info("Medical history saved successfully for patient: {} by user: {}", patientId, userId);
 
         return medicalHistoryMapper.toResponseDTO(savedHistory);
     }
 
-    /**
-     * Obtiene la historia médica de un paciente por ID
-     */
     @Cacheable(value = "medicalHistory", key = "#patientId")
     @Transactional(readOnly = true)
     public MedicalHistoryResponseDTO getByPatientId(Long patientId) {
@@ -98,9 +102,6 @@ public class MedicalHistoryService {
         return medicalHistoryMapper.toResponseDTO(medicalHistory);
     }
 
-    /**
-     * Obtiene la historia médica por número de identificación del paciente
-     */
     @Transactional(readOnly = true)
     public MedicalHistoryResponseDTO getByPatientIdentification(String identificationNumber) {
         log.debug("Fetching medical history for patient with identification: {}", identificationNumber);
@@ -113,12 +114,11 @@ public class MedicalHistoryService {
         return medicalHistoryMapper.toResponseDTO(medicalHistory);
     }
 
-    /**
-     * Actualiza parcialmente la historia médica
-     */
     @CachePut(value = "medicalHistory", key = "#patientId")
-    public MedicalHistoryResponseDTO partialUpdate(Long patientId, MedicalHistoryUpdateDTO updateDTO, Long userId) {
+    public MedicalHistoryResponseDTO partialUpdate(Long patientId, MedicalHistoryUpdateDTO updateDTO) {
         log.info("Partially updating medical history for patient: {}", patientId);
+
+        Long userId = getCurrentUserId();
 
         MedicalHistory medicalHistory = medicalHistoryRepository.findByPatientId(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -129,14 +129,11 @@ public class MedicalHistoryService {
         medicalHistory.setUpdatedBy(userId);
 
         MedicalHistory updated = medicalHistoryRepository.save(medicalHistory);
-        log.info("Medical history updated successfully for patient: {}", patientId);
+        log.info("Medical history updated successfully for patient: {} by user: {}", patientId, userId);
 
         return medicalHistoryMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Obtiene pacientes con chequeo próximo
-     */
     @Transactional(readOnly = true)
     public List<MedicalHistoryResponseDTO> getUpcomingCheckups(int daysAhead) {
         log.debug("Fetching patients with checkup in next {} days", daysAhead);
@@ -150,9 +147,6 @@ public class MedicalHistoryService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Obtiene pacientes que necesitan chequeo
-     */
     @Transactional(readOnly = true)
     public List<MedicalHistoryResponseDTO> getPatientsNeedingCheckup(int monthsWithoutCheckup) {
         log.debug("Fetching patients needing checkup (without checkup for {} months)", monthsWithoutCheckup);
@@ -165,9 +159,6 @@ public class MedicalHistoryService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Obtiene pacientes con IMC fuera del rango saludable
-     */
     @Transactional(readOnly = true)
     public List<MedicalHistoryResponseDTO> getPatientsWithUnhealthyBMI() {
         log.debug("Fetching patients with unhealthy BMI");
@@ -181,9 +172,6 @@ public class MedicalHistoryService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Obtiene fumadores activos
-     */
     @Transactional(readOnly = true)
     public List<MedicalHistoryResponseDTO> getSmokers() {
         log.debug("Fetching active smokers");
@@ -194,12 +182,9 @@ public class MedicalHistoryService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Elimina la historia médica (no recomendado, solo para casos especiales)
-     */
     @CacheEvict(value = "medicalHistory", key = "#patientId")
     public void delete(Long patientId) {
-        log.warn("Deleting medical history for patient: {}", patientId);
+        log.warn("Deleting medical history for patient: {} by user: {}", patientId, getCurrentUserId());
 
         MedicalHistory medicalHistory = medicalHistoryRepository.findByPatientId(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -210,9 +195,6 @@ public class MedicalHistoryService {
         log.info("Medical history deleted for patient: {}", patientId);
     }
 
-    /**
-     * Verifica si existe historia médica para un paciente
-     */
     @Transactional(readOnly = true)
     public boolean existsByPatientId(Long patientId) {
         return medicalHistoryRepository.existsByPatientId(patientId);
