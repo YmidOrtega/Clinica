@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.patient_service.module.service;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.BusinessException;
 import com.ClinicaDeYmid.patient_service.infra.exception.ResourceNotFoundException;
+import com.ClinicaDeYmid.patient_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.patient_service.module.dto.medication.CurrentMedicationRequestDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.medication.CurrentMedicationResponseDTO;
 import com.ClinicaDeYmid.patient_service.module.dto.medication.CurrentMedicationUpdateDTO;
@@ -33,17 +34,24 @@ public class CurrentMedicationService {
     private final PatientRepository patientRepository;
     private final CurrentMedicationMapper medicationMapper;
 
-    /**
-     * Crea un nuevo medicamento para un paciente
-     */
+    private Long getCurrentUserId() {
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
+            return 1L;
+        }
+        return userId;
+    }
+
     @CacheEvict(value = "patientMedications", key = "#patientId")
-    public CurrentMedicationResponseDTO create(Long patientId, CurrentMedicationRequestDTO requestDTO, Long userId) {
+    public CurrentMedicationResponseDTO create(Long patientId, CurrentMedicationRequestDTO requestDTO) {
         log.info("Creating medication for patient: {}", patientId);
+
+        Long userId = getCurrentUserId();
 
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado con ID: " + patientId));
 
-        // Validar fechas
         if (requestDTO.endDate() != null && requestDTO.endDate().isBefore(requestDTO.startDate())) {
             throw new BusinessException("La fecha de fin no puede ser anterior a la fecha de inicio");
         }
@@ -54,14 +62,11 @@ public class CurrentMedicationService {
         medication.setUpdatedBy(userId);
 
         CurrentMedication saved = medicationRepository.save(medication);
-        log.info("Medication created successfully with ID: {}", saved.getId());
+        log.info("Medication created successfully with ID: {} by user: {}", saved.getId(), userId);
 
         return medicationMapper.toResponseDTO(saved);
     }
 
-    /**
-     * Obtiene un medicamento por ID
-     */
     @Transactional(readOnly = true)
     public CurrentMedicationResponseDTO getById(Long medicationId) {
         log.debug("Fetching medication with ID: {}", medicationId);
@@ -72,9 +77,6 @@ public class CurrentMedicationService {
         return medicationMapper.toResponseDTO(medication);
     }
 
-    /**
-     * Obtiene todos los medicamentos activos de un paciente
-     */
     @Cacheable(value = "patientMedications", key = "#patientId")
     @Transactional(readOnly = true)
     public List<MedicationSummaryDTO> getAllActiveByPatientId(Long patientId) {
@@ -86,9 +88,6 @@ public class CurrentMedicationService {
         return medicationMapper.toSummaryDTOList(medications);
     }
 
-    /**
-     * Obtiene medicamentos con paginación
-     */
     @Transactional(readOnly = true)
     public Page<CurrentMedicationResponseDTO> getAllByPatientIdPaginated(Long patientId, Pageable pageable) {
         log.debug("Fetching paginated medications for patient: {}", patientId);
@@ -97,9 +96,6 @@ public class CurrentMedicationService {
                 .map(medicationMapper::toResponseDTO);
     }
 
-    /**
-     * Obtiene medicamentos que están próximos a vencer
-     */
     @Transactional(readOnly = true)
     public List<CurrentMedicationResponseDTO> getExpiringMedications(int daysAhead) {
         log.debug("Fetching medications expiring in next {} days", daysAhead);
@@ -113,9 +109,6 @@ public class CurrentMedicationService {
                 .toList();
     }
 
-    /**
-     * Obtiene medicamentos que necesitan resurtido
-     */
     @Transactional(readOnly = true)
     public List<CurrentMedicationResponseDTO> getMedicationsNeedingRefill(int threshold) {
         log.debug("Fetching medications needing refill (threshold: {})", threshold);
@@ -126,9 +119,6 @@ public class CurrentMedicationService {
                 .toList();
     }
 
-    /**
-     * Obtiene medicamentos vencidos
-     */
     @Transactional(readOnly = true)
     public List<CurrentMedicationResponseDTO> getExpiredMedications() {
         log.debug("Fetching expired medications");
@@ -139,9 +129,6 @@ public class CurrentMedicationService {
                 .toList();
     }
 
-    /**
-     * Obtiene medicamentos con interacciones
-     */
     @Transactional(readOnly = true)
     public List<CurrentMedicationResponseDTO> getMedicationsWithInteractions(Long patientId) {
         log.debug("Fetching medications with interactions for patient: {}", patientId);
@@ -152,9 +139,6 @@ public class CurrentMedicationService {
                 .toList();
     }
 
-    /**
-     * Obtiene medicamentos con efectos secundarios reportados
-     */
     @Transactional(readOnly = true)
     public List<CurrentMedicationResponseDTO> getMedicationsWithSideEffects(Long patientId) {
         log.debug("Fetching medications with side effects for patient: {}", patientId);
@@ -165,17 +149,15 @@ public class CurrentMedicationService {
                 .toList();
     }
 
-    /**
-     * Actualiza un medicamento
-     */
     @CacheEvict(value = "patientMedications", key = "#result.patientId")
-    public CurrentMedicationResponseDTO update(Long medicationId, CurrentMedicationUpdateDTO updateDTO, Long userId) {
+    public CurrentMedicationResponseDTO update(Long medicationId, CurrentMedicationUpdateDTO updateDTO) {
         log.info("Updating medication with ID: {}", medicationId);
+
+        Long userId = getCurrentUserId();
 
         CurrentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicamento no encontrado con ID: " + medicationId));
 
-        // Validar fechas si se actualizan
         if (updateDTO.endDate() != null && updateDTO.startDate() != null
                 && updateDTO.endDate().isBefore(updateDTO.startDate())) {
             throw new BusinessException("La fecha de fin no puede ser anterior a la fecha de inicio");
@@ -185,17 +167,16 @@ public class CurrentMedicationService {
         medication.setUpdatedBy(userId);
 
         CurrentMedication updated = medicationRepository.save(medication);
-        log.info("Medication updated successfully: {}", medicationId);
+        log.info("Medication updated successfully: {} by user: {}", medicationId, userId);
 
         return medicationMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Descontinúa un medicamento
-     */
     @CacheEvict(value = "patientMedications", key = "#result.patientId")
-    public CurrentMedicationResponseDTO discontinue(Long medicationId, String reason, Long userId) {
+    public CurrentMedicationResponseDTO discontinue(Long medicationId, String reason) {
         log.info("Discontinuing medication with ID: {}", medicationId);
+
+        Long userId = getCurrentUserId();
 
         CurrentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicamento no encontrado con ID: " + medicationId));
@@ -211,17 +192,16 @@ public class CurrentMedicationService {
         medication.setUpdatedBy(userId);
 
         CurrentMedication discontinued = medicationRepository.save(medication);
-        log.info("Medication discontinued successfully");
+        log.info("Medication discontinued successfully by user: {}", userId);
 
         return medicationMapper.toResponseDTO(discontinued);
     }
 
-    /**
-     * Reactiva un medicamento descontinuado
-     */
     @CacheEvict(value = "patientMedications", key = "#result.patientId")
-    public CurrentMedicationResponseDTO reactivate(Long medicationId, Long userId) {
+    public CurrentMedicationResponseDTO reactivate(Long medicationId) {
         log.info("Reactivating medication with ID: {}", medicationId);
+
+        Long userId = getCurrentUserId();
 
         CurrentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicamento no encontrado con ID: " + medicationId));
@@ -237,17 +217,16 @@ public class CurrentMedicationService {
         medication.setUpdatedBy(userId);
 
         CurrentMedication reactivated = medicationRepository.save(medication);
-        log.info("Medication reactivated successfully");
+        log.info("Medication reactivated successfully by user: {}", userId);
 
         return medicationMapper.toResponseDTO(reactivated);
     }
 
-    /**
-     * Registra un resurtido
-     */
     @CacheEvict(value = "patientMedications", key = "#result.patientId")
-    public CurrentMedicationResponseDTO registerRefill(Long medicationId, int refillsAdded, Long userId) {
+    public CurrentMedicationResponseDTO registerRefill(Long medicationId, int refillsAdded) {
         log.info("Registering refill for medication ID: {} (adding {} refills)", medicationId, refillsAdded);
+
+        Long userId = getCurrentUserId();
 
         CurrentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicamento no encontrado con ID: " + medicationId));
@@ -257,17 +236,16 @@ public class CurrentMedicationService {
         medication.setUpdatedBy(userId);
 
         CurrentMedication updated = medicationRepository.save(medication);
-        log.info("Refill registered successfully");
+        log.info("Refill registered successfully by user: {}", userId);
 
         return medicationMapper.toResponseDTO(updated);
     }
 
-    /**
-     * Desactiva un medicamento (soft delete)
-     */
     @CacheEvict(value = "patientMedications", key = "#result.patientId")
-    public CurrentMedicationResponseDTO deactivate(Long medicationId, Long userId) {
+    public CurrentMedicationResponseDTO deactivate(Long medicationId) {
         log.info("Deactivating medication with ID: {}", medicationId);
+
+        Long userId = getCurrentUserId();
 
         CurrentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicamento no encontrado con ID: " + medicationId));
@@ -276,16 +254,13 @@ public class CurrentMedicationService {
         medication.setUpdatedBy(userId);
 
         CurrentMedication deactivated = medicationRepository.save(medication);
-        log.info("Medication deactivated successfully");
+        log.info("Medication deactivated successfully by user: {}", userId);
 
         return medicationMapper.toResponseDTO(deactivated);
     }
 
-    /**
-     * Elimina permanentemente un medicamento
-     */
     public void delete(Long medicationId, Long patientId) {
-        log.warn("Permanently deleting medication with ID: {}", medicationId);
+        log.warn("Permanently deleting medication with ID: {} by user: {}", medicationId, getCurrentUserId());
 
         CurrentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicamento no encontrado con ID: " + medicationId));
@@ -298,9 +273,6 @@ public class CurrentMedicationService {
         log.info("Medication permanently deleted");
     }
 
-    /**
-     * Cuenta medicamentos activos de un paciente
-     */
     @Transactional(readOnly = true)
     public long countActiveMedications(Long patientId) {
         return medicationRepository.countByPatientIdAndActiveTrueAndDiscontinuedFalse(patientId);
