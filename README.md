@@ -43,69 +43,6 @@ Frontend
     Astro: Framework de desarrollo web
     pnpm: Gestor de paquetes
 
-⚙️ Variables de Entorno Requeridas
-Bases de Datos MySQL
-
-Patient Database:
-
-PATIENT_DB_ROOT_PASSWORD=tu_password_root  
-PATIENT_DB_NAME=patient_db  
-PATIENT_DB_USER=patient_user  
-PATIENT_DB_PASSWORD=tu_password
-
-Billing Database:
-
-BILLING_DB_ROOT_PASSWORD=tu_password_root  
-BILLING_DB_NAME=billing_db  
-BILLING_DB_USER=billing_user  
-BILLING_DB_PASSWORD=tu_password
-
-Suppliers Database:
-
-SUPPLIERS_DB_ROOT_PASSWORD=tu_password_root  
-SUPPLIERS_DB_NAME=suppliers_db  
-SUPPLIERS_DB_USER=suppliers_user  
-SUPPLIERS_DB_PASSWORD=tu_password
-
-Auth Database:
-
-AUTH_DB_ROOT_PASSWORD=tu_password_root  
-AUTH_DB_NAME=auth_db  
-AUTH_DB_USER=auth_user  
-AUTH_DB_PASSWORD=tu_password
-
-Clients Database:
-
-CLIENTS_DB_ROOT_PASSWORD=tu_password_root  
-CLIENTS_DB_NAME=clients_db  
-CLIENTS_DB_USER=clients_user  
-CLIENTS_DB_PASSWORD=tu_password
-
-Bases de Datos PostgreSQL
-
-Admissions Database:
-
-ADMISSIONS_DB_NAME=admissions_db  
-ADMISSIONS_DB_USER=admissions_user  
-ADMISSIONS_DB_PASSWORD=tu_password
-
-AI Assistant Database:
-
-AI_ASSISTANT_DB_NAME=ai_assistant_db  
-AI_ASSISTANT_DB_USER=ai_user  
-AI_ASSISTANT_DB_PASSWORD=tu_password
-
-Redis y JWT
-
-Redis:
-
-REDIS_PASSWORD=tu_redis_password
-
-JWT Configuration:
-
-JWT_SECRET=tu_jwt_secret_key  
-JWT_EXPIRATION=86400000
-
 🚀 Instalación y Ejecución
 Prerrequisitos
 
