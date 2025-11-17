@@ -9,6 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -37,7 +39,7 @@ public class Patient {
     @Schema(description = "Type of identification document for the patient.", example = "CITIZEN_ID")
     private IdentificationType identificationType;
 
-    @Column(name = "identification_number",unique = true, nullable = false)
+    @Column(name = "identification_number", unique = true, nullable = false)
     @Schema(description = "Identification number of the patient.", example = "987654321")
     private String identificationNumber;
 
@@ -104,7 +106,7 @@ public class Patient {
 
     @Transient
     @Schema(description = "DTO containing details of the healthcare provider associated with the patient.")
-    private HealthProviderNitDto healthProviderNitDto;;
+    private HealthProviderNitDto healthProviderNitDto;
 
     @Column(name = "health_policy_number")
     @Schema(description = "Health policy number of the patient.", example = "POL123456")
@@ -128,8 +130,10 @@ public class Patient {
 
     @Schema(description = "Address of the patient.", example = "123 Main St, Springfield")
     private String address;
+
     @Schema(description = "Phone number of the patient.", example = "+1234567890")
     private String phone;
+
     @Schema(description = "Phone number of the patient.", example = "+1234567890")
     private String mobile;
 
@@ -151,6 +155,52 @@ public class Patient {
     @Schema(description = "Timestamp when the patient record was last updated.")
     private LocalDateTime updatedAt;
 
+    @OneToOne(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(description = "Historia clínica completa del paciente")
+    private MedicalHistory medicalHistory;
+
+    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(description = "Lista de alergias del paciente")
+    @Builder.Default
+    private List<Allergy> allergies = new ArrayList<>();
+
+    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(description = "Lista de enfermedades crónicas del paciente")
+    @Builder.Default
+    private List<ChronicDisease> chronicDiseases = new ArrayList<>();
+
+    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(description = "Lista de medicamentos actuales del paciente")
+    @Builder.Default
+    private List<CurrentMedication> currentMedications = new ArrayList<>();
+
+    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(description = "Antecedentes familiares del paciente")
+    @Builder.Default
+    private List<FamilyHistory> familyHistories = new ArrayList<>();
+
+    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Schema(description = "Historial de vacunaciones del paciente")
+    @Builder.Default
+    private List<VaccinationRecord> vaccinationRecords = new ArrayList<>();
+
+    @Column(name = "deleted_at")
+    @Schema(description = "Fecha de eliminación del paciente")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    @Schema(description = "ID del usuario que eliminó el paciente")
+    private Long deletedBy;
+
+    @Column(name = "deletion_reason", length = 500)
+    @Schema(description = "Razón de la eliminación")
+    private String deletionReason;
+
+    @Column(name = "can_be_restored")
+    @Schema(description = "Indica si el paciente puede ser restaurado")
+    @Builder.Default
+    private Boolean canBeRestored = true;
+
     @PrePersist
     private void generateUuid() {
         if (uuid == null) {
@@ -160,5 +210,36 @@ public class Patient {
 
     public String getFullName() {
         return lastName + "," + name;
+    }
+
+    /**
+     * Marca el paciente como eliminado
+     */
+    public void markAsDeleted(Long userId, String reason) {
+        this.status = Status.DELETED;
+        this.deletedAt = LocalDateTime.now();
+        this.deletedBy = userId;
+        this.deletionReason = reason;
+    }
+
+    /**
+     * Restaura un paciente eliminado
+     */
+    public void restore() {
+        if (this.canBeRestored) {
+            this.status = Status.ALIVE;
+            this.deletedAt = null;
+            this.deletedBy = null;
+            this.deletionReason = null;
+        } else {
+            throw new IllegalStateException("Este paciente no puede ser restaurado");
+        }
+    }
+
+    /**
+     * Verifica si el paciente fue eliminado
+     */
+    public boolean isDeleted() {
+        return this.status == Status.DELETED;
     }
 }
