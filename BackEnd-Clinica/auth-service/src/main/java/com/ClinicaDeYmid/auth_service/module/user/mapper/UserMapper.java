@@ -5,7 +5,7 @@ import com.ClinicaDeYmid.auth_service.module.user.entity.Role;
 import com.ClinicaDeYmid.auth_service.module.user.entity.User;
 import org.mapstruct.*;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface UserMapper {
 
     /**
@@ -17,6 +17,11 @@ public interface UserMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "status", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
+    @Mapping(target = "accountLockedUntil", ignore = true)
+    @Mapping(target = "lastPasswordChange", ignore = true)
+    @Mapping(target = "passwordNeverExpires", ignore = true)
+    @Mapping(target = "requirePasswordChange", ignore = true)
     @Mapping(target = "role", source = "role")
     User toEntity(UserRequestDTO userRequestDTO, Role role);
 
@@ -32,6 +37,11 @@ public interface UserMapper {
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "password", ignore = true)
     @Mapping(target = "role", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
+    @Mapping(target = "accountLockedUntil", ignore = true)
+    @Mapping(target = "lastPasswordChange", ignore = true)
+    @Mapping(target = "passwordNeverExpires", ignore = true)
+    @Mapping(target = "requirePasswordChange", ignore = true)
     void updateEntityFromDTO(UserUpdateDTO userUpdateDTO, @MappingTarget User user);
 
     /**
@@ -63,7 +73,21 @@ public interface UserMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "role", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
+    @Mapping(target = "accountLockedUntil", ignore = true)
+    @Mapping(target = "lastPasswordChange", ignore = true)
+    @Mapping(target = "passwordNeverExpires", ignore = true)
+    @Mapping(target = "requirePasswordChange", ignore = true)
     void updateStatusFromDTO(UserStatusUpdateDTO statusUpdateDTO, @MappingTarget User user);
 
+    /**
+     * Convierte UserResponseDTO a User Entity (para refresh token)
+     */
+    @Mapping(target = "password", ignore = true)
+    @Mapping(target = "failedLoginAttempts", constant = "0")
+    @Mapping(target = "accountLockedUntil", ignore = true)
+    @Mapping(target = "lastPasswordChange", ignore = true)
+    @Mapping(target = "passwordNeverExpires", constant = "false")
+    @Mapping(target = "requirePasswordChange", constant = "false")
     User toEntity2(UserResponseDTO userResponse);
 }
