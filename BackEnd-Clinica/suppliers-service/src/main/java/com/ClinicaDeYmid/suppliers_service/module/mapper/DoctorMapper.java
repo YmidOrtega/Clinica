@@ -1,67 +1,144 @@
 package com.ClinicaDeYmid.suppliers_service.module.mapper;
 
-import com.ClinicaDeYmid.suppliers_service.module.dto.*;
+import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorResponseDto;
+import com.ClinicaDeYmid.suppliers_service.module.dto.DoctorUpdateRequestDTO;
+import com.ClinicaDeYmid.suppliers_service.module.dto.SpecialtyDetailsDto;
+import com.ClinicaDeYmid.suppliers_service.module.dto.SubSpecialtyDetailsDto;
 import com.ClinicaDeYmid.suppliers_service.module.entity.Doctor;
 import com.ClinicaDeYmid.suppliers_service.module.entity.Speciality;
 import com.ClinicaDeYmid.suppliers_service.module.entity.SubSpecialty;
 import org.mapstruct.*;
-import org.hibernate.Hibernate;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring")
+
+@Mapper(
+        componentModel = "spring",
+        unmappedTargetPolicy = ReportingPolicy.IGNORE,
+        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
+)
 public interface DoctorMapper {
 
+    /**
+     * Mapea Doctor a DoctorResponseDto con todas las relaciones
+     */
     @Mapping(target = "fullName", expression = "java(doctor.getFullName())")
-    @Mapping(target = "specialties", expression = "java(mapSpecialties(doctor))")
+    @Mapping(target = "hourlyRate", expression = "java(mapBigDecimalToDouble(doctor.getHourlyRate()))")
+    @Mapping(target = "specialties", expression = "java(mapSpecialties(doctor.getSpecialties()))")
     DoctorResponseDto toDoctorResponseDto(Doctor doctor);
 
-    default List<SpecialtyDetailsDto> mapSpecialties(Doctor doctor) {
-        if (doctor.getSpecialties() == null) return List.of();
+    /**
+     * Actualiza un Doctor desde DoctorUpdateRequestDTO
+     * Solo actualiza los campos no nulos del DTO
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "specialties", ignore = true)
+    @Mapping(target = "subSpecialties", ignore = true)
+    @Mapping(target = "schedules", ignore = true)
+    @Mapping(target = "unavailabilities", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "hourlyRate", expression = "java(mapDoubleToDecimal(dto.hourlyRate()))")
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void updateDoctorFromDto(DoctorUpdateRequestDTO dto, @MappingTarget Doctor doctor);
 
-        Set<Speciality> specialties = doctor.getSpecialties();
-        Set<SubSpecialty> doctorSubs = doctor.getSubSpecialties() != null
-                ? doctor.getSubSpecialties()
-                : Set.of();
+    /**
+     * Mapea Doctor a DoctorResponseDto básico (sin relaciones complejas)
+     */
+    @Mapping(target = "fullName", expression = "java(doctor.getFullName())")
+    @Mapping(target = "hourlyRate", expression = "java(mapBigDecimalToDouble(doctor.getHourlyRate()))")
+    @Mapping(target = "specialties", ignore = true)
+    DoctorResponseDto toDoctorResponseDtoBasic(Doctor doctor);
 
-        // Forzar inicialización
-        Hibernate.initialize(specialties);
-        Hibernate.initialize(doctorSubs);
+    /**
+     * Mapea Set de Speciality a List de SpecialtyDetailsDto
+     */
+    default List<SpecialtyDetailsDto> mapSpecialties(Set<Speciality> specialties) {
+        if (specialties == null || specialties.isEmpty()) {
+            return List.of();
+        }
 
         return specialties.stream()
-                .map(speciality -> {
-                    Hibernate.initialize(speciality.getSubSpecialties());
-
-                    List<SubSpecialtyDetailsDto> subsOfThisSpecialty = doctorSubs.stream()
-                            .filter(doctorSub -> doctorSub.getSpeciality().getId().equals(speciality.getId()))
-                            .map(this::toSubSpecialtyDetailsDto)
-                            .collect(Collectors.toList());
+                .map(specialty -> {
+                    List<SubSpecialtyDetailsDto> subSpecialties = specialty.getSubSpecialties() != null
+                            ? specialty.getSubSpecialties().stream()
+                            .map(subSpecialty -> new SubSpecialtyDetailsDto(
+                                    subSpecialty.getId(),
+                                    subSpecialty.getName(),
+                                    subSpecialty.getCodeSubSpecialty()
+                            ))
+                            .collect(Collectors.toList())
+                            : List.of();
 
                     return new SpecialtyDetailsDto(
-                            speciality.getId(),
-                            speciality.getName(),
-                            speciality.getCodeSpeciality(),
-                            subsOfThisSpecialty
+                            specialty.getId(),
+                            specialty.getName(),
+                            specialty.getCodeSpeciality(),
+                            subSpecialties
                     );
                 })
                 .collect(Collectors.toList());
     }
 
-    // SOLUCIÓN: Mapear manualmente SubSpecialty excluyendo las relaciones problemáticas
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "name", source = "name")
+    /**
+     * Convierte BigDecimal a Double para el DTO
+     */
+    default Double mapBigDecimalToDouble(BigDecimal value) {
+        return value != null ? value.doubleValue() : null;
+    }
+
+    /**
+     * Convierte Double a BigDecimal para la entidad
+     */
+    default BigDecimal mapDoubleToDecimal(Double value) {
+        return value != null ? BigDecimal.valueOf(value) : null;
+    }
+
+    /**
+     * Mapea nombre completo del doctor
+     */
+    default String mapFullName(String name, String lastName) {
+        if (name == null || lastName == null) {
+            return "";
+        }
+        return name + " " + lastName;
+    }
+
+    /**
+     * Mapea una lista de doctores a DTOs
+     */
+    List<DoctorResponseDto> toDoctorResponseDtoList(List<Doctor> doctors);
+
+    /**
+     * Mapea SubSpecialty a SubSpecialtyDetailsDto
+     */
     @Mapping(target = "codeSubSpecialty", source = "codeSubSpecialty")
     SubSpecialtyDetailsDto toSubSpecialtyDetailsDto(SubSpecialty subSpecialty);
 
-    // SOLUCIÓN: Mapear manualmente Speciality excluyendo las relaciones problemáticas
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "name", source = "name")
+    /**
+     * Mapea Speciality a SpecialtyDetailsDto
+     */
     @Mapping(target = "codeSpeciality", source = "codeSpeciality")
-    @Mapping(target = "subSpecialties", ignore = true)
-    SpecialtyDetailsDto toSpecialtyDetailsDto(Speciality speciality);
+    @Mapping(target = "subSpecialties", expression = "java(mapSubSpecialties(specialty.getSubSpecialties()))")
+    SpecialtyDetailsDto toSpecialtyDetailsDto(Speciality specialty);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateDoctorFromDto(DoctorUpdateRequestDTO dto, @MappingTarget Doctor entity);
+    /**
+     * Mapea Set de SubSpecialty a List de SubSpecialtyDetailsDto
+     */
+    default List<SubSpecialtyDetailsDto> mapSubSpecialties(Set<SubSpecialty> subSpecialties) {
+        if (subSpecialties == null || subSpecialties.isEmpty()) {
+            return List.of();
+        }
+
+        return subSpecialties.stream()
+                .map(subSpecialty -> new SubSpecialtyDetailsDto(
+                        subSpecialty.getId(),
+                        subSpecialty.getName(),
+                        subSpecialty.getCodeSubSpecialty()
+                ))
+                .collect(Collectors.toList());
+    }
 }
