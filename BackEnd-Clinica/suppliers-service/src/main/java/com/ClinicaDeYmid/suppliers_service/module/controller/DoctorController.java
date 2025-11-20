@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -32,10 +33,11 @@ public class DoctorController {
     private final DoctorStatusService doctorStatusService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Create a new doctor",
             description = "Create a new doctor in the system with the provided details. " +
-                    "The provider code must be unique.")
+                    "The provider code must be unique. Requires ADMIN or SUPER_ADMIN role.")
     public ResponseEntity<DoctorResponseDto> createDoctor(
             @Valid @RequestBody DoctorCreateRequestDTO request,
             UriComponentsBuilder uriBuilder) {
@@ -53,10 +55,11 @@ public class DoctorController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Update an existing doctor",
             description = "Update the details of an existing doctor identified by ID. " +
-                    "The provider code must remain unique.")
+                    "The provider code must remain unique. Requires ADMIN or SUPER_ADMIN role.")
     public ResponseEntity<DoctorResponseDto> updateDoctor(
             @PathVariable Long id,
             @Valid @RequestBody DoctorUpdateRequestDTO request) {
@@ -67,9 +70,10 @@ public class DoctorController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Get doctor by ID",
-            description = "Retrieve the details of a doctor by their unique ID.")
+            description = "Retrieve the details of a doctor by their unique ID. Accessible by ADMIN, DOCTOR, and RECEPTIONIST roles.")
     public ResponseEntity<DoctorResponseDto> getDoctorById(@PathVariable Long id) {
         log.info("Fetching doctor with ID: {}", id);
         DoctorResponseDto response = doctorGetService.getDoctorById(id);
@@ -77,19 +81,21 @@ public class DoctorController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Get all doctors",
-            description = "Retrieve a list of all doctors in the system.")
+            description = "Retrieve a list of all doctors in the system. Accessible by ADMIN, DOCTOR, and RECEPTIONIST roles.")
     public ResponseEntity<List<DoctorResponseDto>> getAllDoctors() {
         log.info("Fetching all doctors");
         return ResponseEntity.ok(doctorGetService.getAllDoctors());
     }
 
     @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Activate a doctor",
             description = "Activate a doctor by their unique ID. " +
-                    "An active doctor can be assigned to appointments and perform medical duties.")
+                    "An active doctor can be assigned to appointments and perform medical duties. Requires ADMIN or SUPER_ADMIN role.")
     public ResponseEntity<Void> activateDoctor(@PathVariable Long id) {
         log.info("Activating doctor with ID: {}", id);
         doctorStatusService.activateDoctor(id);
@@ -97,13 +103,29 @@ public class DoctorController {
     }
 
     @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Deactivate a doctor",
             description = "Deactivate a doctor by their unique ID. " +
-                    "A deactivated doctor cannot be assigned to appointments or perform medical duties.")
+                    "A deactivated doctor cannot be assigned to appointments or perform medical duties. Requires ADMIN or SUPER_ADMIN role.")
     public ResponseEntity<Void> deactivateDoctor(@PathVariable Long id) {
         log.info("Deactivating doctor with ID: {}", id);
         doctorStatusService.deactivateDoctor(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(
+            summary = "Soft delete a doctor",
+            description = "Performs a soft delete on a doctor by their unique ID. " +
+                    "The doctor will be marked as deleted but not removed from the database. " +
+                    "Only SUPER_ADMIN role can perform this operation.")
+    public ResponseEntity<Void> softDeleteDoctor(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason) {
+        log.info("Soft deleting doctor with ID: {} for reason: {}", id, reason);
+        doctorStatusService.softDeleteDoctor(id, reason);
         return ResponseEntity.noContent().build();
     }
 }

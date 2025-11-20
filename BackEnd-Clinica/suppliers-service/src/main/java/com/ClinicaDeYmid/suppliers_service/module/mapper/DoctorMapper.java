@@ -25,6 +25,7 @@ public interface DoctorMapper {
     /**
      * Mapea Doctor a DoctorResponseDto con todas las relaciones
      */
+    @Named("toDoctorResponseDtoFull")
     @Mapping(target = "fullName", expression = "java(doctor.getFullName())")
     @Mapping(target = "hourlyRate", expression = "java(mapBigDecimalToDouble(doctor.getHourlyRate()))")
     @Mapping(target = "specialties", expression = "java(mapSpecialties(doctor.getSpecialties()))")
@@ -37,10 +38,13 @@ public interface DoctorMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "specialties", ignore = true)
     @Mapping(target = "subSpecialties", ignore = true)
-    @Mapping(target = "schedules", ignore = true)
-    @Mapping(target = "unavailabilities", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "deletedBy", ignore = true)
+    @Mapping(target = "deletionReason", ignore = true)
     @Mapping(target = "hourlyRate", expression = "java(mapDoubleToDecimal(dto.hourlyRate()))")
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateDoctorFromDto(DoctorUpdateRequestDTO dto, @MappingTarget Doctor doctor);
@@ -108,8 +112,9 @@ public interface DoctorMapper {
     }
 
     /**
-     * Mapea una lista de doctores a DTOs
+     * Mapea una lista de doctores a DTOs (usa versión completa)
      */
+    @IterableMapping(qualifiedByName = "toDoctorResponseDtoFull")
     List<DoctorResponseDto> toDoctorResponseDtoList(List<Doctor> doctors);
 
     /**
