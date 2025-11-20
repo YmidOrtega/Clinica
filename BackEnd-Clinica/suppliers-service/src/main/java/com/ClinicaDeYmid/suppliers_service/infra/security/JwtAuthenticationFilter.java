@@ -17,6 +17,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Filtro de autenticación JWT que intercepta todas las peticiones.
+ * Valida el token JWT y establece el contexto de seguridad si el token es válido.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -34,16 +38,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = extractJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-                Long userId = jwtTokenProvider.getUserIdFromToken(jwt);
-                String username = jwtTokenProvider.getUsernameFromToken(jwt);
-                List<String> roles = jwtTokenProvider.getRolesFromToken(jwt);
+                
+                // Verificar que sea un access token
+                if (!jwtTokenProvider.isAccessToken(jwt)) {
+                    log.warn("Token recibido no es un access token");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
-                log.debug("Authenticated user: {} with roles: {}", username, roles);
+                // Extraer información del token
+                String uuid = jwtTokenProvider.getUuidFromToken(jwt);
+                String email = jwtTokenProvider.getEmailFromToken(jwt);
+                String role = jwtTokenProvider.getRoleFromToken(jwt);
+                List<String> permissions = jwtTokenProvider.getPermissionsFromToken(jwt);
 
-                // Crear UserDetails
-                CustomUserDetails userDetails = new CustomUserDetails(userId, username, roles);
+                log.debug("Usuario autenticado: {} (UUID: {}) con rol: {}", email, uuid, role);
 
-                // Establecer en SecurityContext
+                // Crear CustomUserDetails con la información del token
+                CustomUserDetails userDetails = CustomUserDetails.builder()
+                        .userId(null) // userId no está disponible en el token
+                        .uuid(uuid)
+                        .email(email)
+                        .role(role)
+                        .permissions(permissions)
+                        .build();
+
+                // Crear el objeto de autenticación
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
@@ -52,24 +72,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         );
 
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                
+                // Establecer en SecurityContext
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                // Establecer en UserContextHolder
-                UserContextHolder.setUserId(userId);
-                UserContextHolder.setUsername(username);
-                UserContextHolder.setRoles(roles);
-
-                log.debug("Security context set for user: {}", username);
+                log.debug("Contexto de seguridad establecido para usuario: {}", email);
             }
         } catch (Exception e) {
-            log.error("Cannot set user authentication: {}", e.getMessage());
+            log.error("No se pudo establecer la autenticación del usuario: {}", e.getMessage());
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
     }
 
     /**
-     * Extrae el JWT del header Authorization
+     * Extrae el JWT del header Authorization.
+     * Espera el formato: "Bearer {token}"
+     *
+     * @param request HttpServletRequest
+     * @return JWT extraído o null si no existe
      */
     private String extractJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
