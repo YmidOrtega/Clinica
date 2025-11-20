@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.suppliers_service.module.exception;
+package com.ClinicaDeYmid.suppliers_service.infra.exception;
 
 import lombok.Builder;
 import lombok.Data;
