@@ -1,0 +1,59 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        globally_quoted_identifiers: true
+    show-sql: false
+    defer-datasource-initialization: true
+  
+  sql:
+    init:
+      mode: always
+  
+  data:
+    redis:
+      host: localhost
+      port: 6370
+  
+  flyway:
+    enabled: false
+
+jwt:
+  secret: test-secret-key-that-is-at-least-32-characters-long-for-testing
+  algorithm: HS256
+  access-token:
+    expiration: 900
+  refresh-token:
+    expiration: 604800
+  rsa:
+    private-key-path: classpath:test-keys/private_key.pem
+    public-key-path: classpath:test-keys/public_key.pem
+
+auth:
+  max-login-attempts: 5
+  lockout-duration-minutes: 30
+  attempt-window-minutes: 15
+  max-active-sessions: 5
+  password-expiration-days: 90
+  password-history-count: 5
+  password-change-grace-period-days: 7
+
+eureka:
+  client:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
