@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +31,7 @@ public class DoctorSearchController {
     private final DoctorSearchService searchService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Búsqueda avanzada con filtros",
             description = "Busca doctores con múltiples filtros opcionales: " +
@@ -64,6 +66,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/by-name")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Buscar por nombre o apellido",
             description = "Busca doctores por nombre o apellido (búsqueda parcial)"
@@ -85,6 +88,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/by-specialty/{specialtyId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Buscar por especialidad",
             description = "Obtiene todos los doctores de una especialidad específica con paginación"
@@ -105,6 +109,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/by-specialty/{specialtyId}/all")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Todos los doctores de una especialidad",
             description = "Obtiene la lista completa de doctores de una especialidad (sin paginación)"
@@ -124,6 +129,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/by-subspecialty/{subSpecialtyId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Buscar por subespecialidad",
             description = "Obtiene todos los doctores de una subespecialidad específica con paginación"
@@ -144,6 +150,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/by-subspecialty/{subSpecialtyId}/all")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Todos los doctores de una subespecialidad",
             description = "Obtiene la lista completa de doctores de una subespecialidad (sin paginación)"
@@ -163,6 +170,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/by-full-name")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Buscar por nombre completo",
             description = "Busca doctores por nombre completo exacto (nombre + apellido)"
@@ -182,6 +190,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/with-schedules")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Doctores con horarios configurados",
             description = "Obtiene la lista de doctores que tienen al menos un horario configurado"
@@ -198,6 +207,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/without-schedules")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST')")
     @Operation(
             summary = "Doctores sin horarios configurados",
             description = "Obtiene la lista de doctores que requieren configuración de horarios"
@@ -214,6 +224,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/statistics")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Estadísticas generales",
             description = "Obtiene estadísticas generales de doctores en el sistema"
@@ -230,6 +241,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/statistics/specialty/{specialtyId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Estadísticas por especialidad",
             description = "Obtiene el número de doctores de una especialidad específica"
@@ -249,6 +261,7 @@ public class DoctorSearchController {
     }
 
     @GetMapping("/statistics/subspecialty/{subSpecialtyId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Estadísticas por subespecialidad",
             description = "Obtiene el número de doctores de una subespecialidad específica"

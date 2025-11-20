@@ -57,4 +57,20 @@ public class DoctorStatusService {
         doctorRepository.save(doctor);
         log.info("Doctor deactivated successfully by user: {}", userId);
     }
+
+    @CacheEvict(value = "doctor_cache", key = "#id")
+    @Transactional
+    public void softDeleteDoctor(Long id, String reason) {
+        log.info("Soft deleting doctor with ID: {} for reason: {}", id, reason);
+
+        Long userId = getCurrentUserId();
+
+        Doctor doctor = doctorRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + id));
+
+        doctor.setDeletedBy(userId);
+        doctor.setDeletionReason(reason != null ? reason : "No reason provided");
+
+        doctorRepository.delete(doctor);
+        log.info("Doctor soft deleted successfully by user: {}", userId);
+    }
 }

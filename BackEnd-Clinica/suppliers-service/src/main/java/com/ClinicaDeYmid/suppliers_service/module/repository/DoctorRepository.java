@@ -143,8 +143,8 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
      */
     @Query("""
         SELECT DISTINCT d FROM Doctor d
-        JOIN d.schedules ds
-        LEFT JOIN d.unavailabilities du
+        JOIN DoctorSchedule ds ON ds.doctor.id = d.id
+        LEFT JOIN DoctorUnavailability du ON du.doctor.id = d.id
         WHERE d.active = true
         AND ds.active = true
         AND ds.dayOfWeek = :dayOfWeek
@@ -167,8 +167,8 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     @Query("""
         SELECT DISTINCT d FROM Doctor d
         JOIN d.specialties s
-        JOIN d.schedules ds
-        LEFT JOIN d.unavailabilities du
+        JOIN DoctorSchedule ds ON ds.doctor.id = d.id
+        LEFT JOIN DoctorUnavailability du ON du.doctor.id = d.id
         WHERE d.active = true
         AND s.id = :specialtyId
         AND ds.active = true
@@ -192,7 +192,7 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
      */
     @Query("""
         SELECT DISTINCT d FROM Doctor d
-        JOIN d.schedules ds
+        JOIN DoctorSchedule ds ON ds.doctor.id = d.id
         WHERE d.active = true
         AND ds.active = true
         """)

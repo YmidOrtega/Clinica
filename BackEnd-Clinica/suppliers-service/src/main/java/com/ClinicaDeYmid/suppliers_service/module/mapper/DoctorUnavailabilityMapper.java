@@ -21,8 +21,9 @@ import java.util.List;
 public interface DoctorUnavailabilityMapper {
 
     /**
-     * Mapea DoctorUnavailability a DoctorUnavailabilityResponseDTO
+     * Mapea DoctorUnavailability a DoctorUnavailabilityResponseDTO (versión completa)
      */
+    @Named("toResponseDTOFull")
     @Mapping(target = "doctorId", source = "doctor.id")
     @Mapping(target = "doctorFullName", expression = "java(getDoctorFullName(unavailability.getDoctor()))")
     @Mapping(target = "typeDisplayName", expression = "java(getTypeDisplayName(unavailability.getType()))")
@@ -31,8 +32,9 @@ public interface DoctorUnavailabilityMapper {
     DoctorUnavailabilityResponseDTO toResponseDTO(DoctorUnavailability unavailability);
 
     /**
-     * Mapea una lista de DoctorUnavailability a lista de DTOs
+     * Mapea una lista de DoctorUnavailability a lista de DTOs (usa versión completa)
      */
+    @IterableMapping(qualifiedByName = "toResponseDTOFull")
     List<DoctorUnavailabilityResponseDTO> toResponseDTOList(List<DoctorUnavailability> unavailabilities);
 
     /**
@@ -102,6 +104,7 @@ public interface DoctorUnavailabilityMapper {
     /**
      * Mapea información básica de ausencia (para consultas rápidas)
      */
+    @Named("toResponseDTOBasic")
     @Mapping(target = "doctorId", source = "doctor.id")
     @Mapping(target = "doctorFullName", expression = "java(getDoctorFullName(unavailability.getDoctor()))")
     @Mapping(target = "typeDisplayName", expression = "java(getTypeDisplayName(unavailability.getType()))")

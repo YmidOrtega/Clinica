@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
@@ -15,8 +17,12 @@ import java.util.Set;
 @Table(name = "doctors", indexes = {
         @Index(name = "idx_doctor_license", columnList = "license_number"),
         @Index(name = "idx_doctor_email", columnList = "email"),
-        @Index(name = "idx_doctor_active", columnList = "active")
+        @Index(name = "idx_doctor_active", columnList = "active"),
+        @Index(name = "idx_doctors_name_lastname", columnList = "name, last_name"),
+        @Index(name = "idx_doctors_created_at", columnList = "created_at")
 })
+@SQLDelete(sql = "UPDATE doctors SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -31,13 +37,13 @@ public class Doctor {
     @Column(name = "provider_code", nullable = false, unique = true)
     private int providerCode;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "last_name", nullable = false)
+    @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
-    @Column(name = "identification_number", nullable = false, unique = true)
+    @Column(name = "identification_number", nullable = false, unique = true, length = 20)
     private String identificationNumber;
 
     @Builder.Default
@@ -60,13 +66,13 @@ public class Doctor {
     @JsonManagedReference("doctor-subspecialties")
     private Set<SubSpecialty> subSpecialties = new HashSet<>();
 
-    @Column(name = "phone_number", nullable = false)
+    @Column(name = "phone_number", nullable = false, length = 20)
     private String phoneNumber;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 150)
     private String email;
 
-    @Column(name = "license_number", unique = true, nullable = false)
+    @Column(name = "license_number", unique = true, nullable = false, length = 50)
     private String licenseNumber;
 
     @Column(length = 200)
@@ -94,7 +100,21 @@ public class Doctor {
     @Column(name = "updated_by")
     private Long updatedBy;
 
+    // ✅ CAMPOS DE SOFT DELETE
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    @Column(name = "deletion_reason", length = 500)
+    private String deletionReason;
+
     public String getFullName() {
         return name + " " + lastName;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 }
