@@ -93,7 +93,8 @@ public class UserContextHolder {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-            return userDetails.getRoles();
+            String role = userDetails.getRole();
+            return role != null ? List.of(role) : List.of();
         }
 
         return List.of();
