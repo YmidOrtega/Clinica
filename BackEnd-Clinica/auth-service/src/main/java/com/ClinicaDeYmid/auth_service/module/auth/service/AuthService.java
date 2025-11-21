@@ -94,6 +94,13 @@ public class AuthService {
             return tokenPair;
 
         } catch (AuthenticationException e) {
+            // Si es una de nuestras excepciones específicas de políticas de contraseñas, la re-lanzamos.
+            if (e instanceof BadCredentialsException &&
+                (e.getMessage().equals("Tu contraseña ha expirado. Debes cambiarla.") ||
+                 e.getMessage().equals("Debes cambiar tu contraseña antes de continuar."))) {
+                throw e;
+            }
+
             log.warn("Login fallido para email: {} - Razón: {}", loginRequest.email(), e.getMessage());
 
             loginAttemptService.recordFailedLogin(
