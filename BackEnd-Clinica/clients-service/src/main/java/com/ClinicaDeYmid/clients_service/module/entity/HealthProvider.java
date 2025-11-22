@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
@@ -27,6 +29,8 @@ import java.util.List;
                 @Index(name = "idx_health_providers_year_of_validity", columnList = "year_of_validity"),
                 @Index(name = "idx_health_providers_created_at", columnList = "created_at")
         })
+@SQLDelete(sql = "UPDATE health_providers SET deleted_at = NOW(), active = false WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -67,6 +71,12 @@ public class HealthProvider {
     @Column(name = "year_completion")
     private Integer yearCompletion;
 
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    @Column(name = "updated_by")
+    private Long updatedBy;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -75,9 +85,45 @@ public class HealthProvider {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    @Column(name = "deletion_reason", length = 500)
+    private String deletionReason;
+
     @OneToMany(mappedBy = "healthProvider", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @Builder.Default
     private List<Contract> contracts = new ArrayList<>();
+
+    /**
+     * Verifica si el proveedor está eliminado (soft delete)
+     */
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    /**
+     * Marca el proveedor como eliminado con información de auditoría
+     */
+    public void markAsDeleted(Long userId, String reason) {
+        this.deletedAt = LocalDateTime.now();
+        this.deletedBy = userId;
+        this.deletionReason = reason;
+        this.active = false;
+    }
+
+    /**
+     * Restaura un proveedor eliminado
+     */
+    public void restore() {
+        this.deletedAt = null;
+        this.deletedBy = null;
+        this.deletionReason = null;
+        this.active = true;
+    }
 
     @Override
     public String toString() {
@@ -88,6 +134,7 @@ public class HealthProvider {
                 ", active=" + active +
                 ", yearOfValidity=" + yearOfValidity +
                 ", yearCompletion=" + yearCompletion +
+                ", deleted=" + isDeleted() +
                 '}';
     }
 }
