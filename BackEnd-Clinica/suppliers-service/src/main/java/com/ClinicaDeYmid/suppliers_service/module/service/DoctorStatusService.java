@@ -73,4 +73,29 @@ public class DoctorStatusService {
         doctorRepository.delete(doctor);
         log.info("Doctor soft deleted successfully by user: {}", userId);
     }
+
+    @CacheEvict(value = "doctor_cache", key = "#id")
+    @Transactional
+    public void restoreDoctor(Long id) {
+        log.info("Restoring doctor with ID: {}", id);
+
+        Long userId = getCurrentUserId();
+
+        // Buscar incluyendo eliminados
+        Doctor doctor = doctorRepository.findByIdIncludingDeleted(id)
+                .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + id));
+
+        if (doctor.getDeletedAt() == null) {
+            throw new IllegalStateException("Doctor is not deleted");
+        }
+
+        doctor.setDeletedAt(null);
+        doctor.setDeletedBy(null);
+        doctor.setDeletionReason(null);
+        doctor.setActive(true);
+        doctor.setUpdatedBy(userId);
+
+        doctorRepository.save(doctor);
+        log.info("Doctor restored successfully by user: {}", userId);
+    }
 }
