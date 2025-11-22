@@ -128,4 +128,15 @@ public class DoctorController {
         doctorStatusService.softDeleteDoctor(id, reason);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(
+            summary = "Restore a soft deleted doctor",
+            description = "Restores a previously soft deleted doctor. Only SUPER_ADMIN role can perform this operation.")
+    public ResponseEntity<DoctorResponseDto> restoreDoctor(@PathVariable Long id) {
+        log.info("Restoring doctor with ID: {}", id);
+        doctorStatusService.restoreDoctor(id);
+        return ResponseEntity.ok(doctorGetService.getDoctorById(id));
+    }
 }
