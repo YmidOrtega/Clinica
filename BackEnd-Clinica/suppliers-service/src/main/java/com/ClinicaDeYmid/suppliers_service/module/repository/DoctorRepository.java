@@ -246,4 +246,10 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
         AND d.id NOT IN (SELECT DISTINCT ds.doctor.id FROM DoctorSchedule ds WHERE ds.active = true)
         """)
     List<Doctor> findDoctorsWithoutSchedules();
+
+    /**
+     * Encuentra doctor incluyendo eliminados (bypasea @SQLRestriction)
+     */
+    @Query(value = "SELECT * FROM doctors WHERE id = :id", nativeQuery = true)
+    Optional<Doctor> findByIdIncludingDeleted(@Param("id") Long id);
 }
