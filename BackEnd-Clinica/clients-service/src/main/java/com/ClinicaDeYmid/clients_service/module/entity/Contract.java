@@ -1,10 +1,11 @@
 package com.ClinicaDeYmid.clients_service.module.entity;
 
-
 import com.ClinicaDeYmid.clients_service.module.enums.ContractStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
@@ -25,6 +26,8 @@ import java.util.List;
                 @Index(name = "idx_contracts_end_date", columnList = "end_date"),
                 @Index(name = "idx_contracts_created_at", columnList = "created_at")
         })
+@SQLDelete(sql = "UPDATE contracts SET deleted_at = NOW(), active = false WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -76,6 +79,12 @@ public class Contract {
     @Builder.Default
     private Boolean active = true;
 
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    @Column(name = "updated_by")
+    private Long updatedBy;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -83,6 +92,53 @@ public class Contract {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    @Column(name = "deletion_reason", length = 500)
+    private String deletionReason;
+
+    /**
+     * Verifica si el contrato está eliminado (soft delete)
+     */
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    /**
+     * Marca el contrato como eliminado con información de auditoría
+     */
+    public void markAsDeleted(Long userId, String reason) {
+        this.deletedAt = LocalDateTime.now();
+        this.deletedBy = userId;
+        this.deletionReason = reason;
+        this.active = false;
+    }
+
+    /**
+     * Restaura un contrato eliminado
+     */
+    public void restore() {
+        this.deletedAt = null;
+        this.deletedBy = null;
+        this.deletionReason = null;
+        this.active = true;
+    }
+
+    /**
+     * Verifica si el contrato está vigente
+     */
+    public boolean isCurrentlyValid() {
+        LocalDate now = LocalDate.now();
+        return !isDeleted() &&
+                active &&
+                (startDate == null || !now.isBefore(startDate)) &&
+                (endDate == null || !now.isAfter(endDate));
+    }
 
     @Override
     public String toString() {
@@ -94,6 +150,7 @@ public class Contract {
                 ", endDate=" + endDate +
                 ", status=" + status +
                 ", active=" + active +
+                ", deleted=" + isDeleted() +
                 '}';
     }
 }
