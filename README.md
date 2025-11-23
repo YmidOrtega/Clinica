@@ -122,13 +122,6 @@ Para desarrollo local de los microservicios:
 cd BackEnd-Clinica  
 mvn clean install
 
-Frontend README.md:35-44
-
-cd FrontEnd-Clinica  
-pnpm install          # Instalar dependencias  
-pnpm dev              # Servidor de desarrollo  
-pnpm build            # Build de producción  
-pnpm preview          # Preview del build
 
 🏥 Funcionalidades del Sistema
 
