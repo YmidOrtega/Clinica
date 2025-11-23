@@ -1,10 +1,8 @@
 package com.ClinicaDeYmid.clients_service.module.mapper;
 
-
 import com.ClinicaDeYmid.clients_service.module.dto.*;
 import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
-
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -22,6 +20,11 @@ public interface HealthProviderMapper {
     @Mapping(target = "active", constant = "true")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "deletedBy", ignore = true)
+    @Mapping(target = "deletionReason", ignore = true)
     HealthProvider toEntity(CreateHealthProviderDto createHealthProviderDto);
 
     HealthProviderListDto toHealthProviderListDto(HealthProvider healthProvider);
@@ -44,5 +47,4 @@ public interface HealthProviderMapper {
                 toContractDto(contract)
         );
     }
-
 }
