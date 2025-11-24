@@ -10,10 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -28,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Validated
@@ -276,22 +275,17 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "409", description = "Contract number conflict"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions")
     })
-    public ResponseEntity<GetHealthProviderDto> updateContract(
-            @PathVariable @NotNull(message = "El NIT no puede ser nulo")
-            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
-            String nit,
-            @PathVariable @NotNull(message = "El ID del contrato no puede ser nulo")
-            @Min(value = 1, message = "El ID del contrato debe ser un número positivo")
-            Long contractId,
-            @RequestBody @Valid UpdateContractDto updateContractDto) {
+    public ResponseEntity<Contract> updateContract(
+            @PathVariable String nit,
+            @PathVariable Long contractId,
+            @Valid @RequestBody Contract updatedContractDetails) {  // Cambiar a Contract
 
-        log.info("Updating contract with ID: {} for health provider with NIT: {}", contractId, nit);
+        log.info("Updating contract ID: {} for provider NIT: {}", contractId, nit);
 
-        Contract updatedContract = updateContractService.updateContract(contractId, updateContractDto);
-        GetHealthProviderDto dto = getHealthProviderContractService.getProviderWithContract(nit, updatedContract);
+        Contract updatedContract = updateContractService.updateContract(contractId, updatedContractDetails);
 
-        log.info("Contract updated successfully with ID: {} for health provider NIT: {}", contractId, nit);
-        return ResponseEntity.ok(dto);
+        log.info("Contract updated successfully");
+        return ResponseEntity.ok(updatedContract);
     }
 
     /**
@@ -390,5 +384,229 @@ public class HealthProviderController {
 
         log.info("Contract deleted successfully with ID: {} for health provider NIT: {}", contractId, nit);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Restaurar un proveedor de salud eliminado lógicamente
+     */
+    @PatchMapping("/{id}/restore")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(
+            summary = "Restore a deleted health provider",
+            description = "Restores a logically deleted health provider by their ID. Restricted to SUPER_ADMIN role only.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Health provider restored successfully"),
+            @ApiResponse(responseCode = "404", description = "Health provider not found"),
+            @ApiResponse(responseCode = "400", description = "Health provider is not deleted"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions - requires SUPER_ADMIN")
+    })
+    public ResponseEntity<HealthProvider> restoreHealthProvider(
+            @PathVariable @NotNull @Positive(message = "ID must be positive") Long id) {
+
+        log.info("Restoring health provider with ID: {}", id);
+
+        HealthProvider restoredProvider = statusHealthProviderService.restoreHealthProvider(id);
+
+        log.info("Health provider restored successfully with ID: {}", id);
+        return ResponseEntity.ok(restoredProvider);
+    }
+
+    /**
+     * Listar proveedores eliminados (para auditoría y restauración)
+     */
+    @GetMapping("/deleted")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(
+            summary = "List deleted health providers",
+            description = "Retrieves a paginated list of logically deleted health providers. Restricted to SUPER_ADMIN role only.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Deleted health providers retrieved successfully"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions - requires SUPER_ADMIN")
+    })
+    public ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> getDeletedHealthProviders(
+            Pageable pageable, PagedResourcesAssembler<HealthProviderListDto> assembler) {
+
+        log.info("Retrieving deleted health providers with pagination: {}", pageable);
+
+        Page<HealthProviderListDto> deletedProvidersPage = getHealthProviderService.getDeletedHealthProviders(pageable);
+
+        return ResponseEntity.ok(assembler.toModel(deletedProvidersPage));
+    }
+
+    /**
+     * Buscar proveedores por razón social
+     */
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @Operation(
+            summary = "Search health providers by social reason",
+            description = "Searches health providers by their social reason (partial match). Requires ADMIN or SUPER_ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Search results retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid search term"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions")
+    })
+    public ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> searchBySocialReason(
+            @RequestParam @NotNull(message = "Search term cannot be null")
+            @Size(min = 3, message = "Search term must be at least 3 characters") String searchTerm,
+            Pageable pageable,
+            PagedResourcesAssembler<HealthProviderListDto> assembler) {
+
+        log.info("Searching health providers by social reason: {}", searchTerm);
+
+        Page<HealthProviderListDto> searchResults = getHealthProviderService.searchBySocialReason(searchTerm, pageable);
+
+        log.info("Found {} health providers matching '{}'", searchResults.getTotalElements(), searchTerm);
+        return ResponseEntity.ok(assembler.toModel(searchResults));
+    }
+
+    /**
+     * Obtener proveedores con contratos activos
+     */
+    @GetMapping("/with-active-contracts")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @Operation(
+            summary = "Get providers with active contracts",
+            description = "Retrieves health providers that have at least one active contract. Requires ADMIN or SUPER_ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Providers with active contracts retrieved successfully"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions")
+    })
+    public ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> getProvidersWithActiveContracts(
+            Pageable pageable,
+            PagedResourcesAssembler<HealthProviderListDto> assembler) {
+
+        log.info("Retrieving health providers with active contracts");
+
+        Page<HealthProviderListDto> providersPage = getHealthProviderService.getProvidersWithActiveContracts(pageable);
+
+        log.info("Found {} providers with active contracts", providersPage.getTotalElements());
+        return ResponseEntity.ok(assembler.toModel(providersPage));
+    }
+
+    /**
+     * Obtener estadísticas de proveedores
+     */
+    @GetMapping("/stats")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @Operation(
+            summary = "Get health providers statistics",
+            description = "Retrieves statistics about health providers. Requires ADMIN or SUPER_ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Statistics retrieved successfully"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions")
+    })
+    public ResponseEntity<Map<String, Object>> getHealthProviderStats() {
+
+        log.info("Retrieving health provider statistics");
+
+        Map<String, Object> stats = getHealthProviderService.getHealthProviderStatistics();
+
+        return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Restaurar un contrato eliminado lógicamente
+     */
+    @PatchMapping("/{nit}/contracts/{contractId}/restore")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(
+            summary = "Restore a deleted contract",
+            description = "Restores a logically deleted contract by its ID. Restricted to SUPER_ADMIN role only.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Contract restored successfully"),
+            @ApiResponse(responseCode = "404", description = "Contract not found"),
+            @ApiResponse(responseCode = "400", description = "Contract is not deleted"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions - requires SUPER_ADMIN")
+    })
+    public ResponseEntity<Contract> restoreContract(
+            @PathVariable @NotNull(message = "El NIT no puede ser nulo")
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
+            String nit,
+            @PathVariable @NotNull(message = "El ID del contrato no puede ser nulo")
+            @Min(value = 1, message = "El ID del contrato debe ser un número positivo")
+            Long contractId) {
+
+        log.info("Restoring contract with ID: {} for health provider NIT: {}", contractId, nit);
+
+        Contract restoredContract = statusContractService.restoreContract(contractId);
+
+        log.info("Contract restored successfully with ID: {}", contractId);
+        return ResponseEntity.ok(restoredContract);
+    }
+
+    /**
+     * Listar contratos eliminados de un proveedor
+     */
+    @GetMapping("/{nit}/contracts/deleted")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(
+            summary = "List deleted contracts of a provider",
+            description = "Retrieves deleted contracts for a specific health provider. Restricted to SUPER_ADMIN role only.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Deleted contracts retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Health provider not found"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions - requires SUPER_ADMIN")
+    })
+    public ResponseEntity<Page<ContractDto>> getDeletedContracts(
+            @PathVariable @NotNull(message = "El NIT no puede ser nulo")
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
+            String nit,
+            Pageable pageable) {
+
+        log.info("Retrieving deleted contracts for provider NIT: {}", nit);
+
+        Page<ContractDto> deletedContracts = getContractService.getDeletedContractsByProvider(nit, pageable);
+
+        return ResponseEntity.ok(deletedContracts);
+    }
+
+    /**
+     * Obtener contratos próximos a vencer
+     */
+    @GetMapping("/contracts/expiring-soon")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @Operation(
+            summary = "Get contracts expiring soon",
+            description = "Retrieves contracts that will expire within the next 30 days. Requires ADMIN or SUPER_ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Expiring contracts retrieved successfully"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions")
+    })
+    public ResponseEntity<List<ContractDto>> getExpiringContracts(
+            @RequestParam(defaultValue = "30") @Min(1) @Max(365) int daysAhead) {
+
+        log.info("Retrieving contracts expiring in the next {} days", daysAhead);
+
+        List<ContractDto> expiringContracts = getContractService.getExpiringContracts(daysAhead);
+
+        log.info("Found {} contracts expiring soon", expiringContracts.size());
+        return ResponseEntity.ok(expiringContracts);
+    }
+
+    /**
+     * Buscar contratos por nombre
+     */
+    @GetMapping("/contracts/search")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @Operation(
+            summary = "Search contracts by name",
+            description = "Searches contracts by their name (partial match). Requires ADMIN or SUPER_ADMIN role.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Search results retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid search term"),
+            @ApiResponse(responseCode = "403", description = "Insufficient permissions")
+    })
+    public ResponseEntity<Page<ContractDto>> searchContractsByName(
+            @RequestParam @NotNull(message = "Search term cannot be null")
+            @Size(min = 3, message = "Search term must be at least 3 characters") String searchTerm,
+            Pageable pageable) {
+
+        log.info("Searching contracts by name: {}", searchTerm);
+
+        Page<ContractDto> searchResults = getContractService.searchContractsByName(searchTerm, pageable);
+
+        log.info("Found {} contracts matching '{}'", searchResults.getTotalElements(), searchTerm);
+        return ResponseEntity.ok(searchResults);
     }
 }

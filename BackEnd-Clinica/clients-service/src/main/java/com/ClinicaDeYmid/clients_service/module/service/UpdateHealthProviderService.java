@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clients_service.module.service;
 
+import com.ClinicaDeYmid.clients_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
 import com.ClinicaDeYmid.clients_service.module.repository.HealthProviderRepository;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderNotFoundException;
@@ -9,6 +10,7 @@ import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderDataAcces
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +22,20 @@ public class UpdateHealthProviderService {
 
     private final HealthProviderRepository healthProviderRepository;
 
+    /**
+     * Obtiene el userId del contexto de seguridad actual
+     */
+    private Long getCurrentUserId() {
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
+            return 1L;
+        }
+        return userId;
+    }
+
     @Transactional
+    @CacheEvict(value = "health_provider_cache", allEntries = true)
     public HealthProvider updateHealthProvider(String nit, HealthProvider updatedProviderDetails) {
 
         log.info("Iniciando actualización de proveedor de salud con NIT: {}", nit);
@@ -31,10 +46,14 @@ public class UpdateHealthProviderService {
                         updateProviderFields(existingProvider, updatedProviderDetails);
                         validateAndUpdateNit(existingProvider, updatedProviderDetails, nit);
 
+                        // Establecer auditoría
+                        Long userId = getCurrentUserId();
+                        existingProvider.setUpdatedBy(userId);
+
                         HealthProvider updatedProvider = healthProviderRepository.save(existingProvider);
 
-                        log.info("Proveedor de salud actualizado exitosamente con ID: {} y NIT: {}",
-                                updatedProvider.getId(), updatedProvider.getNit().getValue());
+                        log.info("Proveedor de salud actualizado exitosamente con ID: {} y NIT: {} por usuario: {}",
+                                updatedProvider.getId(), updatedProvider.getNit().getValue(), userId);
 
                         return updatedProvider;
                     })
@@ -67,35 +86,22 @@ public class UpdateHealthProviderService {
         if (updatedDetails.getPhone() != null) {
             existingProvider.setPhone(updatedDetails.getPhone());
         }
-        if (updatedDetails.getActive() != null) {
-            existingProvider.setActive(updatedDetails.getActive());
-        }
-        if (updatedDetails.getYearOfValidity() != null) {
-            existingProvider.setYearOfValidity(updatedDetails.getYearOfValidity());
-        }
-        if (updatedDetails.getYearCompletion() != null) {
-            existingProvider.setYearCompletion(updatedDetails.getYearCompletion());
-        }
     }
 
-    private void validateAndUpdateNit(HealthProvider existingProvider, HealthProvider updatedDetails, String originalNit) {
+    private void validateAndUpdateNit(HealthProvider existingProvider,
+                                      HealthProvider updatedDetails,
+                                      String originalNit) {
         if (updatedDetails.getNit() != null &&
-                !updatedDetails.getNit().equals(existingProvider.getNit())) {
+                !updatedDetails.getNit().getValue().equals(originalNit)) {
 
-            String newNitValue = updatedDetails.getNit().getValue();
-
-            healthProviderRepository.findByNit_Value(newNitValue)
-                    .ifPresent(conflictingProvider -> {
-                        if (!conflictingProvider.getId().equals(existingProvider.getId())) {
-                            log.warn("Intento de actualizar con NIT conflictivo: {} ya existe para ID: {}",
-                                    newNitValue, conflictingProvider.getId());
-                            throw new UpdateHealthProviderNitConflictException(newNitValue,
-                                    conflictingProvider.getId().toString());
-                        }
-                    });
-
+            if (healthProviderRepository.existsByNit_Value(updatedDetails.getNit().getValue())) {
+                log.error("Intento de actualizar a NIT duplicado: {}", updatedDetails.getNit().getValue());
+                throw new UpdateHealthProviderNitConflictException(
+                        originalNit,
+                        updatedDetails.getNit().getValue()
+                );
+            }
             existingProvider.setNit(updatedDetails.getNit());
-            log.info("NIT actualizado de {} a {}", originalNit, newNitValue);
         }
     }
 }
