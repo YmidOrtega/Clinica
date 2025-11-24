@@ -4,26 +4,22 @@ import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderDataAcces
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderNotActiveException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderNotFoundException;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderListDto;
-import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
-import com.ClinicaDeYmid.clients_service.module.enums.ContractStatus;
 import com.ClinicaDeYmid.clients_service.module.mapper.HealthProviderMapper;
 import com.ClinicaDeYmid.clients_service.module.repository.HealthProviderRepository;
 import com.ClinicaDeYmid.clients_service.module.dto.HealthProviderResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -34,8 +30,8 @@ public class GetHealthProviderService {
     private final HealthProviderMapper healthProviderMapper;
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "health_provider_cache", key = "#nit", unless = "#result == null")
     public HealthProviderResponseDto getHealthProviderByNit(String nit) {
-        // Validación de entrada
         validateNitInput(nit);
 
         log.info("Iniciando consulta de proveedor de salud con NIT: {}", nit);
@@ -50,129 +46,141 @@ public class GetHealthProviderService {
 
             HealthProvider healthProvider = healthProviderOpt.get();
 
-            List<Contract> activeContracts = healthProvider.getContracts().stream()
-                    .filter(contract -> ContractStatus.ACTIVE.equals(contract.getStatus()))
-                    .collect(Collectors.toList());
-
-            if (activeContracts.isEmpty()) {
-                log.warn("Proveedor de salud sin contratos activos - NIT: {}", nit);
-                throw new HealthProviderNotActiveException(healthProvider.getSocialReason(), nit);
-            }
-
-            // Verificar si el proveedor está activo
             if (!healthProvider.getActive()) {
-                log.warn("Intento de consultar proveedor inactivo - NIT: {}, Razón Social: {}",
-                        nit, healthProvider.getSocialReason());
-                throw new HealthProviderNotActiveException(healthProvider.getSocialReason(), nit);
+                log.warn("Proveedor de salud inactivo con NIT: {}", nit);
+                throw new HealthProviderNotActiveException(nit, healthProvider.getSocialReason());
             }
 
-            healthProvider.setContracts(activeContracts);
-
-            log.info("Proveedor de salud encontrado exitosamente - NIT: {}, Razón Social: {}",
-                    nit, healthProvider.getSocialReason());
-
+            log.info("Proveedor de salud encontrado con NIT: {}", nit);
             return healthProviderMapper.toResponseDto(healthProvider);
 
-        } catch (QueryTimeoutException ex) {
-            log.error("Timeout al consultar proveedor con NIT: {} - Tiempo de espera agotado", nit, ex);
-            throw new HealthProviderDataAccessException(
-                    "consultar proveedor con NIT: " + nit + " (timeout de base de datos)", ex);
-
-        } catch (DataIntegrityViolationException ex) {
-            log.error("Error de integridad de datos al consultar proveedor con NIT: {}", nit, ex);
-            throw new HealthProviderDataAccessException(
-                    "consultar proveedor con NIT: " + nit + " (violación de integridad)", ex);
-
+        } catch (HealthProviderNotFoundException | HealthProviderNotActiveException e) {
+            throw e;
         } catch (DataAccessException ex) {
             log.error("Error de acceso a datos al consultar proveedor con NIT: {}", nit, ex);
-            throw new HealthProviderDataAccessException(
-                    "consultar proveedor con NIT: " + nit, ex);
-
-        } catch (Exception ex) {
-            log.error("Error inesperado al consultar proveedor con NIT: {}", nit, ex);
-            throw new HealthProviderDataAccessException(
-                    "consultar proveedor con NIT: " + nit + " (error inesperado)", ex);
+            throw new HealthProviderDataAccessException("consultar proveedor de salud con NIT: " + nit, ex);
         }
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "health_providers_list_cache", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     public Page<HealthProviderListDto> getAllHealthProviders(Pageable pageable) {
-        log.info("Iniciando consulta de proveedores de salud - Página: {}, Tamaño: {}",
+        log.info("Iniciando consulta de todos los proveedores - Página: {}, Tamaño: {}",
                 pageable.getPageNumber(), pageable.getPageSize());
 
         try {
-            Page<HealthProvider> healthProvidersPage = healthProviderRepository.findAllByActiveTrue(pageable);
+            Page<HealthProvider> providersPage = healthProviderRepository.findAllActive(pageable);
 
-            if (healthProvidersPage.isEmpty()) {
-                log.info("No se encontraron proveedores de salud activos");
-                return new PageImpl<>(List.of(), pageable, 0);
-            }
+            log.info("Se encontraron {} proveedores activos", providersPage.getTotalElements());
 
-            List<HealthProviderListDto> filteredAndMappedContent = healthProvidersPage.getContent().stream()
-                    .filter(provider -> {
-                        if (!provider.getActive()) {
-                            log.debug("Filtrando proveedor inactivo: {}", provider.getNit().getValue());
-                            return false;
-                        }
-                        return true;
-                    })
-                    .map(provider -> {
-                        try {
-                            return healthProviderMapper.toHealthProviderListDto(provider);
-                        } catch (Exception ex) {
-                            log.warn("Error al mapear proveedor con NIT: {} - Se excluye del resultado",
-                                    provider.getNit().getValue(), ex);
-                            return null;
-                        }
-                    })
-                    .filter(dto -> dto != null)
-                    .toList();
-
-            log.info("Consulta exitosa - {} proveedores encontrados de {} totales",
-                    filteredAndMappedContent.size(), healthProvidersPage.getTotalElements());
-
-            return new PageImpl<>(filteredAndMappedContent, pageable, healthProvidersPage.getTotalElements());
-
-        } catch (QueryTimeoutException ex) {
-            log.error("Timeout al obtener lista de proveedores de salud", ex);
-            throw new HealthProviderDataAccessException(
-                    "obtener lista de proveedores de salud (timeout de base de datos)", ex);
-
-        } catch (DataIntegrityViolationException ex) {
-            log.error("Error de integridad al obtener lista de proveedores de salud", ex);
-            throw new HealthProviderDataAccessException(
-                    "obtener lista de proveedores de salud (violación de integridad)", ex);
+            return providersPage.map(healthProviderMapper::toHealthProviderListDto);
 
         } catch (DataAccessException ex) {
-            log.error("Error de acceso a datos al obtener lista de proveedores de salud", ex);
-            throw new HealthProviderDataAccessException(
-                    "obtener lista paginada de proveedores de salud", ex);
+            log.error("Error de acceso a datos al consultar todos los proveedores", ex);
+            throw new HealthProviderDataAccessException("consultar todos los proveedores de salud", ex);
+        }
+    }
 
-        } catch (Exception ex) {
-            log.error("Error inesperado al obtener lista de proveedores de salud", ex);
-            throw new HealthProviderDataAccessException(
-                    "obtener lista de proveedores de salud (error inesperado)", ex);
+    private void validateNitInput(String nit) {
+        if (nit == null || nit.trim().isEmpty()) {
+            log.error("NIT nulo o vacío en la solicitud");
+            throw new IllegalArgumentException("El NIT no puede ser nulo o vacío");
         }
     }
 
     /**
-     * Valida que el NIT tenga un formato válido
+     * Obtiene proveedores eliminados con paginación
      */
-    private void validateNitInput(String nit) {
-        if (nit == null || nit.trim().isEmpty()) {
-            log.error("NIT proporcionado es nulo o vacío");
-            throw new IllegalArgumentException("El NIT no puede ser nulo o vacío");
-        }
+    @Transactional(readOnly = true)
+    public Page<HealthProviderListDto> getDeletedHealthProviders(Pageable pageable) {
+        log.info("Consultando proveedores eliminados - Página: {}, Tamaño: {}",
+                pageable.getPageNumber(), pageable.getPageSize());
 
-        if (nit.length() < 8 || nit.length() > 15) {
-            log.error("NIT con formato inválido: {} (longitud: {})", nit, nit.length());
-            throw new IllegalArgumentException("El NIT debe tener entre 8 y 15 caracteres");
-        }
+        try {
+            Page<HealthProvider> deletedProvidersPage = healthProviderRepository.findDeleted(pageable);
 
-        // Validar que solo contenga números y guiones
-        if (!nit.matches("^[0-9-]+$")) {
-            log.error("NIT con caracteres inválidos: {}", nit);
-            throw new IllegalArgumentException("El NIT solo puede contener números y guiones");
+            log.info("Se encontraron {} proveedores eliminados", deletedProvidersPage.getTotalElements());
+
+            return deletedProvidersPage.map(healthProviderMapper::toHealthProviderListDto);
+
+        } catch (DataAccessException ex) {
+            log.error("Error al consultar proveedores eliminados", ex);
+            throw new HealthProviderDataAccessException("consultar proveedores eliminados", ex);
+        }
+    }
+
+    /**
+     * Busca proveedores por razón social
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "health_providers_search_cache", key = "#searchTerm + '-' + #pageable.pageNumber")
+    public Page<HealthProviderListDto> searchBySocialReason(String searchTerm, Pageable pageable) {
+        log.info("Buscando proveedores por razón social: {}", searchTerm);
+
+        try {
+            Page<HealthProvider> searchResults = healthProviderRepository.searchBySocialReason(searchTerm, pageable);
+
+            log.info("Se encontraron {} resultados para '{}'", searchResults.getTotalElements(), searchTerm);
+
+            return searchResults.map(healthProviderMapper::toHealthProviderListDto);
+
+        } catch (DataAccessException ex) {
+            log.error("Error al buscar proveedores por razón social: {}", searchTerm, ex);
+            throw new HealthProviderDataAccessException("buscar proveedores por razón social", ex);
+        }
+    }
+
+    /**
+     * Obtiene proveedores con contratos activos
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "providers_with_active_contracts_cache", key = "#pageable.pageNumber")
+    public Page<HealthProviderListDto> getProvidersWithActiveContracts(Pageable pageable) {
+        log.info("Consultando proveedores con contratos activos");
+
+        try {
+            Page<HealthProvider> providersPage = healthProviderRepository.findProvidersWithActiveContracts(pageable);
+
+            log.info("Se encontraron {} proveedores con contratos activos", providersPage.getTotalElements());
+
+            return providersPage.map(healthProviderMapper::toHealthProviderListDto);
+
+        } catch (DataAccessException ex) {
+            log.error("Error al consultar proveedores con contratos activos", ex);
+            throw new HealthProviderDataAccessException("consultar proveedores con contratos activos", ex);
+        }
+    }
+
+    /**
+     * Obtiene estadísticas generales de proveedores
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "health_provider_stats_cache", key = "'global'")
+    public Map<String, Object> getHealthProviderStatistics() {
+        log.info("Generando estadísticas de proveedores");
+
+        try {
+            Map<String, Object> stats = new HashMap<>();
+
+            long totalActive = healthProviderRepository.countActiveProviders();
+            long totalDeleted = healthProviderRepository.findDeleted(Pageable.unpaged()).getTotalElements();
+            long withActiveContracts = healthProviderRepository
+                    .findProvidersWithActiveContracts(Pageable.unpaged()).getTotalElements();
+
+            stats.put("totalActive", totalActive);
+            stats.put("totalDeleted", totalDeleted);
+            stats.put("withActiveContracts", withActiveContracts);
+            stats.put("withoutActiveContracts", totalActive - withActiveContracts);
+            stats.put("timestamp", java.time.LocalDateTime.now());
+
+            log.info("Estadísticas generadas: {} activos, {} eliminados, {} con contratos activos",
+                    totalActive, totalDeleted, withActiveContracts);
+
+            return stats;
+
+        } catch (DataAccessException ex) {
+            log.error("Error al generar estadísticas de proveedores", ex);
+            throw new HealthProviderDataAccessException("generar estadísticas de proveedores", ex);
         }
     }
 }
