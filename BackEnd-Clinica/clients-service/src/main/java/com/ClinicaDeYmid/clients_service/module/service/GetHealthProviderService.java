@@ -113,7 +113,6 @@ public class GetHealthProviderService {
      * Busca proveedores por razón social
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "health_providers_search_cache", key = "#searchTerm + '-' + #pageable.pageNumber")
     public Page<HealthProviderListDto> searchBySocialReason(String searchTerm, Pageable pageable) {
         log.info("Buscando proveedores por razón social: {}", searchTerm);
 
@@ -134,7 +133,6 @@ public class GetHealthProviderService {
      * Obtiene proveedores con contratos activos
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "providers_with_active_contracts_cache", key = "#pageable.pageNumber")
     public Page<HealthProviderListDto> getProvidersWithActiveContracts(Pageable pageable) {
         log.info("Consultando proveedores con contratos activos");
 
