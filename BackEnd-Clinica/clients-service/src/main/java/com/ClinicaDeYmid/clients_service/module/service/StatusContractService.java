@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clients_service.module.service;
 
+import com.ClinicaDeYmid.clients_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.repository.ContractRepository;
 import com.ClinicaDeYmid.clients_service.infra.exception.ContractNotFoundForStatusException;
@@ -10,6 +11,7 @@ import com.ClinicaDeYmid.clients_service.infra.exception.ContractDataAccessExcep
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -22,9 +24,29 @@ public class StatusContractService {
 
     private final ContractRepository contractRepository;
 
+    /**
+     * Obtiene el userId del contexto de seguridad actual
+     */
+    private Long getCurrentUserId() {
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
+            return 1L;
+        }
+        return userId;
+    }
+
     @Transactional
+    @CacheEvict(value = {
+            "contract_cache",
+            "contract_dto_cache",
+            "contracts_by_provider_cache",
+            "active_contracts_by_provider_cache",
+            "contracts_list_cache",
+            "contract_by_number_cache"
+    }, allEntries = true)
     public void deleteContract(Long contractId) {
-        log.info("Iniciando eliminación de contrato con ID: {}", contractId);
+        log.info("Iniciando eliminación lógica de contrato con ID: {}", contractId);
 
         try {
             Contract contract = contractRepository.findById(contractId)
@@ -35,8 +57,16 @@ public class StatusContractService {
                         "El contrato tiene restricciones de negocio que impiden su eliminación");
             }
 
-            contractRepository.deleteById(contractId);
-            log.info("Contrato eliminado exitosamente con ID: {}", contractId);
+            // Soft delete con auditoría
+            Long userId = getCurrentUserId();
+            contract.markAsDeleted(
+                    userId,
+                    "Eliminación solicitada por usuario ID: " + userId
+            );
+
+            contractRepository.save(contract);
+
+            log.info("Contrato eliminado lógicamente con ID: {} por usuario: {}", contractId, userId);
 
         } catch (DataIntegrityViolationException ex) {
             log.error("Error de integridad al eliminar contrato con ID: {}", contractId, ex);
@@ -49,21 +79,33 @@ public class StatusContractService {
     }
 
     @Transactional
+    @CacheEvict(value = {
+            "contract_cache",
+            "contract_dto_cache",
+            "contracts_by_provider_cache",
+            "active_contracts_by_provider_cache",
+            "contracts_list_cache"
+    }, allEntries = true)
     public Contract activateContract(Long contractId) {
         log.info("Iniciando activación de contrato con ID: {}", contractId);
 
         try {
             return contractRepository.findById(contractId)
                     .map(contract -> {
-                        if (Boolean.TRUE.equals(contract.getActive())) {
+                        if (contract.getActive()) {
                             log.warn("Intento de activar contrato ya activo con ID: {}", contractId);
-                            throw new ContractAlreadyActiveException(contractId, contract.getContractNumber());
+                            throw new ContractAlreadyActiveException(contractId);
                         }
 
                         contract.setActive(true);
+
+                        Long userId = getCurrentUserId();
+                        contract.setUpdatedBy(userId);
+
                         Contract activatedContract = contractRepository.save(contract);
 
-                        log.info("Contrato activado exitosamente con ID: {}", contractId);
+                        log.info("Contrato activado exitosamente con ID: {} por usuario: {}",
+                                contractId, userId);
                         return activatedContract;
                     })
                     .orElseThrow(() -> {
@@ -78,21 +120,33 @@ public class StatusContractService {
     }
 
     @Transactional
+    @CacheEvict(value = {
+            "contract_cache",
+            "contract_dto_cache",
+            "contracts_by_provider_cache",
+            "active_contracts_by_provider_cache",
+            "contracts_list_cache"
+    }, allEntries = true)
     public Contract deactivateContract(Long contractId) {
         log.info("Iniciando desactivación de contrato con ID: {}", contractId);
 
         try {
             return contractRepository.findById(contractId)
                     .map(contract -> {
-                        if (Boolean.FALSE.equals(contract.getActive())) {
+                        if (!contract.getActive()) {
                             log.warn("Intento de desactivar contrato ya inactivo con ID: {}", contractId);
-                            throw new ContractAlreadyInactiveException(contractId, contract.getContractNumber());
+                            throw new ContractAlreadyInactiveException(contractId);
                         }
 
                         contract.setActive(false);
+
+                        Long userId = getCurrentUserId();
+                        contract.setUpdatedBy(userId);
+
                         Contract deactivatedContract = contractRepository.save(contract);
 
-                        log.info("Contrato desactivado exitosamente con ID: {}", contractId);
+                        log.info("Contrato desactivado exitosamente con ID: {} por usuario: {}",
+                                contractId, userId);
                         return deactivatedContract;
                     })
                     .orElseThrow(() -> {
@@ -106,9 +160,52 @@ public class StatusContractService {
         }
     }
 
+    /**
+     * Restaura un contrato eliminado lógicamente
+     */
+    @Transactional
+    @CacheEvict(value = {
+            "contract_cache",
+            "contract_dto_cache",
+            "contracts_by_provider_cache",
+            "active_contracts_by_provider_cache",
+            "contracts_list_cache"
+    }, allEntries = true)
+    public Contract restoreContract(Long contractId) {
+        log.info("Iniciando restauración de contrato con ID: {}", contractId);
+
+        try {
+            Contract contract = contractRepository.findByIdIncludingDeleted(contractId)
+                    .orElseThrow(() -> new ContractNotFoundForStatusException(contractId, "restaurar"));
+
+            if (!contract.isDeleted()) {
+                log.warn("Intento de restaurar contrato no eliminado con ID: {}", contractId);
+                throw new IllegalStateException("El contrato no está eliminado");
+            }
+
+            contract.restore();
+
+            Long userId = getCurrentUserId();
+            contract.setUpdatedBy(userId);
+
+            Contract restoredContract = contractRepository.save(contract);
+
+            log.info("Contrato restaurado exitosamente con ID: {} por usuario: {}", contractId, userId);
+            return restoredContract;
+
+        } catch (DataAccessException ex) {
+            log.error("Error de acceso a datos al restaurar contrato con ID: {}", contractId, ex);
+            throw new ContractDataAccessException("restaurar contrato con ID: " + contractId, ex);
+        }
+    }
+
     private boolean hasBusinessRestrictions(Contract contract) {
-        // Implementar lógica de restricciones de negocio
-        // Por ejemplo: verificar si tiene servicios cubiertos activos, etc.
-        return contract.getCoveredServices() != null && !contract.getCoveredServices().isEmpty();
+        // Verificar si el contrato está actualmente vigente
+        if (contract.isCurrentlyValid()) {
+            log.warn("Intento de eliminar contrato vigente con ID: {}", contract.getId());
+            return true;
+        }
+
+        return false;
     }
 }
