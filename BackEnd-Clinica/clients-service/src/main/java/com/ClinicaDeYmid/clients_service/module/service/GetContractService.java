@@ -35,12 +35,11 @@ public class GetContractService {
      * Obtener un contrato por ID (para uso interno - retorna entidad)
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "contract_cache", key = "#contractId", unless = "#result == null")
     public Contract getEntityContractById(Long contractId) {
         log.info("Consultando contrato con ID: {}", contractId);
 
         try {
-            return contractRepository.findById(contractId)
+            return contractRepository.findByIdWithProvider(contractId)
                     .orElseThrow(() -> {
                         log.error("Contrato no encontrado con ID: {}", contractId);
                         return new ContractNotFoundException(contractId);
@@ -221,7 +220,6 @@ public class GetContractService {
      * Obtiene contratos próximos a vencer
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "expiring_contracts_cache", key = "#daysAhead")
     public List<ContractDto> getExpiringContracts(int daysAhead) {
         log.info("Consultando contratos que vencen en los próximos {} días", daysAhead);
 
