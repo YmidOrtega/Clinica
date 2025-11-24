@@ -15,9 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.hateoas.PagedModel;
-import org.springframework.data.web.PagedResourcesAssembler;
-import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -89,14 +86,14 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "200", description = "Health providers retrieved successfully"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions")
     })
-    public ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> searchAllHealthProviders(
-            Pageable pageable, PagedResourcesAssembler<HealthProviderListDto> assembler) {
+    public ResponseEntity<Page<HealthProviderListDto>> searchAllHealthProviders(
+            Pageable pageable) {
 
         log.info("Retrieving all health providers with pagination: {}", pageable);
 
         Page<HealthProviderListDto> providersPage = getHealthProviderService.getAllHealthProviders(pageable);
 
-        return ResponseEntity.ok(assembler.toModel(providersPage));
+        return ResponseEntity.ok(providersPage);
     }
 
     /**
@@ -423,14 +420,14 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "200", description = "Deleted health providers retrieved successfully"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions - requires SUPER_ADMIN")
     })
-    public ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> getDeletedHealthProviders(
-            Pageable pageable, PagedResourcesAssembler<HealthProviderListDto> assembler) {
+    public ResponseEntity<Page<HealthProviderListDto>> getDeletedHealthProviders(
+            Pageable pageable) {
 
         log.info("Retrieving deleted health providers with pagination: {}", pageable);
 
         Page<HealthProviderListDto> deletedProvidersPage = getHealthProviderService.getDeletedHealthProviders(pageable);
 
-        return ResponseEntity.ok(assembler.toModel(deletedProvidersPage));
+        return ResponseEntity.ok(deletedProvidersPage);
     }
 
     /**
@@ -446,18 +443,17 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "400", description = "Invalid search term"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions")
     })
-    public ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> searchBySocialReason(
+    public ResponseEntity<Page<HealthProviderListDto>> searchBySocialReason(
             @RequestParam @NotNull(message = "Search term cannot be null")
             @Size(min = 3, message = "Search term must be at least 3 characters") String searchTerm,
-            Pageable pageable,
-            PagedResourcesAssembler<HealthProviderListDto> assembler) {
+            Pageable pageable) {
 
         log.info("Searching health providers by social reason: {}", searchTerm);
 
         Page<HealthProviderListDto> searchResults = getHealthProviderService.searchBySocialReason(searchTerm, pageable);
 
         log.info("Found {} health providers matching '{}'", searchResults.getTotalElements(), searchTerm);
-        return ResponseEntity.ok(assembler.toModel(searchResults));
+        return ResponseEntity.ok(searchResults);
     }
 
     /**
@@ -472,16 +468,15 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "200", description = "Providers with active contracts retrieved successfully"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions")
     })
-    public ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> getProvidersWithActiveContracts(
-            Pageable pageable,
-            PagedResourcesAssembler<HealthProviderListDto> assembler) {
+    public ResponseEntity<Page<HealthProviderListDto>> getProvidersWithActiveContracts(
+            Pageable pageable) {
 
         log.info("Retrieving health providers with active contracts");
 
         Page<HealthProviderListDto> providersPage = getHealthProviderService.getProvidersWithActiveContracts(pageable);
 
         log.info("Found {} providers with active contracts", providersPage.getTotalElements());
-        return ResponseEntity.ok(assembler.toModel(providersPage));
+        return ResponseEntity.ok(providersPage);
     }
 
     /**

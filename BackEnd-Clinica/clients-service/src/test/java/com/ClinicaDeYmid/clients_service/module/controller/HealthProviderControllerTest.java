@@ -13,9 +13,6 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.web.PagedResourcesAssembler;
-import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.PagedModel;
 import org.springframework.http.ResponseEntity;
 
 import java.util.Collections;
@@ -24,9 +21,6 @@ class HealthProviderControllerTest {
 
     @Mock
     private GetHealthProviderService getHealthProviderService;
-
-    @Mock
-    private PagedResourcesAssembler<HealthProviderListDto> assembler;
 
     @InjectMocks
     private HealthProviderController controller;
@@ -44,17 +38,13 @@ class HealthProviderControllerTest {
 
         when(getHealthProviderService.getAllHealthProviders(pageable)).thenReturn(page);
 
-        PagedModel<EntityModel<HealthProviderListDto>> pagedModel = PagedModel.empty();
-        when(assembler.toModel(page)).thenReturn(pagedModel);
-
-        ResponseEntity<PagedModel<EntityModel<HealthProviderListDto>>> response =
-                controller.searchAllHealthProviders(pageable, assembler);
+        ResponseEntity<Page<HealthProviderListDto>> response =
+                controller.searchAllHealthProviders(pageable);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(response.getBody()).isEqualTo(pagedModel);
+        assertThat(response.getBody()).isEqualTo(page);
 
         verify(getHealthProviderService).getAllHealthProviders(pageable);
-        verify(assembler).toModel(page);
     }
 }
 

@@ -104,11 +104,13 @@ public interface HealthProviderRepository extends JpaRepository<HealthProvider, 
      * Obtiene proveedores con contratos activos
      */
     @Query("SELECT DISTINCT hp FROM HealthProvider hp " +
-            "JOIN hp.contracts c " +
-            "WHERE c.active = true " +
+            "WHERE hp.id IN (" +
+            "  SELECT DISTINCT c.healthProvider.id FROM Contract c " +
+            "  WHERE c.active = true " +
+            "  AND c.deletedAt IS NULL" +
+            ") " +
             "AND hp.active = true " +
-            "AND hp.deletedAt IS NULL " +
-            "AND c.deletedAt IS NULL")
+            "AND hp.deletedAt IS NULL")
     Page<HealthProvider> findProvidersWithActiveContracts(Pageable pageable);
 
     /**
