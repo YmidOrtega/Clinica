@@ -6,7 +6,7 @@
 *.jks
 BackEnd-Clinica/.env 
 src/main/resources/keys/*.pem
-.sh
+*.sh
 
 # Configuración de IDEs
 .idea/
