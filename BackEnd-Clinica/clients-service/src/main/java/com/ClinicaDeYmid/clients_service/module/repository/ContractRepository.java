@@ -33,6 +33,12 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     Optional<Contract> findByIdIncludingDeleted(@Param("id") Long id);
 
     /**
+     * Busca un contrato por ID con el proveedor de salud (JOIN FETCH)
+     */
+    @Query("SELECT c FROM Contract c LEFT JOIN FETCH c.healthProvider WHERE c.id = :id AND c.deletedAt IS NULL")
+    Optional<Contract> findByIdWithProvider(@Param("id") Long id);
+
+    /**
      * Obtiene todos los contratos de un proveedor específico
      */
     @Query("SELECT c FROM Contract c " +
