@@ -28,7 +28,7 @@
 		<spring-framework.version>6.2.11</spring-framework.version>
 		<apache-commons-configuration2.version>2.12.0</apache-commons-configuration2.version>
 		<apache-httpclient.version>4.5.14</apache-httpclient.version>
-		<springdoc.version>2.8.14</springdoc.version>
+		<springdoc.version>3.0.0</springdoc.version>
 		<jjwt.version>0.12.7</jjwt.version>
 	</properties>
 
