@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.admissions_service.module.dto.patient.PatientWithAttent
 import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.DoctorWithAttentionsResponse;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionGetService;
 import com.ClinicaDeYmid.admissions_service.module.service.AttentionRecordService;
+import com.ClinicaDeYmid.admissions_service.module.service.AttentionStatusService;
 import com.ClinicaDeYmid.admissions_service.module.service.PdfGeneratorService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +26,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -42,11 +44,13 @@ public class AttentionController {
 
     private final AttentionGetService attentionGetService;
     private final AttentionRecordService attentionRecordService;
+    private final AttentionStatusService attentionStatusService;
     private final PdfGeneratorService pdfGeneratorService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
     @CircuitBreaker(name = "admissions-service", fallbackMethod = "createAttentionFallback")
-    @Operation (summary = "Create a new attention", description = "Creates a new attention record for a patient.")
+    @Operation(summary = "Create a new attention", description = "Creates a new attention record for a patient. Requires SUPER_ADMIN, ADMIN, or RECEPTIONIST role.")
     public ResponseEntity<AttentionResponseDto> createAttention(
             @Valid @RequestBody AttentionRequestDto requestDto,
             UriComponentsBuilder uriBuilder) {
@@ -64,9 +68,11 @@ public class AttentionController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Retrieve attention by ID", description = "Fetches the details of an attention record by its ID.")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST', 'DOCTOR')")
+    @CircuitBreaker(name = "admissions-service", fallbackMethod = "getAttentionByIdFallback")
+    @Operation(summary = "Get attention by ID", description = "Retrieves an attention by its unique identifier. Accessible by SUPER_ADMIN, ADMIN, RECEPTIONIST, and DOCTOR roles.")
     public ResponseEntity<AttentionResponseDto> getAttentionById(
-            @PathVariable @NotNull @Positive(message = "Attention ID must be positive") Long id) {
+            @PathVariable @NotNull @Positive Long id) {
 
         log.info("Retrieving attention with ID: {}", id);
 
@@ -75,7 +81,9 @@ public class AttentionController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update attention by ID", description = "Updates the details of an existing attention record.")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
+    @CircuitBreaker(name = "admissions-service", fallbackMethod = "updateAttentionFallback")
+    @Operation(summary = "Update an existing attention", description = "Updates an existing attention record. Requires SUPER_ADMIN, ADMIN, or RECEPTIONIST role.")
     public ResponseEntity<AttentionResponseDto> updateAttention(
             @PathVariable @NotNull @Positive(message = "Attention ID must be positive") Long id,
             @Valid @RequestBody AttentionRequestDto requestDto) {
@@ -89,14 +97,17 @@ public class AttentionController {
     }
 
     @GetMapping("/patient/{patientId}")
-    @Operation(summary = "Retrieve attentions by patient ID", description = "Fetches all attentions associated with a specific patient.")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST', 'DOCTOR')")
+    @CircuitBreaker(name = "admissions-service", fallbackMethod = "getAttentionsByPatientIdFallback")
+    @Operation(summary = "Get attentions by patient ID", description = "Retrieves all attentions for a specific patient. Accessible by SUPER_ADMIN, ADMIN, RECEPTIONIST, and DOCTOR roles.")
     public ResponseEntity<List<PatientWithAttentionsResponse>> getAttentionsByPatientId(
-            @PathVariable @NotNull @Positive(message = "Patient ID must be positive") Long patientId) {
+            @PathVariable @NotNull @Positive Long patientId) {
 
-        log.info("Retrieving attentions for patient ID: {}", patientId);
+        log.info("Fetching attentions for patient ID: {}", patientId);
 
-        List<PatientWithAttentionsResponse> attentions = attentionGetService.getAttentionsByPatientId(patientId);
-        return ResponseEntity.ok(attentions);
+        List<PatientWithAttentionsResponse> response = attentionGetService.getAttentionsByPatientId(patientId);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/patient/{patientId}/active")
@@ -111,27 +122,31 @@ public class AttentionController {
     }
 
     @GetMapping("/doctor/{doctorId}")
-    @Operation(summary = "Retrieve attentions by doctor ID", description = "Fetches all attentions associated with a specific doctor.")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR')")
+    @CircuitBreaker(name = "admissions-service", fallbackMethod = "getAttentionsByDoctorIdFallback")
+    @Operation(summary = "Get attentions by doctor ID", description = "Retrieves all attentions assigned to a specific doctor. Accessible by SUPER_ADMIN, ADMIN, and DOCTOR roles.")
     public ResponseEntity<List<DoctorWithAttentionsResponse>> getAttentionsByDoctorId(
-            @PathVariable @NotNull @Positive(message = "Doctor ID must be positive") Long doctorId) {
+            @PathVariable @NotNull @Positive Long doctorId) {
 
-        log.info("Retrieving attentions for doctor ID: {}", doctorId);
+        log.info("Fetching attentions for doctor ID: {}", doctorId);
 
-        List<DoctorWithAttentionsResponse> attentions = attentionGetService.getAttentionsByDoctorId(doctorId);
-        return ResponseEntity.ok(attentions);
+        List<DoctorWithAttentionsResponse> response = attentionGetService.getAttentionsByDoctorId(doctorId);
+
+        return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/health-provider/{healthProviderNit}")
-    @Operation(summary = "Retrieve attentions by health provider NIT", description = "Fetches all attentions associated with a specific health provider.")
-    public ResponseEntity<List<HealthProviderWithAttentionsResponse>> getAttentionsByHealthProviderId(
-            @PathVariable @NotNull String healthProviderNit) {
+    @GetMapping("/health-provider/{nit}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
+    @CircuitBreaker(name = "admissions-service", fallbackMethod = "getAttentionsByHealthProviderNitFallback")
+    @Operation(summary = "Get attentions by health provider NIT", description = "Retrieves all attentions for a specific health provider. Accessible by SUPER_ADMIN, ADMIN, and RECEPTIONIST roles.")
+    public ResponseEntity<List<HealthProviderWithAttentionsResponse>> getAttentionsByHealthProviderNit(
+            @PathVariable @NotNull String nit) {
 
-        log.info("Retrieving attentions for health provider NIT: {}", healthProviderNit);
+        log.info("Fetching attentions for health provider NIT: {}", nit);
 
-        log.info("Clase real de attentionGetService: {}", attentionGetService.getClass().getName());
+        List<HealthProviderWithAttentionsResponse> response = attentionGetService.getAttentionsByHealthProviderNit(nit);
 
-        List<HealthProviderWithAttentionsResponse> attentions = attentionGetService.getGroupedAttentionsByHealthProvider(healthProviderNit);
-        return ResponseEntity.ok(attentions);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/configuration-service/{configServiceId}")
@@ -145,8 +160,10 @@ public class AttentionController {
         return ResponseEntity.ok(attentions);
     }
 
-    @GetMapping("/search")
-    @Operation(summary = "Search attentions", description = "Searches for attentions based on various criteria.")
+    @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
+    @CircuitBreaker(name = "admissions-service", fallbackMethod = "searchAttentionsFallback")
+    @Operation(summary = "Search attentions", description = "Search and filter attentions with pagination. Accessible by SUPER_ADMIN, ADMIN, and RECEPTIONIST roles.")
     public ResponseEntity<PagedModel<EntityModel<AttentionResponseDto>>> searchAttentions(
             @Valid AttentionSearchRequest searchRequest,
             PagedResourcesAssembler<AttentionResponseDto> assembler) {
@@ -180,18 +197,10 @@ public class AttentionController {
         return ResponseEntity.ok(invoiceStatus);
     }
 
-    @SuppressWarnings("unused")
-    private ResponseEntity<AttentionResponseDto> createAttentionFallback(
-            AttentionRequestDto requestDto, UriComponentsBuilder uriBuilder, Throwable throwable) {
-
-        log.error("Error creating attention: {}", throwable.getMessage());
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
-    }
-
-    @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    @Operation(summary = "Generate PDF for attention", description = "Generates a PDF document with the details of an attention record.")
-    public ResponseEntity<byte[]> generateAttentionPdf(
-            @PathVariable @NotNull @Positive(message = "Attention ID must be positive") Long id) {
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST', 'DOCTOR')")
+    @Operation(summary = "Download attention PDF", description = "Downloads a PDF report of the attention. Accessible by SUPER_ADMIN, ADMIN, RECEPTIONIST, and DOCTOR roles.")
+    public ResponseEntity<byte[]> downloadPdf(@PathVariable @NotNull @Positive Long id) {
 
         log.info("Generating PDF for attention with ID: {}", id);
 
@@ -201,8 +210,6 @@ public class AttentionController {
         // Generar el PDF
         byte[] pdfContent = pdfGeneratorService.generateAttentionPdf(attention);
 
-        
-
         // Configurar headers para la descarga
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
@@ -211,5 +218,66 @@ public class AttentionController {
 
         log.info("PDF generated successfully for attention with ID: {}", id);
         return new ResponseEntity<>(pdfContent, headers, HttpStatus.OK);
+    }
+
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @Operation(summary = "Activate an attention", description = "Activates an attention by ID. Only SUPER_ADMIN and ADMIN roles can perform this operation.")
+    public ResponseEntity<Void> activateAttention(@PathVariable @NotNull @Positive Long id) {
+        log.info("Activating attention with ID: {}", id);
+        attentionStatusService.activateAttention(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @Operation(summary = "Deactivate an attention", description = "Deactivates an attention by ID. Only SUPER_ADMIN and ADMIN roles can perform this operation.")
+    public ResponseEntity<Void> deactivateAttention(@PathVariable @NotNull @Positive Long id) {
+        log.info("Deactivating attention with ID: {}", id);
+        attentionStatusService.deactivateAttention(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Soft delete an attention", description = "Performs a soft delete on an attention. Only SUPER_ADMIN role can perform this operation. Invoiced attentions cannot be deleted.")
+    public ResponseEntity<Void> softDeleteAttention(
+            @PathVariable @NotNull @Positive Long id,
+            @RequestParam(required = false) String reason) {
+        log.info("Soft deleting attention with ID: {} for reason: {}", id, reason);
+        attentionStatusService.softDeleteAttention(id, reason);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Restore a soft-deleted attention", description = "Restores a previously soft-deleted attention. Only SUPER_ADMIN role can perform this operation.")
+    public ResponseEntity<AttentionResponseDto> restoreAttention(@PathVariable @NotNull @Positive Long id) {
+        log.info("Restoring attention with ID: {}", id);
+        attentionStatusService.restoreAttention(id);
+        AttentionResponseDto response = attentionGetService.getAttentionById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    private ResponseEntity<AttentionResponseDto> createAttentionFallback(
+            AttentionRequestDto requestDto, UriComponentsBuilder uriBuilder, Throwable throwable) {
+
+        log.error("Error creating attention: {}", throwable.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
+    private ResponseEntity<List<PatientWithAttentionsResponse>> getAttentionsByPatientIdFallback(Long patientId, Throwable ex) {
+        log.error("Circuit breaker activated for getAttentionsByPatientId. PatientId: {}, Error: {}", patientId, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
+    private ResponseEntity<List<DoctorWithAttentionsResponse>> getAttentionsByDoctorIdFallback(Long doctorId, Throwable ex) {
+        log.error("Circuit breaker activated for getAttentionsByDoctorId. DoctorId: {}, Error: {}", doctorId, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
+    private ResponseEntity<List<HealthProviderWithAttentionsResponse>> getAttentionsByHealthProviderNitFallback(String nit, Throwable ex) {
+        log.error("Circuit breaker activated for getAttentionsByHealthProviderNit. NIT: {}, Error: {}", nit, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
     }
 }
