@@ -53,4 +53,4 @@ Thumbs.db
 FrontEnd-Clinica/.astro/
 FrontEnd-Clinica/node_modules/
 FrontEnd-Clinica/dist/
-FrontEnd-Clinica/.cache/
+FrontEnd-Clinica/.cache/start-services.sh
