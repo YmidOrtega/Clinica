@@ -51,7 +51,10 @@ public class AttentionGetService {
     private final DoctorClient doctorClient;
     private final HealthProviderClient healthProviderClient;
 
-    @Cacheable(value = "attention_cache", key = "#id")
+    /**
+     * Obtiene una atención por ID y la enriquece con datos adicionales.
+     */
+    @Cacheable(value = "attentions", key = "#id")
     @Transactional(readOnly = true)
     public AttentionResponseDto getAttentionById(Long id) {
         log.info("Fetching attention with ID: {}", id);
@@ -65,7 +68,10 @@ public class AttentionGetService {
         return attentionEnrichmentService.enrichAttentionResponseDto(attention);
     }
 
-    @Cacheable(value = "attention_cache", key = "#patientId")
+    /**
+     * Obtiene atenciones por paciente (CON CACHÉ)
+     */
+    @Cacheable(value = "attentionsByPatient", key = "#patientId")
     @Transactional(readOnly = true)
     public List<PatientWithAttentionsResponse> getAttentionsByPatientId(Long patientId) {
         log.info("Fetching attentions for patient ID: {}", patientId);
@@ -121,7 +127,10 @@ public class AttentionGetService {
         );
     }
 
-    @Cacheable(value = "attention_cache", key = "#doctorId")
+    /**
+     * Obtiene atenciones por doctor (CON CACHÉ)
+     */
+    @Cacheable(value = "attentionsByDoctor", key = "#doctorId")
     @Transactional(readOnly = true)
     public List<DoctorWithAttentionsResponse> getAttentionsByDoctorId(Long doctorId) {
         log.info("Fetching attentions for doctor ID: {}", doctorId);
@@ -164,9 +173,12 @@ public class AttentionGetService {
                 attentionMapper.toDoctorWithAttentionsResponse(doctorName, grouped));
     }
 
-    @Cacheable(value = "attention_cache", key = "#healthProviderNit")
+    /**
+     * Obtiene atenciones por proveedor de salud (CON CACHÉ)
+     */
+    @Cacheable(value = "attentionsByHealthProvider", key = "#healthProviderNit")
     @Transactional(readOnly = true)
-    public List<HealthProviderWithAttentionsResponse> getGroupedAttentionsByHealthProvider(String healthProviderNit) {
+    public List<HealthProviderWithAttentionsResponse> getAttentionsByHealthProviderNit(String healthProviderNit) {
         log.info("Fetching attentions for health provider NIT: {}", healthProviderNit);
 
         System.out.println(healthProviderNit);
@@ -227,6 +239,9 @@ public class AttentionGetService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Búsqueda con paginación
+     */
     @Transactional(readOnly = true)
     public Page<AttentionResponseDto> searchAttentions(AttentionSearchRequest searchRequest) {
         log.info("Performing attention search with criteria: {}", searchRequest);
