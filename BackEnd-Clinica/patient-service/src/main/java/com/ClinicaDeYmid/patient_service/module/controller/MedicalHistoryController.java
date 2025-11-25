@@ -28,7 +28,7 @@ public class MedicalHistoryController {
     private final MedicalHistoryService medicalHistoryService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Crear o actualizar historia clínica",
             description = "Crea una nueva historia clínica o actualiza la existente para un paciente. Requiere rol DOCTOR o ADMIN."
@@ -50,7 +50,7 @@ public class MedicalHistoryController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener historia clínica",
             description = "Obtiene la historia clínica completa de un paciente. Requiere rol DOCTOR, NURSE o ADMIN."
@@ -70,7 +70,7 @@ public class MedicalHistoryController {
     }
 
     @PatchMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Actualizar parcialmente historia clínica",
             description = "Actualiza campos específicos de la historia clínica. Requiere rol DOCTOR o ADMIN."
@@ -89,7 +89,7 @@ public class MedicalHistoryController {
     }
 
     @DeleteMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Eliminar historia clínica",
             description = "Elimina permanentemente la historia clínica de un paciente. Solo ADMIN. Operación no recomendada."
@@ -105,7 +105,7 @@ public class MedicalHistoryController {
     }
 
     @GetMapping("/upcoming-checkups")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener pacientes con chequeos próximos",
             description = "Lista pacientes que tienen chequeos programados en los próximos días"
@@ -123,7 +123,7 @@ public class MedicalHistoryController {
     }
 
     @GetMapping("/needing-checkup")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener pacientes que necesitan chequeo",
             description = "Lista pacientes que no han tenido chequeo en los últimos meses"
@@ -141,7 +141,7 @@ public class MedicalHistoryController {
     }
 
     @GetMapping("/unhealthy-bmi")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener pacientes con IMC no saludable",
             description = "Lista pacientes con IMC fuera del rango saludable (18.5-25)"
@@ -156,7 +156,7 @@ public class MedicalHistoryController {
     }
 
     @GetMapping("/smokers")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener pacientes fumadores",
             description = "Lista pacientes que son fumadores activos"
@@ -171,7 +171,7 @@ public class MedicalHistoryController {
     }
 
     @GetMapping("/exists")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Verificar existencia de historia clínica",
             description = "Verifica si existe historia clínica para un paciente"
