@@ -14,7 +14,6 @@ public class UserContextHolder {
     private static final ThreadLocal<List<String>> rolesContext = new ThreadLocal<>();
 
     private UserContextHolder() {
-        // Private constructor para prevenir instanciación
     }
 
     /**
