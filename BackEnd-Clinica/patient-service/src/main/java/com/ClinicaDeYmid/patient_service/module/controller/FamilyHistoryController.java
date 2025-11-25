@@ -31,7 +31,7 @@ public class FamilyHistoryController {
     private final FamilyHistoryService familyHistoryService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Crear antecedente familiar",
             description = "Registra un nuevo antecedente familiar para un paciente. Requiere rol DOCTOR o ADMIN."
@@ -52,7 +52,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping("/{historyId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener antecedente por ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Antecedente encontrado"),
@@ -68,7 +68,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener todos los antecedentes activos",
             description = "Lista todos los antecedentes familiares activos de un paciente"
@@ -83,7 +83,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener antecedentes con paginación")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Página obtenida exitosamente"),
@@ -98,7 +98,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping("/genetic-risk")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Obtener antecedentes con riesgo genético",
             description = "Lista antecedentes familiares que presentan riesgo genético. Requiere rol DOCTOR o ADMIN."
@@ -113,7 +113,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping("/screening-recommended")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Obtener antecedentes que requieren screening",
             description = "Lista antecedentes para los cuales se recomienda screening preventivo. Requiere rol DOCTOR o ADMIN."
@@ -128,7 +128,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping("/unverified")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Obtener antecedentes no verificados",
             description = "Lista todos los antecedentes familiares que no han sido verificados. Requiere rol DOCTOR o ADMIN."
@@ -143,7 +143,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping("/by-condition")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Buscar antecedentes por condición",
             description = "Busca antecedentes familiares por condición específica. Requiere rol DOCTOR o ADMIN."
@@ -161,7 +161,7 @@ public class FamilyHistoryController {
     }
 
     @PutMapping("/{historyId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Actualizar antecedente familiar",
             description = "Actualiza un antecedente familiar existente. Requiere rol DOCTOR o ADMIN."
@@ -181,7 +181,7 @@ public class FamilyHistoryController {
     }
 
     @PatchMapping("/{historyId}/verify")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Verificar antecedente familiar",
             description = "Marca un antecedente como verificado médicamente. Requiere rol DOCTOR o ADMIN."
@@ -202,7 +202,7 @@ public class FamilyHistoryController {
     }
 
     @PatchMapping("/{historyId}/recommend-screening")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Recomendar screening",
             description = "Marca un antecedente como requiriendo screening preventivo. Requiere rol DOCTOR o ADMIN."
@@ -223,7 +223,7 @@ public class FamilyHistoryController {
     }
 
     @PatchMapping("/{historyId}/deactivate")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Desactivar antecedente",
             description = "Desactiva un antecedente (soft delete). Requiere rol DOCTOR o ADMIN."
@@ -242,7 +242,7 @@ public class FamilyHistoryController {
     }
 
     @DeleteMapping("/{historyId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Eliminar antecedente permanentemente",
             description = "Elimina permanentemente un antecedente del sistema. Solo ADMIN."
@@ -261,7 +261,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping("/has-genetic-risk")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Verificar riesgo genético",
             description = "Verifica si el paciente tiene antecedentes con riesgo genético"
@@ -276,7 +276,7 @@ public class FamilyHistoryController {
     }
 
     @GetMapping("/count")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Contar antecedentes activos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Conteo realizado exitosamente"),

@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.patient_service.infra.security;
+package com.ClinicaDeYmid.admissions_service.infra.security;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -14,7 +14,6 @@ public class UserContextHolder {
     private static final ThreadLocal<List<String>> rolesContext = new ThreadLocal<>();
 
     private UserContextHolder() {
-        // Private constructor para prevenir instanciación
     }
 
     /**

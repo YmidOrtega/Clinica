@@ -22,6 +22,7 @@ import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -43,6 +44,7 @@ public class PatientController {
 
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
     @Operation(summary = "Create a new patient", description = "Creates a new patient record in the system.")
     public ResponseEntity<PatientResponseDto> createPatient(
             @Valid @RequestBody NewPatientDto newPatientDto,
@@ -62,6 +64,7 @@ public class PatientController {
 
 
     @GetMapping("/{identificationNumber}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
     @Operation(summary = "Get patient information", description = "Retrieves detailed information about a patient by their identification number.")
     public ResponseEntity<GetPatientDto> getPatient(
             @PathVariable  @NotBlank(message = "Identification cannot be blank") String identificationNumber) {
@@ -76,6 +79,7 @@ public class PatientController {
 
 
     @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
     @Operation(summary = "Search patients", description = "Searches for patients based on a query string.")
     public ResponseEntity<PagedModel<EntityModel<PatientsListDto>>> searchPatients(
             @RequestParam(name = "q") @NotBlank(message = "Search query cannot be blank") String query,
@@ -91,6 +95,7 @@ public class PatientController {
     }
 
     @PutMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
     @Operation(summary = "Update patient information", description = "Updates the information of an existing patient by their identification number.")
     public ResponseEntity<PatientResponseDto> updatePatient(
             @Valid @RequestBody UpdatePatientDto updatePatientDto,
