@@ -53,9 +53,10 @@ api:
 
 # JWT CONFIGURATION
 jwt:
-  secret: ${JWT_SECRET:YourSecretKeyMustBeAtLeast256BitsLongForHS256AlgorithmToWorkProperlyAndSecurely}
-  issuer: ${JWT_ISSUER:auth-service}
-  expiration: ${JWT_EXPIRATION:86400000}
+  secret: ${JWT_SECRET}
+  algorithm: RS256
+  rsa:
+    public-key: ${JWT_PUBLIC_KEY:}
 
 # LOGGING PARA DEBUGGING DE SEGURIDAD
 logging:
