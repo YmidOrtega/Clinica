@@ -31,7 +31,7 @@ public class VaccinationRecordController {
     private final VaccinationRecordService vaccinationService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Crear registro de vacunación",
             description = "Registra una nueva vacunación para un paciente. Requiere rol DOCTOR, NURSE o ADMIN."
@@ -52,7 +52,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/{vaccinationId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener registro de vacunación por ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Registro encontrado"),
@@ -68,7 +68,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener todos los registros de vacunación",
             description = "Lista todos los registros de vacunación de un paciente"
@@ -83,7 +83,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener registros con paginación")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Página obtenida exitosamente"),
@@ -98,7 +98,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/upcoming-doses")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener próximas dosis programadas",
             description = "Lista vacunas con próximas dosis programadas en los siguientes días"
@@ -116,7 +116,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/overdue-doses")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener dosis atrasadas",
             description = "Lista vacunas con dosis que ya deberían haber sido administradas"
@@ -131,7 +131,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/incomplete-schemes")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener esquemas incompletos",
             description = "Lista esquemas de vacunación que no están completos"
@@ -146,7 +146,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/completed-schemes")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener esquemas completados",
             description = "Lista esquemas de vacunación que están completos"
@@ -161,7 +161,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/with-reactions")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener vacunas con reacciones adversas",
             description = "Lista vacunas que causaron reacciones adversas"
@@ -176,7 +176,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/travel-valid")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener vacunas válidas para viajes",
             description = "Lista vacunas válidas para viajes internacionales"
@@ -191,7 +191,7 @@ public class VaccinationRecordController {
     }
 
     @PutMapping("/{vaccinationId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Actualizar registro de vacunación",
             description = "Actualiza un registro de vacunación existente"
@@ -211,7 +211,7 @@ public class VaccinationRecordController {
     }
 
     @PatchMapping("/{vaccinationId}/verify")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Verificar registro de vacunación",
             description = "Marca un registro de vacunación como verificado. Requiere rol DOCTOR o ADMIN."
@@ -232,7 +232,7 @@ public class VaccinationRecordController {
     }
 
     @PostMapping("/{vaccinationId}/register-reaction")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Registrar reacción adversa",
             description = "Registra una reacción adversa a una vacuna"
@@ -255,7 +255,7 @@ public class VaccinationRecordController {
     }
 
     @DeleteMapping("/{vaccinationId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Eliminar registro de vacunación permanentemente",
             description = "Elimina permanentemente un registro del sistema. Solo ADMIN."
@@ -274,7 +274,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/has-completed-scheme")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Verificar esquema completo",
             description = "Verifica si el paciente tiene esquema completo de una vacuna específica"
@@ -293,7 +293,7 @@ public class VaccinationRecordController {
     }
 
     @GetMapping("/count")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Contar registros de vacunación")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Conteo realizado exitosamente"),
