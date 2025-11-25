@@ -12,10 +12,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Implementación de UserDetails para representar un usuario autenticado.
- * Compatible con los tokens JWT generados por auth-service.
- */
 @Data
 @Builder
 @AllArgsConstructor
