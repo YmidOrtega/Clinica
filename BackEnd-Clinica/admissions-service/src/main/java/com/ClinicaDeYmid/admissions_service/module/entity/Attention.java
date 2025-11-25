@@ -12,6 +12,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 
 import java.time.LocalDateTime;
@@ -20,6 +23,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "attentions")
+@EntityListeners(AuditingEntityListener.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -88,7 +92,6 @@ public class Attention {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-
     @Column(name = "discharge_date_time")
     private LocalDateTime dischargeDateTime;
 
@@ -130,6 +133,14 @@ public class Attention {
 
     @Column(name = "deletion_reason", length = 500)
     private String deletionReason;
+
+    @CreatedBy
+    @Column(name = "created_by", updatable = false)
+    private Long createdBy;
+
+    @LastModifiedBy
+    @Column(name = "updated_by")
+    private Long updatedBy;
 
     public void softDelete(Long userId, String reason) {
         this.deletedAt = LocalDateTime.now();
