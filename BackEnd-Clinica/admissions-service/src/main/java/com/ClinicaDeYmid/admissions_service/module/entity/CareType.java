@@ -1,19 +1,22 @@
 package com.ClinicaDeYmid.admissions_service.module.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "care_types")
+@EntityListeners(AuditingEntityListener.class)
 @Data
-@EqualsAndHashCode(exclude = {"serviceType"})
-@ToString(exclude = {"serviceType"})
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CareType {
 
     @Id
@@ -37,4 +40,12 @@ public class CareType {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @CreatedBy
+    @Column(name = "created_by", updatable = false)
+    private Long createdBy;
+
+    @LastModifiedBy
+    @Column(name = "updated_by")
+    private Long updatedBy;
 }
