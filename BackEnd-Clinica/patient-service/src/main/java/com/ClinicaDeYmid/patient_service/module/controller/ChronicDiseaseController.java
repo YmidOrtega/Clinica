@@ -34,7 +34,7 @@ public class ChronicDiseaseController {
     private final ChronicDiseaseService chronicDiseaseService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Crear enfermedad crónica",
             description = "Registra una nueva enfermedad crónica para un paciente. Requiere rol DOCTOR o ADMIN."
@@ -54,7 +54,7 @@ public class ChronicDiseaseController {
     }
 
     @GetMapping("/{diseaseId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener enfermedad por ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Enfermedad encontrada"),
@@ -70,7 +70,7 @@ public class ChronicDiseaseController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener todas las enfermedades activas")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista obtenida exitosamente"),
@@ -82,7 +82,7 @@ public class ChronicDiseaseController {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener enfermedades con paginación")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Página obtenida exitosamente"),
@@ -97,7 +97,7 @@ public class ChronicDiseaseController {
     }
 
     @GetMapping("/critical")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener enfermedades críticas")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista obtenida exitosamente"),
@@ -109,7 +109,7 @@ public class ChronicDiseaseController {
     }
 
     @GetMapping("/requiring-specialist")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Obtener enfermedades que requieren especialista",
             description = "Lista enfermedades que requieren atención de especialista. Requiere rol DOCTOR o ADMIN."
@@ -124,7 +124,7 @@ public class ChronicDiseaseController {
     }
 
     @GetMapping("/recent-flares")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener enfermedades con brotes recientes")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista obtenida exitosamente"),
@@ -139,7 +139,7 @@ public class ChronicDiseaseController {
     }
 
     @PutMapping("/{diseaseId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Actualizar enfermedad",
             description = "Actualiza una enfermedad crónica existente. Requiere rol DOCTOR o ADMIN."
@@ -159,7 +159,7 @@ public class ChronicDiseaseController {
     }
 
     @PatchMapping("/{diseaseId}/severity")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Actualizar severidad",
             description = "Actualiza la severidad de una enfermedad. Requiere rol DOCTOR o ADMIN."
@@ -179,7 +179,7 @@ public class ChronicDiseaseController {
     }
 
     @PostMapping("/{diseaseId}/register-flare")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Registrar brote de enfermedad",
             description = "Registra un nuevo brote de una enfermedad crónica"
@@ -199,7 +199,7 @@ public class ChronicDiseaseController {
     }
 
     @PatchMapping("/{diseaseId}/deactivate")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Desactivar enfermedad",
             description = "Desactiva una enfermedad (soft delete). Requiere rol DOCTOR o ADMIN."
@@ -218,7 +218,7 @@ public class ChronicDiseaseController {
     }
 
     @DeleteMapping("/{diseaseId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Eliminar enfermedad permanentemente",
             description = "Elimina permanentemente una enfermedad del sistema. Solo ADMIN."
@@ -237,7 +237,7 @@ public class ChronicDiseaseController {
     }
 
     @GetMapping("/has-critical")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Verificar enfermedades críticas")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Verificación realizada exitosamente"),
@@ -249,7 +249,7 @@ public class ChronicDiseaseController {
     }
 
     @GetMapping("/count")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Contar enfermedades activas")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Conteo realizado exitosamente"),
