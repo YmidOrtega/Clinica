@@ -33,7 +33,7 @@ public class AllergyController {
     private final AllergyService allergyService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Crear nueva alergia",
             description = "Registra una nueva alergia para un paciente. Requiere rol DOCTOR, NURSE o ADMIN."
@@ -55,7 +55,7 @@ public class AllergyController {
     }
 
     @GetMapping("/{allergyId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener alergia por ID",
             description = "Obtiene los detalles completos de una alergia específica"
@@ -74,7 +74,7 @@ public class AllergyController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener todas las alergias activas",
             description = "Lista todas las alergias activas de un paciente"
@@ -89,7 +89,7 @@ public class AllergyController {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener alergias con paginación",
             description = "Lista alergias de un paciente con soporte de paginación"
@@ -107,7 +107,7 @@ public class AllergyController {
     }
 
     @GetMapping("/critical")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener alergias críticas",
             description = "Lista alergias severas o de amenaza vital del paciente"
@@ -122,7 +122,7 @@ public class AllergyController {
     }
 
     @GetMapping("/unverified")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Obtener alergias no verificadas",
             description = "Lista todas las alergias que no han sido verificadas médicamente. Requiere rol DOCTOR o ADMIN."
@@ -137,7 +137,7 @@ public class AllergyController {
     }
 
     @PutMapping("/{allergyId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Actualizar alergia",
             description = "Actualiza los datos de una alergia existente. Requiere rol DOCTOR o ADMIN."
@@ -157,7 +157,7 @@ public class AllergyController {
     }
 
     @PatchMapping("/{allergyId}/verify")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Verificar alergia",
             description = "Marca una alergia como verificada médicamente. Requiere rol DOCTOR o ADMIN."
@@ -176,7 +176,7 @@ public class AllergyController {
     }
 
     @PatchMapping("/{allergyId}/deactivate")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Desactivar alergia",
             description = "Desactiva una alergia (soft delete). Requiere rol DOCTOR o ADMIN."
@@ -195,7 +195,7 @@ public class AllergyController {
     }
 
     @DeleteMapping("/{allergyId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Eliminar alergia permanentemente",
             description = "Elimina permanentemente una alergia del sistema. Solo ADMIN."
@@ -214,7 +214,7 @@ public class AllergyController {
     }
 
     @GetMapping("/has-critical")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Verificar alergias críticas",
             description = "Verifica si el paciente tiene alergias críticas"
@@ -229,7 +229,7 @@ public class AllergyController {
     }
 
     @GetMapping("/count")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Contar alergias activas",
             description = "Cuenta el número de alergias activas del paciente"
