@@ -20,6 +20,7 @@ import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepositor
 import com.ClinicaDeYmid.admissions_service.module.repository.ConfigurationServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,8 +53,16 @@ public class AttentionRecordService {
     private final HealthProviderClient healthProviderClient;
     private final UserClient userClient;
 
-    @CachePut(value = "attention_cache", key = "#result.id")
+    /**
+     * Crea una nueva atención (INVALIDA CACHÉS RELACIONADOS)
+     */
     @Transactional
+    @CachePut(value = "attentions", key = "#result.id")
+    @CacheEvict(value = {
+            "attentionsByPatient",
+            "attentionsByDoctor",
+            "attentionsByHealthProvider"
+    }, allEntries = true)
     public AttentionResponseDto createAttention(AttentionRequestDto requestDto) {
         log.info("Creating new attention for patient ID: {}", requestDto.patientId());
 
@@ -99,47 +108,51 @@ public class AttentionRecordService {
         return responseDto;
     }
 
-    @CachePut(value = "attention_cache", key = "#result.id")
+    /**
+     * Actualiza una atención existente (INVALIDA CACHÉS)
+     */
     @Transactional
-    public AttentionResponseDto updateAttention(Long id, AttentionRequestDto requestDto) {
+    @CacheEvict(value = {
+            "attentions",
+            "attentionsByPatient",
+            "attentionsByDoctor",
+            "attentionsByHealthProvider"
+    }, allEntries = true)
+    public AttentionResponseDto updateAttention(Long id, AttentionRequestDto request) {
         log.info("Updating attention with ID: {}", id);
 
         Attention existingAttention = attentionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + id));
 
-        if (existingAttention.isInvoiced()) {
-            throw new ValidationException("Cannot update an attention that has already been invoiced.");
-        }
+        // Validar dependencias externas (igual que en createAttention)
+        validateExternalDependencies(request);
 
-        ConfigurationService configService = configurationServiceRepository.findById(requestDto.configurationServiceId())
-                .orElseThrow(() -> new EntityNotFoundException(MSG_CONFIG_SERVICE_NOT_FOUND + requestDto.configurationServiceId()));
+        // Validar ConfigurationService
+        ConfigurationService configService = configurationServiceRepository.findById(request.configurationServiceId())
+                .orElseThrow(() -> new EntityNotFoundException(MSG_CONFIG_SERVICE_NOT_FOUND + request.configurationServiceId()));
 
-        attentionMapper.updateEntityFromDto(requestDto, existingAttention);
+        // Actualizar la entidad
+        attentionMapper.updateEntityFromDto(request, existingAttention);
         existingAttention.setConfigurationService(configService);
         existingAttention.setUpdatedAt(LocalDateTime.now());
-        existingAttention.addUserAction(requestDto.userId(), UserActionType.UPDATED, "Atención actualizada.");
 
-
-        existingAttention.getAuthorizations().clear();
-        if (requestDto.authorizations() != null) {
-            Attention finalExistingAttention = existingAttention;
-            List<Authorization> updatedAuthorizations = requestDto.authorizations().stream()
+        // Actualizar autorizaciones si existen
+        if (request.authorizations() != null && !request.authorizations().isEmpty()) {
+            List<Authorization> updatedAuthorizations = request.authorizations().stream()
                     .map(authDto -> {
                         Authorization auth = authorizationMapper.toEntity(authDto);
-                        auth.setAttention(finalExistingAttention);
-                        if (auth.getId() == null) {
-                            auth.setCreatedAt(LocalDateTime.now());
-                        }
+                        auth.setAttention(existingAttention);
                         auth.setUpdatedAt(LocalDateTime.now());
                         return auth;
                     })
                     .collect(Collectors.toList());
-            existingAttention.getAuthorizations().addAll(updatedAuthorizations);
+            existingAttention.setAuthorizations(updatedAuthorizations);
         }
 
-        existingAttention = attentionRepository.save(existingAttention);
-        log.info("Attention with ID: {} updated successfully.", id);
-        return attentionEnrichmentService.enrichAttentionResponseDto(existingAttention);
+        Attention savedAttention = attentionRepository.save(existingAttention);
+
+        log.info("Attention with ID {} updated successfully", id);
+        return attentionEnrichmentService.enrichAttentionResponseDto(savedAttention);
     }
 
     public boolean canUpdateAttention(Long attentionId) {
