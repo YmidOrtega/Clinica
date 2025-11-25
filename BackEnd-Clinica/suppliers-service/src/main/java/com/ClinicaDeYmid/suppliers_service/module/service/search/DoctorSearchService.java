@@ -45,9 +45,8 @@ public class DoctorSearchService {
     }
 
     /**
-     * Busca doctores por nombre o apellido con caché
+     * Busca doctores por nombre o apellido
      */
-    @Cacheable(value = "doctor_search", key = "#searchTerm + '_' + #pageable.pageNumber")
     @Transactional(readOnly = true)
     public Page<DoctorResponseDto> searchByName(String searchTerm, Pageable pageable) {
         log.debug("Searching doctors by name/lastname: {}", searchTerm);
@@ -62,9 +61,8 @@ public class DoctorSearchService {
     }
 
     /**
-     * Busca doctores por especialidad con caché
+     * Busca doctores por especialidad
      */
-    @Cacheable(value = "doctors_by_specialty", key = "#specialtyId + '_' + #pageable.pageNumber")
     @Transactional(readOnly = true)
     public Page<DoctorResponseDto> findBySpecialty(Long specialtyId, Pageable pageable) {
         log.debug("Finding doctors by specialty ID: {}", specialtyId);
@@ -79,9 +77,8 @@ public class DoctorSearchService {
     }
 
     /**
-     * Busca doctores por subespecialidad con caché
+     * Busca doctores por subespecialidad
      */
-    @Cacheable(value = "doctors_by_subspecialty", key = "#subSpecialtyId + '_' + #pageable.pageNumber")
     @Transactional(readOnly = true)
     public Page<DoctorResponseDto> findBySubSpecialty(Long subSpecialtyId, Pageable pageable) {
         log.debug("Finding doctors by subspecialty ID: {}", subSpecialtyId);
