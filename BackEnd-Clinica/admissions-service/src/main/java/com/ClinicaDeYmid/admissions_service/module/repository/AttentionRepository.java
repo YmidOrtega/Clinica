@@ -24,4 +24,7 @@ public interface AttentionRepository extends JpaRepository<Attention, Long>, Jpa
     @Query("SELECT a FROM Attention a WHERE a.configurationService.id = :configServiceId")
     List<Attention> findByConfigurationServiceId(@Param("configServiceId") Long configurationServiceId);
 
+    @Query(value = "SELECT * FROM attentions WHERE id = :id", nativeQuery = true)
+    Optional<Attention> findByIdIncludingDeleted(@Param("id") Long id);
+
 }
