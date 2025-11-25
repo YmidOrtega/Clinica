@@ -1,66 +1,112 @@
-// src/main/java/com/ClinicaDeYmid/patient_service/infra/security/UserContextHolder.java
-
 package com.ClinicaDeYmid.patient_service.infra.security;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.List;
 
 @Slf4j
 public class UserContextHolder {
 
-    private static final ThreadLocal<UserContext> contextHolder = new ThreadLocal<>();
+    private static final ThreadLocal<Long> userIdContext = new ThreadLocal<>();
+    private static final ThreadLocal<String> usernameContext = new ThreadLocal<>();
+    private static final ThreadLocal<List<String>> rolesContext = new ThreadLocal<>();
 
-    /**
-     * Establece el contexto del usuario para el thread actual
-     */
-    public static void setContext(UserContext context) {
-        if (context == null) {
-            log.warn("Intentando establecer UserContext null");
-        }
-        contextHolder.set(context);
+    private UserContextHolder() {
+        // Private constructor para prevenir instanciación
     }
 
     /**
-     * Obtiene el contexto del usuario del thread actual
+     * Establece el userId en el contexto actual
      */
-    public static UserContext getContext() {
-        UserContext context = contextHolder.get();
-        if (context == null) {
-            log.debug("No hay UserContext en el thread actual");
-        }
-        return context;
+    public static void setUserId(Long userId) {
+        userIdContext.set(userId);
+        log.debug("UserContext: Set userId = {}", userId);
     }
 
     /**
-     * Limpia el contexto del usuario del thread actual
-     * IMPORTANTE: Llamar esto al finalizar cada petición para evitar memory leaks
+     * Establece el username en el contexto actual
      */
-    public static void clear() {
-        contextHolder.remove();
+    public static void setUsername(String username) {
+        usernameContext.set(username);
+        log.debug("UserContext: Set username = {}", username);
+    }
+
+    /**
+     * Establece los roles en el contexto actual
+     */
+    public static void setRoles(List<String> roles) {
+        rolesContext.set(roles);
+        log.debug("UserContext: Set roles = {}", roles);
     }
 
     /**
      * Obtiene el userId del contexto actual
-     * @return userId o null si no hay contexto
+     * Primero intenta desde ThreadLocal, luego desde SecurityContext
      */
     public static Long getCurrentUserId() {
-        UserContext context = getContext();
-        return context != null ? context.getUserId() : null;
+        // Intentar desde ThreadLocal primero
+        Long userId = userIdContext.get();
+        if (userId != null) {
+            return userId;
+        }
+
+        // Fallback: intentar desde SecurityContext
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            return userDetails.getUserId();
+        }
+
+        log.warn("No userId found in UserContext or SecurityContext");
+        return null;
     }
 
     /**
      * Obtiene el username del contexto actual
-     * @return username o null si no hay contexto
      */
     public static String getCurrentUsername() {
-        UserContext context = getContext();
-        return context != null ? context.getUsername() : null;
+        String username = usernameContext.get();
+        if (username != null) {
+            return username;
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            return userDetails.getUsername();
+        }
+
+        return null;
     }
 
     /**
-     * Verifica si hay un usuario autenticado en el contexto
+     * Obtiene los roles del contexto actual
      */
-    public static boolean isAuthenticated() {
-        return getContext() != null && getContext().getUserId() != null;
+    public static List<String> getCurrentRoles() {
+        List<String> roles = rolesContext.get();
+        if (roles != null) {
+            return roles;
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            String role = userDetails.getRole();
+            return role != null ? List.of(role) : List.of();
+        }
+
+        return List.of();
+    }
+
+    /**
+     * Limpia el contexto actual (importante para evitar memory leaks)
+     */
+    public static void clear() {
+        userIdContext.remove();
+        usernameContext.remove();
+        rolesContext.remove();
+        log.debug("UserContext cleared");
     }
 }

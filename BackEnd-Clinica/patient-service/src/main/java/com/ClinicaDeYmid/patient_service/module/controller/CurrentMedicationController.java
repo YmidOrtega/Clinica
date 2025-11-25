@@ -31,7 +31,7 @@ public class CurrentMedicationController {
     private final CurrentMedicationService medicationService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Crear nuevo medicamento",
             description = "Registra un nuevo medicamento actual para un paciente. Requiere rol DOCTOR o ADMIN."
@@ -52,7 +52,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping("/{medicationId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener medicamento por ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Medicamento encontrado"),
@@ -68,7 +68,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener todos los medicamentos activos",
             description = "Lista todos los medicamentos activos y no descontinuados de un paciente"
@@ -83,7 +83,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Obtener medicamentos con paginación")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Página obtenida exitosamente"),
@@ -98,7 +98,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping("/expiring")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener medicamentos próximos a vencer",
             description = "Lista medicamentos que vencen en los próximos días"
@@ -116,7 +116,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping("/needing-refill")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener medicamentos que necesitan resurtido",
             description = "Lista medicamentos con pocos resurtidos restantes"
@@ -134,7 +134,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping("/expired")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener medicamentos vencidos",
             description = "Lista medicamentos cuya fecha de fin ya pasó"
@@ -149,7 +149,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping("/with-interactions")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Obtener medicamentos con interacciones",
             description = "Lista medicamentos que tienen interacciones registradas. Requiere rol DOCTOR o ADMIN."
@@ -164,7 +164,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping("/with-side-effects")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Obtener medicamentos con efectos secundarios",
             description = "Lista medicamentos que tienen efectos secundarios reportados"
@@ -179,7 +179,7 @@ public class CurrentMedicationController {
     }
 
     @PutMapping("/{medicationId}")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Actualizar medicamento",
             description = "Actualiza un medicamento existente. Requiere rol DOCTOR o ADMIN."
@@ -199,7 +199,7 @@ public class CurrentMedicationController {
     }
 
     @PostMapping("/{medicationId}/discontinue")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Descontinuar medicamento",
             description = "Marca un medicamento como descontinuado con razón. Requiere rol DOCTOR o ADMIN."
@@ -220,7 +220,7 @@ public class CurrentMedicationController {
     }
 
     @PostMapping("/{medicationId}/reactivate")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Reactivar medicamento descontinuado",
             description = "Reactiva un medicamento que fue descontinuado. Requiere rol DOCTOR o ADMIN."
@@ -239,7 +239,7 @@ public class CurrentMedicationController {
     }
 
     @PostMapping("/{medicationId}/register-refill")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(
             summary = "Registrar resurtido",
             description = "Registra un resurtido de medicamento"
@@ -260,7 +260,7 @@ public class CurrentMedicationController {
     }
 
     @PatchMapping("/{medicationId}/deactivate")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'ADMIN')")
     @Operation(
             summary = "Desactivar medicamento",
             description = "Desactiva un medicamento (soft delete). Requiere rol DOCTOR o ADMIN."
@@ -279,7 +279,7 @@ public class CurrentMedicationController {
     }
 
     @DeleteMapping("/{medicationId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Eliminar medicamento permanentemente",
             description = "Elimina permanentemente un medicamento del sistema. Solo ADMIN."
@@ -298,7 +298,7 @@ public class CurrentMedicationController {
     }
 
     @GetMapping("/count")
-    @PreAuthorize("hasAnyRole('DOCTOR', 'NURSE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DOCTOR', 'NURSE', 'ADMIN')")
     @Operation(summary = "Contar medicamentos activos")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Conteo realizado exitosamente"),
