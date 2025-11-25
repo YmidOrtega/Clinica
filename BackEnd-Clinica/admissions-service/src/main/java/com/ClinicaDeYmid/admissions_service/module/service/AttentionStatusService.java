@@ -22,7 +22,12 @@ public class AttentionStatusService {
      * Activa una atención
      */
     @Transactional
-    @CacheEvict(value = "attentions", key = "#id")
+    @CacheEvict(value = {
+            "attentions",
+            "attentionsByPatient",
+            "attentionsByDoctor",
+            "attentionsByHealthProvider"
+    }, allEntries = true)
     public void activateAttention(Long id) {
         log.info("Activating attention with ID: {}", id);
 
@@ -43,7 +48,12 @@ public class AttentionStatusService {
      * Desactiva una atención
      */
     @Transactional
-    @CacheEvict(value = "attentions", key = "#id")
+    @CacheEvict(value = {
+            "attentions",
+            "attentionsByPatient",
+            "attentionsByDoctor",
+            "attentionsByHealthProvider"
+    }, allEntries = true)
     public void deactivateAttention(Long id) {
         log.info("Deactivating attention with ID: {}", id);
 
@@ -64,7 +74,12 @@ public class AttentionStatusService {
      * Soft delete de una atención
      */
     @Transactional
-    @CacheEvict(value = "attentions", key = "#id")
+    @CacheEvict(value = {
+            "attentions",
+            "attentionsByPatient",
+            "attentionsByDoctor",
+            "attentionsByHealthProvider"
+    }, allEntries = true)
     public void softDeleteAttention(Long id, String reason) {
         log.info("Soft deleting attention with ID: {} for reason: {}", id, reason);
 
@@ -95,7 +110,12 @@ public class AttentionStatusService {
      * Restaura una atención soft-deleted
      */
     @Transactional
-    @CacheEvict(value = "attentions", key = "#id")
+    @CacheEvict(value = {
+            "attentions",
+            "attentionsByPatient",
+            "attentionsByDoctor",
+            "attentionsByHealthProvider"
+    }, allEntries = true)
     public void restoreAttention(Long id) {
         log.info("Restoring soft-deleted attention with ID: {}", id);
 

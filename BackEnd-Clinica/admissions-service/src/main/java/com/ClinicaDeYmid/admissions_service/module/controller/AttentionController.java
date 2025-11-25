@@ -144,7 +144,7 @@ public class AttentionController {
 
         log.info("Fetching attentions for health provider NIT: {}", nit);
 
-        List<HealthProviderWithAttentionsResponse> response = attentionGetService.getGroupedAttentionsByHealthProvider(nit);
+        List<HealthProviderWithAttentionsResponse> response = attentionGetService.getAttentionsByHealthProviderNit(nit);
 
         return ResponseEntity.ok(response);
     }
