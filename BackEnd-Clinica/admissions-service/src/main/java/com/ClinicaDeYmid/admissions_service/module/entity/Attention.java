@@ -10,21 +10,22 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "attentions", indexes = {
-        @Index(name = "idx_attention_patient_id", columnList = "patientId"),
-        @Index(name = "idx_attention_doctor_id", columnList = "doctorId"),
-})
+@Table(name = "attentions")
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-@EqualsAndHashCode(of = "id")
+@AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE attentions SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 public class Attention {
 
     @Id
@@ -120,6 +121,31 @@ public class Attention {
 
     @Column(length = 1000)
     private String observations;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    @Column(name = "deletion_reason", length = 500)
+    private String deletionReason;
+
+    public void softDelete(Long userId, String reason) {
+        this.deletedAt = LocalDateTime.now();
+        this.deletedBy = userId;
+        this.deletionReason = reason;
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+        this.deletedBy = null;
+        this.deletionReason = null;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
 
     @Transient
     public Long getCreatedByUserId() {
