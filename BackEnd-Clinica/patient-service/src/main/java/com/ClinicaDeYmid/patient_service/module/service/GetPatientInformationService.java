@@ -11,11 +11,13 @@ import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.enums.Status;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GetPatientInformationService {
@@ -24,9 +26,10 @@ public class GetPatientInformationService {
     private final PatientMapper patientMapper;
     private final HealthProviderClient healthProviderClient;
 
-    @Cacheable(value = "patient_cache", key = "#identificationNumber")
+    @Cacheable(value = "patient-entities", key = "#identificationNumber")
     @Transactional(readOnly = true)
-    public GetPatientDto getPatientDto(String identificationNumber) {
+    public Patient findEntityByIdentificationNumber(String identificationNumber) {
+        log.debug("🔍 Cache MISS - Consultando DB para patient: {}", identificationNumber);
 
         try {
             Patient patient = patientRepository.findByIdentificationNumber(identificationNumber)
@@ -36,7 +39,23 @@ public class GetPatientInformationService {
                 throw new PatientNotActiveException(patient.getStatus().getDisplayName());
             }
 
-            HealthProviderNitDto provider = healthProviderClient.getHealthProviderByNit(patient.getHealthProviderNit());
+            return patient;
+
+        } catch (DataAccessException ex) {
+            throw new PatientDataAccessException("obtener entidad del paciente", ex);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public GetPatientDto getPatientDto(String identificationNumber) {
+        log.debug("📦 Construyendo GetPatientDto completo para patient: {}", identificationNumber);
+
+        try {
+
+            Patient patient = findEntityByIdentificationNumber(identificationNumber);
+
+            HealthProviderNitDto provider = healthProviderClient
+                    .getHealthProviderByNit(patient.getHealthProviderNit());
 
             return patientMapper.toGetPatientDto(patient, provider);
 
@@ -44,5 +63,4 @@ public class GetPatientInformationService {
             throw new PatientDataAccessException("obtener información del paciente", ex);
         }
     }
-
 }
