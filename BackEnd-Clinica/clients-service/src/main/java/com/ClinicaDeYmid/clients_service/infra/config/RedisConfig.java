@@ -1,14 +1,20 @@
 package com.ClinicaDeYmid.clients_service.infra.config;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -25,46 +31,49 @@ import java.util.Map;
 @EnableCaching
 public class RedisConfig {
 
-    /**
-     * Configuración del ObjectMapper para serialización JSON en Redis
-     */
-    @Bean
-    public ObjectMapper redisCacheObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
+    @Primary
+    @Bean(name = "objectMapper")
+    public ObjectMapper httpObjectMapper() {
+        return configureObjectMapper(new ObjectMapper());
+    }
 
-        // Registrar módulo para manejar Java 8 date/time
+    @Bean(name = "redisObjectMapper")
+    public ObjectMapper redisObjectMapper() {
+        return configureObjectMapper(new ObjectMapper());
+    }
+
+    private ObjectMapper configureObjectMapper(ObjectMapper mapper) {
+
+        mapper.registerModule(new ParameterNamesModule());
+        mapper.registerModule(new Jdk8Module());
         mapper.registerModule(new JavaTimeModule());
-
-        // Activar información de tipo para polimorfismo
-        mapper.activateDefaultTyping(
-                BasicPolymorphicTypeValidator.builder()
-                        .allowIfBaseType(Object.class)
-                        .build(),
-                ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY
-        );
+        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+        mapper.setVisibility(PropertyAccessor.CREATOR, JsonAutoDetect.Visibility.ANY);
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        mapper.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
 
         return mapper;
     }
 
-    /**
-     * Configuración del CacheManager con TTL personalizado por caché
-     */
     @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory,
-                                     ObjectMapper redisCacheObjectMapper) {
+    public CacheManager cacheManager(
+            RedisConnectionFactory connectionFactory,
+            @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
 
-        log.info("Configurando Redis Cache Manager");
+        log.info("Configurando Redis Cache Manager (versión 2.0 - sin activateDefaultTyping)");
 
         // Configuración por defecto (1 hora)
-        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
+                .defaultCacheConfig()
                 .entryTtl(Duration.ofHours(1))
                 .serializeKeysWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(
-                                new StringRedisSerializer()))
+                        RedisSerializationContext.SerializationPair
+                                .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(
-                                new GenericJackson2JsonRedisSerializer(redisCacheObjectMapper)))
+                        RedisSerializationContext.SerializationPair
+                                .fromSerializer(new GenericJackson2JsonRedisSerializer(redisObjectMapper)))
                 .disableCachingNullValues();
 
         // Configuraciones específicas por caché
