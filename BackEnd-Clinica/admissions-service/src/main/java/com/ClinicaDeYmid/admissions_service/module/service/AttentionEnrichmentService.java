@@ -51,11 +51,11 @@ public class AttentionEnrichmentService {
         GetPatientDto patientDetails = (attention.getPatientId() != null) ?
                 fetchExternalResource(() -> patientClient.getPatientByIdentificationNumber(attention.getPatientId().toString()), "paciente", attention.getPatientId()) : null;
 
-        // Obtencion de detalles del doctor
+        // Obtención de detalles del doctor
         GetDoctorDto doctorDetails = (attention.getDoctorId() != null) ?
                 fetchExternalResource(() -> doctorClient.getDoctorById(attention.getDoctorId()), "doctor", attention.getDoctorId()) : null;
 
-        // Obtencion de prestadores de salud
+        // Obtención de prestadores de salud
         List<GetHealthProviderDto> healthProviderDetails = (attention.getHealthProviderNit() != null && !attention.getHealthProviderNit().isEmpty()) ?
                 attention.getHealthProviderNit().stream()
                         .map(healthProviderInfo -> {
@@ -113,8 +113,6 @@ public class AttentionEnrichmentService {
         );
     }
 
-
-    // Método adicional para obtener información de contratos si se necesita
     public List<Long> extractContractIdsFromHealthProviderInfo(List<HealthProviderInfo> healthProviderInfoList) {
         if (healthProviderInfoList == null || healthProviderInfoList.isEmpty()) {
             return Collections.emptyList();

@@ -51,20 +51,29 @@ public class AttentionGetService {
     private final DoctorClient doctorClient;
     private final HealthProviderClient healthProviderClient;
 
+    @Cacheable(value = "attention-entities", key = "#id")
+    @Transactional(readOnly = true)
+    public Attention findEntityById(Long id) {
+        log.debug("🔍 Cache MISS - Consultando DB para attention: {}", id);
+        Attention attention = attentionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Attention not found: " + id));
+
+        // Inicializar colecciones lazy
+        Hibernate.initialize(attention.getAuthorizations());
+        Hibernate.initialize(attention.getDiagnosticCodes());
+
+        return attention;
+    }
+
     /**
      * Obtiene una atención por ID y la enriquece con datos adicionales.
      */
-    @Cacheable(value = "attentions", key = "#id")
     @Transactional(readOnly = true)
     public AttentionResponseDto getAttentionById(Long id) {
-        log.info("Fetching attention with ID: {}", id);
-        Attention attention = attentionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + id));
-        if (attention != null) {
-            Hibernate.initialize(attention.getAuthorizations());
-            Hibernate.initialize(attention.getDiagnosticCodes());
-        }
-        assert attention != null;
+        log.debug("📦 Construyendo DTO completo para attention: {}", id);
+
+        Attention attention = findEntityById(id);
+
         return attentionEnrichmentService.enrichAttentionResponseDto(attention);
     }
 
@@ -218,10 +227,10 @@ public class AttentionGetService {
         return List.of(response);
     }
 
-    @Cacheable(value = "attention_cache", key = "#configServiceId")
     @Transactional(readOnly = true)
     public List<AttentionResponseDto> getAttentionsByConfigurationServiceId(Long configServiceId) {
         log.info("Fetching attentions for configuration service ID: {}", configServiceId);
+
         List<Attention> attentions = attentionRepository.findByConfigurationServiceId(configServiceId);
 
         if (attentions != null) {
@@ -234,6 +243,7 @@ public class AttentionGetService {
         if (attentions == null) {
             attentions = Collections.emptyList();
         }
+
         return attentions.stream()
                 .map(attentionEnrichmentService::enrichAttentionResponseDto)
                 .collect(Collectors.toList());
