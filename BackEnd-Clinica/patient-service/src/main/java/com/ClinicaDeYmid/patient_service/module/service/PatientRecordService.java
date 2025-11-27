@@ -11,11 +11,12 @@ import com.ClinicaDeYmid.patient_service.module.entity.Patient;
 import com.ClinicaDeYmid.patient_service.module.repository.PatientRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CachePut;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PatientRecordService {
@@ -24,32 +25,33 @@ public class PatientRecordService {
     private final PatientMapper patientMapper;
     private final HealthProviderClient healthProviderClient;
 
-    @CachePut(value = "patient_cache", key = "#result.identificationNumber")
     @Transactional
     public PatientResponseDto createPatient(@Valid NewPatientDto newPatientDto) {
+        log.info("Creating new patient with identification: {}", newPatientDto.identificationNumber());
 
         try {
-
+            // Validar que no exista
             if (patientRepository.existsByIdentificationNumber(newPatientDto.identificationNumber())) {
                 throw new PatientAlreadyExistsException(newPatientDto.identificationNumber());
             }
 
+            // Crear entidad
             Patient newPatient = patientMapper.toPatient(newPatientDto);
 
-            System.out.println("provider nit: " + newPatientDto.healthProviderNit());
+            // Validar health provider en clients-service
+            log.debug("Fetching health provider: {}", newPatientDto.healthProviderNit());
+            HealthProviderNitDto provider = healthProviderClient
+                    .getHealthProviderByNit(newPatientDto.healthProviderNit());
 
-            HealthProviderNitDto provider = healthProviderClient.getHealthProviderByNit(newPatientDto.healthProviderNit());
+            // Guardar en DB
+            Patient savedPatient = patientRepository.save(newPatient);
+            log.info("Patient saved successfully with ID: {}", savedPatient.getId());
 
+            // Construir DTO con datos frescos (NO se cachea)
+            return patientMapper.toPatientResponseDto(savedPatient, provider);
 
-            patientRepository.save(newPatient);
-
-            return patientMapper.toPatientResponseDto(newPatient, provider);
-
-
-    }catch (DataAccessException ex) {
+        } catch (DataAccessException ex) {
             throw new PatientDataAccessException("crear paciente", ex);
         }
     }
-
-
 }
