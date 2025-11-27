@@ -28,9 +28,10 @@ public class PasswordResetController {
 
         log.info("Solicitud de reseteo de contraseña para: {}", request.email());
 
-        String token = passwordResetService.initiatePasswordReset(request.email());
+        passwordResetService.initiatePasswordReset(request.email());
 
-        return ResponseEntity.ok(Map.of("message", "Si el email existe, recibirás instrucciones para resetear tu contraseña", "token", token // SOLO PARA DESARROLLO - REMOVER EN PRODUCCIÓN
+        return ResponseEntity.ok(Map.of(
+                "message", "Si el email existe, recibirás instrucciones para resetear tu contraseña"
         ));
     }
 
