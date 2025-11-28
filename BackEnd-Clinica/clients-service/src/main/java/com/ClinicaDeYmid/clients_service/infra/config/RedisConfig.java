@@ -1,9 +1,12 @@
 package com.ClinicaDeYmid.clients_service.infra.config;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -25,36 +28,21 @@ import java.util.Map;
 @EnableCaching
 public class RedisConfig {
 
-    /**
-     * Configuración del ObjectMapper para serialización JSON en Redis
-     */
-    @Bean
-    public ObjectMapper redisCacheObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-
-        // Registrar módulo para manejar Java 8 date/time
-        mapper.registerModule(new JavaTimeModule());
-
-        // Activar información de tipo para polimorfismo
-        mapper.activateDefaultTyping(
-                BasicPolymorphicTypeValidator.builder()
-                        .allowIfBaseType(Object.class)
-                        .build(),
-                ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY
-        );
-
-        return mapper;
-    }
-
-    /**
-     * Configuración del CacheManager con TTL personalizado por caché
-     */
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory,
-                                     ObjectMapper redisCacheObjectMapper) {
+                                     ObjectMapper objectMapper) {
 
-        log.info("Configurando Redis Cache Manager");
+        log.info("🔧 Configurando Redis Cache Manager para clients-service");
+
+        ObjectMapper redisMapper = objectMapper.copy();
+        redisMapper.registerModule(new ParameterNamesModule());
+        redisMapper.registerModule(new Jdk8Module());
+        redisMapper.registerModule(new JavaTimeModule());
+        redisMapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+        redisMapper.setVisibility(PropertyAccessor.CREATOR, JsonAutoDetect.Visibility.ANY);
+        redisMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        log.info("✅ Módulos Jackson registrados: ParameterNamesModule, Jdk8Module, JavaTimeModule");
 
         // Configuración por defecto (1 hora)
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
@@ -64,7 +52,7 @@ public class RedisConfig {
                                 new StringRedisSerializer()))
                 .serializeValuesWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(
-                                new GenericJackson2JsonRedisSerializer(redisCacheObjectMapper)))
+                                new GenericJackson2JsonRedisSerializer(redisMapper)))
                 .disableCachingNullValues();
 
         // Configuraciones específicas por caché
@@ -96,7 +84,10 @@ public class RedisConfig {
         cacheConfigurations.put("contract_by_number_cache",
                 defaultConfig.entryTtl(Duration.ofHours(1)));
 
-        log.info("Redis Cache Manager configurado con {} cachés personalizados",
+        cacheConfigurations.put("contracts_search_cache",
+                defaultConfig.entryTtl(Duration.ofMinutes(15)));
+
+        log.info("✅ Redis Cache Manager configurado con {} cachés personalizados",
                 cacheConfigurations.size());
 
         return RedisCacheManager.builder(connectionFactory)
