@@ -26,10 +26,11 @@ public class DoctorStatusService {
         return userId;
     }
 
-    @CacheEvict(value = "doctor_cache", key = "#id")
+    @CacheEvict(value = "doctor-entities", key = "#id")
     @Transactional
     public void activateDoctor(Long id) {
         log.info("Activating doctor with ID: {}", id);
+        log.debug("🗑️ Invalidando cache para doctor: {}", id);
 
         Long userId = getCurrentUserId();
 
@@ -42,10 +43,11 @@ public class DoctorStatusService {
         log.info("Doctor activated successfully by user: {}", userId);
     }
 
-    @CacheEvict(value = "doctor_cache", key = "#id")
+    @CacheEvict(value = "doctor-entities", key = "#id")
     @Transactional
     public void deactivateDoctor(Long id) {
         log.info("Deactivating doctor with ID: {}", id);
+        log.debug("🗑️ Invalidando cache para doctor: {}", id);
 
         Long userId = getCurrentUserId();
 
@@ -58,10 +60,11 @@ public class DoctorStatusService {
         log.info("Doctor deactivated successfully by user: {}", userId);
     }
 
-    @CacheEvict(value = "doctor_cache", key = "#id")
+    @CacheEvict(value = "doctor-entities", key = "#id")
     @Transactional
     public void softDeleteDoctor(Long id, String reason) {
         log.info("Soft deleting doctor with ID: {} for reason: {}", id, reason);
+        log.debug("🗑️ Invalidando cache para doctor: {}", id);
 
         Long userId = getCurrentUserId();
 
@@ -74,7 +77,7 @@ public class DoctorStatusService {
         log.info("Doctor soft deleted successfully by user: {}", userId);
     }
 
-    @CacheEvict(value = "doctor_cache", key = "#id")
+    @CacheEvict(value = "doctor-entities", key = "#id")
     @Transactional
     public void restoreDoctor(Long id) {
         log.info("Restoring doctor with ID: {}", id);
