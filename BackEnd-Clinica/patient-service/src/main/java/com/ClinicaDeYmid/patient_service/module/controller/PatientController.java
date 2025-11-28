@@ -86,8 +86,7 @@ public class PatientController {
             Pageable pageable,
             PagedResourcesAssembler<PatientsListDto> assembler) {
 
-        log.info("Searching patients with query: {} - Page: {}, Size: {}",
-                query, pageable.getPageNumber(), pageable.getPageSize());
+        log.info("Searching patients with query: {} - Page: {}, Size: {}", query, pageable.getPageNumber(), pageable.getPageSize());
 
         Page<PatientsListDto> patientsList = patientSearchService.searchPatients(query, pageable);
 

@@ -12,6 +12,7 @@ import com.ClinicaDeYmid.suppliers_service.module.repository.SubSpecialtyReposit
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +44,6 @@ public class DoctorRecordService {
         return userId;
     }
 
-    @CachePut(value = "doctor_cache", key = "#result.id")
     @Transactional
     public DoctorResponseDto createDoctor(DoctorCreateRequestDTO request) {
         log.info("Creating doctor with provider code: {}", request.providerCode());
@@ -86,10 +86,11 @@ public class DoctorRecordService {
         return doctorMapper.toDoctorResponseDto(loaded);
     }
 
-    @CachePut(value = "doctor_cache", key = "#result.id")
+    @CacheEvict(value = "doctor-entities", key = "#id")
     @Transactional
     public DoctorResponseDto updateDoctor(Long id, DoctorUpdateRequestDTO request) {
         log.info("Updating doctor with ID: {}", id);
+        log.debug("🗑️ Invalidando cache para doctor: {}", id);
 
         Long userId = getCurrentUserId();
 
@@ -97,7 +98,6 @@ public class DoctorRecordService {
                 .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + id));
 
         doctorMapper.updateDoctorFromDto(request, doctor);
-
         doctor.setUpdatedBy(userId);
 
         // Actualizar especialidades si se envían
@@ -128,6 +128,6 @@ public class DoctorRecordService {
                 .orElseThrow(() -> new EntityNotFoundException("Doctor not found after update"));
 
         log.info("Doctor updated successfully: {} by user: {}", id, userId);
-        return doctorMapper.toDoctorResponseDto(loadedDoctor);
+        return doctorMapper.toDoctorResponseDto(loadedDoctor); // ✅ Devuelve DTO pero NO lo cachea
     }
 }

@@ -6,18 +6,15 @@ import com.ClinicaDeYmid.clients_service.module.repository.HealthProviderReposit
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderNotFoundForStatusException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderAlreadyActiveException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderAlreadyInactiveException;
-import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderDeletionRestrictedException;
+import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderWithActiveContractsException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderDataAccessException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -38,126 +35,165 @@ public class StatusHealthProviderService {
         return userId;
     }
 
+    /**
+     * Valida que el NIT no sea nulo o vacío
+     */
+    private void validateNitInput(String nit) {
+        if (nit == null || nit.trim().isEmpty()) {
+            log.error("NIT nulo o vacío en la solicitud");
+            throw new IllegalArgumentException("El NIT no puede ser nulo o vacío");
+        }
+    }
+
     @Transactional
-    @CacheEvict(value = {"health_provider_cache", "health_providers_list_cache"}, allEntries = true)
-    public void deleteHealthProvider(Long id) {
-        log.info("Iniciando eliminación lógica de proveedor de salud con ID: {}", id);
+    @CacheEvict(value = "health-provider-entities", key = "#nit")
+    public HealthProvider activateHealthProvider(String nit) {
+        validateNitInput(nit);
+
+        log.info("Iniciando activación de proveedor de salud con NIT: {}", nit);
+        log.debug("🗑️ Invalidando cache para health provider: {}", nit);
 
         try {
-            HealthProvider provider = healthProviderRepository.findById(id)
-                    .orElseThrow(() -> new HealthProviderNotFoundForStatusException(id, "eliminar"));
+            HealthProvider provider = healthProviderRepository.findByNit_Value(nit)
+                    .orElseThrow(() -> {
+                        log.error("Proveedor de salud no encontrado para activar con NIT: {}", nit);
+                        return new HealthProviderNotFoundForStatusException(nit, "activar");
+                    });
 
+            // Validar que no esté ya activo
+            if (provider.getActive()) {
+                log.warn("Intento de activar proveedor ya activo con NIT: {}", nit);
+                throw new HealthProviderAlreadyActiveException(nit, provider.getSocialReason());
+            }
+
+            // Activar proveedor
+            provider.setActive(true);
+
+            Long userId = getCurrentUserId();
+            provider.setUpdatedBy(userId);
+
+            HealthProvider activatedProvider = healthProviderRepository.save(provider);
+
+            log.info("Proveedor de salud activado exitosamente con NIT: {} por usuario: {}", nit, userId);
+            return activatedProvider;
+
+        } catch (HealthProviderNotFoundForStatusException | HealthProviderAlreadyActiveException ex) {
+            throw ex;
+        } catch (DataAccessException ex) {
+            log.error("Error de acceso a datos al activar proveedor con NIT: {}", nit, ex);
+            throw new HealthProviderDataAccessException("activar proveedor de salud con NIT: " + nit, ex);
+        }
+    }
+
+    @Transactional
+    @CacheEvict(value = "health-provider-entities", key = "#nit")
+    public HealthProvider deactivateHealthProvider(String nit) {
+        validateNitInput(nit);
+
+        log.info("Iniciando desactivación de proveedor de salud con NIT: {}", nit);
+        log.debug("🗑️ Invalidando cache para health provider: {}", nit);
+
+        try {
+            HealthProvider provider = healthProviderRepository.findByNit_Value(nit)
+                    .orElseThrow(() -> {
+                        log.error("Proveedor de salud no encontrado para desactivar con NIT: {}", nit);
+                        return new HealthProviderNotFoundForStatusException(nit, "desactivar");
+                    });
+
+            // Validar que no esté ya inactivo
+            if (!provider.getActive()) {
+                log.warn("Intento de desactivar proveedor ya inactivo con NIT: {}", nit);
+                throw new HealthProviderAlreadyInactiveException(nit, provider.getSocialReason());
+            }
+
+            // Validar que no tenga contratos activos
             if (hasActiveContracts(provider)) {
-                throw new HealthProviderDeletionRestrictedException(id,
-                        "El proveedor tiene contratos activos asociados");
+                log.warn("Intento de desactivar proveedor con contratos activos - NIT: {}", nit);
+                throw new HealthProviderWithActiveContractsException(nit, provider.getSocialReason());
+            }
+
+            // Desactivar proveedor
+            provider.setActive(false);
+
+            Long userId = getCurrentUserId();
+            provider.setUpdatedBy(userId);
+
+            HealthProvider deactivatedProvider = healthProviderRepository.save(provider);
+
+            log.info("Proveedor de salud desactivado exitosamente con NIT: {} por usuario: {}", nit, userId);
+            return deactivatedProvider;
+
+        } catch (HealthProviderNotFoundForStatusException |
+                 HealthProviderAlreadyInactiveException |
+                 HealthProviderWithActiveContractsException ex) {
+            throw ex;
+        } catch (DataAccessException ex) {
+            log.error("Error de acceso a datos al desactivar proveedor con NIT: {}", nit, ex);
+            throw new HealthProviderDataAccessException("desactivar proveedor de salud con NIT: " + nit, ex);
+        }
+    }
+
+    @Transactional
+    @CacheEvict(value = "health-provider-entities", key = "#nit")
+    public HealthProvider softDeleteHealthProvider(String nit, String reason) {
+        validateNitInput(nit);
+
+        log.info("Iniciando eliminación lógica de proveedor de salud con NIT: {} - Razón: {}", nit, reason);
+        log.debug("🗑️ Invalidando cache para health provider: {}", nit);
+
+        try {
+            HealthProvider provider = healthProviderRepository.findByNit_Value(nit)
+                    .orElseThrow(() -> {
+                        log.error("Proveedor de salud no encontrado para eliminar con NIT: {}", nit);
+                        return new HealthProviderNotFoundForStatusException(nit, "eliminar");
+                    });
+
+            // Validar que no tenga contratos activos
+            if (hasActiveContracts(provider)) {
+                log.warn("Intento de eliminar proveedor con contratos activos - NIT: {}", nit);
+                throw new HealthProviderWithActiveContractsException(nit, provider.getSocialReason());
             }
 
             // Soft delete con auditoría
             Long userId = getCurrentUserId();
-            provider.markAsDeleted(
-                    userId,
-                    "Eliminación solicitada por usuario ID: " + userId
-            );
+            provider.markAsDeleted(userId, reason != null ? reason : "No reason provided");
 
-            healthProviderRepository.save(provider);
+            HealthProvider deletedProvider = healthProviderRepository.save(provider);
 
-            log.info("Proveedor de salud eliminado lógicamente con ID: {} por usuario: {}", id, userId);
+            log.info("Proveedor de salud eliminado lógicamente con NIT: {} por usuario: {}", nit, userId);
+            return deletedProvider;
 
-        } catch (DataIntegrityViolationException ex) {
-            log.error("Error de integridad al eliminar proveedor con ID: {}", id, ex);
-            throw new HealthProviderDeletionRestrictedException(id,
-                    "El proveedor tiene registros relacionados que impiden su eliminación");
+        } catch (HealthProviderNotFoundForStatusException | HealthProviderWithActiveContractsException ex) {
+            throw ex;
         } catch (DataAccessException ex) {
-            log.error("Error de acceso a datos al eliminar proveedor con ID: {}", id, ex);
-            throw new HealthProviderDataAccessException("eliminar proveedor de salud con ID: " + id, ex);
+            log.error("Error de acceso a datos al eliminar proveedor con NIT: {}", nit, ex);
+            throw new HealthProviderDataAccessException("eliminar proveedor de salud con NIT: " + nit, ex);
         }
     }
 
     @Transactional
-    @CacheEvict(value = {"health_provider_cache", "health_providers_list_cache"}, allEntries = true)
-    public HealthProvider activateHealthProvider(Long id) {
-        log.info("Iniciando activación de proveedor de salud con ID: {}", id);
+    @CacheEvict(value = "health-provider-entities", key = "#nit")
+    public HealthProvider restoreHealthProvider(String nit) {
+        validateNitInput(nit);
+
+        log.info("Iniciando restauración de proveedor de salud con NIT: {}", nit);
+        log.debug("🗑️ Invalidando cache para health provider: {}", nit);
 
         try {
-            return healthProviderRepository.findById(id)
-                    .map(provider -> {
-                        if (provider.getActive()) {
-                            log.warn("Intento de activar proveedor ya activo con ID: {}", id);
-                            throw new HealthProviderAlreadyActiveException(id, provider.getSocialReason());
-                        }
-
-                        provider.setActive(true);
-
-                        Long userId = getCurrentUserId();
-                        provider.setUpdatedBy(userId);
-
-                        HealthProvider activatedProvider = healthProviderRepository.save(provider);
-
-                        log.info("Proveedor de salud activado exitosamente con ID: {} por usuario: {}", id, userId);
-                        return activatedProvider;
-                    })
+            // ⚠️ IMPORTANTE: Usar findByNitIncludingDeleted porque el proveedor está eliminado
+            HealthProvider provider = healthProviderRepository.findByNitIncludingDeleted(nit)
                     .orElseThrow(() -> {
-                        log.error("Proveedor de salud no encontrado para activar con ID: {}", id);
-                        return new HealthProviderNotFoundForStatusException(id, "activar");
+                        log.error("Proveedor de salud no encontrado para restaurar con NIT: {}", nit);
+                        return new HealthProviderNotFoundForStatusException(nit, "restaurar");
                     });
 
-        } catch (DataAccessException ex) {
-            log.error("Error de acceso a datos al activar proveedor con ID: {}", id, ex);
-            throw new HealthProviderDataAccessException("activar proveedor de salud con ID: " + id, ex);
-        }
-    }
-
-    @Transactional
-    @CacheEvict(value = {"health_provider_cache", "health_providers_list_cache"}, allEntries = true)
-    public HealthProvider deactivateHealthProvider(Long id) {
-        log.info("Iniciando desactivación de proveedor de salud con ID: {}", id);
-
-        try {
-            return healthProviderRepository.findById(id)
-                    .map(provider -> {
-                        if (!provider.getActive()) {
-                            log.warn("Intento de desactivar proveedor ya inactivo con ID: {}", id);
-                            throw new HealthProviderAlreadyInactiveException(id, provider.getSocialReason());
-                        }
-
-                        provider.setActive(false);
-
-                        Long userId = getCurrentUserId();
-                        provider.setUpdatedBy(userId);
-
-                        HealthProvider deactivatedProvider = healthProviderRepository.save(provider);
-
-                        log.info("Proveedor de salud desactivado exitosamente con ID: {} por usuario: {}", id, userId);
-                        return deactivatedProvider;
-                    })
-                    .orElseThrow(() -> {
-                        log.error("Proveedor de salud no encontrado para desactivar con ID: {}", id);
-                        return new HealthProviderNotFoundForStatusException(id, "desactivar");
-                    });
-
-        } catch (DataAccessException ex) {
-            log.error("Error de acceso a datos al desactivar proveedor con ID: {}", id, ex);
-            throw new HealthProviderDataAccessException("desactivar proveedor de salud con ID: " + id, ex);
-        }
-    }
-
-    /**
-     * Restaura un proveedor eliminado lógicamente
-     */
-    @Transactional
-    @CacheEvict(value = {"health_provider_cache", "health_providers_list_cache"}, allEntries = true)
-    public HealthProvider restoreHealthProvider(Long id) {
-        log.info("Iniciando restauración de proveedor de salud con ID: {}", id);
-
-        try {
-            HealthProvider provider = healthProviderRepository.findByIdIncludingDeleted(id)
-                    .orElseThrow(() -> new HealthProviderNotFoundForStatusException(id, "restaurar"));
-
+            // Validar que esté eliminado
             if (!provider.isDeleted()) {
-                log.warn("Intento de restaurar proveedor no eliminado con ID: {}", id);
-                throw new IllegalStateException("El proveedor no está eliminado");
+                log.warn("Intento de restaurar proveedor no eliminado con NIT: {}", nit);
+                throw new IllegalStateException("El proveedor con NIT " + nit + " no está eliminado");
             }
 
+            // Restaurar proveedor
             provider.restore();
 
             Long userId = getCurrentUserId();
@@ -165,12 +201,14 @@ public class StatusHealthProviderService {
 
             HealthProvider restoredProvider = healthProviderRepository.save(provider);
 
-            log.info("Proveedor de salud restaurado exitosamente con ID: {} por usuario: {}", id, userId);
+            log.info("Proveedor de salud restaurado exitosamente con NIT: {} por usuario: {}", nit, userId);
             return restoredProvider;
 
+        } catch (HealthProviderNotFoundForStatusException | IllegalStateException ex) {
+            throw ex;
         } catch (DataAccessException ex) {
-            log.error("Error de acceso a datos al restaurar proveedor con ID: {}", id, ex);
-            throw new HealthProviderDataAccessException("restaurar proveedor de salud con ID: " + id, ex);
+            log.error("Error de acceso a datos al restaurar proveedor con NIT: {}", nit, ex);
+            throw new HealthProviderDataAccessException("restaurar proveedor de salud con NIT: " + nit, ex);
         }
     }
 
