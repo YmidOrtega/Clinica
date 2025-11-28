@@ -57,8 +57,8 @@ public class AttentionRecordService {
      * Crea una nueva atención (INVALIDA CACHÉS RELACIONADOS)
      */
     @Transactional
-    @CachePut(value = "attentions", key = "#result.id")
     @CacheEvict(value = {
+            "attention-entities",
             "attentionsByPatient",
             "attentionsByDoctor",
             "attentionsByHealthProvider"
@@ -113,7 +113,7 @@ public class AttentionRecordService {
      */
     @Transactional
     @CacheEvict(value = {
-            "attentions",
+            "attention-entities",
             "attentionsByPatient",
             "attentionsByDoctor",
             "attentionsByHealthProvider"

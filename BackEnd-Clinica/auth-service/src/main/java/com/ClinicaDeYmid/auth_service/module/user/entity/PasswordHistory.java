@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "password_history", indexes = {
         @Index(name = "idx_user_id", columnList = "user_id"),
-        @Index(name = "idx_created_at", columnList = "created_at")
+        @Index(name = "idx_created_at", columnList = "changed_at")
 })
 @Getter
 @Setter
@@ -27,7 +27,7 @@ public class PasswordHistory {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "changed_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
