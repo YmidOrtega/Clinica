@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -22,7 +23,10 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
+@Slf4j
 @Configuration
 @EnableCaching
 public class RedisCacheConfig {
@@ -58,7 +62,13 @@ public class RedisCacheConfig {
             RedisConnectionFactory connectionFactory,
             @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
 
-        RedisCacheConfiguration redisCacheConfiguration = RedisCacheConfiguration
+        log.info("🔧 Configurando Redis Cache Manager para suppliers-service");
+
+        GenericJackson2JsonRedisSerializer serializer =
+                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
+
+        // Configuración por defecto
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
                 .defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(10))
                 .disableCachingNullValues()
@@ -67,11 +77,24 @@ public class RedisCacheConfig {
                                 .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(
                         RedisSerializationContext.SerializationPair
-                                .fromSerializer(new GenericJackson2JsonRedisSerializer(redisObjectMapper)));
+                                .fromSerializer(serializer));
+
+        // Configuraciones específicas por caché
+        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+
+        cacheConfigurations.put("doctor-entities", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("doctor_cache", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("all_doctors_by_specialty", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put("all_doctors_by_subspecialty", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+
+        log.info("✅ Redis Cache Manager configurado con GenericJackson2JsonRedisSerializer");
+        log.info("✅ Módulos Jackson: ParameterNamesModule, Jdk8Module, JavaTimeModule");
+        log.info("💡 Estrategia: Cachear solo entidades Doctor, construir DTOs frescos");
 
         return RedisCacheManager
                 .builder(connectionFactory)
-                .cacheDefaults(redisCacheConfiguration)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
     }
 
@@ -80,18 +103,20 @@ public class RedisCacheConfig {
             RedisConnectionFactory connectionFactory,
             @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
 
+        log.info("🔧 Configurando RedisTemplate para suppliers-service");
+
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        GenericJackson2JsonRedisSerializer serializer =
-                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(redisObjectMapper);
 
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setHashValueSerializer(serializer);
-
         template.afterPropertiesSet();
+
+        log.info("✅ RedisTemplate configurado correctamente");
         return template;
     }
 }
