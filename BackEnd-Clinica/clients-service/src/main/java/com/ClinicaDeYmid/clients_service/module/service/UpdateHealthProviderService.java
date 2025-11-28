@@ -35,7 +35,7 @@ public class UpdateHealthProviderService {
     }
 
     @Transactional
-    @CacheEvict(value = "health_provider_cache", allEntries = true)
+    @CacheEvict(value = "health-provider-entities", key = "#nit")
     public HealthProvider updateHealthProvider(String nit, HealthProvider updatedProviderDetails) {
 
         log.info("Iniciando actualización de proveedor de salud con NIT: {}", nit);
