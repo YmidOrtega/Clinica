@@ -31,7 +31,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -51,30 +50,37 @@ public class AttentionGetService {
     private final DoctorClient doctorClient;
     private final HealthProviderClient healthProviderClient;
 
-    /**
-     * Obtiene una atención por ID y la enriquece con datos adicionales.
-     */
-    @Cacheable(value = "attentions", key = "#id")
+    @Cacheable(value = "attention-entities", key = "#id")
     @Transactional(readOnly = true)
-    public AttentionResponseDto getAttentionById(Long id) {
-        log.info("Fetching attention with ID: {}", id);
+    public Attention findEntityById(Long id) {
+        log.debug("🔍 Cache MISS - Consultando DB para attention: {}", id);
+
         Attention attention = attentionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + id));
+
+        // Inicializar colecciones lazy
         if (attention != null) {
             Hibernate.initialize(attention.getAuthorizations());
             Hibernate.initialize(attention.getDiagnosticCodes());
         }
-        assert attention != null;
+
+        return attention;
+    }
+
+    @Transactional(readOnly = true)
+    public AttentionResponseDto getAttentionById(Long id) {
+        log.info("📦 Construyendo AttentionResponseDto completo para attention: {}", id);
+
+        // Usa caché de entidad (rápido si está en Redis)
+        Attention attention = findEntityById(id);
+
         return attentionEnrichmentService.enrichAttentionResponseDto(attention);
     }
 
-    /**
-     * Obtiene atenciones por paciente (CON CACHÉ)
-     */
-    @Cacheable(value = "attentionsByPatient", key = "#patientId")
     @Transactional(readOnly = true)
     public List<PatientWithAttentionsResponse> getAttentionsByPatientId(Long patientId) {
         log.info("Fetching attentions for patient ID: {}", patientId);
+
         List<Attention> attentions = attentionRepository.findByPatientId(patientId);
 
         if (attentions != null) {
@@ -84,6 +90,7 @@ public class AttentionGetService {
             });
         }
 
+        // Obtener nombre del paciente
         String patientName = "";
         try {
             GetPatientDto patient = patientClient.getPatientByIdentificationNumber(patientId.toString());
@@ -99,19 +106,21 @@ public class AttentionGetService {
         );
     }
 
-    @Cacheable(value = "attention_cache", key = "#patientId")
     @Transactional(readOnly = true)
     public List<PatientWithAttentionsResponse> getActiveAttentionByPatientId(Long patientId) {
         log.info("Fetching active attention for patient ID: {}", patientId);
-        List<Attention> activeAttention = Collections.singletonList(attentionRepository.findByPatientIdAndStatus(patientId,
-                        AttentionStatus.CREATED)
-                .orElseThrow(() -> new EntityNotFoundException("No active attention found for patient ID: " + patientId)));
+
+        List<Attention> activeAttention = Collections.singletonList(
+                attentionRepository.findByPatientIdAndStatus(patientId, AttentionStatus.CREATED)
+                        .orElseThrow(() -> new EntityNotFoundException("No active attention found for patient ID: " + patientId))
+        );
 
         activeAttention.forEach(attention -> {
             Hibernate.initialize(attention.getAuthorizations());
             Hibernate.initialize(attention.getDiagnosticCodes());
         });
 
+        // Obtener nombre del paciente
         String patientName = "";
         try {
             GetPatientDto patient = patientClient.getPatientByIdentificationNumber(patientId.toString());
@@ -127,13 +136,10 @@ public class AttentionGetService {
         );
     }
 
-    /**
-     * Obtiene atenciones por doctor (CON CACHÉ)
-     */
-    @Cacheable(value = "attentionsByDoctor", key = "#doctorId")
     @Transactional(readOnly = true)
     public List<DoctorWithAttentionsResponse> getAttentionsByDoctorId(Long doctorId) {
         log.info("Fetching attentions for doctor ID: {}", doctorId);
+
         List<Attention> attentions = attentionRepository.findByDoctorId(doctorId);
 
         if (attentions != null) {
@@ -143,6 +149,7 @@ public class AttentionGetService {
             });
         }
 
+        // Obtener nombre del doctor
         String doctorName = "";
         try {
             GetDoctorDto doctor = doctorClient.getDoctorById(doctorId);
@@ -153,6 +160,7 @@ public class AttentionGetService {
             log.error("Error fetching doctor name for id {}: {}", doctorId, e.getMessage());
         }
 
+        // Resolver nombres de pacientes para cada atención
         Function<Long, String> patientNameResolver = (id) -> {
             try {
                 GetPatientDto patient = patientClient.getPatientByIdentificationNumber(id.toString());
@@ -164,45 +172,44 @@ public class AttentionGetService {
             }
         };
 
+        // Agrupar atenciones por paciente
         List<PatientWithAttentionsResponse> grouped = attentionMapper.groupAttentionsByPatient(
                 attentions,
                 patientNameResolver
         );
 
         return List.of(
-                attentionMapper.toDoctorWithAttentionsResponse(doctorName, grouped));
+                attentionMapper.toDoctorWithAttentionsResponse(doctorName, grouped)
+        );
     }
 
     /**
-     * Obtiene atenciones por proveedor de salud (CON CACHÉ)
+     * Obtiene atenciones por proveedor de salud.
      */
-    @Cacheable(value = "attentionsByHealthProvider", key = "#healthProviderNit")
     @Transactional(readOnly = true)
     public List<HealthProviderWithAttentionsResponse> getAttentionsByHealthProviderNit(String healthProviderNit) {
         log.info("Fetching attentions for health provider NIT: {}", healthProviderNit);
 
-        System.out.println(healthProviderNit);
         List<Attention> attentions = attentionRepository.findByHealthProviderNit(healthProviderNit);
 
         if (attentions != null) {
             attentions.forEach(attention -> {
                 Hibernate.initialize(attention.getAuthorizations());
                 Hibernate.initialize(attention.getDiagnosticCodes());
-                Hibernate.initialize(attention.getUserHistory());
             });
         }
 
         Long contractId = null;
-        if (attentions != null && !attentions.isEmpty() && attentions.get(0).getHealthProviderNit() != null && !attentions.get(0).getHealthProviderNit().isEmpty()) {
-            HealthProviderInfo providerInfo = attentions.get(0).getHealthProviderNit().stream()
-                    .filter(hp -> healthProviderNit.equals(hp.getHealthProviderNit()))
-                    .findFirst()
-                    .orElse(null);
-            if (providerInfo != null) {
-                contractId = providerInfo.getContractId();
+        for (Attention attention : attentions) {
+            List<HealthProviderInfo> providerInfoList = attention.getHealthProviderNit();
+            for (HealthProviderInfo providerInfo : providerInfoList) {
+                if (providerInfo.getHealthProviderNit().equals(healthProviderNit)) {
+                    contractId = providerInfo.getContractId();
+                }
             }
         }
 
+        // Obtener nombre del proveedor
         String contractName;
         try {
             GetHealthProviderDto dto = healthProviderClient.getHealthProviderByNitAndContract(healthProviderNit, contractId);
@@ -218,10 +225,10 @@ public class AttentionGetService {
         return List.of(response);
     }
 
-    @Cacheable(value = "attention_cache", key = "#configServiceId")
     @Transactional(readOnly = true)
     public List<AttentionResponseDto> getAttentionsByConfigurationServiceId(Long configServiceId) {
         log.info("Fetching attentions for configuration service ID: {}", configServiceId);
+
         List<Attention> attentions = attentionRepository.findByConfigurationServiceId(configServiceId);
 
         if (attentions != null) {
@@ -234,6 +241,8 @@ public class AttentionGetService {
         if (attentions == null) {
             attentions = Collections.emptyList();
         }
+
+        // Enriquecer cada atención con datos externos
         return attentions.stream()
                 .map(attentionEnrichmentService::enrichAttentionResponseDto)
                 .collect(Collectors.toList());
@@ -247,47 +256,9 @@ public class AttentionGetService {
         log.info("Performing attention search with criteria: {}", searchRequest);
         validateSearchRequest(searchRequest);
 
-        Specification<Attention> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
-
-        if (searchRequest.patientId() != null) {
-            spec = spec.and(hasPatientId(searchRequest.patientId()));
-        }
-        if (searchRequest.doctorId() != null) {
-            spec = spec.and(hasDoctorId(searchRequest.doctorId()));
-        }
-        if (searchRequest.healthProviderNit() != null && !searchRequest.healthProviderNit().isEmpty()) {
-            spec = spec.and(hasHealthProviderNit(searchRequest.healthProviderNit()));
-        }
-        if (searchRequest.status() != null) {
-            spec = spec.and(hasStatus(searchRequest.status()));
-        }
-        if (searchRequest.cause() != null) {
-            spec = spec.and(hasCause(searchRequest.cause()));
-        }
-        if (searchRequest.entryMethod() != null && !searchRequest.entryMethod().isEmpty()) {
-            spec = spec.and(hasEntryMethod(searchRequest.entryMethod()));
-        }
-        if (searchRequest.isReferral() != null) {
-            spec = spec.and(isReferral(searchRequest.isReferral()));
-        }
-        if (searchRequest.triageLevel() != null) {
-            spec = spec.and(hasTriageLevel(searchRequest.triageLevel()));
-        }
-        if (searchRequest.dischargeDateFrom() != null) {
-            spec = spec.and(hasDischargeDateAfter(searchRequest.dischargeDateFrom()));
-        }
-        if (searchRequest.dischargeDateTo() != null) {
-            spec = spec.and(hasDischargeDateBefore(searchRequest.dischargeDateTo()));
-        }
-        if (searchRequest.invoiced() != null) {
-            spec = spec.and(isInvoiced(searchRequest.invoiced()));
-        }
-        if (searchRequest.configurationServiceId() != null) {
-            spec = spec.and(hasConfigurationServiceId(searchRequest.configurationServiceId()));
-        }
-        // Puedes añadir más criterios de búsqueda aquí.
-
+        Specification<Attention> spec = buildSearchSpecification(searchRequest);
         Pageable pageable = createPageable(searchRequest);
+
         Page<Attention> attentionPage = attentionRepository.findAll(spec, pageable);
 
         List<AttentionResponseDto> content = attentionPage.getContent().stream()
@@ -297,22 +268,8 @@ public class AttentionGetService {
         return new PageImpl<>(content, pageable, attentionPage.getTotalElements());
     }
 
-    private Pageable createPageable(AttentionSearchRequest searchRequest) {
-        int page = searchRequest.page() != null ? searchRequest.page() : 0;
-        int size = searchRequest.size() != null ? searchRequest.size() : 10;
-        String sortBy = searchRequest.sortBy() != null ? searchRequest.sortBy() : "admissionDateTime";
-        String sortDirection = searchRequest.sortDirection() != null ? searchRequest.sortDirection() : "desc";
-
-        Sort sort = Sort.by(
-                sortDirection.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC,
-                sortBy
-        );
-
-        return PageRequest.of(page, size, sort);
-    }
-
+    // Métodos helper privados
     private void validateSearchRequest(AttentionSearchRequest searchRequest) {
-
         if (searchRequest.dischargeDateFrom() != null && searchRequest.dischargeDateTo() != null) {
             if (searchRequest.dischargeDateFrom().isAfter(searchRequest.dischargeDateTo())) {
                 throw new ValidationException("Discharge date from cannot be after discharge date to");
@@ -326,5 +283,62 @@ public class AttentionGetService {
         if (searchRequest.size() != null && (searchRequest.size() < 1 || searchRequest.size() > 100)) {
             throw new ValidationException("Page size must be between 1 and 100");
         }
+    }
+
+    private Specification<Attention> buildSearchSpecification(AttentionSearchRequest request) {
+        Specification<Attention> spec = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
+
+        if (request.patientId() != null) {
+            spec = spec.and(hasPatientId(request.patientId()));
+        }
+        if (request.doctorId() != null) {
+            spec = spec.and(hasDoctorId(request.doctorId()));
+        }
+        if (request.healthProviderNit() != null && !request.healthProviderNit().isEmpty()) {
+            spec = spec.and(hasHealthProviderNit(request.healthProviderNit()));
+        }
+        if (request.status() != null) {
+            spec = spec.and(hasStatus(request.status()));
+        }
+        if (request.cause() != null) {
+            spec = spec.and(hasCause(request.cause()));
+        }
+        if (request.entryMethod() != null && !request.entryMethod().isEmpty()) {
+            spec = spec.and(hasEntryMethod(request.entryMethod()));
+        }
+        if (request.isReferral() != null) {
+            spec = spec.and(isReferral(request.isReferral()));
+        }
+        if (request.triageLevel() != null) {
+            spec = spec.and(hasTriageLevel(request.triageLevel()));
+        }
+        if (request.dischargeDateFrom() != null) {
+            spec = spec.and(hasDischargeDateAfter(request.dischargeDateFrom()));
+        }
+        if (request.dischargeDateTo() != null) {
+            spec = spec.and(hasDischargeDateBefore(request.dischargeDateTo()));
+        }
+        if (request.invoiced() != null) {
+            spec = spec.and(isInvoiced(request.invoiced()));
+        }
+        if (request.configurationServiceId() != null) {
+            spec = spec.and(hasConfigurationServiceId(request.configurationServiceId()));
+        }
+
+        return spec;
+    }
+
+    private Pageable createPageable(AttentionSearchRequest searchRequest) {
+        int page = searchRequest.page() != null ? searchRequest.page() : 0;
+        int size = searchRequest.size() != null ? searchRequest.size() : 10;
+        String sortBy = searchRequest.sortBy() != null ? searchRequest.sortBy() : "createdAt";
+        String sortDirection = searchRequest.sortDirection() != null ? searchRequest.sortDirection() : "desc";
+
+        Sort sort = Sort.by(
+                sortDirection.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC,
+                sortBy
+        );
+
+        return PageRequest.of(page, size, sort);
     }
 }

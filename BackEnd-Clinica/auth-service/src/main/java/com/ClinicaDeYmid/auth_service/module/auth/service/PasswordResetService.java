@@ -32,11 +32,18 @@ public class PasswordResetService {
      * Inicia el proceso de reseteo de contraseña
      */
     @Transactional
-    public String initiatePasswordReset(String email) {
+    public void initiatePasswordReset(String email) {
         log.info("Iniciando proceso de reseteo de contraseña para: {}", email);
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("Usuario no encontrado"));
+        var userOptional = userRepository.findByEmail(email);
+
+        if (userOptional.isEmpty()) {
+            log.warn("Solicitud de reseteo para email no registrado: {}", email);
+            // Por seguridad, retornamos silenciosamente para evitar enumeración de usuarios
+            return;
+        }
+
+        User user = userOptional.get();
 
         // Invalidar tokens previos
         tokenRepository.invalidateAllUserTokens(user, LocalDateTime.now());
@@ -57,9 +64,7 @@ public class PasswordResetService {
         // TODO: Enviar email con el token
         // emailService.sendPasswordResetEmail(user.getEmail(), tokenValue);
 
-        log.info("Token de reseteo de contraseña creado para usuario: {}", email);
-
-        return tokenValue; // En producción, NO devolver el token, solo enviarlo por email
+        log.info("Proceso de reseteo iniciado correctamente para usuario: {}", email);
     }
 
     /**
