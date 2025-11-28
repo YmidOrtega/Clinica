@@ -154,11 +154,11 @@ public class HealthProviderController {
     /**
      * Activar un proveedor de salud
      */
-    @PatchMapping("/{id}/activate")
+    @PatchMapping("/{nit}/activate")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Activate a health provider",
-            description = "Activates a health provider by their ID. Requires ADMIN or SUPER_ADMIN role.")
+            description = "Activates a health provider by their NIT. Requires ADMIN or SUPER_ADMIN role.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Health provider activated successfully"),
             @ApiResponse(responseCode = "404", description = "Health provider not found"),
@@ -166,64 +166,75 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "403", description = "Insufficient permissions")
     })
     public ResponseEntity<HealthProvider> activateHealthProvider(
-            @PathVariable @NotNull @Positive(message = "ID must be positive") Long id) {
+            @PathVariable
+            @NotNull(message = "El NIT no puede ser nulo")
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
+            String nit) {
 
-        log.info("Activating health provider with ID: {}", id);
+        log.info("Activating health provider with NIT: {}", nit);
 
-        HealthProvider activatedProvider = statusHealthProviderService.activateHealthProvider(id);
+        HealthProvider activatedProvider = statusHealthProviderService.activateHealthProvider(nit);
 
-        log.info("Health provider activated successfully with ID: {}", id);
+        log.info("Health provider activated successfully with NIT: {}", nit);
         return ResponseEntity.ok(activatedProvider);
     }
 
     /**
      * Desactivar un proveedor de salud
      */
-    @PatchMapping("/{id}/deactivate")
+    @PatchMapping("/{nit}/deactivate")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(
             summary = "Deactivate a health provider",
-            description = "Deactivates a health provider by their ID. Requires ADMIN or SUPER_ADMIN role.")
+            description = "Deactivates a health provider by their NIT. Requires ADMIN or SUPER_ADMIN role.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Health provider deactivated successfully"),
             @ApiResponse(responseCode = "404", description = "Health provider not found"),
             @ApiResponse(responseCode = "409", description = "Health provider is already inactive"),
+            @ApiResponse(responseCode = "400", description = "Health provider has active contracts"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions")
     })
     public ResponseEntity<HealthProvider> deactivateHealthProvider(
-            @PathVariable @NotNull @Positive(message = "ID must be positive") Long id) {
+            @PathVariable
+            @NotNull(message = "El NIT no puede ser nulo")
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
+            String nit) {
 
-        log.info("Deactivating health provider with ID: {}", id);
+        log.info("Deactivating health provider with NIT: {}", nit);
 
-        HealthProvider deactivatedProvider = statusHealthProviderService.deactivateHealthProvider(id);
+        HealthProvider deactivatedProvider = statusHealthProviderService.deactivateHealthProvider(nit);
 
-        log.info("Health provider deactivated successfully with ID: {}", id);
+        log.info("Health provider deactivated successfully with NIT: {}", nit);
         return ResponseEntity.ok(deactivatedProvider);
     }
 
     /**
      * Eliminar un proveedor de salud
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{nit}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @Operation(
             summary = "Delete a health provider",
-            description = "Deletes a health provider by their ID. Restricted to SUPER_ADMIN role only.")
+            description = "Performs a soft delete on a health provider by their NIT. Restricted to SUPER_ADMIN role only.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Health provider deleted successfully"),
+            @ApiResponse(responseCode = "200", description = "Health provider deleted successfully"),
             @ApiResponse(responseCode = "404", description = "Health provider not found"),
-            @ApiResponse(responseCode = "409", description = "Health provider cannot be deleted due to active contracts"),
+            @ApiResponse(responseCode = "400", description = "Health provider has active contracts"),
             @ApiResponse(responseCode = "403", description = "Insufficient permissions - requires SUPER_ADMIN")
     })
-    public ResponseEntity<Void> deleteHealthProvider(
-            @PathVariable @NotNull @Positive(message = "ID must be positive") Long id) {
+    public ResponseEntity<HealthProvider> deleteHealthProvider(
+            @PathVariable
+            @NotNull(message = "El NIT no puede ser nulo")
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
+            String nit,
+            @RequestParam(required = false) String reason) {
 
-        log.info("Deleting health provider with ID: {}", id);
+        log.info("Deleting health provider with NIT: {} - Reason: {}", nit, reason);
 
-        statusHealthProviderService.deleteHealthProvider(id);
+        HealthProvider deletedProvider = statusHealthProviderService.softDeleteHealthProvider(nit, reason);
 
-        log.info("Health provider deleted successfully with ID: {}", id);
-        return ResponseEntity.noContent().build();
+        log.info("Health provider deleted successfully with NIT: {}", nit);
+        return ResponseEntity.ok(deletedProvider);
     }
 
     /**
@@ -386,11 +397,11 @@ public class HealthProviderController {
     /**
      * Restaurar un proveedor de salud eliminado lógicamente
      */
-    @PatchMapping("/{id}/restore")
+    @PostMapping("/{nit}/restore")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @Operation(
             summary = "Restore a deleted health provider",
-            description = "Restores a logically deleted health provider by their ID. Restricted to SUPER_ADMIN role only.")
+            description = "Restores a logically deleted health provider by their NIT. Restricted to SUPER_ADMIN role only.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Health provider restored successfully"),
             @ApiResponse(responseCode = "404", description = "Health provider not found"),
@@ -398,13 +409,16 @@ public class HealthProviderController {
             @ApiResponse(responseCode = "403", description = "Insufficient permissions - requires SUPER_ADMIN")
     })
     public ResponseEntity<HealthProvider> restoreHealthProvider(
-            @PathVariable @NotNull @Positive(message = "ID must be positive") Long id) {
+            @PathVariable
+            @NotNull(message = "El NIT no puede ser nulo")
+            @Pattern(regexp = "^\\d{9,10}$|^\\d{9,10}-\\d{1}$", message = "El NIT debe tener un formato válido.")
+            String nit) {
 
-        log.info("Restoring health provider with ID: {}", id);
+        log.info("Restoring health provider with NIT: {}", nit);
 
-        HealthProvider restoredProvider = statusHealthProviderService.restoreHealthProvider(id);
+        HealthProvider restoredProvider = statusHealthProviderService.restoreHealthProvider(nit);
 
-        log.info("Health provider restored successfully with ID: {}", id);
+        log.info("Health provider restored successfully with NIT: {}", nit);
         return ResponseEntity.ok(restoredProvider);
     }
 
