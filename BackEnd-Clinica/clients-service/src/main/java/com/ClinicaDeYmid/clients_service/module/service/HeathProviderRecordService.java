@@ -14,7 +14,6 @@ import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderDataAcces
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +40,6 @@ public class HeathProviderRecordService {
     }
 
     @Transactional
-    @CacheEvict(value = "health_provider_cache", allEntries = true)
     public HealthProvider createHealthProvider(CreateHealthProviderDto createDto) {
 
         log.info("Iniciando creación de proveedor de salud con NIT: {}",
