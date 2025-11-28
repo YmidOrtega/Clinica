@@ -29,30 +29,23 @@ public class GetHealthProviderService {
     private final HealthProviderRepository healthProviderRepository;
     private final HealthProviderMapper healthProviderMapper;
 
+    @Cacheable(value = "health-provider-entities", key = "#nit")
     @Transactional(readOnly = true)
-    @Cacheable(value = "health_provider_cache", key = "#nit", unless = "#result == null")
-    public HealthProviderResponseDto getHealthProviderByNit(String nit) {
+    public HealthProvider findEntityByNit(String nit) {
         validateNitInput(nit);
 
-        log.info("Iniciando consulta de proveedor de salud con NIT: {}", nit);
+        log.debug("🔍 Cache MISS - Consultando DB para health provider: {}", nit);
 
         try {
-            Optional<HealthProvider> healthProviderOpt = healthProviderRepository.findByNit_Value(nit);
-
-            if (healthProviderOpt.isEmpty()) {
-                log.warn("Proveedor de salud no encontrado con NIT: {}", nit);
-                throw new HealthProviderNotFoundException(nit);
-            }
-
-            HealthProvider healthProvider = healthProviderOpt.get();
+            HealthProvider healthProvider = healthProviderRepository.findByNit_Value(nit)
+                    .orElseThrow(() -> new HealthProviderNotFoundException(nit));
 
             if (!healthProvider.getActive()) {
                 log.warn("Proveedor de salud inactivo con NIT: {}", nit);
                 throw new HealthProviderNotActiveException(nit, healthProvider.getSocialReason());
             }
 
-            log.info("Proveedor de salud encontrado con NIT: {}", nit);
-            return healthProviderMapper.toResponseDto(healthProvider);
+            return healthProvider;
 
         } catch (HealthProviderNotFoundException | HealthProviderNotActiveException e) {
             throw e;
@@ -63,7 +56,15 @@ public class GetHealthProviderService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "health_providers_list_cache", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
+    public HealthProviderResponseDto getHealthProviderByNit(String nit) {
+        log.info("📦 Construyendo HealthProviderResponseDto completo para proveedor: {}", nit);
+
+        HealthProvider healthProvider = findEntityByNit(nit);
+
+        return healthProviderMapper.toResponseDto(healthProvider);
+    }
+
+    @Transactional(readOnly = true)
     public Page<HealthProviderListDto> getAllHealthProviders(Pageable pageable) {
         log.info("Iniciando consulta de todos los proveedores - Página: {}, Tamaño: {}",
                 pageable.getPageNumber(), pageable.getPageSize());
