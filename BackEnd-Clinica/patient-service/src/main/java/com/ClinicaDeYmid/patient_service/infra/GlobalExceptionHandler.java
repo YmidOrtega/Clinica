@@ -563,32 +563,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Maneja PatientSearchNoResultsException
-     */
-    @ExceptionHandler(PatientSearchNoResultsException.class)
-    public ResponseEntity<ErrorResponse> handlePatientSearchNoResults(
-            PatientSearchNoResultsException ex,
-            HttpServletRequest request) {
-
-        log.info("No results found for: {}", ex.getSearchCriteria());
-
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(ZonedDateTime.now())
-                .status(HttpStatus.NOT_FOUND.value())
-                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
-                .errorCode("PATIENT_SEARCH_NO_RESULTS")
-                .message(ex.getMessage())
-                .userMessage("La búsqueda no arrojó resultados")
-                .path(request.getRequestURI())
-                .method(request.getMethod())
-                .metadata(Map.of("searchCriteria", ex.getSearchCriteria()))
-                .traceId(generateTraceId())
-                .build();
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-    }
-
-    /**
      * Extrae el nombre del campo de una ConstraintViolation
      */
     private String getFieldName(ConstraintViolation<?> violation) {
