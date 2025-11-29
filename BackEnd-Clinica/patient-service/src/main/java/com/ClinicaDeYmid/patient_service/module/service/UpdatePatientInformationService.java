@@ -29,7 +29,7 @@ public class UpdatePatientInformationService {
     @Transactional
     public PatientResponseDto updatePatientInformation(UpdatePatientDto updatePatientDto, String identification) {
         log.info("Updating patient with identification: {}", identification);
-        log.debug("🗑️ Invalidando cache para patient: {}", identification);
+        log.debug("Invalidando cache para patient: {}", identification);
 
         try {
             Patient patient = patientRepository.findByIdentificationNumber(identification)
