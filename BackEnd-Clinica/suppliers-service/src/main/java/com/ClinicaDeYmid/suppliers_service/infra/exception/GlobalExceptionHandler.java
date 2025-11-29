@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.suppliers_service.infra;
+package com.ClinicaDeYmid.suppliers_service.infra.exception;
 
 import com.ClinicaDeYmid.suppliers_service.infra.exception.ErrorResponse;
 import com.ClinicaDeYmid.suppliers_service.module.service.validation.ValidationException;

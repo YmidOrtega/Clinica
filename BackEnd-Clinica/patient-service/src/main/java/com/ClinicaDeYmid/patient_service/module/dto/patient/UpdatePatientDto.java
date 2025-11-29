@@ -46,6 +46,9 @@ public record UpdatePatientDto(
         @Schema(description = "Affiliation number", example = "AFF-0001")
         String affiliationNumber,
 
+        @Schema(description = "NIT (Tax Identification Number) of the healthcare provider associated with the patient.", example = "123456789")
+        String healthProviderNit,
+
         @Schema(description = "Health policy ID", example = "HPI-12345")
         String healthPolicyId,
 
