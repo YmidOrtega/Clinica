@@ -64,7 +64,6 @@ public interface PatientMapper {
             @Mapping(target = "createdAt", ignore = true),
             @Mapping(target = "updatedAt", expression = "java(LocalDateTime.now())"),
             @Mapping(target = "status", ignore = true),
-            @Mapping(target = "healthProviderNit", ignore = true),
             @Mapping(target = "healthProviderNitDto", ignore = true),
             @Mapping(target = "placeOfBirth", ignore = true),
             @Mapping(target = "placeOfIssuance", ignore = true),
