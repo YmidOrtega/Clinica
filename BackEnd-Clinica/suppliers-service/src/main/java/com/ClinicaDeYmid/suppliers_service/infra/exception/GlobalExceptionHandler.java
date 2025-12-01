@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.suppliers_service.infra.exception;
 import com.ClinicaDeYmid.suppliers_service.infra.exception.ErrorResponse;
 import com.ClinicaDeYmid.suppliers_service.module.service.validation.ValidationException;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -12,10 +13,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -23,21 +24,35 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     /**
+     * Genera un ID único de rastreo para cada solicitud
+     */
+    private String generateTraceId() {
+        return UUID.randomUUID().toString();
+    }
+
+    // ========== ERRORES DE VALIDACIÓN ==========
+
+    /**
      * Maneja errores de validación personalizada
      */
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
-            ValidationException ex, WebRequest request) {
+            ValidationException ex,
+            HttpServletRequest request) {
 
-        log.warn("Validation error: {}", ex.getMessage());
+        log.warn("Validation error: {} - Path: {}", ex.getMessage(), request.getRequestURI());
 
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Error")
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("VALIDATION_ERROR")
                 .message(ex.getMessage())
+                .userMessage("Error de validación en los datos proporcionados")
                 .errors(ex.getErrors())
-                .path(request.getDescription(false).replace("uri=", ""))
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
                 .build();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
@@ -48,9 +63,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(
-            MethodArgumentNotValidException ex, WebRequest request) {
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
 
-        log.warn("Method argument validation error: {}", ex.getMessage());
+        log.warn("Method argument validation error - Path: {} {}", request.getMethod(), request.getRequestURI());
 
         List<String> errors = ex.getBindingResult()
                 .getAllErrors()
@@ -65,10 +81,14 @@ public class GlobalExceptionHandler {
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Error")
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("BEAN_VALIDATION_ERROR")
                 .message("Uno o más campos contienen errores de validación")
+                .userMessage("Los datos enviados no son válidos")
                 .errors(errors)
-                .path(request.getDescription(false).replace("uri=", ""))
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
                 .build();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
@@ -79,9 +99,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
-            ConstraintViolationException ex, WebRequest request) {
+            ConstraintViolationException ex,
+            HttpServletRequest request) {
 
-        log.warn("Constraint violation: {}", ex.getMessage());
+        log.warn("Constraint violation - Path: {} {}", request.getMethod(), request.getRequestURI());
 
         List<String> errors = ex.getConstraintViolations()
                 .stream()
@@ -91,50 +112,68 @@ public class GlobalExceptionHandler {
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
-                .error("Constraint Violation")
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("CONSTRAINT_VIOLATION")
                 .message("Violación de restricciones de validación")
+                .userMessage("Los datos no cumplen con las restricciones requeridas")
                 .errors(errors)
-                .path(request.getDescription(false).replace("uri=", ""))
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
                 .build();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
+
+    // ========== ERRORES DE ENTIDAD ==========
 
     /**
      * Maneja errores de entidad no encontrada
      */
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleEntityNotFound(
-            EntityNotFoundException ex, WebRequest request) {
+            EntityNotFoundException ex,
+            HttpServletRequest request) {
 
-        log.warn("Entity not found: {}", ex.getMessage());
+        log.warn("Entity not found: {} - Path: {}", ex.getMessage(), request.getRequestURI());
 
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.NOT_FOUND.value())
-                .error("Not Found")
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .errorCode("ENTITY_NOT_FOUND")
                 .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
+                .userMessage("El recurso solicitado no fue encontrado")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
                 .build();
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
+
+    // ========== ERRORES DE LÓGICA DE NEGOCIO ==========
 
     /**
      * Maneja errores de estado ilegal (lógica de negocio)
      */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(
-            IllegalStateException ex, WebRequest request) {
+            IllegalStateException ex,
+            HttpServletRequest request) {
 
-        log.warn("Illegal state: {}", ex.getMessage());
+        log.warn("Illegal state: {} - Path: {}", ex.getMessage(), request.getRequestURI());
 
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.CONFLICT.value())
-                .error("Conflict")
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .errorCode("ILLEGAL_STATE")
                 .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
+                .userMessage("Operación no permitida en el estado actual del recurso")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
                 .build();
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
@@ -145,36 +184,49 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(
-            IllegalArgumentException ex, WebRequest request) {
+            IllegalArgumentException ex,
+            HttpServletRequest request) {
 
-        log.warn("Illegal argument: {}", ex.getMessage());
+        log.warn("Illegal argument: {} - Path: {}", ex.getMessage(), request.getRequestURI());
 
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("ILLEGAL_ARGUMENT")
                 .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
+                .userMessage("Argumento inválido en la solicitud")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
                 .build();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
+
+    // ========== ERRORES GENERALES ==========
 
     /**
      * Maneja cualquier otra excepción no capturada
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
-            Exception ex, WebRequest request) {
+            Exception ex,
+            HttpServletRequest request) {
 
-        log.error("Unexpected error occurred", ex);
+        log.error("Unexpected error occurred - Path: {} {} - Error: {}",
+                  request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
 
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
+                .error(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
+                .errorCode("UNEXPECTED_ERROR")
                 .message("Ha ocurrido un error inesperado. Por favor contacte al administrador.")
-                .path(request.getDescription(false).replace("uri=", ""))
+                .userMessage("Error inesperado en el servidor. Por favor, intenta nuevamente.")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
                 .build();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
