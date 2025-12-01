@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.ai_assistant_service.feignclient;
+package com.ClinicaDeYmid.ai_assistant_service.module.feignclient;
 
 public class AttentionClient {
 
