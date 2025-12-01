@@ -1,6 +1,6 @@
-package com.ClinicaDeYmid.ai_assistant_service.service;
+package com.ClinicaDeYmid.ai_assistant_service.module.service;
 
-import com.ClinicaDeYmid.ai_assistant_service.dto.ChatResponse;
+import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.beans.factory.annotation.Value;
