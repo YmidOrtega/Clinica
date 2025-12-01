@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.auth_service.module.user.service;
 
-import com.ClinicaDeYmid.auth_service.infra.exceptions.UserNotFoundException;
 import com.ClinicaDeYmid.auth_service.module.user.dto.RoleDTO;
 import com.ClinicaDeYmid.auth_service.module.user.dto.UserRequestDTO;
 import com.ClinicaDeYmid.auth_service.module.user.dto.UserResponseDTO;

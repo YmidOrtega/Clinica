@@ -58,30 +58,180 @@ public class GlobalExceptionHandler {
      * Determina el HttpStatus basado en el tipo de excepción
      */
     private HttpStatus determineHttpStatus(HealthProviderException ex) {
+        // Conflictos (409)
         if (ex instanceof DuplicateHealthProviderNitException ||
                 ex instanceof DuplicateContractNumberException ||
-                ex instanceof UpdateHealthProviderNitConflictException) {
+                ex instanceof UpdateHealthProviderNitConflictException ||
+                ex instanceof HealthProviderAlreadyActiveException ||
+                ex instanceof HealthProviderAlreadyInactiveException ||
+                ex instanceof HealthProviderWithActiveContractsException ||
+                ex instanceof HealthProviderDeletionRestrictedException) {
             return HttpStatus.CONFLICT;
         }
+
+        // No encontrado (404)
         if (ex instanceof HealthProviderNotFoundException ||
-                ex instanceof HealthProviderNotFoundForStatusException) {
+                ex instanceof HealthProviderNotFoundForStatusException ||
+                ex instanceof NoHealthProvidersFoundException) {
             return HttpStatus.NOT_FOUND;
         }
+
+        // Bad Request (400)
         if (ex instanceof HealthProviderValidationException ||
                 ex instanceof HealthProviderNotActiveException) {
             return HttpStatus.BAD_REQUEST;
         }
-        if (ex instanceof HealthProviderAlreadyActiveException ||
-                ex instanceof HealthProviderAlreadyInactiveException) {
-            return HttpStatus.CONFLICT;
-        }
-        if (ex instanceof HealthProviderDeletionRestrictedException) {
-            return HttpStatus.CONFLICT;
-        }
+
+        // Errores de servidor (500/503)
         if (ex instanceof HealthProviderDataAccessException) {
-            return HttpStatus.INTERNAL_SERVER_ERROR;
+            return HttpStatus.SERVICE_UNAVAILABLE;
         }
+
         return HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+
+    /**
+     * Maneja ContractNotFoundException
+     */
+    @ExceptionHandler(ContractNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleContractNotFound(
+            ContractNotFoundException ex, HttpServletRequest request) {
+
+        log.warn("Contract not found: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .errorCode("CONTRACT_NOT_FOUND")
+                .message(ex.getMessage())
+                .userMessage("El contrato solicitado no fue encontrado")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    /**
+     * Maneja ContractValidationException
+     */
+    @ExceptionHandler(ContractValidationException.class)
+    public ResponseEntity<ErrorResponse> handleContractValidation(
+            ContractValidationException ex, HttpServletRequest request) {
+
+        log.warn("Contract validation error: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .errorCode("CONTRACT_VALIDATION_ERROR")
+                .message(ex.getMessage())
+                .userMessage("Error de validación en los datos del contrato")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    /**
+     * Maneja ContractAlreadyActiveException
+     */
+    @ExceptionHandler(ContractAlreadyActiveException.class)
+    public ResponseEntity<ErrorResponse> handleContractAlreadyActive(
+            ContractAlreadyActiveException ex, HttpServletRequest request) {
+
+        log.warn("Contract already active: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflict")
+                .errorCode("CONTRACT_ALREADY_ACTIVE")
+                .message(ex.getMessage())
+                .userMessage("El contrato ya se encuentra activo")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    /**
+     * Maneja ContractAlreadyInactiveException
+     */
+    @ExceptionHandler(ContractAlreadyInactiveException.class)
+    public ResponseEntity<ErrorResponse> handleContractAlreadyInactive(
+            ContractAlreadyInactiveException ex, HttpServletRequest request) {
+
+        log.warn("Contract already inactive: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflict")
+                .errorCode("CONTRACT_ALREADY_INACTIVE")
+                .message(ex.getMessage())
+                .userMessage("El contrato ya se encuentra inactivo")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    /**
+     * Maneja ContractDeletionRestrictedException
+     */
+    @ExceptionHandler(ContractDeletionRestrictedException.class)
+    public ResponseEntity<ErrorResponse> handleContractDeletionRestricted(
+            ContractDeletionRestrictedException ex, HttpServletRequest request) {
+
+        log.warn("Contract deletion restricted: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
+                .errorCode("CONTRACT_DELETION_RESTRICTED")
+                .message(ex.getMessage())
+                .userMessage("No se puede eliminar el contrato debido a restricciones de negocio")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    /**
+     * Maneja ContractDataAccessException
+     */
+    @ExceptionHandler(ContractDataAccessException.class)
+    public ResponseEntity<ErrorResponse> handleContractDataAccess(
+            ContractDataAccessException ex, HttpServletRequest request) {
+
+        log.error("Contract data access error: {}", ex.getMessage(), ex);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .error("Service Unavailable")
+                .errorCode("CONTRACT_DATA_ACCESS_ERROR")
+                .message("Error al acceder a los datos del contrato")
+                .userMessage("No se pudo procesar la solicitud. Por favor intente nuevamente")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
     }
 
     /**
