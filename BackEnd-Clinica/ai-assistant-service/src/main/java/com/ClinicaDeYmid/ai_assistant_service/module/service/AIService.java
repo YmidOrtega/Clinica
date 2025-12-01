@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.ai_assistant_service.module.service;
 
-import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatResponse;
+import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatResponseDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,7 +32,7 @@ public class AIService {
     /**
      * Procesa un mensaje del usuario y genera respuesta usando Gemini
      */
-    public ChatResponse chat(String userId, String message, String userName) {
+    public ChatResponseDto chat(String userId, String message, String userName) {
         try {
             log.info("Processing chat request for user: {} (ID: {})", userName, userId);
 
@@ -49,7 +49,7 @@ public class AIService {
                     .content();
 
             log.info("Chat response generated successfully for user: {}", userId);
-            return new ChatResponse(userId, response);
+            return new ChatResponseDto(userId, response);
 
         } catch (Exception e) {
             log.error("Error processing chat request for user {}: {}", userId, e.getMessage(), e);
