@@ -1,67 +1,126 @@
 package com.ClinicaDeYmid.ai_assistant_service.module.service;
 
-import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatResponseDto;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.Charset;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
 public class AIService {
 
     @Value("classpath:/prompts/prompt-text.st")
-    private Resource promptText;
+    private Resource promptResource;
 
     private final ChatClient chatClient;
-    private final ChatMemory chatMemory;
 
-    public AIService(ChatClient.Builder chatBuilder, ChatMemory chatMemory) {
-        this.chatMemory = chatMemory;
-        this.chatClient = chatBuilder
-                .defaultAdvisors(
-                        new SimpleLoggerAdvisor(),
-                        new PromptChatMemoryAdvisor(chatMemory)
-                )
-                .build();
+    public AIService(ChatClient.Builder chatBuilder) {
+        this.chatClient = chatBuilder.build();
     }
 
     /**
-     * Procesa un mensaje del usuario y genera respuesta usando Gemini
+     * Genera respuesta usando Gemini con contexto de conversación
      */
-    public ChatResponseDto chat(String userId, String message, String userName) {
+    public String generateResponse(String userMessage,
+                                   String username,
+                                   List<String> conversationHistory,
+                                   Map<String, Object> context) {
         try {
-            log.info("Processing chat request for user: {} (ID: {})", userName, userId);
+            log.debug("Generating response for user: {}", username);
 
-            String prompt = promptText.getContentAsString(Charset.defaultCharset());
+            // Cargar el prompt del sistema
+            String systemPromptTemplate = loadPromptTemplate();
 
-            String response = chatClient
-                    .prompt()
-                    .user(userSpec ->
-                            userSpec.text(prompt)
-                                    .param("message", message)
-                                    .param("userName", userName)
-                                    .param("userId", userId))
+            // Construir el prompt con contexto
+            String systemPrompt = buildSystemPrompt(systemPromptTemplate, username, context);
+
+            // Construir lista de mensajes con historial
+            List<Message> messages = buildMessageList(systemPrompt, conversationHistory, userMessage);
+
+            // Crear prompt con todos los mensajes
+            Prompt prompt = new Prompt(messages);
+
+            // Llamar a Gemini
+            String response = chatClient.prompt(prompt)
                     .call()
                     .content();
 
-            log.info("Chat response generated successfully for user: {}", userId);
-            return new ChatResponseDto(userId, response);
+            log.debug("Successfully generated response for user: {}", username);
+            return response;
 
+        } catch (IOException e) {
+            log.error("Error loading prompt template: {}", e.getMessage(), e);
+            throw new RuntimeException("Error loading AI prompt template", e);
         } catch (Exception e) {
-            log.error("Error processing chat request for user {}: {}", userId, e.getMessage(), e);
-            throw new RuntimeException("Error al procesar el mensaje con Gemini AI", e);
+            log.error("Error generating AI response for user {}: {}", username, e.getMessage(), e);
+            throw new RuntimeException("Error generating AI response", e);
         }
     }
 
     /**
-     * Limpia la memoria de conversación de un usuario
+     * Carga el template del prompt desde recursos
      */
-    public void clearMemory(String userId) {
-        log.info("Clearing chat memory for user: {}", userId);
-        chatMemory.clear(userId);
+    private String loadPromptTemplate() throws IOException {
+        return promptResource.getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Construye el prompt del sistema con variables
+     */
+    private String buildSystemPrompt(String template, String username, Map<String, Object> context) {
+        String prompt = template.replace("{username}", username);
+
+        // Reemplazar otras variables del contexto
+        if (context != null) {
+            for (Map.Entry<String, Object> entry : context.entrySet()) {
+                String placeholder = "{" + entry.getKey() + "}";
+                String value = entry.getValue() != null ? entry.getValue().toString() : "";
+                prompt = prompt.replace(placeholder, value);
+            }
+        }
+
+        return prompt;
+    }
+
+    /**
+     * Construye la lista de mensajes con historial
+     */
+    private List<Message> buildMessageList(String systemPrompt,
+                                           List<String> conversationHistory,
+                                           String currentUserMessage) {
+        List<Message> messages = new ArrayList<>();
+
+        // Agregar mensaje del sistema
+        messages.add(new SystemMessage(systemPrompt));
+
+        // Agregar historial (alternando USER/ASSISTANT)
+        if (conversationHistory != null && !conversationHistory.isEmpty()) {
+            for (int i = 0; i < conversationHistory.size(); i++) {
+                String content = conversationHistory.get(i);
+                if (i % 2 == 0) {
+                    // Mensajes pares son del usuario
+                    messages.add(new UserMessage(content));
+                } else {
+                    // Mensajes impares son del asistente
+                    messages.add(new SystemMessage("Previous assistant response: " + content));
+                }
+            }
+        }
+
+        // Agregar mensaje actual del usuario
+        messages.add(new UserMessage(currentUserMessage));
+
+        return messages;
     }
 }
