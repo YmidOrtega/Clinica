@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clients_service.infra;
+package com.ClinicaDeYmid.clients_service.infra.exception;
 
 import com.ClinicaDeYmid.clients_service.infra.exception.*;
 import jakarta.persistence.EntityNotFoundException;
