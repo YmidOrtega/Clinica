@@ -106,7 +106,11 @@
 			<groupId>jakarta.validation</groupId>
 			<artifactId>jakarta.validation-api</artifactId>
 		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-annotations</artifactId>
+        </dependency>
+    </dependencies>
 
 	<build>
 		<plugins>
