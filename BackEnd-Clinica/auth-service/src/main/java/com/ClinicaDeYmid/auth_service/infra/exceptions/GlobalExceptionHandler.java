@@ -1,6 +1,5 @@
-package com.ClinicaDeYmid.auth_service.infra;
+package com.ClinicaDeYmid.auth_service.infra.exceptions;
 
-import com.ClinicaDeYmid.auth_service.infra.exceptions.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -26,7 +25,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
-public class ErrorHandler {
+public class GlobalExceptionHandler {
 
     public record ErrorResponse(
             LocalDateTime timestamp,

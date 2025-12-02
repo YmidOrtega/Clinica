@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.patient_service.infra;
+package com.ClinicaDeYmid.patient_service.infra.exception;
 
 import com.ClinicaDeYmid.patient_service.infra.exception.*;
 import com.ClinicaDeYmid.patient_service.infra.exception.base.BaseException;
