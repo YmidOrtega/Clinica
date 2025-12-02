@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.ai_assistant_service.infra.security;
 
-import com.ClinicaDeYmid.admissions_service.infra.security.CustomUserDetails;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
