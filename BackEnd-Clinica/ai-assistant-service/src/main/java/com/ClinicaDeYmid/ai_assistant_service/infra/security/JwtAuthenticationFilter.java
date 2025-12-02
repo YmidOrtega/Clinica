@@ -34,7 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = extractJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-                
+
                 // Verificar que sea un access token
                 if (!jwtTokenProvider.isAccessToken(jwt)) {
                     log.warn("Token recibido no es un access token");
@@ -68,7 +68,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         );
 
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                
+
                 // Establecer en SecurityContext
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -81,14 +81,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
-
-    /**
-     * Extrae el JWT del header Authorization.
-     * Espera el formato: "Bearer {token}"
-     *
-     * @param request HttpServletRequest
-     * @return JWT extraído o null si no existe
-     */
+    
     private String extractJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
 
