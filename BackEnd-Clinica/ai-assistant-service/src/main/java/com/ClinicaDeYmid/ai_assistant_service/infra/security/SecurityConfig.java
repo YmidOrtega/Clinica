@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.ai_assistant_service.infra.security;
 
-import com.ClinicaDeYmid.admissions_service.infra.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

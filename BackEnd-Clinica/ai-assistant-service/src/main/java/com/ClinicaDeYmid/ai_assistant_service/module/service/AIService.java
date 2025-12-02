@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.ai_assistant_service.module.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
@@ -18,16 +19,13 @@ import java.util.Map;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class AIService {
 
     @Value("classpath:/prompts/prompt-text.st")
     private Resource promptResource;
 
-    private final ChatClient chatClient;
-
-    public AIService(ChatClient.Builder chatBuilder) {
-        this.chatClient = chatBuilder.build();
-    }
+    private final ChatClient.Builder chatClientBuilder;
 
     /**
      * Genera respuesta usando Gemini con contexto de conversación
@@ -51,7 +49,8 @@ public class AIService {
             // Crear prompt con todos los mensajes
             Prompt prompt = new Prompt(messages);
 
-            // Llamar a Gemini
+            // Construir ChatClient y llamar a Gemini
+            ChatClient chatClient = chatClientBuilder.build();
             String response = chatClient.prompt(prompt)
                     .call()
                     .content();
@@ -68,20 +67,13 @@ public class AIService {
         }
     }
 
-    /**
-     * Carga el template del prompt desde recursos
-     */
     private String loadPromptTemplate() throws IOException {
         return promptResource.getContentAsString(StandardCharsets.UTF_8);
     }
 
-    /**
-     * Construye el prompt del sistema con variables
-     */
     private String buildSystemPrompt(String template, String username, Map<String, Object> context) {
         String prompt = template.replace("{username}", username);
 
-        // Reemplazar otras variables del contexto
         if (context != null) {
             for (Map.Entry<String, Object> entry : context.entrySet()) {
                 String placeholder = "{" + entry.getKey() + "}";
@@ -93,32 +85,24 @@ public class AIService {
         return prompt;
     }
 
-    /**
-     * Construye la lista de mensajes con historial
-     */
     private List<Message> buildMessageList(String systemPrompt,
                                            List<String> conversationHistory,
                                            String currentUserMessage) {
         List<Message> messages = new ArrayList<>();
 
-        // Agregar mensaje del sistema
         messages.add(new SystemMessage(systemPrompt));
 
-        // Agregar historial (alternando USER/ASSISTANT)
         if (conversationHistory != null && !conversationHistory.isEmpty()) {
             for (int i = 0; i < conversationHistory.size(); i++) {
                 String content = conversationHistory.get(i);
                 if (i % 2 == 0) {
-                    // Mensajes pares son del usuario
                     messages.add(new UserMessage(content));
                 } else {
-                    // Mensajes impares son del asistente
                     messages.add(new SystemMessage("Previous assistant response: " + content));
                 }
             }
         }
 
-        // Agregar mensaje actual del usuario
         messages.add(new UserMessage(currentUserMessage));
 
         return messages;
