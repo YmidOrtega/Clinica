@@ -68,7 +68,7 @@ public class AttentionRecordService {
 
         validateExternalDependencies(requestDto);
 
-        ConfigurationService configService = configurationServiceRepository.findById(requestDto.configurationServiceId())
+        ConfigurationService configService = configurationServiceRepository.findByIdWithRelations(requestDto.configurationServiceId())
                 .orElseThrow(() -> new EntityNotFoundException(MSG_CONFIG_SERVICE_NOT_FOUND + requestDto.configurationServiceId()));
 
         Attention attention = attentionMapper.toEntity(requestDto);
@@ -128,7 +128,7 @@ public class AttentionRecordService {
         validateExternalDependencies(request);
 
         // Validar ConfigurationService
-        ConfigurationService configService = configurationServiceRepository.findById(request.configurationServiceId())
+        ConfigurationService configService = configurationServiceRepository.findByIdWithRelations(request.configurationServiceId())
                 .orElseThrow(() -> new EntityNotFoundException(MSG_CONFIG_SERVICE_NOT_FOUND + request.configurationServiceId()));
 
         // Actualizar la entidad
