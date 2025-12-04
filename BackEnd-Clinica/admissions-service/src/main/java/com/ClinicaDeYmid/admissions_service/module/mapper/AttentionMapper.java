@@ -94,11 +94,17 @@ public interface AttentionMapper {
         }
 
         String careTypeName = null;
-        if (configService.getServiceType() != null && configService.getServiceType().getCareTypes() != null) {
-            careTypeName = configService.getServiceType().getCareTypes().stream()
-                    .findFirst()
-                    .map(CareType::getName)
-                    .orElse(null);
+        try {
+            if (configService.getServiceType() != null && configService.getServiceType().getCareTypes() != null) {
+                // Create a defensive copy and synchronize access
+                List<CareType> careTypes = new java.util.ArrayList<>(configService.getServiceType().getCareTypes());
+                careTypeName = careTypes.stream()
+                        .findFirst()
+                        .map(CareType::getName)
+                        .orElse(null);
+            }
+        } catch (Exception e) {
+            careTypeName = null;
         }
 
         String serviceTypeName = configService.getServiceType() != null ? configService.getServiceType().getName() : null;
@@ -141,10 +147,14 @@ public interface AttentionMapper {
         if (serviceType == null) {
             return null;
         }
+        CareTypeDto careTypeDto = null;
+        if (serviceType.getCareTypes() != null && !serviceType.getCareTypes().isEmpty()) {
+            careTypeDto = toCareTypeDto(new java.util.ArrayList<>(serviceType.getCareTypes()).iterator().next());
+        }
         return new ServiceTypeDto(
                 serviceType.getId(),
                 serviceType.getName(),
-                toCareTypeDto(serviceType.getCareTypes().iterator().next()),
+                careTypeDto,
                 serviceType.isActive()
         );
     }
@@ -168,16 +178,22 @@ public interface AttentionMapper {
             serviceName.append(configService.getServiceType().getName());
         }
 
-        if (configService.getServiceType() != null &&
-                configService.getServiceType().getCareTypes() != null &&
-                !configService.getServiceType().getCareTypes().isEmpty()) {
-            String careTypeName = configService.getServiceType().getCareTypes().stream()
-                    .findFirst()
-                    .map(CareType::getName)
-                    .orElse(null);
-            if (careTypeName != null) {
-                serviceName.append(" - ").append(careTypeName);
+        try {
+            if (configService.getServiceType() != null &&
+                    configService.getServiceType().getCareTypes() != null &&
+                    !configService.getServiceType().getCareTypes().isEmpty()) {
+                // Create a defensive copy and synchronize access
+                List<CareType> careTypes = new java.util.ArrayList<>(configService.getServiceType().getCareTypes());
+                String careTypeName = careTypes.stream()
+                        .findFirst()
+                        .map(CareType::getName)
+                        .orElse(null);
+                if (careTypeName != null) {
+                    serviceName.append(" - ").append(careTypeName);
+                }
             }
+        } catch (Exception e) {
+            // Ignore if care types cannot be loaded
         }
 
         if (configService.getLocation() != null) {
