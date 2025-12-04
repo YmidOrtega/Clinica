@@ -97,7 +97,8 @@ public class AttentionStatusService {
 
         Long currentUserId = UserContextHolder.getCurrentUserId();
         if (currentUserId == null) {
-            throw new ValidationException("User context not available for soft delete operation");
+            log.warn("User context not available for soft delete operation, using default user ID");
+            currentUserId = 0L; // Use default value when context is not available
         }
 
         attention.softDelete(currentUserId, reason);

@@ -162,7 +162,6 @@ public class AttentionController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
-    @CircuitBreaker(name = "admissions-service", fallbackMethod = "searchAttentionsFallback")
     @Operation(summary = "Search attentions", description = "Search and filter attentions with pagination. Accessible by SUPER_ADMIN, ADMIN, and RECEPTIONIST roles.")
     public ResponseEntity<PagedModel<EntityModel<AttentionResponseDto>>> searchAttentions(
             @Valid AttentionSearchRequest searchRequest,
