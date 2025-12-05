@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.patient_service.infra.exception;
 
-import com.ClinicaDeYmid.patient_service.infra.exception.*;
 import com.ClinicaDeYmid.patient_service.infra.exception.base.BaseException;
 import com.ClinicaDeYmid.patient_service.infra.exception.base.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,6 +48,194 @@ public class GlobalExceptionHandler {
                 .method(request.getMethod())
                 .operation(ex.getOperation())
                 .metadata(buildMetadata(ex))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Maneja PatientNotFoundException
+     */
+    @ExceptionHandler(PatientNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePatientNotFound(
+            PatientNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Patient not found: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .errorCode("PATIENT_NOT_FOUND")
+                .message(ex.getMessage())
+                .userMessage("No se encontró el paciente solicitado")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of("identificationNumber", ex.getIdentificationNumber()))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Maneja PatientNotActiveException
+     */
+    @ExceptionHandler(PatientNotActiveException.class)
+    public ResponseEntity<ErrorResponse> handlePatientNotActive(
+            PatientNotActiveException ex,
+            HttpServletRequest request) {
+
+        log.warn("Patient not active: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error(HttpStatus.FORBIDDEN.getReasonPhrase())
+                .errorCode("PATIENT_NOT_ACTIVE")
+                .message(ex.getMessage())
+                .userMessage("El paciente no se encuentra activo en el sistema")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of("status", ex.getStatus()))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    /**
+     * Maneja PatientAlreadyExistsException
+     */
+    @ExceptionHandler(PatientAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handlePatientAlreadyExists(
+            PatientAlreadyExistsException ex,
+            HttpServletRequest request) {
+
+        log.warn("Patient already exists: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .errorCode("PATIENT_ALREADY_EXISTS")
+                .message(ex.getMessage())
+                .userMessage("Ya existe un paciente con esa identificación")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of("identificationNumber", ex.getIdentificationNumber()))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    /**
+     * Maneja InvalidSearchParametersException
+     */
+    @ExceptionHandler(InvalidSearchParametersException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSearchParameters(
+            InvalidSearchParametersException ex,
+            HttpServletRequest request) {
+
+        log.warn("Invalid search parameters: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("INVALID_SEARCH_PARAMETERS")
+                .message(ex.getMessage())
+                .userMessage("Los parámetros de búsqueda no son válidos")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of(
+                        "parameter", ex.getParameter(),
+                        "value", ex.getValue()
+                ))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Maneja InvalidPatientUpdateException
+     */
+    @ExceptionHandler(InvalidPatientUpdateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPatientUpdate(
+            InvalidPatientUpdateException ex,
+            HttpServletRequest request) {
+
+        log.warn("Invalid patient update: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .errorCode("INVALID_PATIENT_UPDATE")
+                .message(ex.getMessage())
+                .userMessage("No se pudo actualizar la información del paciente")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of(
+                        "field", ex.getField(),
+                        "reason", ex.getReason()
+                ))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Maneja PatientDataAccessException
+     */
+    @ExceptionHandler(PatientDataAccessException.class)
+    public ResponseEntity<ErrorResponse> handlePatientDataAccess(
+            PatientDataAccessException ex,
+            HttpServletRequest request) {
+
+        log.error("Patient data access error: {}", ex.getMessage(), ex.getCause());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .error(HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase())
+                .errorCode("PATIENT_DATA_ACCESS_ERROR")
+                .message(ex.getMessage())
+                .userMessage("Error temporal de acceso a datos, intente más tarde")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of("operation", ex.getOperation()))
+                .traceId(generateTraceId())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+    }
+
+    /**
+     * Maneja PatientSearchNoResultsException
+     */
+    @ExceptionHandler(PatientSearchNoResultsException.class)
+    public ResponseEntity<ErrorResponse> handlePatientSearchNoResults(
+            PatientSearchNoResultsException ex,
+            HttpServletRequest request) {
+
+        log.info("Patient search no results: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(ZonedDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .errorCode("PATIENT_SEARCH_NO_RESULTS")
+                .message(ex.getMessage())
+                .userMessage("No se encontraron pacientes con los criterios proporcionados")
+                .path(request.getRequestURI())
+                .method(request.getMethod())
+                .metadata(Map.of("searchCriteria", ex.getSearchCriteria() != null ? ex.getSearchCriteria() : "unknown"))
                 .traceId(generateTraceId())
                 .build();
 
