@@ -16,11 +16,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -179,9 +176,6 @@ class GlobalExceptionHandlerTest {
                 .anyMatch(e -> e.getField().equals("email")));
     }
 
-    // Note: MethodArgumentNotValidException is tested through integration tests
-    // as mocking MethodParameter properly is complex and requires Spring context
-
     @Test
     @DisplayName("Should handle ConstraintViolationException and return 400")
     void handleConstraintViolationException() {
@@ -249,7 +243,7 @@ class GlobalExceptionHandlerTest {
         assertEquals("CRITICAL_ALLERGY_WARNING", response.getBody().getErrorCode());
         assertEquals(123L, response.getBody().getMetadata().get("patientId"));
         assertEquals("Penicillin", response.getBody().getMetadata().get("allergen"));
-        assertEquals("LIFE_THREATENING", response.getBody().getMetadata().get("severity"));
+        assertEquals(com.ClinicaDeYmid.patient_service.module.enums.AllergySeverity.LIFE_THREATENING, response.getBody().getMetadata().get("severity"));
     }
 
     @Test
@@ -358,6 +352,7 @@ class GlobalExceptionHandlerTest {
         assertEquals("id", response.getBody().getMetadata().get("parameterName"));
     }
 
+
     @Test
     @DisplayName("Should handle PatientSearchNoResultsException and return 404")
     void handlePatientSearchNoResultsException() {
@@ -432,4 +427,5 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody().getUserMessage());
         assertFalse(response.getBody().getUserMessage().isEmpty());
     }
+
 }
