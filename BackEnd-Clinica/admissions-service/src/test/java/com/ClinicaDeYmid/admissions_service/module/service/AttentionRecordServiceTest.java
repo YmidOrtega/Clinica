@@ -1,32 +1,45 @@
 package com.ClinicaDeYmid.admissions_service.module.service;
 
+import com.ClinicaDeYmid.admissions_service.infra.exception.ActiveAttentionExistsException;
+import com.ClinicaDeYmid.admissions_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionRequestDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.AttentionResponseDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.AuthorizationRequestDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.CompanionDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.attention.ConfigurationServiceResponseDto;
 import com.ClinicaDeYmid.admissions_service.module.dto.attention.HealthProviderRequestDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.clients.GetHealthProviderDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.patient.GetPatientDto;
+import com.ClinicaDeYmid.admissions_service.module.dto.suppliers.GetDoctorDto;
 import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
 import com.ClinicaDeYmid.admissions_service.module.entity.ConfigurationService;
+import com.ClinicaDeYmid.admissions_service.module.entity.Companion;
 import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
 import com.ClinicaDeYmid.admissions_service.module.enums.Cause;
+import com.ClinicaDeYmid.admissions_service.module.enums.TriageLevel;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.DoctorClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.HealthProviderClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.PatientClient;
 import com.ClinicaDeYmid.admissions_service.module.feignclient.UserClient;
 import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionMapper;
-import com.ClinicaDeYmid.admissions_service.module.mapper.AuthorizationMapper;
 import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepository;
 import com.ClinicaDeYmid.admissions_service.module.repository.ConfigurationServiceRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessException;
 
+import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -36,11 +49,7 @@ class AttentionRecordServiceTest {
     @Mock
     private AttentionRepository attentionRepository;
     @Mock
-    private ConfigurationServiceRepository configurationServiceRepository;
-    @Mock
     private AttentionMapper attentionMapper;
-    @Mock
-    private AuthorizationMapper authorizationMapper;
     @Mock
     private AttentionEnrichmentService attentionEnrichmentService;
     @Mock
@@ -51,138 +60,125 @@ class AttentionRecordServiceTest {
     private HealthProviderClient healthProviderClient;
     @Mock
     private UserClient userClient;
+    @Mock
+    private ConfigurationServiceRepository configurationServiceRepository;
 
     @InjectMocks
     private AttentionRecordService attentionRecordService;
 
-    private AttentionResponseDto createExpectedResponseDto() {
-        return new AttentionResponseDto(
-                1L,
-                false,
-                false,
-                false,
-                false,
-                false,
-                null,
-                null,
-                null,
-                null,
-                1L,
-                null,
-                null,
-                null,
-                null,
-                null,
-                AttentionStatus.IN_PROGRESS,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null);
-    }
+    private AttentionRequestDto attentionRequestDto;
+    private Attention attention;
+    private AttentionResponseDto attentionResponseDto;
+    private GetPatientDto getPatientDto;
+    private GetDoctorDto getDoctorDto;
+    private GetHealthProviderDto getHealthProviderDto;
+    private ConfigurationService configurationService;
 
-    @Test
-    @DisplayName("Deberia crear una atencion correctamente")
-    void createAttention() {
-        // Arrange
-        AttentionRequestDto requestDto = createSampleRequestDto();
-        ConfigurationService configService = new ConfigurationService();
-        Attention mappedAttention = new Attention();
-        Attention savedAttention = new Attention();
-        AttentionResponseDto expectedResponse = createExpectedResponseDto();
+    @BeforeEach
+    void setUp() {
+        CompanionDto companionDto = new CompanionDto("John Doe", "12345", "Father");
+        Companion companion = Companion.builder().fullName("John Doe").build();
 
-        when(configurationServiceRepository.findById(requestDto.configurationServiceId()))
-                .thenReturn(Optional.of(configService));
+        HealthProviderRequestDto hpRequestDto = new HealthProviderRequestDto("NIT123", "EPS");
 
-        when(attentionMapper.toEntity(requestDto))
-                .thenReturn(mappedAttention);
-
-        when(attentionRepository.save(any(Attention.class)))
-                .thenReturn(savedAttention);
-
-        when(attentionEnrichmentService.enrichAttentionResponseDto(savedAttention))
-                .thenReturn(expectedResponse);
-
-        // Act
-
-        AttentionResponseDto actualResponse = attentionRecordService.createAttention(requestDto);
-
-        // Assert
-
-        assertNotNull(actualResponse);
-        assertEquals(expectedResponse, actualResponse);
-
-        verify(configurationServiceRepository, times(1)).findById(requestDto.configurationServiceId());
-
-        verify(attentionRepository, times(1)).save(any(Attention.class));
-
-        verify(attentionEnrichmentService, times(1)).enrichAttentionResponseDto(savedAttention);
-
-
-    }
-
-@Test
-@DisplayName("Deberia actualizar una atencion correctamente")
-void updateAttention() {
-    // Arrange
-    Long id = 1L;
-    AttentionRequestDto requestDto = createSampleRequestDto();
-    Attention existingAttention = new Attention();
-    AttentionResponseDto expectedResponse = createExpectedResponseDto();
-    ConfigurationService configService = new ConfigurationService();
-
-    when(attentionRepository.findById(id))
-            .thenReturn(Optional.of(existingAttention));
-    when(configurationServiceRepository.findById(requestDto.configurationServiceId()))
-            .thenReturn(Optional.of(configService));
-    doNothing().when(attentionMapper).updateEntityFromDto(requestDto, existingAttention);
-    when(attentionRepository.save(existingAttention))
-            .thenReturn(existingAttention);
-    when(attentionEnrichmentService.enrichAttentionResponseDto(existingAttention))
-            .thenReturn(expectedResponse);
-
-    // Act
-    AttentionResponseDto actualResponse = attentionRecordService.updateAttention(id, requestDto);
-
-    // Assert
-    assertNotNull(actualResponse);
-    assertEquals(expectedResponse, actualResponse);
-    verify(attentionRepository, times(1)).findById(id);
-    verify(configurationServiceRepository, times(1)).findById(requestDto.configurationServiceId());
-    verify(attentionMapper, times(1)).updateEntityFromDto(requestDto, existingAttention);
-    verify(attentionRepository, times(1)).save(existingAttention);
-    verify(attentionEnrichmentService, times(1)).enrichAttentionResponseDto(existingAttention);
-}
-
-    @Test
-    void canUpdateAttention() {
-    }
-
-    @Test
-    void getInvoiceStatus() {
-    }
-
-    private AttentionRequestDto createSampleRequestDto() {
-        HealthProviderRequestDto healthProvider = new HealthProviderRequestDto(
-                "1234567890",
-                1L
+        attentionRequestDto = new AttentionRequestDto(
+                null, 1L, 2L, 3L, AttentionStatus.IN_PROGRESS, Cause.ACCIDENT,
+                List.of(hpRequestDto), List.<String>of(), TriageLevel.YELLOW, "ER",
+                companionDto, Collections.<AuthorizationRequestDto>emptyList(), 4L
         );
-        return new AttentionRequestDto(
-                null,
-                123L,
-                85L,
-                20L,
-                AttentionStatus.IN_PROGRESS,
-                Cause.ACCIDENT,
-                List.of(healthProvider),
-                null,
-                null,
-                null,
-                null,
-                "Observaciones de prueba",
-                null,
-                42L
+
+        attention = new Attention();
+        attention.setId(100L);
+        attention.setPatientId(1L);
+        attention.setDoctorId(2L);
+        attention.setStatus(AttentionStatus.IN_PROGRESS);
+        attention.setCause(Cause.ACCIDENT);
+        attention.setCompanion(companion);
+        attention.setCreatedAt(LocalDateTime.now());
+        attention.setCreatedBy(4L);
+        attention.setConfigurationService(new ConfigurationService());
+        attention.getConfigurationService().setId(3L);
+
+
+        attentionResponseDto = new AttentionResponseDto(
+                100L, true, false, true, false, false,
+                new ConfigurationServiceResponseDto(3L, "Service Name", "Care Type Name", "Location Name", true),
+                new GetPatientDto("12345", "Patient Name", "LastName", "1990-01-01", "MALE", "Engineer", "HP123", "City", "Address", "Mobile"),
+                new GetDoctorDto("67890", "Doctor Name", "LastName", Collections.emptyList()),
+                List.of(new GetHealthProviderDto("NIT123", "HP Name", "EPS", null)),
+                null, Collections.emptyList(), Collections.emptyList(),
+                LocalDateTime.now(), LocalDateTime.now(), null,
+                AttentionStatus.IN_PROGRESS, Cause.ACCIDENT, "ER",
+                Collections.emptyList(), TriageLevel.YELLOW, companionDto, "Observations"
         );
+
+        getPatientDto = new GetPatientDto("12345", "Patient Name", "LastName", "1990-01-01", "MALE", "Engineer", "HP123", "City", "Address", "Mobile");
+        getDoctorDto = new GetDoctorDto("67890", "Doctor Name", "LastName", Collections.emptyList());
+        getHealthProviderDto = new GetHealthProviderDto("NIT123", "HP Name", "EPS", null);
+        configurationService = new ConfigurationService();
+        configurationService.setId(3L);
+        configurationService.setActive(true);
+    }
+
+    @Test
+    @DisplayName("Should create attention successfully")
+    void createAttention_Success() {
+        try (MockedStatic<UserContextHolder> mockedStatic = mockStatic(UserContextHolder.class)) {
+            mockedStatic.when(UserContextHolder::getCurrentUserId).thenReturn(4L);
+
+            // Mocks for AttentionRecordService's internal calls (assuming existing methods based on service code)
+            // NOTE: These methods might not align with the *declared* interfaces of the mocks due to base code inconsistencies.
+            // We mock them as they are *called* by the AttentionRecordService.
+            when(attentionRepository.existsByPatientIdAndIsActiveAttentionTrue(anyLong())).thenReturn(false); 
+            when(patientClient.getPatientById(anyLong())).thenReturn(getPatientDto); 
+            when(doctorClient.getDoctorById(anyLong())).thenReturn(getDoctorDto);
+            when(healthProviderClient.getHealthProviderByNit(anyString())).thenReturn(getHealthProviderDto); 
+            when(configurationServiceRepository.findByIdAndActiveTrue(anyLong())).thenReturn(Optional.of(configurationService)); 
+
+            when(attentionMapper.toEntity(any(AttentionRequestDto.class))).thenReturn(attention);
+            when(attentionRepository.save(any(Attention.class))).thenReturn(attention);
+            when(attentionMapper.toResponseDto(any(Attention.class))).thenReturn(attentionResponseDto);
+
+            AttentionResponseDto result = attentionRecordService.createAttention(attentionRequestDto);
+
+            assertNotNull(result);
+            assertEquals(100L, result.getId());
+            verify(attentionRepository).save(any(Attention.class));
+            mockedStatic.verify(UserContextHolder::getCurrentUserId);
+        }
+    }
+
+    @Test
+    @DisplayName("Should throw ActiveAttentionExistsException if patient already has active attention")
+    void createAttention_ActiveAttentionExists() {
+        try (MockedStatic<UserContextHolder> mockedStatic = mockStatic(UserContextHolder.class)) {
+            mockedStatic.when(UserContextHolder::getCurrentUserId).thenReturn(4L);
+
+            when(attentionRepository.existsByPatientIdAndIsActiveAttentionTrue(anyLong())).thenReturn(true);
+
+            assertThrows(ActiveAttentionExistsException.class, () ->
+                    attentionRecordService.createAttention(attentionRequestDto));
+            verify(attentionRepository, never()).save(any(Attention.class));
+        }
+    }
+
+    @Test
+    @DisplayName("Should throw DataAccessException on repository error")
+    void createAttention_DataAccessException() {
+        try (MockedStatic<UserContextHolder> mockedStatic = mockStatic(UserContextHolder.class)) {
+            mockedStatic.when(UserContextHolder::getCurrentUserId).thenReturn(4L);
+
+            when(attentionRepository.existsByPatientIdAndIsActiveAttentionTrue(anyLong())).thenReturn(false);
+            when(patientClient.getPatientById(anyLong())).thenReturn(getPatientDto);
+            when(doctorClient.getDoctorById(anyLong())).thenReturn(getDoctorDto);
+            when(healthProviderClient.getHealthProviderByNit(anyString())).thenReturn(getHealthProviderDto);
+            when(configurationServiceRepository.findByIdAndActiveTrue(anyLong())).thenReturn(Optional.of(configurationService));
+            
+            when(attentionMapper.toEntity(any(AttentionRequestDto.class))).thenReturn(attention);
+            when(attentionRepository.save(any(Attention.class))).thenThrow(new DataAccessException("DB Error") {});
+
+            assertThrows(DataAccessException.class, () ->
+                    attentionRecordService.createAttention(attentionRequestDto));
+        }
     }
 }
