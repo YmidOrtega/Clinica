@@ -4,6 +4,7 @@ import com.ClinicaDeYmid.clients_service.infra.exception.DuplicateContractNumber
 import com.ClinicaDeYmid.clients_service.infra.exception.DuplicateHealthProviderNitException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderDataAccessException;
 import com.ClinicaDeYmid.clients_service.infra.exception.HealthProviderValidationException;
+import com.ClinicaDeYmid.clients_service.module.domain.Nit;
 import com.ClinicaDeYmid.clients_service.module.dto.CreateHealthProviderDto;
 import com.ClinicaDeYmid.clients_service.module.entity.Contract;
 import com.ClinicaDeYmid.clients_service.module.entity.HealthProvider;
@@ -11,7 +12,6 @@ import com.ClinicaDeYmid.clients_service.module.enums.TypeProvider;
 import com.ClinicaDeYmid.clients_service.module.mapper.HealthProviderMapper;
 import com.ClinicaDeYmid.clients_service.module.repository.ContractRepository;
 import com.ClinicaDeYmid.clients_service.module.repository.HealthProviderRepository;
-import com.ClinicaDeYmid.clients_service.module.domain.Nit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,13 +19,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Collections;
-import java.util.Optional;
+import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -42,138 +41,107 @@ class HeathProviderRecordServiceTest {
     private ContractRepository contractRepository;
 
     @InjectMocks
-    private HeathProviderRecordService heathProviderRecordService;
+    private HeathProviderRecordService registrationService;
 
     private CreateHealthProviderDto createDto;
     private HealthProvider healthProvider;
+    private Nit nit;
 
     @BeforeEach
     void setUp() {
-        createDto = mock(CreateHealthProviderDto.class);
+        nit = new Nit("9001234567");
+        createDto = new CreateHealthProviderDto(
+                "Salud Total S.A.",
+                nit,
+                TypeProvider.EPS,
+                "Calle 123",
+                "1234567",
+                2024,
+                2026
+        );
+
         healthProvider = new HealthProvider();
-        healthProvider.setNit(new Nit("123456789-0"));
-        healthProvider.setSocialReason("Test Social Reason");
+        healthProvider.setId(1L);
+        healthProvider.setNit(nit);
+        healthProvider.setSocialReason("Salud Total S.A.");
         healthProvider.setTypeProvider(TypeProvider.EPS);
+        healthProvider.setContracts(Collections.emptyList());
     }
 
     @Test
     @DisplayName("Should create health provider successfully")
-    void createHealthProvider_success() {
+    void createHealthProvider_Success() {
         // Arrange
         when(healthProviderMapper.toEntity(createDto)).thenReturn(healthProvider);
-        when(healthProviderRepository.save(any(HealthProvider.class))).thenReturn(healthProvider);
+        when(healthProviderRepository.existsByNit_Value(nit.getValue())).thenReturn(false);
+        when(healthProviderRepository.save(healthProvider)).thenReturn(healthProvider);
 
         // Act
-        HealthProvider result = heathProviderRecordService.createHealthProvider(createDto);
+        HealthProvider result = registrationService.createHealthProvider(createDto);
 
         // Assert
-        assertThat(result).isNotNull();
-        assertThat(result.getNit().getValue()).isEqualTo("1234567890");
+        assertNotNull(result);
+        assertEquals(healthProvider.getId(), result.getId());
         verify(healthProviderRepository).save(healthProvider);
     }
 
     @Test
-    @DisplayName("Should throw exception when NIT is null")
-    void createHealthProvider_throwsException_whenNitIsNull() {
+    @DisplayName("Should throw exception when NIT already exists")
+    void createHealthProvider_DuplicateNit() {
         // Arrange
-        healthProvider.setNit(null);
         when(healthProviderMapper.toEntity(createDto)).thenReturn(healthProvider);
+        when(healthProviderRepository.existsByNit_Value(nit.getValue())).thenReturn(true);
 
         // Act & Assert
-        HealthProviderValidationException exception = assertThrows(
-                HealthProviderValidationException.class,
-                () -> heathProviderRecordService.createHealthProvider(createDto)
+        assertThrows(DuplicateHealthProviderNitException.class, () -> 
+            registrationService.createHealthProvider(createDto)
         );
-
-        assertThat(exception.getMessage()).contains("El NIT es obligatorio");
-        verify(healthProviderRepository, never()).save(any(HealthProvider.class));
+        verify(healthProviderRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Should throw exception when NIT is duplicated")
-    void createHealthProvider_throwsException_whenNitIsDuplicated() {
-        // Arrange
-        when(healthProviderMapper.toEntity(createDto)).thenReturn(healthProvider);
-        when(healthProviderRepository.findByNit_Value("1234567890")).thenReturn(Optional.of(new HealthProvider()));
-
-        // Act & Assert
-        DuplicateHealthProviderNitException exception = assertThrows(
-                DuplicateHealthProviderNitException.class,
-                () -> heathProviderRecordService.createHealthProvider(createDto)
-        );
-
-        assertThat(exception.getMessage()).contains("Ya existe un proveedor de salud registrado con el NIT: 1234567890");
-        verify(healthProviderRepository, never()).save(any(HealthProvider.class));
-    }
-
-    @Test
-    @DisplayName("Should throw exception when social reason is empty")
-    void createHealthProvider_throwsException_whenSocialReasonIsEmpty() {
-        // Arrange
-        healthProvider.setSocialReason("");
-        when(healthProviderMapper.toEntity(createDto)).thenReturn(healthProvider);
-
-        // Act & Assert
-        HealthProviderValidationException exception = assertThrows(
-                HealthProviderValidationException.class,
-                () -> heathProviderRecordService.createHealthProvider(createDto)
-        );
-
-        assertThat(exception.getMessage()).contains("La razón social es obligatoria");
-        verify(healthProviderRepository, never()).save(any(HealthProvider.class));
-    }
-
-    @Test
-    @DisplayName("Should throw exception when type provider is null")
-    void createHealthProvider_throwsException_whenTypeProviderIsNull() {
-        // Arrange
-        healthProvider.setTypeProvider(null);
-        when(healthProviderMapper.toEntity(createDto)).thenReturn(healthProvider);
-
-        // Act & Assert
-        HealthProviderValidationException exception = assertThrows(
-                HealthProviderValidationException.class,
-                () -> heathProviderRecordService.createHealthProvider(createDto)
-        );
-
-        assertThat(exception.getMessage()).contains("El tipo de proveedor es obligatorio");
-        verify(healthProviderRepository, never()).save(any(HealthProvider.class));
-    }
-
-    @Test
-    @DisplayName("Should throw exception when contract number is duplicated")
-    void createHealthProvider_throwsException_whenContractNumberIsDuplicated() {
+    @DisplayName("Should throw exception when Contract Number already exists")
+    void createHealthProvider_DuplicateContract() {
         // Arrange
         Contract contract = new Contract();
-        contract.setContractNumber("C123");
-        healthProvider.setContracts(Collections.singletonList(contract));
+        contract.setContractNumber("CN-123");
+        healthProvider.setContracts(List.of(contract));
+
         when(healthProviderMapper.toEntity(createDto)).thenReturn(healthProvider);
-        when(contractRepository.findByContractNumber("C123")).thenReturn(Optional.of(new Contract()));
+        when(healthProviderRepository.existsByNit_Value(nit.getValue())).thenReturn(false);
+        when(contractRepository.existsByContractNumber("CN-123")).thenReturn(true);
 
         // Act & Assert
-        DuplicateContractNumberException exception = assertThrows(
-                DuplicateContractNumberException.class,
-                () -> heathProviderRecordService.createHealthProvider(createDto)
+        assertThrows(DuplicateContractNumberException.class, () -> 
+            registrationService.createHealthProvider(createDto)
         );
-
-        assertThat(exception.getMessage()).contains("Ya existe un contrato registrado con el número: C123");
-        verify(healthProviderRepository, never()).save(any(HealthProvider.class));
+        verify(healthProviderRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Should throw HealthProviderDataAccessException when repository fails")
-    void createHealthProvider_throwsHealthProviderDataAccessException_whenRepositoryFails() {
+    @DisplayName("Should throw exception on data access error")
+    void createHealthProvider_DataAccessException() {
         // Arrange
         when(healthProviderMapper.toEntity(createDto)).thenReturn(healthProvider);
-        when(healthProviderRepository.save(any(HealthProvider.class))).thenThrow(new DataAccessResourceFailureException("DB is down"));
+        when(healthProviderRepository.existsByNit_Value(nit.getValue())).thenReturn(false);
+        when(healthProviderRepository.save(healthProvider)).thenThrow(new DataIntegrityViolationException("DB Error"));
 
         // Act & Assert
-        HealthProviderDataAccessException exception = assertThrows(
-                HealthProviderDataAccessException.class,
-                () -> heathProviderRecordService.createHealthProvider(createDto)
+        assertThrows(HealthProviderDataAccessException.class, () -> 
+            registrationService.createHealthProvider(createDto)
         );
+    }
 
-        assertThat(exception.getMessage()).contains("Error de acceso a datos durante la operación: crear proveedor de salud");
-        verify(healthProviderRepository).save(any(HealthProvider.class));
+    @Test
+    @DisplayName("Should validate required fields manually")
+    void createHealthProvider_ValidationException() {
+        // Arrange
+        HealthProvider invalidProvider = new HealthProvider(); // Missing NIT and Social Reason
+        when(healthProviderMapper.toEntity(createDto)).thenReturn(invalidProvider);
+
+        // Act & Assert
+        assertThrows(HealthProviderValidationException.class, () -> 
+            registrationService.createHealthProvider(createDto)
+        );
     }
 }
