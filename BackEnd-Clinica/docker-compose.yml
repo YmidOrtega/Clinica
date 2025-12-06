@@ -66,25 +66,25 @@ services:
          timeout: 5s
          retries: 5
 
-   #   ai-assistant-db:
-   #      image: postgres:16
-   #      container_name: ai-assistant-db
-   #      restart: always
-   #      environment:
-   #         POSTGRES_DB: ${AI_ASSISTANT_DB_NAME}
-   #         POSTGRES_USER: ${AI_ASSISTANT_DB_USER}
-   #         POSTGRES_PASSWORD: ${AI_ASSISTANT_DB_PASSWORD}
-   #      ports:
-   #         - "3310:5432"
-   #      volumes:
-   #         - ai_assistant_data:/var/lib/postgresql/data
-   #      networks:
-   #         - clinica-net
-   #      healthcheck:
-   #         test: ["CMD-SHELL", "pg_isready -U ${AI_ASSISTANT_DB_USER} -d ${AI_ASSISTANT_DB_NAME}"]
-   #         interval: 10s
-   #         timeout: 5s
-   #         retries: 5
+   ai-assistant-db:
+      image: postgres:16
+      container_name: ai-assistant-db
+      restart: always
+      environment:
+         POSTGRES_DB: ${AI_ASSISTANT_DB_NAME}
+         POSTGRES_USER: ${AI_ASSISTANT_DB_USER}
+         POSTGRES_PASSWORD: ${AI_ASSISTANT_DB_PASSWORD}
+      ports:
+         - "3310:5432"
+      volumes:
+         - ai_assistant_data:/var/lib/postgresql/data
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U ${AI_ASSISTANT_DB_USER} -d ${AI_ASSISTANT_DB_NAME}"]
+         interval: 10s
+         timeout: 5s
+         retries: 5
 
    # Base de datos para proveedores
    suppliers-db:

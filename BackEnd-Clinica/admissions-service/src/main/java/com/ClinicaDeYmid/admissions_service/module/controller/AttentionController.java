@@ -279,4 +279,14 @@ public class AttentionController {
         log.error("Circuit breaker activated for getAttentionsByHealthProviderNit. NIT: {}, Error: {}", nit, ex.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
     }
+
+    private ResponseEntity<AttentionResponseDto> getAttentionByIdFallback(Long id, Throwable throwable) {
+        log.error("Circuit breaker activated for getAttentionById. AttentionId: {}, Error: {}", id, throwable.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
+    private ResponseEntity<AttentionResponseDto> updateAttentionFallback(Long id, AttentionRequestDto requestDto, Throwable throwable) {
+        log.error("Circuit breaker activated for updateAttention. AttentionId: {}, Error: {}", id, throwable.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
 }

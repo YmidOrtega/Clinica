@@ -12,8 +12,8 @@ public record AttentionRequestDto(
         @Schema(description = "ID de la atención (solo para actualizar)", example = "150")
         Long id,
 
-        @Schema(description = "ID del paciente", example = "123", required = true)
-        @NotNull(message = "El ID del paciente no puede ser nulo")
+        @Schema(description = "Documento de identificación del paciente", example = "1234567890", required = true)
+        @NotNull(message = "El documento de identificación del paciente no puede ser nulo")
         Long patientId,
 
         @Schema(description = "ID del doctor", example = "85", required = true)

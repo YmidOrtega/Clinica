@@ -124,12 +124,17 @@ public class AttentionRecordService {
         Attention existingAttention = attentionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + id));
 
-        // Validar dependencias externas (igual que en createAttention)
-        validateExternalDependencies(request);
+        // Validar solo las dependencias que cambiaron
+        validateExternalDependenciesForUpdate(request, existingAttention);
 
-        // Validar ConfigurationService
-        ConfigurationService configService = configurationServiceRepository.findByIdWithRelations(request.configurationServiceId())
-                .orElseThrow(() -> new EntityNotFoundException(MSG_CONFIG_SERVICE_NOT_FOUND + request.configurationServiceId()));
+        // Validar ConfigurationService solo si cambió
+        ConfigurationService configService;
+        if (!existingAttention.getConfigurationService().getId().equals(request.configurationServiceId())) {
+            configService = configurationServiceRepository.findByIdWithRelations(request.configurationServiceId())
+                    .orElseThrow(() -> new EntityNotFoundException(MSG_CONFIG_SERVICE_NOT_FOUND + request.configurationServiceId()));
+        } else {
+            configService = existingAttention.getConfigurationService();
+        }
 
         // Actualizar la entidad
         attentionMapper.updateEntityFromDto(request, existingAttention);
@@ -174,10 +179,25 @@ public class AttentionRecordService {
 
     private <T> void validateExternalResource(Supplier<T> clientCall, Object id, String errorMessage) {
         try {
-            clientCall.get();
+            T result = clientCall.get();
+            if (result == null) {
+                log.warn("External resource returned null for {}: {}", errorMessage, id);
+                throw new ExternalServiceUnavailableException(errorMessage + id + " (returned null)");
+            }
+        } catch (feign.FeignException.ServiceUnavailable e) {
+            log.error("Service unavailable - Circuit breaker may be open for {}: {}", errorMessage, id);
+            throw new ExternalServiceUnavailableException(errorMessage + id + " (service unavailable - please try again later)");
+        } catch (feign.FeignException.NotFound e) {
+            log.error("Resource not found for {}: {}", errorMessage, id);
+            throw new com.ClinicaDeYmid.admissions_service.infra.exception.EntityNotFoundException(errorMessage + id);
+        } catch (feign.FeignException e) {
+            log.error("Feign error validating {}: {}. Status: {}", errorMessage, id, e.status());
+            throw new ExternalServiceUnavailableException(errorMessage + id + " (error: " + e.status() + ")");
+        } catch (ExternalServiceUnavailableException | com.ClinicaDeYmid.admissions_service.infra.exception.EntityNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Validation failed for {}: {}", errorMessage, id, e);
-            throw new ExternalServiceUnavailableException(errorMessage + id);
+            throw new ExternalServiceUnavailableException(errorMessage + id + " (unexpected error)");
         }
     }
 
@@ -207,5 +227,40 @@ public class AttentionRecordService {
         }
 
         log.info("All external dependencies validated successfully");
+    }
+
+    private void validateExternalDependenciesForUpdate(AttentionRequestDto requestDto, Attention existingAttention) {
+        log.info("Validating only changed external dependencies for attention ID: {}", existingAttention.getId());
+
+        // Validar paciente solo si cambió
+        if (requestDto.patientId() != null && !requestDto.patientId().equals(existingAttention.getPatientId())) {
+            validateExternalResource(() -> patientClient.getPatientByIdentificationNumber(requestDto.patientId().toString()), 
+                    requestDto.patientId(), MSG_PATIENT_NOT_FOUND);
+        }
+
+        // Validar doctor solo si cambió
+        if (requestDto.doctorId() != null && !requestDto.doctorId().equals(existingAttention.getDoctorId())) {
+            validateExternalResource(() -> doctorClient.getDoctorById(requestDto.doctorId()), 
+                    requestDto.doctorId(), MSG_DOCTOR_NOT_FOUND);
+        }
+
+        // El userId generalmente no cambia, pero lo validamos si viene
+        if (requestDto.userId() != null) {
+            validateExternalResource(() -> userClient.getUserById(requestDto.userId()), 
+                    requestDto.userId(), MSG_USER_NOT_FOUND);
+        }
+
+        // Validar health providers (siempre validamos para simplificar)
+        if (requestDto.healthProviders() != null && !requestDto.healthProviders().isEmpty()) {
+            for (HealthProviderRequestDto hp : requestDto.healthProviders()) {
+                validateExternalResource(
+                        () -> healthProviderClient.getHealthProviderByNitAndContract(hp.nit(), hp.contractId()),
+                        hp.nit(),
+                        MSG_HEALTH_PROVIDER_NOT_FOUND
+                );
+            }
+        }
+
+        log.info("Changed external dependencies validated successfully");
     }
 }

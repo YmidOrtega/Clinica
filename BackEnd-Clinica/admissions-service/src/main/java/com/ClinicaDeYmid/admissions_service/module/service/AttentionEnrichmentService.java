@@ -38,18 +38,33 @@ public class AttentionEnrichmentService {
 
     private <T> T fetchExternalResource(Supplier<T> supplier, String resourceName, Object id) {
         try {
-            return supplier.get();
+            T result = supplier.get();
+            if (result == null) {
+                log.debug("Resource {} with id {} returned null", resourceName, id);
+            }
+            return result;
+        } catch (feign.FeignException.ServiceUnavailable e) {
+            log.warn("Service unavailable for {}: {}. Circuit breaker may be open. Returning null.", resourceName, id);
+            return null;
+        } catch (feign.FeignException e) {
+            log.warn("Feign error fetching {}: {}. Status: {}. Returning null.", resourceName, id, e.status());
+            return null;
         } catch (Exception e) {
-            log.error("Error fetching {}: {}. Details: {}", resourceName, id, e.getMessage());
-            throw new ExternalServiceUnavailableException(String.format("No se pudo obtener %s con ID/NIT %s", resourceName, id));
+            log.warn("Error fetching {}: {}. Details: {}. Returning null.", resourceName, id, e.getMessage());
+            return null;
         }
     }
 
     public AttentionResponseDto enrichAttentionResponseDto(Attention attention) {
 
-        // Obtención de detalles del paciente
-        GetPatientDto patientDetails = (attention.getPatientId() != null) ?
-                fetchExternalResource(() -> patientClient.getPatientByIdentificationNumber(attention.getPatientId().toString()), "paciente", attention.getPatientId()) : null;
+        GetPatientDto patientDetails = null;
+        if (attention.getPatientId() != null) {
+            try {
+                patientDetails = patientClient.getPatientByIdentificationNumber(attention.getPatientId().toString());
+            } catch (Exception e) {
+                log.warn("No se pudo obtener paciente con patientId {}: {}. PatientId es un ID interno, se necesita identificationNumber", attention.getPatientId(), e.getMessage());
+            }
+        }
 
         // Obtención de detalles del doctor
         GetDoctorDto doctorDetails = (attention.getDoctorId() != null) ?
