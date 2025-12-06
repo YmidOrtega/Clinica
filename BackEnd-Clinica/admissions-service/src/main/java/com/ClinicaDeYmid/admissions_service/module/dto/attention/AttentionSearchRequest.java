@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 public record AttentionSearchRequest(
-        @Schema(description = "ID del paciente", example = "123")
+        @Schema(description = "Documento de identificación del paciente", example = "1234567890")
         Long patientId,
 
         @Schema(description = "ID del doctor", example = "85")

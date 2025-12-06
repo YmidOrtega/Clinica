@@ -261,11 +261,25 @@ public class AttentionGetService {
 
         Page<Attention> attentionPage = attentionRepository.findAll(spec, pageable);
 
+        // Para búsquedas, usamos enriquecimiento con mejor manejo de errores
         List<AttentionResponseDto> content = attentionPage.getContent().stream()
-                .map(attentionEnrichmentService::enrichAttentionResponseDto)
+                .map(attention -> {
+                    try {
+                        return attentionEnrichmentService.enrichAttentionResponseDto(attention);
+                    } catch (Exception e) {
+                        log.warn("Error enriching attention ID {}: {}. Skipping this record in search results.", 
+                                attention.getId(), e.getMessage());
+                        // Si falla el enriquecimiento, retornamos null y lo filtramos después
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull) // Filtramos los que fallaron
                 .collect(Collectors.toList());
 
-        return new PageImpl<>(content, pageable, attentionPage.getTotalElements());
+        // Ajustamos el total si algunos registros fallaron
+        long adjustedTotal = attentionPage.getTotalElements() - (attentionPage.getContent().size() - content.size());
+        
+        return new PageImpl<>(content, pageable, adjustedTotal);
     }
 
     // Métodos helper privados
