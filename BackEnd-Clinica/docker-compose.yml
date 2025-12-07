@@ -1,5 +1,45 @@
 services:
    # Bases de datos
+   
+   # PostgreSQL para API Gateway (Request Logging)
+   gateway-db:
+      image: postgres:15
+      container_name: gateway-db
+      restart: always
+      environment:
+         POSTGRES_DB: clinica_gateway
+         POSTGRES_USER: ${GATEWAY_DB_USER:-postgres}
+         POSTGRES_PASSWORD: ${GATEWAY_DB_PASSWORD:-postgres}
+      ports:
+         - "5433:5432"
+      volumes:
+         - gateway_data:/var/lib/postgresql/data
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U postgres -d clinica_gateway"]
+         interval: 10s
+         timeout: 5s
+         retries: 5
+
+   # Redis para Rate Limiting
+   redis:
+      image: redis:7-alpine
+      container_name: redis-gateway
+      restart: always
+      ports:
+         - "6379:6379"
+      command: redis-server --appendonly yes
+      volumes:
+         - redis_data:/data
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "redis-cli", "ping"]
+         interval: 10s
+         timeout: 5s
+         retries: 5
+
    patient-db:
       image: mysql:8.0
       container_name: patient-db
@@ -449,6 +489,7 @@ services:
 
 # Volúmenes para persistencia de datos
 volumes:
+   gateway_data:
    patient_data:
    billing_data:
    admissions_data:
