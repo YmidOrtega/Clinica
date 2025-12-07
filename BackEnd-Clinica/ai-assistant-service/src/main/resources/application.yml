@@ -1,8 +1,12 @@
+server:
+  port: 8084
+
 spring:
   application:
     name: ai-assistant-service
   flyway:
-    location: classpath:db/migration/ai
+    enabled: true
+    locations: classpath:db/migration/ai
 
 eureka:
   client:

@@ -108,12 +108,6 @@ public class JwtTokenProvider {
         this.publicKey = (RSAPublicKey) keyFactory.generatePublic(publicKeySpec);
     }
 
-    /**
-     * Valida el token JWT.
-     *
-     * @param token JWT a validar
-     * @return true si el token es válido, false en caso contrario
-     */
     public boolean validateToken(String token) {
         try {
             if ("RS256".equalsIgnoreCase(algorithmType)) {
@@ -136,12 +130,6 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * Extrae el UUID del usuario desde el token (subject).
-     *
-     * @param token JWT
-     * @return UUID del usuario
-     */
     public String getUuidFromToken(String token) {
         try {
             Claims claims = getClaims(token);
@@ -152,12 +140,6 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * Extrae el email del usuario desde el token.
-     *
-     * @param token JWT
-     * @return Email del usuario
-     */
     public String getEmailFromToken(String token) {
         try {
             Claims claims = getClaims(token);
@@ -168,12 +150,6 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * Extrae el rol del usuario desde el token.
-     *
-     * @param token JWT
-     * @return Rol del usuario
-     */
     public String getRoleFromToken(String token) {
         try {
             Claims claims = getClaims(token);
@@ -184,12 +160,6 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * Extrae los permisos del usuario desde el token.
-     *
-     * @param token JWT
-     * @return Lista de permisos o lista vacía si no hay
-     */
     @SuppressWarnings("unchecked")
     public List<String> getPermissionsFromToken(String token) {
         try {
@@ -202,12 +172,6 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * Verifica si el token es de tipo access token.
-     *
-     * @param token JWT
-     * @return true si es access token, false en caso contrario
-     */
     public boolean isAccessToken(String token) {
         try {
             Claims claims = getClaims(token);
@@ -219,12 +183,6 @@ public class JwtTokenProvider {
         }
     }
 
-    /**
-     * Obtiene los claims del token según el algoritmo configurado.
-     *
-     * @param token JWT
-     * @return Claims del token
-     */
     private Claims getClaims(String token) {
         if ("RS256".equalsIgnoreCase(algorithmType)) {
             return Jwts.parser()
