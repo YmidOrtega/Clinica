@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.ai_assistant_service.module.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -22,7 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AIService {
 
-    @Value("classpath:/prompts/prompt-text.st")
+    @Value("classpath:/prompts/prompt.st")
     private Resource promptResource;
 
     private final ChatClient.Builder chatClientBuilder;
@@ -98,13 +99,11 @@ public class AIService {
                 if (i % 2 == 0) {
                     messages.add(new UserMessage(content));
                 } else {
-                    messages.add(new SystemMessage("Previous assistant response: " + content));
+                    messages.add(new AssistantMessage(content));
                 }
             }
         }
-
         messages.add(new UserMessage(currentUserMessage));
-
         return messages;
     }
 }
