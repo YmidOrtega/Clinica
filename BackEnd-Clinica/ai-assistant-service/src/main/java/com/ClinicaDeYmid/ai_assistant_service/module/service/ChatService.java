@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.ai_assistant_service.module.service;
 
+import com.ClinicaDeYmid.ai_assistant_service.infra.security.CustomUserDetails;
 import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatRequestDto;
 import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatResponseDto;
 import com.ClinicaDeYmid.ai_assistant_service.module.dto.ConversationHistoryDto;
@@ -8,6 +9,8 @@ import com.ClinicaDeYmid.ai_assistant_service.module.entity.ConversationMessage;
 import com.ClinicaDeYmid.ai_assistant_service.infra.security.UserContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,16 +33,26 @@ public class ChatService {
      */
     @Transactional
     public ChatResponseDto processMessage(ChatRequestDto request) {
-        // Obtener información del usuario autenticado
-        Long userId = UserContextHolder.getCurrentUserId();
-        String username = UserContextHolder.getCurrentUsername();
+        // Obtener información del usuario autenticado desde SecurityContext
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (userId == null || username == null) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails)) {
             log.error("User context not available for chat request");
             throw new RuntimeException("User authentication required");
         }
 
-        log.info("Processing chat message for user: {} (ID: {})", username, userId);
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        String uuid = userDetails.getUuid();
+        String username = userDetails.getEmail();
+
+        // Fallback: generar userId a partir del UUID si no está disponible
+        Long userId = userDetails.getUserId();
+        if (userId == null) {
+            userId = generateUserIdFromUuid(uuid);
+            log.debug("Generated userId {} from UUID {} for user {}", userId, uuid, username);
+        }
+
+        log.info("Processing chat message for user: {} (ID: {}, UUID: {})", username, userId, uuid);
 
         // Obtener o crear conversación
         ConversationHistory conversation = conversationHistoryService.getOrCreateActiveConversation(
@@ -106,14 +119,21 @@ public class ChatService {
      */
     @Transactional(readOnly = true)
     public List<ConversationHistoryDto> getUserHistory() {
-        Long userId = UserContextHolder.getCurrentUserId();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (userId == null) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails)) {
             log.error("User context not available for history request");
             throw new RuntimeException("User authentication required");
         }
 
-        log.debug("Fetching conversation history for user: {}", userId);
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Long userId = userDetails.getUserId();
+
+        if (userId == null) {
+            userId = generateUserIdFromUuid(userDetails.getUuid());
+        }
+
+        log.debug("Fetching conversation history for userId: {}", userId);
         return conversationHistoryService.getUserConversationHistory(userId);
     }
 
@@ -173,6 +193,18 @@ public class ChatService {
         }
 
         return "GENERAL_CONVERSATION";
+    }
+
+    /**
+     * Genera un userId consistente a partir del UUID
+     * Usa el hashCode del UUID para generar un Long positivo
+     */
+    private Long generateUserIdFromUuid(String uuid) {
+        if (uuid == null) {
+            return 0L; // Sistema por defecto
+        }
+        // Usar hashCode pero asegurar que sea positivo
+        return (long) Math.abs(uuid.hashCode());
     }
 
     /**
