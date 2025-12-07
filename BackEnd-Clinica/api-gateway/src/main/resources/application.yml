@@ -1,89 +1,208 @@
 server:
-  port: 8080
+   port: 8080
+
+spring:
+   application:
+      name: api-gateway
+
+   # Configuración de Base de Datos para Request Logging
+   datasource:
+      url: jdbc:postgresql://localhost:5432/clinica_gateway
+      username: ${DB_USERNAME:postgres}
+      password: ${DB_PASSWORD:postgres}
+      driver-class-name: org.postgresql.Driver
+
+   jpa:
+      hibernate:
+         ddl-auto: update
+      show-sql: false
+      properties:
+         hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: true
+
+   # Configuración de Redis para Rate Limiting
+   data:
+      redis:
+         host: ${REDIS_HOST:localhost}
+         port: ${REDIS_PORT:6379}
+         password: ${REDIS_PASSWORD:}
+         timeout: 2000ms
+         lettuce:
+            pool:
+               max-active: 8
+               max-idle: 8
+               min-idle: 0
 
 eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-  instance:
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 5
-    lease-expiration-duration-in-seconds: 10
+   client:
+      service-url:
+         defaultZone: http://localhost:8761/eureka/
+   instance:
+      instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+      prefer-ip-address: true
+      lease-renewal-interval-in-seconds: 5
+      lease-expiration-duration-in-seconds: 10
 
+# Configuración de Resilience4j - Circuit Breaker y Retry
 resilience4j:
-  retry:
-    instances:
-      public-key-retry:
-        max-attempts: 5
-        wait-duration: 2s
-        retry-exceptions:
-          - org.springframework.web.reactive.function.client.WebClientRequestException
+   circuitbreaker:
+      configs:
+         default:
+            slidingWindowSize: 10
+            minimumNumberOfCalls: 3
+            failureRateThreshold: 50
+            waitDurationInOpenState: 30s
+            permittedNumberOfCallsInHalfOpenState: 3
+            automaticTransitionFromOpenToHalfOpenEnabled: true
+            slowCallRateThreshold: 50
+            slowCallDurationThreshold: 3s
+      instances:
+         auth-service:
+            baseConfig: default
+            failureRateThreshold: 60
+            waitDurationInOpenState: 45s
+            minimumNumberOfCalls: 5
+         patient-service:
+            baseConfig: default
+         billing-service:
+            baseConfig: default
+         ai-assistant-service:
+            baseConfig: default
+            slowCallDurationThreshold: 10s
+            waitDurationInOpenState: 60s
+
+   retry:
+      configs:
+         default:
+            maxAttempts: 3
+            waitDuration: 1s
+            retryExceptions:
+               - org.springframework.web.reactive.function.client.WebClientRequestException
+               - java.net.ConnectException
+               - java.io.IOException
+            # Backoff exponencial
+            enableExponentialBackoff: true
+            exponentialBackoffMultiplier: 2
+      instances:
+         public-key-retry:
+            maxAttempts: 5
+            waitDuration: 2s
+            enableExponentialBackoff: true
+            exponentialBackoffMultiplier: 2
+            retryExceptions:
+               - org.springframework.web.reactive.function.client.WebClientRequestException
+         service-call-retry:
+            maxAttempts: 3
+            waitDuration: 1s
+            enableExponentialBackoff: true
+            exponentialBackoffMultiplier: 2
+
+   timelimiter:
+      configs:
+         default:
+            timeoutDuration: 5s
+      instances:
+         auth-service:
+            timeoutDuration: 8s
+         ai-assistant-service:
+            timeoutDuration: 15s
+
+# Configuración de CORS
+cors:
+   allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:4321,http://localhost:4200}
+   allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+   max-age: 3600
+
+# Configuración de Actuator y Métricas
+management:
+   endpoints:
+      web:
+         exposure:
+            include: health,info,metrics,prometheus,circuitbreakers,circuitbreakerevents
+   endpoint:
+      health:
+         show-details: always
+      metrics:
+         enabled: true
+      prometheus:
+         enabled: true
+   metrics:
+      export:
+         prometheus:
+            enabled: true
+      distribution:
+         percentiles-histogram:
+            http.server.requests: true
+         percentiles:
+            http.server.requests: 0.5, 0.9, 0.99
+      tags:
+         application: ${spring.application.name}
 
 # Configuración de Swagger/OpenAPI
 springdoc:
-  api-docs:
-    path: /api-docs
-    enabled: true
-  swagger-ui:
-    path: /swagger-ui.html
-    enabled: true
-    try-it-out-enabled: true
-    operations-sorter: method
-    tags-sorter: alpha
-    filter: true
-    doc-expansion: none
-    urls:
-      - name: "API Gateway"
-        url: "/api-docs"
-      - name: "Auth Service"
-        url: "/v3/api-docs/auth-service"
-      - name: "Patient Service"
-        url: "/v3/api-docs/patient-service"
-      - name: "Billing Service"
-        url: "/v3/api-docs/billing-service"
-      - name: "Admissions Service"
-        url: "/v3/api-docs/admissions-service"
-      - name: "AI Assistant Service"
-        url: "/v3/api-docs/ai-assistant-service"
-      - name: "Suppliers Service"
-        url: "/v3/api-docs/suppliers-service"
-      - name: "Clients Service"
-        url: "/v3/api-docs/clients-service"
-  show-actuator: true
-  cache:
-    disabled: false
-  group-configs:
-    - group: auth-service
-      display-name: "Auth Service"
-      paths-to-match: /api/v1/auth/**
-    - group: patient-service
-      display-name: "Patient Service"
-      paths-to-match: /api/v1/patients/**
-    - group: billing-service
-      display-name: "Billing Service"
-      paths-to-match: /api/v1/billing/**
-    - group: admissions-service
-      display-name: "Admissions Service"
-      paths-to-match: /api/v1/attentions/**
-    - group: ai-assistant-service
-      display-name: "AI Assistant Service"
-      paths-to-match: /api/v1/ai-assistant/**
-    - group: suppliers-service
-      display-name: "Suppliers Service"
-      paths-to-match: /api/v1/suppliers/**
-    - group: clients-service
-      display-name: "Clients Service"
-      paths-to-match: /api/v1/billing-service/health-providers/**
+   api-docs:
+      path: /api-docs
+      enabled: true
+   swagger-ui:
+      path: /swagger-ui.html
+      enabled: true
+      try-it-out-enabled: true
+      operations-sorter: method
+      tags-sorter: alpha
+      filter: true
+      doc-expansion: none
+      urls:
+         - name: "API Gateway"
+           url: "/api-docs"
+         - name: "Auth Service"
+           url: "/v3/api-docs/auth-service"
+         - name: "Patient Service"
+           url: "/v3/api-docs/patient-service"
+         - name: "Billing Service"
+           url: "/v3/api-docs/billing-service"
+         - name: "Admissions Service"
+           url: "/v3/api-docs/admissions-service"
+         - name: "AI Assistant Service"
+           url: "/v3/api-docs/ai-assistant-service"
+         - name: "Suppliers Service"
+           url: "/v3/api-docs/suppliers-service"
+         - name: "Clients Service"
+           url: "/v3/api-docs/clients-service"
+   show-actuator: true
+   cache:
+      disabled: false
+   group-configs:
+      - group: auth-service
+        display-name: "Auth Service"
+        paths-to-match: /api/v1/auth/**
+      - group: patient-service
+        display-name: "Patient Service"
+        paths-to-match: /api/v1/patients/**
+      - group: billing-service
+        display-name: "Billing Service"
+        paths-to-match: /api/v1/billing/**
+      - group: admissions-service
+        display-name: "Admissions Service"
+        paths-to-match: /api/v1/attentions/**
+      - group: ai-assistant-service
+        display-name: "AI Assistant Service"
+        paths-to-match: /api/v1/ai-assistant/**
+      - group: suppliers-service
+        display-name: "Suppliers Service"
+        paths-to-match: /api/v1/suppliers/**
+      - group: clients-service
+        display-name: "Clients Service"
+        paths-to-match: /api/v1/billing-service/health-providers/**
 
 # Para personalizar la documentación
 api:
-  version: 1.0.0
-  name: API-GATEWAY
-  description: Microservicio para la gestión de peticiones a otros microservicios del sistema de clínica médica
-  contact:
-    name: Development Team
-    email: dev@example.com
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
+   version: 1.0.0
+   name: API-GATEWAY
+   description: Microservicio para la gestión de peticiones a otros microservicios del sistema de clínica médica
+   contact:
+      name: Development Team
+      email: dev@example.com
+   license:
+      name: Apache 2.0
+      url: https://www.apache.org/licenses/LICENSE-2.0.html
