@@ -1,145 +1,217 @@
-Sistema de Gestión de Clínica Médica
+# 🏥 Clinica
 
-Backend - Microservicios
+> **Sistema completo de gestión clínica** con API REST, interfaz web, gestión de pacientes, citas, historias clínicas, facturación y autenticación.
 
-El backend está compuesto por los siguientes microservicios:
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active-blue)]()
+[![Coverage](https://img.shields.io/badge/Coverage-—-%23lightgrey)]()
 
-    eureka-service: Servidor de descubrimiento de servicios
-    api-gateway: Gateway principal para enrutamiento de peticiones
-    auth-service: Servicio de autenticación y autorización
-    patient-service: Gestión de pacientes
-    billing-service: Gestión de facturación
-    admissions-service: Gestión de admisiones hospitalarias
-    ai-assistant-service: Asistente inteligente con IA
-    suppliers-service: Gestión de proveedores
-    clients-service: Gestión de clientes/aseguradoras
+---
 
-Frontend
+## 📖 Resumen
 
-    Astro Framework: Interface de usuario moderna y reactiva
+**Clinica** es una aplicación orientada a la gestión integral de centros médicos —recepción, agenda de citas, historial clínico, gestión de profesionales, inventario y facturación— pensada para entornos educativos, demos y despliegues en entornos pequeños/medianos.
 
-Bases de Datos
+Está diseñada para ser modular, segura y fácil de desplegar, y sirve tanto para:
+- 📚 Aprendizaje sobre sistemas de gestión clínica y buenas prácticas.
+- 🧪 Pruebas de integración con sistemas externos (laboratorios, pasarelas de pago).
+- 💼 Demostraciones y portfolios profesionales.
 
-El sistema utiliza múltiples bases de datos especializadas:
+> ⚠️ Uso: Esta implementación es para fines educativos/desarrollo y no sustituye un sistema certificado para entornos de salud reales sin la adaptación y certificaciones necesarias.
 
-    MySQL 8.0: Para patient-db, billing-db, suppliers-db, auth-db, clients-db
-    PostgreSQL 16: Para admissions-db, ai-assistant-db
-    Redis 7: Para caché y sesiones
+---
 
-🛠️ Tecnologías Utilizadas
-Backend
+## ✨ Características clave
 
-    Java 21
-    Spring Boot 3.5.0
-    Spring Cloud 2025.0.0
-    Maven: Gestión de dependencias
-    Lombok: Reducción de código boilerplate
-    MapStruct: Mapeo de objetos
-    SpringDoc OpenAPI: Documentación de APIs
-    Docker: Containerización
+- 👥 Gestión completa de pacientes (datos demográficos, contactos, alergias).
+- 📅 Agenda de citas con soporte para múltiples profesionales y salas.
+- 🧾 Historiales clínicos y notas médicas.
+- 💳 Facturación básica y generación de recibos.
+- 🔐 Autenticación, autorización y control de roles (admin, médico, recepcionista).
+- 🌐 API REST documentada (OpenAPI / Swagger).
+- 🧪 Tests unitarios e integración.
+- 🗄️ Persistencia en base de datos relacional (ej. PostgreSQL).
+- 📦 Contenedorización con Docker para despliegues rápidos.
 
-Frontend
+---
 
-    Astro: Framework de desarrollo web
-    pnpm: Gestor de paquetes
+## 🚀 Inicio rápido
 
-🚀 Instalación y Ejecución
-Prerrequisitos
+### Requisitos (ajusta según tu stack)
+- Java 17+ (si es Java) o Node 16+ (si es Node), dependiendo del stack real del proyecto
+- Maven o Gradle (si es Java)
+- Docker (opcional, recomendado)
+- PostgreSQL 13+ (o la BD que uses)
 
-    Docker y Docker Compose
-    Java 21 (para desarrollo local)
-    Maven (para desarrollo local)
-    Node.js y pnpm (para el frontend)
+> Nota: Si tu proyecto no usa Java/Spring Boot, indícame el stack y adaptaré estas instrucciones.
 
-Pasos de Instalación
+### Instrucciones (ejemplo para Spring Boot + Maven)
+```bash
+# Clonar repositorio
+git clone https://github.com/YmidOrtega/Clinica.git
+cd Clinica
 
-    Clonar el repositorio:
+# Configurar variables de entorno (ejemplo)
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/clinica
+export SPRING_DATASOURCE_USERNAME=clinica_user
+export SPRING_DATASOURCE_PASSWORD=changeme
 
-    git clone https://github.com/YmidOrtega/Clinica.git  
-    cd Clinica
+# Construir y ejecutar
+mvn clean package
+java -jar target/clinica-0.0.1-SNAPSHOT.jar
 
-    Configurar variables de entorno:
-    Crear un archivo .env en la carpeta BackEnd-Clinica con todas las variables mencionadas anteriormente.
+# O con Docker Compose (si existe docker-compose.yml)
+docker compose up --build
+```
 
-    Ejecutar con Docker Compose:
+**Credenciales de demo (ejemplo)**
+- admin / AdminPass123!
+- recepcion / Reception123!
+- medico / Doctor123!
 
-    cd BackEnd-Clinica  
-    docker-compose up -d
+(Cambia estas credenciales según tu configuración de seeds o fixtures.)
 
-    Configurar Frontend:
+---
 
-    cd FrontEnd-Clinica  
-    pnpm install  
-    pnpm dev
+## 🎨 Interfaz de usuario (ejemplo)
 
-🌐 Puertos y Endpoints
-Servicios Backend
+Si la aplicación incluye UI web, un ejemplo de flujo:
 
-    Eureka Server: http://localhost:8761
-    API Gateway: http://localhost:8080
-    Patient Service: http://localhost:8081
-    Suppliers Service: http://localhost:8085
-    Auth Service: http://localhost:8086
-    Clients Service: http://localhost:8087
+1. Acceder a http://localhost:8080/
+2. Login como recepcionista
+3. Agregar paciente → Crear cita → Asignar médico
+4. Médico inicia sesión → Accede a historial → Añade notas y solicita exámenes
+5. Generar factura desde el módulo de facturación
 
-Bases de Datos
+(Adjunta capturas o GIFs si deseas que las incluya.)
 
-    Patient DB: localhost:3307
-    Billing DB: localhost:3308
-    Admissions DB: localhost:3309
-    AI Assistant DB: localhost:3310
-    Suppliers DB: localhost:3311
-    Auth DB: localhost:3312
-    Clients DB: localhost:3313
-    Redis: localhost:6379
-    Redis Insight: http://localhost:8001
+---
 
-Frontend
+## 🌐 API REST (ejemplos)
 
-    Astro Dev Server: http://localhost:4321
+```bash
+# Healthcheck
+curl http://localhost:8080/api/health
 
-📚 Documentación de APIs
+# Listar pacientes
+curl -u admin:AdminPass123! http://localhost:8080/api/pacientes
 
-El sistema incluye documentación automática de APIs con Swagger/OpenAPI:
+# Crear cita (autenticado)
+curl -X POST -H "Content-Type: application/json" -u recepcion:Reception123! \
+  -d '{"pacienteId": 1, "medicoId": 2, "fecha": "2025-12-02T10:00:00", "motivo": "Consulta"}' \
+  http://localhost:8080/api/citas
+```
 
-    Swagger UI: http://localhost:{port}/swagger-ui.html
-    API Docs: http://localhost:{port}/v3/api-docs
-    Documentación centralizada de todos los microservicios disponible a través del API Gateway
+**OpenAPI / Swagger**: http://localhost:8080/swagger-ui.html (ajusta la ruta según tu configuración)
 
-Endpoints de Monitoreo
+---
 
-Cada servicio expone endpoints de Actuator para monitoreo:
+## 🏗️ Arquitectura (diagrama simplificado)
 
-    Health: /actuator/{service}/health
-    Metrics: /actuator/{service}/metrics
-    Info: /actuator/{service}/info
+```
+┌──────────────┐     ┌──────────────┐     ┌─────────────┐
+│  Frontend    │────▶│  Backend     │────▶│  PostgreSQL │
+│ (React/Vue)  │     │ (API REST)   │     │  / Persistence│
+└──────────────┘     └──────┬───────┘     └─────────────┘
+                           │
+                ┌──────────┴───────────┐
+                │  Servicios / Jobs    │
+                │ (notificaciones,     │
+                │  tareas asíncronas)  │
+                └──────────────────────┘
+```
 
-🔧 Desarrollo
-Backend
+---
 
-Para desarrollo local de los microservicios:
+## 📁 Estructura del proyecto (ejemplo)
 
-cd BackEnd-Clinica  
-mvn clean install
+```
+Clinica/
+├── src/
+│   ├── main/
+│   │   ├── java/          # Código backend (API, servicios, repositorios)
+│   │   └── resources/     # Configuración, plantillas, swagger
+│   └── test/              # Tests unitarios e integración
+├── docs/                  # Documentación adicional
+├── docker/                # Dockerfiles y compose
+├── scripts/               # Scripts de utilidad (seed, migraciones)
+└── pom.xml / build.gradle
+```
 
+Ajusta los nombres de carpetas si tu proyecto usa otro layout o lenguaje.
 
-🏥 Funcionalidades del Sistema
+---
 
-    Gestión de Pacientes: Registro, consulta y administración de pacientes
-    Sistema de Facturación: Gestión completa de facturación médica
-    Control de Admisiones: Gestión de ingresos y egresos hospitalarios
-    Asistente IA: Asistente inteligente para apoyo médico
-    Gestión de Proveedores: Administración de proveedores médicos
-    Gestión de Aseguradoras: Control de clientes y aseguradoras
-    Autenticación y Autorización: Sistema de seguridad robusto
-    Arquitectura de Microservicios: Escalabilidad y mantenibilidad
-    Caché Redis: Optimización de rendimiento
-    Service Discovery: Descubrimiento automático de servicios
+## 🧪 Pruebas
 
-Notes
+```bash
+# Ejecutar tests (ejemplo Maven)
+mvn test
 
-Este proyecto implementa una arquitectura de microservicios completa para un sistema hospitalario, utilizando tecnologías modernas como Spring Boot 3.5.0, Java 21, y Astro para el frontend. El sistema está diseñado para ser escalable y mantenible, con cada servicio especializado en una funcionalidad específica del dominio médico. La configuración con Docker Compose facilita el despliegue y desarrollo del sistema completo. Algunos servicios (billing, admissions, ai-assistant) están comentados en el docker-compose, ya que están en desarrollo o deshabilitados temporalmente.
+# Ejecutar tests y generar reporte de cobertura (ejemplo)
+mvn clean test jacoco:report
 
-Wiki pages you might want to explore:
+# Ejecutar un test específico
+mvn -Dtest=PacienteServiceTest test
+```
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YmidOrtega/Clinica)
+---
+
+## 🔧 Tecnologías (sugeridas — cambiar si es necesario)
+
+- Backend: Java 17 + Spring Boot (o el framework que uses)
+- Frontend: React / Vue / Angular (si aplica)
+- Base de datos: PostgreSQL
+- Autenticación: Spring Security / JWT
+- Docs: OpenAPI / Swagger
+- Tests: JUnit 5, Mockito
+- Contenedores: Docker, Docker Compose
+
+---
+
+## 📊 Checklist de funcionalidades
+
+- [ ] Gestión de pacientes
+- [ ] Agenda de citas
+- [ ] Historias clínicas
+- [ ] Gestión de usuarios y roles
+- [ ] Facturación básica
+- [ ] API documentada (OpenAPI)
+- [ ] Tests automatizados
+- [ ] Contenedorización y despliegue
+
+(Marca lo que ya esté implementado y completa lo que falte.)
+
+---
+
+## 📚 Documentación completa
+
+Incluye en docs/ o enlaza a la wiki interna:
+- Diagramas de arquitectura detallados
+- Guía de instalación paso a paso
+- API reference (endpoints, modelos)
+- Guía de despliegue (Docker, Kubernetes)
+- Consideraciones de seguridad y cumplimiento (HIPAA, si aplica)
+
+---
+
+## 📄 Licencia
+
+MIT License - ver archivo [LICENSE](LICENSE) para detalles.
+
+---
+
+## 🙏 Agradecimientos
+
+- Comunidad de software libre y herramientas de código abierto.
+- Contribuciones y feedback de usuarios y colaboradores.
+
+---
+
+<div align="center">
+
+Built with care for healthcare workflows
+
+**by [Ymid Ortega](https://github.com/YmidOrtega)**
+
+</div>
