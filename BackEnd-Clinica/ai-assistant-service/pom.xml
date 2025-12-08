@@ -16,7 +16,7 @@
 	<description>Micro artificial intelligence service of the Ymid clinic</description>
 
 	<properties>
-		<spring-ai.version>1.1.0</spring-ai.version>
+		<spring-ai.version>1.1.1</spring-ai.version>
 	</properties>
 
 	<dependencies>
