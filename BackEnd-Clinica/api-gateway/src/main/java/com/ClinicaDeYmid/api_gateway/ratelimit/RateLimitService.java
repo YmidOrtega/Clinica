@@ -2,7 +2,6 @@ package com.ClinicaDeYmid.api_gateway.ratelimit;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -10,10 +9,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Servicio de Rate Limiting usando Bucket4j
- * Implementa límites por usuario e IP usando Redis para almacenamiento distribuido
- */
 @Service
 public class RateLimitService {
 
@@ -70,10 +65,10 @@ public class RateLimitService {
      * Crea un nuevo bucket con la configuración especificada
      */
     private Bucket createBucket(long capacity) {
-        Bandwidth bandwidth = Bandwidth.classic(
-                capacity,
-                Refill.intervally(capacity, REFILL_DURATION)
-        );
+        Bandwidth bandwidth = Bandwidth.builder()
+                .capacity(capacity)
+                .refillIntervally(capacity, REFILL_DURATION)
+                .build();
         return Bucket.builder()
                 .addLimit(bandwidth)
                 .build();
@@ -110,7 +105,7 @@ public class RateLimitService {
     }
 
     /**
-     * Limpia los buckets antiguos (para gestión de memoria)
+     * Limpia los buckets antiguos
      */
     public void cleanupOldBuckets() {
         // Se puede implementar una limpieza periódica si es necesario
