@@ -55,7 +55,11 @@ class AttentionControllerIntegrationTest {
     @MockBean
     private AttentionStatusService attentionStatusService;
     @MockBean
+    private com.ClinicaDeYmid.admissions_service.module.service.PdfGeneratorService pdfGeneratorService;
+    @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @MockBean
+    private com.ClinicaDeYmid.admissions_service.infra.security.JwtTokenProvider jwtTokenProvider;
 
     private ObjectMapper objectMapper;
 
@@ -74,12 +78,12 @@ class AttentionControllerIntegrationTest {
     @DisplayName("Should create attention successfully when authorized")
     void createAttention_Authorized_Success() throws Exception {
         CompanionDto companionDto = new CompanionDto("John Doe", "12345", "Father");
-        HealthProviderRequestDto hpRequestDto = new HealthProviderRequestDto("NIT123", "EPS");
+        HealthProviderRequestDto hpRequestDto = new HealthProviderRequestDto("NIT123", 1L);
 
         AttentionRequestDto requestDto = new AttentionRequestDto(
-                null, 1L, 2L, 3L, AttentionStatus.IN_PROGRESS, Cause.ACCIDENT,
+                null, 1L, 2L, 3L, AttentionStatus.CREATED, Cause.ACCIDENT,
                 List.of(hpRequestDto), List.<String>of(), TriageLevel.YELLOW, "ER",
-                companionDto, Collections.<AuthorizationRequestDto>emptyList(), 4L
+                companionDto, "Observations", Collections.<AuthorizationRequestDto>emptyList(), 4L
         );
 
         AttentionResponseDto responseDto = new AttentionResponseDto(
@@ -87,16 +91,16 @@ class AttentionControllerIntegrationTest {
                 new ConfigurationServiceResponseDto(3L, "Service Name", "Care Type Name", "Location Name", true),
                 new GetPatientDto("12345", "Patient Name", "LastName", "1990-01-01", "MALE", "Engineer", "HP123", "City", "Address", "Mobile"),
                 new GetDoctorDto("67890", "Doctor Name", "LastName", Collections.emptyList()),
-                List.of(new GetHealthProviderDto("NIT123", "HP Name", "EPS", null)), // Dummy HP
+                List.of(new GetHealthProviderDto("NIT123", "HP Name", "EPS", null)),
                 null, Collections.emptyList(), Collections.emptyList(),
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now(), null,
-                AttentionStatus.IN_PROGRESS, Cause.ACCIDENT, "ER",
+                AttentionStatus.CREATED, Cause.ACCIDENT, "ER",
                 Collections.emptyList(), TriageLevel.YELLOW, companionDto, "Observations"
         );
 
         when(attentionRecordService.createAttention(any(AttentionRequestDto.class))).thenReturn(responseDto);
 
-        mockMvc.perform(post("/api/v1/admissions")
+        mockMvc.perform(post("/api/v1/attentions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isCreated());
@@ -106,15 +110,15 @@ class AttentionControllerIntegrationTest {
     @DisplayName("Should return 403 FORBIDDEN when not authorized")
     void createAttention_Unauthorized_Returns403() throws Exception {
         CompanionDto companionDto = new CompanionDto("John Doe", "12345", "Father");
-        HealthProviderRequestDto hpRequestDto = new HealthProviderRequestDto("NIT123", "EPS");
+        HealthProviderRequestDto hpRequestDto = new HealthProviderRequestDto("NIT123", 1L);
 
         AttentionRequestDto requestDto = new AttentionRequestDto(
-                null, 1L, 2L, 3L, AttentionStatus.IN_PROGRESS, Cause.ACCIDENT,
+                null, 1L, 2L, 3L, AttentionStatus.CREATED, Cause.ACCIDENT,
                 List.of(hpRequestDto), List.<String>of(), TriageLevel.YELLOW, "ER",
-                companionDto, Collections.<AuthorizationRequestDto>emptyList(), 4L
+                companionDto, "Observations", Collections.<AuthorizationRequestDto>emptyList(), 4L
         );
 
-        mockMvc.perform(post("/api/v1/admissions")
+        mockMvc.perform(post("/api/v1/attentions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isForbidden());

@@ -132,7 +132,7 @@ class GlobalExceptionHandlerTest {
         MethodArgumentNotValidException ex = mock(MethodArgumentNotValidException.class);
         BindingResult bindingResult = mock(BindingResult.class);
         when(ex.getBindingResult()).thenReturn(bindingResult);
-        when(bindingResult.getAllErrors()).thenReturn(Collections.singletonList(new FieldError("objectName", "fieldName", "defaultMessage")));
+        when(bindingResult.getFieldErrors()).thenReturn(Collections.singletonList(new FieldError("objectName", "fieldName", "defaultMessage")));
 
         ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleMethodArgumentNotValid(ex, request);
 
