@@ -141,7 +141,7 @@
 		<dependency>
    			<groupId>com.itextpdf</groupId>
 			<artifactId>font-asian</artifactId>
-			<version>7.2.5</version>
+			<version>9.4.0</version>
 			<scope>runtime</scope>
   		</dependency>
 
