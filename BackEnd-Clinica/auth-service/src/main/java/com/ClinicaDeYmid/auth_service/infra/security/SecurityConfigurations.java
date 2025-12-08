@@ -33,6 +33,7 @@ public class SecurityConfigurations {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/password-reset/**").permitAll()
                         .requestMatchers(HttpMethod.GET , "/api/v1/auth/public-key").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/v1/api/**",
                                 "/v3/api-docs/**",
