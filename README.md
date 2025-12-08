@@ -1,217 +1,309 @@
-# 🏥 Clinica
+# 🏥 Clínica - Healthcare Management System
 
-> **Sistema completo de gestión clínica** con API REST, interfaz web, gestión de pacientes, citas, historias clínicas, facturación y autenticación.
+> **Complete clinic management system** built with microservices architecture, featuring patient management, appointments, medical records, billing, and AI-powered assistance.
 
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.7-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
 [![Status](https://img.shields.io/badge/Status-Active-blue)]()
-[![Coverage](https://img.shields.io/badge/Coverage-—-%23lightgrey)]()
 
 ---
 
-## 📖 Resumen
+## 📖 Overview
 
-**Clinica** es una aplicación orientada a la gestión integral de centros médicos —recepción, agenda de citas, historial clínico, gestión de profesionales, inventario y facturación— pensada para entornos educativos, demos y despliegues en entornos pequeños/medianos.
+**Clínica** is a modern healthcare management platform built with microservices architecture, designed for comprehensive clinic operations including patient care, appointments scheduling, medical records management, and billing.
 
-Está diseñada para ser modular, segura y fácil de desplegar, y sirve tanto para:
-- 📚 Aprendizaje sobre sistemas de gestión clínica y buenas prácticas.
-- 🧪 Pruebas de integración con sistemas externos (laboratorios, pasarelas de pago).
-- 💼 Demostraciones y portfolios profesionales.
+**Key Benefits:**
+- 🏗️ Scalable microservices architecture with service discovery
+- 🔐 Enterprise-grade security with JWT authentication
+- 🤖 AI-powered medical assistant
+- 📊 Real-time monitoring and health checks
+- 🚀 Containerized deployment with Docker
 
-> ⚠️ Uso: Esta implementación es para fines educativos/desarrollo y no sustituye un sistema certificado para entornos de salud reales sin la adaptación y certificaciones necesarias.
-
----
-
-## ✨ Características clave
-
-- 👥 Gestión completa de pacientes (datos demográficos, contactos, alergias).
-- 📅 Agenda de citas con soporte para múltiples profesionales y salas.
-- 🧾 Historiales clínicos y notas médicas.
-- 💳 Facturación básica y generación de recibos.
-- 🔐 Autenticación, autorización y control de roles (admin, médico, recepcionista).
-- 🌐 API REST documentada (OpenAPI / Swagger).
-- 🧪 Tests unitarios e integración.
-- 🗄️ Persistencia en base de datos relacional (ej. PostgreSQL).
-- 📦 Contenedorización con Docker para despliegues rápidos.
+> ⚠️ **Note**: This is a development/educational project. Not certified for production healthcare environments without proper compliance review.
 
 ---
 
-## 🚀 Inicio rápido
+## ✨ Key Features
 
-### Requisitos (ajusta según tu stack)
-- Java 17+ (si es Java) o Node 16+ (si es Node), dependiendo del stack real del proyecto
-- Maven o Gradle (si es Java)
-- Docker (opcional, recomendado)
-- PostgreSQL 13+ (o la BD que uses)
+- 👥 **Patient Management**: Complete patient records with demographics, contacts, and medical history
+- 📅 **Appointments**: Multi-professional scheduling system with conflict detection
+- 🏥 **Admissions**: Patient admission and discharge workflow management
+- 🤖 **AI Assistant**: Gemini-powered medical assistance and consultation support
+- 👔 **Clients Management**: Healthcare providers and insurance companies integration
+- 📦 **Suppliers**: Medical supplies and pharmaceutical inventory management
+- 💳 **Billing**: Invoice generation and payment processing (🚧 In Development)
+- 🔐 **Security**: JWT-based authentication with RSA-256 encryption
+- 📊 **Monitoring**: Real-time health checks with Eureka service discovery
+- 🗄️ **Multi-Database**: PostgreSQL and MySQL support with Flyway migrations
 
-> Nota: Si tu proyecto no usa Java/Spring Boot, indícame el stack y adaptaré estas instrucciones.
+---
 
-### Instrucciones (ejemplo para Spring Boot + Maven)
+## 🚀 Quick Start
+
+### Prerequisites
+- ☕ **Java 21** or higher
+- 🔧 **Maven 3.6+**
+- 🐳 **Docker & Docker Compose**
+- 🔑 **Git**
+
+### Installation
+
 ```bash
-# Clonar repositorio
+# Clone repository
 git clone https://github.com/YmidOrtega/Clinica.git
-cd Clinica
+cd Clinica/BackEnd-Clinica
 
-# Configurar variables de entorno (ejemplo)
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/clinica
-export SPRING_DATASOURCE_USERNAME=clinica_user
-export SPRING_DATASOURCE_PASSWORD=changeme
+# Configure environment variables
+cp .env.example .env
+# Edit .env with your configurations (JWT secrets, database passwords, etc.)
 
-# Construir y ejecutar
-mvn clean package
-java -jar target/clinica-0.0.1-SNAPSHOT.jar
+# Build all microservices
+mvn clean install -DskipTests
 
-# O con Docker Compose (si existe docker-compose.yml)
-docker compose up --build
+# Start services with Docker Compose
+docker-compose up -d
+
+# Verify services are running
+docker-compose ps
 ```
 
-**Credenciales de demo (ejemplo)**
-- admin / AdminPass123!
-- recepcion / Reception123!
-- medico / Doctor123!
-
-(Cambia estas credenciales según tu configuración de seeds o fixtures.)
-
----
-
-## 🎨 Interfaz de usuario (ejemplo)
-
-Si la aplicación incluye UI web, un ejemplo de flujo:
-
-1. Acceder a http://localhost:8080/
-2. Login como recepcionista
-3. Agregar paciente → Crear cita → Asignar médico
-4. Médico inicia sesión → Accede a historial → Añade notas y solicita exámenes
-5. Generar factura desde el módulo de facturación
-
-(Adjunta capturas o GIFs si deseas que las incluya.)
+### Access Points
+- 🌐 **API Gateway**: http://localhost:8080
+- 🔍 **Eureka Dashboard**: http://localhost:8761
+- 📊 **Redis Insight**: http://localhost:8002
+- 📚 **Swagger UI**: http://localhost:{service-port}/swagger-ui.html
 
 ---
 
-## 🌐 API REST (ejemplos)
+## 📦 Microservices
+
+| Service | Port | Database | Technology | Status |
+|---------|------|----------|------------|--------|
+| **Eureka Server** | 8761 | - | Service Discovery | ✅ Active |
+| **API Gateway** | 8080 | PostgreSQL | Spring Cloud Gateway | ✅ Active |
+| **Auth Service** | 8086 | MySQL | Spring Security + JWT | ✅ Active |
+| **Patient Service** | 8081 | MySQL | Spring Boot | ✅ Active |
+| **Admissions Service** | 8083 | PostgreSQL | Spring Boot | ✅ Active |
+| **Clients Service** | 8087 | MySQL | Spring Boot | ✅ Active |
+| **Suppliers Service** | 8085 | MySQL | Spring Boot | ✅ Active |
+| **AI Assistant Service** | 8084 | PostgreSQL | Spring AI + Gemini | ✅ Active |
+| **Billing Service** | 8082 | MySQL | Spring Boot | 🚧 In Development |
+
+---
+
+## 🌐 API Examples
 
 ```bash
-# Healthcheck
-curl http://localhost:8080/api/health
+# Check system health
+curl http://localhost:8080/actuator/health
 
-# Listar pacientes
-curl -u admin:AdminPass123! http://localhost:8080/api/pacientes
+# Authenticate (get JWT token)
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "your-password"}'
 
-# Crear cita (autenticado)
-curl -X POST -H "Content-Type: application/json" -u recepcion:Reception123! \
-  -d '{"pacienteId": 1, "medicoId": 2, "fecha": "2025-12-02T10:00:00", "motivo": "Consulta"}' \
-  http://localhost:8080/api/citas
+# Get patients (requires authentication)
+curl -X GET http://localhost:8080/api/v1/patients \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-**OpenAPI / Swagger**: http://localhost:8080/swagger-ui.html (ajusta la ruta según tu configuración)
+**API Documentation**: Each service exposes Swagger UI at `http://localhost:{port}/swagger-ui.html`
 
 ---
 
-## 🏗️ Arquitectura (diagrama simplificado)
+## 🏗️ Architecture
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌─────────────┐
-│  Frontend    │────▶│  Backend     │────▶│  PostgreSQL │
-│ (React/Vue)  │     │ (API REST)   │     │  / Persistence│
-└──────────────┘     └──────┬───────┘     └─────────────┘
-                           │
-                ┌──────────┴───────────┐
-                │  Servicios / Jobs    │
-                │ (notificaciones,     │
-                │  tareas asíncronas)  │
-                └──────────────────────┘
+┌─────────────────┐
+│  External Apps  │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  API Gateway    │ :8080
+│  (Rate Limit,   │
+│   Load Balance) │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ Eureka Server   │ :8761
+│ (Discovery)     │
+└────────┬────────┘
+         │
+    ┌────┴─────────────────────┐
+    │                          │
+┌───▼───────┐          ┌───────▼─────┐
+│ Services  │◄────────►│   Redis     │
+│  Mesh     │          │   Cache     │
+└───┬───────┘          └─────────────┘
+    │
+┌───▼──────────┐
+│  Databases   │
+│  MySQL +     │
+│  PostgreSQL  │
+└──────────────┘
 ```
 
 ---
 
-## 📁 Estructura del proyecto (ejemplo)
+## 📁 Project Structure
 
 ```
 Clinica/
-├── src/
-│   ├── main/
-│   │   ├── java/          # Código backend (API, servicios, repositorios)
-│   │   └── resources/     # Configuración, plantillas, swagger
-│   └── test/              # Tests unitarios e integración
-├── docs/                  # Documentación adicional
-├── docker/                # Dockerfiles y compose
-├── scripts/               # Scripts de utilidad (seed, migraciones)
-└── pom.xml / build.gradle
+├── BackEnd-Clinica/
+│   ├── admissions-service/
+│   ├── ai-assistant-service/
+│   ├── api-gateway/
+│   ├── auth-service/
+│   ├── billing-service/      # 🚧 In Development
+│   ├── clients-service/
+│   ├── eureka-service/
+│   ├── patient-service/
+│   ├── suppliers-service/
+│   ├── docker-compose.yml
+│   ├── pom.xml
+│   └── .env
+└── FrontEnd-Clinica/          # (Future frontend application)
 ```
-
-Ajusta los nombres de carpetas si tu proyecto usa otro layout o lenguaje.
 
 ---
 
-## 🧪 Pruebas
+## 🔧 Tech Stack
+
+### Backend
+- ☕ **Java 21**
+- 🍃 **Spring Boot 3.5.7**
+- ☁️ **Spring Cloud 2025.0.0**
+- 🔐 **Spring Security + JWT (RSA-256)**
+- 🤖 **Spring AI + Google Gemini**
+
+### Databases
+- 🐘 **PostgreSQL 16** (Gateway, AI Assistant, Admissions)
+- 🐬 **MySQL 8.0** (Auth, Patients, Clients, Suppliers)
+- 🗄️ **Flyway** (Database migrations)
+
+### Infrastructure
+- 🔍 **Netflix Eureka** (Service Discovery)
+- 🚪 **Spring Cloud Gateway** (API Gateway)
+- 🔴 **Redis 7** (Distributed Cache)
+- 🐳 **Docker & Docker Compose**
+- 📊 **Spring Boot Actuator** (Monitoring)
+
+### Tools & Libraries
+- 🔨 **Lombok** (Boilerplate reduction)
+- 🗺️ **MapStruct** (Object mapping)
+- 💪 **Resilience4j** (Circuit breaker)
+- 📝 **OpenAPI/Swagger** (API documentation)
+- 🧪 **JUnit 5 + Mockito** (Testing)
+
+---
+
+## 🧪 Testing
 
 ```bash
-# Ejecutar tests (ejemplo Maven)
+# Run all tests
 mvn test
 
-# Ejecutar tests y generar reporte de cobertura (ejemplo)
+# Run tests for specific service
+cd BackEnd-Clinica/patient-service
+mvn test
+
+# Run with coverage report
 mvn clean test jacoco:report
 
-# Ejecutar un test específico
-mvn -Dtest=PacienteServiceTest test
+# Run specific test class
+mvn -Dtest=PatientServiceTest test
 ```
 
 ---
 
-## 🔧 Tecnologías (sugeridas — cambiar si es necesario)
+## 🐳 Docker Commands
 
-- Backend: Java 17 + Spring Boot (o el framework que uses)
-- Frontend: React / Vue / Angular (si aplica)
-- Base de datos: PostgreSQL
-- Autenticación: Spring Security / JWT
-- Docs: OpenAPI / Swagger
-- Tests: JUnit 5, Mockito
-- Contenedores: Docker, Docker Compose
+```bash
+# Start all services
+docker-compose up -d
 
----
+# Stop services
+docker-compose down
 
-## 📊 Checklist de funcionalidades
+# View logs
+docker-compose logs -f [service-name]
 
-- [ ] Gestión de pacientes
-- [ ] Agenda de citas
-- [ ] Historias clínicas
-- [ ] Gestión de usuarios y roles
-- [ ] Facturación básica
-- [ ] API documentada (OpenAPI)
-- [ ] Tests automatizados
-- [ ] Contenedorización y despliegue
+# Rebuild specific service
+docker-compose build [service-name]
+docker-compose up -d [service-name]
 
-(Marca lo que ya esté implementado y completa lo que falte.)
+# Check services status
+docker-compose ps
+```
 
 ---
 
-## 📚 Documentación completa
+## 🔐 Security Features
 
-Incluye en docs/ o enlaza a la wiki interna:
-- Diagramas de arquitectura detallados
-- Guía de instalación paso a paso
-- API reference (endpoints, modelos)
-- Guía de despliegue (Docker, Kubernetes)
-- Consideraciones de seguridad y cumplimiento (HIPAA, si aplica)
-
----
-
-## 📄 Licencia
-
-MIT License - ver archivo [LICENSE](LICENSE) para detalles.
+- ✅ JWT authentication with RSA-256 encryption
+- ✅ Public/Private key infrastructure
+- ✅ Role-based access control (RBAC)
+- ✅ Secure actuator endpoints
+- ✅ Password encryption with BCrypt
+- ✅ Token refresh mechanism
+- ✅ CORS configuration
+- ✅ Request rate limiting
 
 ---
 
-## 🙏 Agradecimientos
+## 📊 Monitoring & Health
 
-- Comunidad de software libre y herramientas de código abierto.
-- Contribuciones y feedback de usuarios y colaboradores.
+- **Actuator Endpoints**: `/actuator/health`, `/actuator/info`, `/actuator/metrics`
+- **Eureka Dashboard**: Real-time service registry at http://localhost:8761
+- **Redis Insight**: Cache monitoring at http://localhost:8002
+- **Service Discovery**: Automatic registration and health checks
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+**Commit Convention**: Follow [Conventional Commits](https://www.conventionalcommits.org/)
+- `feat:` New features
+- `fix:` Bug fixes
+- `docs:` Documentation changes
+- `refactor:` Code refactoring
+- `test:` Test additions/updates
+
+---
+
+## 📄 License
+
+This project is proprietary software. All rights reserved.
+
+---
+
+## 👥 Authors
+
+**Ymid Ortega**
+- GitHub: [@YmidOrtega](https://github.com/YmidOrtega)
+
+---
+
+## 🙏 Acknowledgments
+
+- Spring Framework community
+- Netflix OSS for Eureka
+- Google for Gemini AI
+- Open source contributors
 
 ---
 
 <div align="center">
 
-Built with care for healthcare workflows
+**Built with ❤️ for modern healthcare management**
 
-**by [Ymid Ortega](https://github.com/YmidOrtega)**
+Version: 1.0.0-SNAPSHOT | Last Updated: December 2025
 
 </div>
