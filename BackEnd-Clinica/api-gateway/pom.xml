@@ -108,14 +108,16 @@
 
 		<!-- Rate Limiting con Redis -->
 		<dependency>
-			<groupId>io.github.bucket4j</groupId>
+			<groupId>com.bucket4j</groupId>
 			<artifactId>bucket4j-core</artifactId>
-			<version>8.7.0</version>
+			<version>8.10.1</version>
 		</dependency>
+
 		<dependency>
-			<groupId>io.github.bucket4j</groupId>
-			<artifactId>bucket4j-redis</artifactId>
-			<version>8.7.0</version>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j_jdk17-redis</artifactId>
+			<version>8.14.0</version>
+			<type>pom</type>
 		</dependency>
 
 		<!-- Métricas y Observabilidad -->
