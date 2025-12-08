@@ -4,12 +4,15 @@ server:
 spring:
    application:
       name: api-gateway
+   flyway:
+      enabled: true
+      locations: classpath:db/migration/api
 
    # Configuración de Base de Datos para Request Logging
    datasource:
-      url: jdbc:postgresql://localhost:5432/clinica_gateway
-      username: ${DB_USERNAME:postgres}
-      password: ${DB_PASSWORD:postgres}
+      url: jdbc:postgresql://localhost:3314/${GATEWAY_DB_NAME}
+      username: ${GATEWAY_DB_USER}
+      password: ${GATEWAY_DB_PASSWORD}
       driver-class-name: org.postgresql.Driver
 
    jpa:
@@ -106,7 +109,7 @@ resilience4j:
          auth-service:
             timeoutDuration: 8s
          ai-assistant-service:
-            timeoutDuration: 15s
+            timeoutDuration: 60s
 
 # Configuración de CORS
 cors:
@@ -123,21 +126,10 @@ management:
    endpoint:
       health:
          show-details: always
+   prometheus:
       metrics:
-         enabled: true
-      prometheus:
-         enabled: true
-   metrics:
-      export:
-         prometheus:
+         export:
             enabled: true
-      distribution:
-         percentiles-histogram:
-            http.server.requests: true
-         percentiles:
-            http.server.requests: 0.5, 0.9, 0.99
-      tags:
-         application: ${spring.application.name}
 
 # Configuración de Swagger/OpenAPI
 springdoc:
