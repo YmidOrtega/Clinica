@@ -252,6 +252,9 @@ services:
          - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
          - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
          - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
+         - JWT_SECRET=${JWT_SECRET}
+         - JWT_EXPIRATION=${JWT_EXPIRATION}
+         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
@@ -259,6 +262,12 @@ services:
          - "8081:8081"
       networks:
          - clinica-net
+      healthcheck:
+         test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 90s
 
 #   billing-service:
 #      build: ./billing-service
@@ -304,6 +313,12 @@ services:
          - SPRING_DATA_REDIS_PORT=6379
          - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
          - SPRING_DATA_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
+         - JWT_SECRET=${JWT_SECRET}
+         - JWT_EXPIRATION=${JWT_EXPIRATION}
+         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
@@ -311,6 +326,12 @@ services:
          - "8083:8083"
       networks:
          - clinica-net
+      healthcheck:
+         test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 90s
 
    ai-assistant-service:
       build: ./ai-assistant-service
@@ -331,6 +352,12 @@ services:
          - SPRING_DATA_REDIS_PORT=6379
          - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
          - SPRING_DATA_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
+         - JWT_SECRET=${JWT_SECRET}
+         - JWT_EXPIRATION=${JWT_EXPIRATION}
+         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
@@ -338,6 +365,12 @@ services:
          - "8084:8084"
       networks:
          - clinica-net
+      healthcheck:
+         test: [ "CMD", "curl", "-f", "http://localhost:8084/actuator/health" ]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 90s
 
    suppliers-service:
       build: ./suppliers-service
@@ -357,13 +390,25 @@ services:
          - SPRING_DATA_REDIS_PORT=6379
          - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
          - SPRING_DATA_REDIS_TIMEOUT=2000ms
-         - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka/
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
+         - JWT_SECRET=${JWT_SECRET}
+         - JWT_EXPIRATION=${JWT_EXPIRATION}
+         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
       ports:
          - "8085:8085"
       networks:
          - clinica-net
+      healthcheck:
+         test: [ "CMD", "curl", "-f", "http://localhost:8085/actuator/health" ]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 90s
 
    auth-service:
       build: ./auth-service
@@ -383,8 +428,12 @@ services:
          - SPRING_DATA_REDIS_PORT=6379
          - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
          - SPRING_DATA_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
          - JWT_SECRET=${JWT_SECRET}
          - JWT_EXPIRATION=${JWT_EXPIRATION}
+         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
@@ -392,6 +441,12 @@ services:
          - "8086:8086"
       networks:
          - clinica-net
+      healthcheck:
+         test: [ "CMD", "curl", "-f", "http://localhost:8086/actuator/health" ]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 90s
 
    clients-service:
       build: ./clients-service
@@ -414,19 +469,30 @@ services:
          - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
          - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
          - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
+         - JWT_SECRET=${JWT_SECRET}
+         - JWT_EXPIRATION=${JWT_EXPIRATION}
+         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-         - SPRING_PROFILES_ACTIVE=prod
+         - SPRING_PROFILES_ACTIVE=docker
       ports:
          - "8087:8087"
       networks:
          - clinica-net
+      healthcheck:
+         test: [ "CMD", "curl", "-f", "http://localhost:8087/actuator/health" ]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 90s
 
    # API Gateway
    api-gateway:
       build: ./api-gateway
       container_name: api-gateway
       depends_on:
+         gateway-db:
+            condition: service_healthy
          eureka-service:
             condition: service_healthy
          redis-cache:
@@ -446,6 +512,9 @@ services:
          clients-service:
             condition: service_healthy
       environment:
+         - SPRING_DATASOURCE_URL=jdbc:postgresql://gateway-db:5432/${GATEWAY_DB_NAME}
+         - SPRING_DATASOURCE_USERNAME=${GATEWAY_DB_USER}
+         - SPRING_DATASOURCE_PASSWORD=${GATEWAY_DB_PASSWORD}
          - PATIENT_SERVICE_URL=http://patient-service:8081
          #- BILLING_SERVICE_URL=http://billing-service:8082
          - ADMISSIONS_SERVICE_URL=http://admissions-service:8083
@@ -457,6 +526,9 @@ services:
          - SPRING_DATA_REDIS_PORT=6379
          - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
          - SPRING_DATA_REDIS_TIMEOUT=2000ms
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
+         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
          - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
          - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
          - SPRING_PROFILES_ACTIVE=docker
@@ -466,6 +538,12 @@ services:
          - "8080:8080"
       networks:
          - clinica-net
+      healthcheck:
+         test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+         interval: 30s
+         timeout: 10s
+         retries: 5
+         start_period: 90s
 
    # Redis Insight para monitoreo
    redis-insight:
