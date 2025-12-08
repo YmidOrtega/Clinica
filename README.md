@@ -302,8 +302,15 @@ This project is proprietary software. All rights reserved.
 
 <div align="center">
 
-**Built with ❤️ for modern healthcare management**
+**Built with ☕ Java and 📈 Financial Engineering**
 
-Version: 1.0.0-SNAPSHOT | Last Updated: December 2025
+**by [Ymid Ortega](https://github.com/YmidOrtega)**
+
+[![GitHub](https://img.shields.io/badge/GitHub-YmidOrtega-181717?logo=github)](https://github.com/YmidOrtega)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?logo=linkedin)](https://linkedin.com/in/ymidortega)
+
+*If you found this project useful, consider giving it a ⭐!*
+
+**© 2024 Ymid Ortega. All Rights Reserved.**
 
 </div>
