@@ -26,8 +26,8 @@ jobs:
           - suppliers-service
           - clients-service
           - admissions-service
-          - billing-service
           - ai-assistant-service
+          # - billing-service  # TODO: Uncomment when service is implemented
     
     steps:
       - name: Checkout code
@@ -121,6 +121,8 @@ jobs:
           - suppliers-service
           - clients-service
           - admissions-service
+          - ai-assistant-service
+          # - billing-service  # TODO: Uncomment when service is implemented
     
     steps:
       - name: Checkout code
