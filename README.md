@@ -284,13 +284,6 @@ This project is proprietary software. All rights reserved.
 
 ---
 
-## 👥 Authors
-
-**Ymid Ortega**
-- GitHub: [@YmidOrtega](https://github.com/YmidOrtega)
-
----
-
 ## 🙏 Acknowledgments
 
 - Spring Framework community
