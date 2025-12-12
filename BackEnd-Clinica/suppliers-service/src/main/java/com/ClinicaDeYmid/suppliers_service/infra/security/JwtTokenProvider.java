@@ -23,10 +23,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Proveedor de JWT que valida tokens generados por auth-service usando JJWT.
- * Soporta algoritmos RS256 y HS256 según configuración.
- */
+
 @Component
 @Slf4j
 public class JwtTokenProvider {

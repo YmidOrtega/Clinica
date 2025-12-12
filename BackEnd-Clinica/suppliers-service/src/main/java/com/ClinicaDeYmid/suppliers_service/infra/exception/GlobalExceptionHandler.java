@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.suppliers_service.infra.exception;
 
-import com.ClinicaDeYmid.suppliers_service.infra.exception.ErrorResponse;
 import com.ClinicaDeYmid.suppliers_service.module.service.validation.ValidationException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
