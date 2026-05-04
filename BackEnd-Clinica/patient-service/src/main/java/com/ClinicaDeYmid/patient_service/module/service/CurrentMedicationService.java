@@ -226,13 +226,22 @@ public class CurrentMedicationService {
     public CurrentMedicationResponseDTO registerRefill(Long medicationId, int refillsAdded) {
         log.info("Registering refill for medication ID: {} (adding {} refills)", medicationId, refillsAdded);
 
+        if (refillsAdded <= 0) {
+            throw new BusinessException("El número de resurtidos a agregar debe ser mayor que cero");
+        }
+
         Long userId = getCurrentUserId();
 
         CurrentMedication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicamento no encontrado con ID: " + medicationId));
 
         Integer currentRefills = medication.getRefillsRemaining() != null ? medication.getRefillsRemaining() : 0;
-        medication.setRefillsRemaining(currentRefills + refillsAdded);
+        try {
+            int updatedRefills = Math.addExact(currentRefills, refillsAdded);
+            medication.setRefillsRemaining(updatedRefills);
+        } catch (ArithmeticException ex) {
+            throw new BusinessException("La cantidad de resurtidos excede el límite permitido");
+        }
         medication.setUpdatedBy(userId);
 
         CurrentMedication updated = medicationRepository.save(medication);
