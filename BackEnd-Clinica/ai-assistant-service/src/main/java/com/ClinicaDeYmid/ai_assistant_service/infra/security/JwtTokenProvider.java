@@ -150,6 +150,17 @@ public class JwtTokenProvider {
         }
     }
 
+    public Long getUserIdFromToken(String token) {
+        try {
+            Claims claims = getClaims(token);
+            Number userId = claims.get("user_id", Number.class);
+            return userId != null ? userId.longValue() : null;
+        } catch (Exception e) {
+            log.error("Error al extraer userId del token", e);
+            return null;
+        }
+    }
+
     public String getRoleFromToken(String token) {
         try {
             Claims claims = getClaims(token);

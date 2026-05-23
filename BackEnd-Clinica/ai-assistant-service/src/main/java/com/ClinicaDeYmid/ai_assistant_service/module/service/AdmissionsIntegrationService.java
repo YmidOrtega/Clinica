@@ -53,7 +53,7 @@ public class AdmissionsIntegrationService {
     private AttentionResponseDto createAttentionFallback(AttentionRequestDto request, Throwable ex) {
         log.error("Circuit breaker activated for createAttention. Patient: {}. Error: {}",
                 request.patientId(), ex.getMessage());
-        throw new RuntimeException("Admissions service is currently unavailable. Please try again later.");
+        throw new RuntimeException(resolveUserFacingMessage(ex), ex);
     }
 
     /**
@@ -62,6 +62,14 @@ public class AdmissionsIntegrationService {
     private AttentionResponseDto getAttentionFallback(Long attentionId, Throwable ex) {
         log.error("Circuit breaker activated for getAttention. ID: {}. Error: {}",
                 attentionId, ex.getMessage());
-        throw new RuntimeException("Admissions service is currently unavailable. Please try again later.");
+        throw new RuntimeException(resolveUserFacingMessage(ex), ex);
+    }
+
+    private String resolveUserFacingMessage(Throwable ex) {
+        String message = ex != null ? ex.getMessage() : null;
+        if (message == null || message.isBlank()) {
+            return "Admissions service is currently unavailable. Please try again later.";
+        }
+        return message;
     }
 }

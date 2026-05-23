@@ -62,8 +62,8 @@ public class AIService {
             }
 
             if (response == null || response.isBlank()) {
-                log.warn("AI returned empty response for user {}. Check LM Studio reasoning/thinking settings — enable 'Include reasoning in response'.", username);
-                return "Lo siento, no pude generar una respuesta en este momento. Por favor intenta de nuevo.";
+                log.warn("AI returned empty content for user {}. The model likely exhausted the token budget in reasoning mode before producing a final answer.", username);
+                return "No pude procesar la solicitud porque el modelo no devolvio una respuesta final util. Revisa LM Studio o cambia el modelo para desactivar reasoning y vuelve a intentar.";
             }
 
             log.debug("Successfully generated response for user: {}", username);
