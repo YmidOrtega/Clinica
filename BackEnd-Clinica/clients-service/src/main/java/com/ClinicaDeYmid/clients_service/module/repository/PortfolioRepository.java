@@ -13,35 +13,29 @@ import java.util.Optional;
 @Repository
 public interface PortfolioRepository extends JpaRepository<Portfolio, Long> {
 
-    /**
-     * Busca un portfolio por ID incluyendo eliminados lógicamente
-     */
     @Query("SELECT p FROM Portfolio p WHERE p.id = :id")
     Optional<Portfolio> findByIdIncludingDeleted(@Param("id") Long id);
 
-    /**
-     * Obtiene todos los portfolios activos con paginación
-     */
-    @Query("SELECT p FROM Portfolio p " +
-            "WHERE p.deletedAt IS NULL " +
-            "ORDER BY p.createdAt DESC")
+    @Query("""
+        SELECT p FROM Portfolio p
+        WHERE p.deletedAt IS NULL
+        ORDER BY p.createdAt DESC
+        """)
     Page<Portfolio> findAllActive(Pageable pageable);
 
-    /**
-     * Busca portfolios eliminados (para auditoría)
-     */
-    @Query("SELECT p FROM Portfolio p " +
-            "WHERE p.deletedAt IS NOT NULL " +
-            "ORDER BY p.deletedAt DESC")
+    @Query("""
+        SELECT p FROM Portfolio p
+        WHERE p.deletedAt IS NOT NULL
+        ORDER BY p.deletedAt DESC
+        """)
     Page<Portfolio> findDeleted(Pageable pageable);
 
-    /**
-     * Busca portfolios creados por un usuario específico
-     */
-    @Query("SELECT p FROM Portfolio p " +
-            "WHERE p.createdBy = :userId " +
-            "AND p.deletedAt IS NULL " +
-            "ORDER BY p.createdAt DESC")
+    @Query("""
+        SELECT p FROM Portfolio p
+        WHERE p.createdBy = :userId
+        AND p.deletedAt IS NULL
+        ORDER BY p.createdAt DESC
+        """)
     Page<Portfolio> findByCreatedBy(
             @Param("userId") Long userId,
             Pageable pageable);
