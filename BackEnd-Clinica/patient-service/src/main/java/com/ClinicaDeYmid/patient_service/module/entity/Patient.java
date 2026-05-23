@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,6 +19,8 @@ import java.util.UUID;
 @Table(name = "patients", indexes = {
         @Index(name = "idx_identification", columnList = "identification")
 })
+@SQLDelete(sql = "UPDATE patients SET status = 'DELETED' WHERE id = ?")
+@SQLRestriction("status != 'DELETED'")
 @Data
 @EqualsAndHashCode(of = "id")
 @NoArgsConstructor
