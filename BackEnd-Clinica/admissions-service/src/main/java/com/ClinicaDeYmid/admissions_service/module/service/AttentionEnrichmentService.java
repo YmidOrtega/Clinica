@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -57,43 +58,57 @@ public class AttentionEnrichmentService {
 
     public AttentionResponseDto enrichAttentionResponseDto(Attention attention) {
 
-        GetPatientDto patientDetails = null;
-        if (attention.getPatientId() != null) {
-            try {
-                patientDetails = patientClient.getPatientByIdentificationNumber(attention.getPatientId().toString());
-            } catch (Exception e) {
-                log.warn("No se pudo obtener paciente con patientId {}: {}. PatientId es un ID interno, se necesita identificationNumber", attention.getPatientId(), e.getMessage());
-            }
-        }
+        // Lanzar llamadas independientes en paralelo (aprovecha virtual threads de Java 21)
+        CompletableFuture<GetPatientDto> patientFuture = attention.getPatientId() != null
+                ? CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return patientClient.getPatientByIdentificationNumber(attention.getPatientId().toString());
+                    } catch (Exception e) {
+                        log.warn("No se pudo obtener paciente con patientId {}: {}", attention.getPatientId(), e.getMessage());
+                        return null;
+                    }
+                })
+                : CompletableFuture.completedFuture(null);
 
-        // Obtención de detalles del doctor
-        GetDoctorDto doctorDetails = (attention.getDoctorId() != null) ?
-                fetchExternalResource(() -> doctorClient.getDoctorById(attention.getDoctorId()), "doctor", attention.getDoctorId()) : null;
+        CompletableFuture<GetDoctorDto> doctorFuture = attention.getDoctorId() != null
+                ? CompletableFuture.supplyAsync(() ->
+                    fetchExternalResource(() -> doctorClient.getDoctorById(attention.getDoctorId()), "doctor", attention.getDoctorId()))
+                : CompletableFuture.completedFuture(null);
 
-        // Obtención de prestadores de salud
-        List<GetHealthProviderDto> healthProviderDetails = (attention.getHealthProviderNit() != null && !attention.getHealthProviderNit().isEmpty()) ?
-                attention.getHealthProviderNit().stream()
-                        .map(healthProviderInfo -> {
-                            String nit = healthProviderInfo.getHealthProviderNit();
-                            Long contractId = healthProviderInfo.getContractId();
-                            try {
-                                return healthProviderClient.getHealthProviderByNitAndContract(nit, contractId);
-                            } catch (Exception e) {
-                                log.warn("No se encontró proveedor para NIT {} y contrato {}: {}", nit, contractId, e.getMessage());
-                                return null;
-                            }
-                        })
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList()) : Collections.emptyList();
+        CompletableFuture<List<GetHealthProviderDto>> healthProviderFuture = (attention.getHealthProviderNit() != null && !attention.getHealthProviderNit().isEmpty())
+                ? CompletableFuture.supplyAsync(() ->
+                    attention.getHealthProviderNit().stream()
+                            .map(healthProviderInfo -> {
+                                String nit = healthProviderInfo.getHealthProviderNit();
+                                Long contractId = healthProviderInfo.getContractId();
+                                try {
+                                    return healthProviderClient.getHealthProviderByNitAndContract(nit, contractId);
+                                } catch (Exception e) {
+                                    log.warn("No se encontró proveedor para NIT {} y contrato {}: {}", nit, contractId, e.getMessage());
+                                    return (GetHealthProviderDto) null;
+                                }
+                            })
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList()))
+                : CompletableFuture.completedFuture(Collections.emptyList());
 
-        // Obtención de historial de usuario
-        List<AttentionUserHistoryResponseDto> userHistory = (attention.getUserHistory() != null) ?
-                attention.getUserHistory().stream()
-                        .map(history -> {
-                            GetUserDto userDetails = fetchExternalResource(() -> userClient.getUserById(history.getUserId()), "usuario", history.getUserId());
-                            return new AttentionUserHistoryResponseDto(history.getId(), userDetails, history.getActionType(), history.getActionTimestamp(), history.getObservations());
-                        })
-                        .collect(Collectors.toList()) : Collections.emptyList();
+        CompletableFuture<List<AttentionUserHistoryResponseDto>> historyFuture = attention.getUserHistory() != null
+                ? CompletableFuture.supplyAsync(() ->
+                    attention.getUserHistory().stream()
+                            .map(history -> {
+                                GetUserDto userDetails = fetchExternalResource(() -> userClient.getUserById(history.getUserId()), "usuario", history.getUserId());
+                                return new AttentionUserHistoryResponseDto(history.getId(), userDetails, history.getActionType(), history.getActionTimestamp(), history.getObservations());
+                            })
+                            .collect(Collectors.toList()))
+                : CompletableFuture.completedFuture(Collections.emptyList());
+
+        // Esperar resultados de todas las llamadas paralelas
+        CompletableFuture.allOf(patientFuture, doctorFuture, healthProviderFuture, historyFuture).join();
+
+        GetPatientDto patientDetails = patientFuture.join();
+        GetDoctorDto doctorDetails = doctorFuture.join();
+        List<GetHealthProviderDto> healthProviderDetails = healthProviderFuture.join();
+        List<AttentionUserHistoryResponseDto> userHistory = historyFuture.join();
 
         // Mapeos que no requieren llamadas externas
         List<AuthorizationResponseDto> authorizations = authorizationMapper.toResponseDtoList(attention.getAuthorizations());
