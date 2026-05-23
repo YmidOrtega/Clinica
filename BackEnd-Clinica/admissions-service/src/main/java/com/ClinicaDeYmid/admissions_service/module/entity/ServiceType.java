@@ -13,7 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "care_types")
+@Table(name = "service_types")
 @EntityListeners(AuditingEntityListener.class)
 @Data
 @NoArgsConstructor
