@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepositor
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +23,12 @@ public class AttentionStatusService {
      * Activa una atención
      */
     @Transactional
-    @CacheEvict(value = {
-            "attentions",
-            "attentionsByPatient",
-            "attentionsByDoctor",
-            "attentionsByHealthProvider"
-    }, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "attention-entities", key = "#id"),
+            @CacheEvict(value = "attentionsByPatient", allEntries = true),
+            @CacheEvict(value = "attentionsByDoctor", allEntries = true),
+            @CacheEvict(value = "attentionsByHealthProvider", allEntries = true)
+    })
     public void activateAttention(Long id) {
         log.info("Activating attention with ID: {}", id);
 
@@ -48,12 +49,12 @@ public class AttentionStatusService {
      * Desactiva una atención
      */
     @Transactional
-    @CacheEvict(value = {
-            "attentions",
-            "attentionsByPatient",
-            "attentionsByDoctor",
-            "attentionsByHealthProvider"
-    }, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "attention-entities", key = "#id"),
+            @CacheEvict(value = "attentionsByPatient", allEntries = true),
+            @CacheEvict(value = "attentionsByDoctor", allEntries = true),
+            @CacheEvict(value = "attentionsByHealthProvider", allEntries = true)
+    })
     public void deactivateAttention(Long id) {
         log.info("Deactivating attention with ID: {}", id);
 
@@ -74,12 +75,12 @@ public class AttentionStatusService {
      * Soft delete de una atención
      */
     @Transactional
-    @CacheEvict(value = {
-            "attentions",
-            "attentionsByPatient",
-            "attentionsByDoctor",
-            "attentionsByHealthProvider"
-    }, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "attention-entities", key = "#id"),
+            @CacheEvict(value = "attentionsByPatient", allEntries = true),
+            @CacheEvict(value = "attentionsByDoctor", allEntries = true),
+            @CacheEvict(value = "attentionsByHealthProvider", allEntries = true)
+    })
     public void softDeleteAttention(Long id, String reason) {
         log.info("Soft deleting attention with ID: {} for reason: {}", id, reason);
 
@@ -97,8 +98,7 @@ public class AttentionStatusService {
 
         Long currentUserId = UserContextHolder.getCurrentUserId();
         if (currentUserId == null) {
-            log.warn("User context not available for soft delete operation, using default user ID");
-            currentUserId = 0L; // Use default value when context is not available
+            throw new SecurityException("No authenticated user in context");
         }
 
         attention.softDelete(currentUserId, reason);
@@ -111,12 +111,12 @@ public class AttentionStatusService {
      * Restaura una atención soft-deleted
      */
     @Transactional
-    @CacheEvict(value = {
-            "attentions",
-            "attentionsByPatient",
-            "attentionsByDoctor",
-            "attentionsByHealthProvider"
-    }, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "attention-entities", key = "#id"),
+            @CacheEvict(value = "attentionsByPatient", allEntries = true),
+            @CacheEvict(value = "attentionsByDoctor", allEntries = true),
+            @CacheEvict(value = "attentionsByHealthProvider", allEntries = true)
+    })
     public void restoreAttention(Long id) {
         log.info("Restoring soft-deleted attention with ID: {}", id);
 

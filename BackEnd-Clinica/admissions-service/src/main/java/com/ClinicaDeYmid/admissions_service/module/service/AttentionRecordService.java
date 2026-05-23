@@ -112,12 +112,12 @@ public class AttentionRecordService {
      * Actualiza una atención existente (INVALIDA CACHÉS)
      */
     @Transactional
-    @CacheEvict(value = {
-            "attention-entities",
-            "attentionsByPatient",
-            "attentionsByDoctor",
-            "attentionsByHealthProvider"
-    }, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "attention-entities", key = "#id"),
+            @CacheEvict(value = "attentionsByPatient", key = "#request.patientId()"),
+            @CacheEvict(value = "attentionsByDoctor", key = "#request.doctorId()"),
+            @CacheEvict(value = "attentionsByHealthProvider", allEntries = true)
+    })
     public AttentionResponseDto updateAttention(Long id, AttentionRequestDto request) {
         log.info("Updating attention with ID: {}", id);
 
