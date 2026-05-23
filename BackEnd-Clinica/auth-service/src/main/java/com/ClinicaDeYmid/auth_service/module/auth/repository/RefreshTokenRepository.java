@@ -90,4 +90,18 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             @Param("token") String token,
             @Param("now") LocalDateTime now
     );
+
+    /**
+     * Revoca en batch tokens por sus IDs (para limpiar sesiones excedentes)
+     */
+    @Modifying
+    @Query("""
+        UPDATE RefreshToken rt
+        SET rt.revoked = true, rt.revokedAt = CURRENT_TIMESTAMP
+        WHERE rt.user = :user AND rt.id IN :ids
+        """)
+    void revokeByUserAndIds(
+            @Param("user") User user,
+            @Param("ids") List<Long> ids
+    );
 }
