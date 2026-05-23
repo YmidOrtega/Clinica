@@ -20,7 +20,6 @@ import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionMapper;
 import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -55,16 +54,8 @@ public class AttentionGetService {
     public Attention findEntityById(Long id) {
         log.debug("🔍 Cache MISS - Consultando DB para attention: {}", id);
 
-        Attention attention = attentionRepository.findById(id)
+        return attentionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + id));
-
-        // Inicializar colecciones lazy
-        if (attention != null) {
-            Hibernate.initialize(attention.getAuthorizations());
-            Hibernate.initialize(attention.getDiagnosticCodes());
-        }
-
-        return attention;
     }
 
     @Transactional(readOnly = true)
@@ -82,13 +73,6 @@ public class AttentionGetService {
         log.info("Fetching attentions for patient ID: {}", patientId);
 
         List<Attention> attentions = attentionRepository.findByPatientId(patientId);
-
-        if (attentions != null) {
-            attentions.forEach(attention -> {
-                Hibernate.initialize(attention.getAuthorizations());
-                Hibernate.initialize(attention.getDiagnosticCodes());
-            });
-        }
 
         // Obtener nombre del paciente
         String patientName = "";
@@ -115,11 +99,6 @@ public class AttentionGetService {
                         .orElseThrow(() -> new EntityNotFoundException("No active attention found for patient ID: " + patientId))
         );
 
-        activeAttention.forEach(attention -> {
-            Hibernate.initialize(attention.getAuthorizations());
-            Hibernate.initialize(attention.getDiagnosticCodes());
-        });
-
         // Obtener nombre del paciente
         String patientName = "";
         try {
@@ -141,13 +120,6 @@ public class AttentionGetService {
         log.info("Fetching attentions for doctor ID: {}", doctorId);
 
         List<Attention> attentions = attentionRepository.findByDoctorId(doctorId);
-
-        if (attentions != null) {
-            attentions.forEach(attention -> {
-                Hibernate.initialize(attention.getAuthorizations());
-                Hibernate.initialize(attention.getDiagnosticCodes());
-            });
-        }
 
         // Obtener nombre del doctor
         String doctorName = "";
@@ -192,13 +164,6 @@ public class AttentionGetService {
 
         List<Attention> attentions = attentionRepository.findByHealthProviderNit(healthProviderNit);
 
-        if (attentions != null) {
-            attentions.forEach(attention -> {
-                Hibernate.initialize(attention.getAuthorizations());
-                Hibernate.initialize(attention.getDiagnosticCodes());
-            });
-        }
-
         Long contractId = null;
         for (Attention attention : attentions) {
             List<HealthProviderInfo> providerInfoList = attention.getHealthProviderNit();
@@ -230,13 +195,6 @@ public class AttentionGetService {
         log.info("Fetching attentions for configuration service ID: {}", configServiceId);
 
         List<Attention> attentions = attentionRepository.findByConfigurationServiceId(configServiceId);
-
-        if (attentions != null) {
-            attentions.forEach(attention -> {
-                Hibernate.initialize(attention.getAuthorizations());
-                Hibernate.initialize(attention.getDiagnosticCodes());
-            });
-        }
 
         if (attentions == null) {
             attentions = Collections.emptyList();

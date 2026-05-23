@@ -6,6 +6,7 @@ import com.ClinicaDeYmid.admissions_service.module.enums.TriageLevel;
 import com.ClinicaDeYmid.admissions_service.module.enums.UserActionType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -74,10 +75,12 @@ public class Attention {
     @Builder.Default
     @OneToMany(mappedBy = "attention", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("actionTimestamp ASC")
+    @BatchSize(size = 25)
     private List<AttentionUserHistory> userHistory = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "attention", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @BatchSize(size = 25)
     private List<Authorization> authorizations = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -107,6 +110,7 @@ public class Attention {
     @ElementCollection
     @CollectionTable(name = "attention_diagnostic_codes", joinColumns = @JoinColumn(name = "attention_id"))
     @Column(name = "diagnostic_codes")
+    @BatchSize(size = 25)
     private List<String> diagnosticCodes;
 
     @Enumerated(EnumType.STRING)
