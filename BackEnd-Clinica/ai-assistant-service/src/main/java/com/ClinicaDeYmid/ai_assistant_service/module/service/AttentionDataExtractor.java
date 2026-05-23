@@ -38,8 +38,11 @@ public class AttentionDataExtractor {
         }
 
         try {
+            // Normalize patient_id: LLMs often emit it as a bare number; coerce to string
+            String json = matcher.group(1)
+                    .replaceAll("(\"patient_id\"\\s*:\\s*)(\\d+)", "$1\"$2\"");
             AttentionExtractionResult result = objectMapper.readValue(
-                    matcher.group(1), AttentionExtractionResult.class
+                    json, AttentionExtractionResult.class
             );
             validate(result);
             return Optional.of(result);

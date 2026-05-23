@@ -88,6 +88,7 @@ public class ChatService {
                 conversationHistory,
                 context
         );
+        log.debug("Raw AI response for user {}: {}", username, rawAiResponse);
 
         Optional<AttentionExtractionResult> extracted = attentionDataExtractor.extract(rawAiResponse);
         String aiResponse = attentionDataExtractor.stripActionBlock(rawAiResponse);
