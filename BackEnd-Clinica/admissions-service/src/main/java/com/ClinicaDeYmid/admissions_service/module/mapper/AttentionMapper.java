@@ -223,7 +223,7 @@ public interface AttentionMapper {
 
     default List<PatientWithAttentionsResponse> groupAttentionsByPatient(
             List<Attention> attentions,
-            java.util.function.Function<Long, String> patientNameResolver) {
+            java.util.function.Function<String, String> patientNameResolver) {
 
         if (attentions == null || attentions.isEmpty()) {
             return List.of();
@@ -234,7 +234,7 @@ public interface AttentionMapper {
                 .entrySet()
                 .stream()
                 .map(entry -> {
-                    Long patientId = entry.getKey();
+                    String patientId = entry.getKey();
                     List<Attention> patientAttentions = entry.getValue();
                     String patientName = patientNameResolver.apply(patientId);
                     return toPatientWithAttentionsResponse(patientName, patientAttentions);

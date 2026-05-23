@@ -76,8 +76,8 @@ class AttentionRecordServiceTest {
         );
 
         attentionRequestDto = new AttentionRequestDto(
-                1L,
-                1L,
+                null,
+                "1000000001",
                 1L,
                 1L,
                 AttentionStatus.CREATED,
@@ -98,7 +98,7 @@ class AttentionRecordServiceTest {
         attention = new Attention();
         attention.setId(1L);
         attention.setConfigurationService(configurationService);
-        attention.setPatientId(1L); // Important for validaton
+        attention.setPatientId("1000000001"); // Important for validation
         attention.setDoctorId(1L);  // Important for validation
 
         attentionResponseDto = new AttentionResponseDto(
@@ -154,7 +154,7 @@ class AttentionRecordServiceTest {
         when(attentionRepository.findById(attentionId)).thenReturn(Optional.of(attention));
         // Mocks for validation (only changed fields are validated, but here IDs are same as in DTO so usually no validation if no change)
         // Wait, logic says: validate if changed.
-        // DTO has patientId=1L, entity has 1L. No change.
+        // DTO has patientId="1000000001", entity has "1000000001". No change.
         // However, userId is validated if present
         when(userClient.getUserById(anyLong())).thenReturn(new GetUserDto("uuid", "user", "email", true, null));
         when(authorizationMapper.toEntity(any(AuthorizationRequestDto.class))).thenReturn(new Authorization());

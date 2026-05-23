@@ -64,7 +64,7 @@ class AttentionGetServiceTest {
     void setUp() {
         attention = new Attention();
         attention.setId(1L);
-        attention.setPatientId(1L);
+        attention.setPatientId("1000000001");
         attention.setDoctorId(1L);
         attention.setStatus(AttentionStatus.CREATED);
 
@@ -99,7 +99,7 @@ class AttentionGetServiceTest {
     @Test
     void getAttentionsByPatientId_Success() {
         // Arrange
-        Long patientId = 1L;
+        String patientId = "1000000001";
         when(attentionRepository.findByPatientId(patientId)).thenReturn(Collections.singletonList(attention));
         when(patientClient.getPatientByIdentificationNumber(anyString())).thenReturn(new GetPatientDto("123", "John", "Doe", null, null, null, null, null, null, null));
         when(attentionMapper.toPatientWithAttentionsResponse(anyString(), anyList())).thenReturn(new PatientWithAttentionsResponse(null, null));
@@ -115,7 +115,7 @@ class AttentionGetServiceTest {
     @Test
     void getActiveAttentionByPatientId_Success() {
         // Arrange
-        Long patientId = 1L;
+        String patientId = "1000000001";
         when(attentionRepository.findByPatientIdAndStatus(patientId, AttentionStatus.CREATED)).thenReturn(Optional.of(attention));
         when(patientClient.getPatientByIdentificationNumber(anyString())).thenReturn(new GetPatientDto("123", "John", "Doe", null, null, null, null, null, null, null));
         when(attentionMapper.toPatientWithAttentionsResponse(anyString(), anyList())).thenReturn(new PatientWithAttentionsResponse(null, null));
@@ -131,7 +131,7 @@ class AttentionGetServiceTest {
     @Test
     void getActiveAttentionByPatientId_NotFound() {
         // Arrange
-        Long patientId = 1L;
+        String patientId = "1000000001";
         when(attentionRepository.findByPatientIdAndStatus(patientId, AttentionStatus.CREATED)).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -142,7 +142,7 @@ class AttentionGetServiceTest {
     void searchAttentions_Success() {
         // Arrange
         AttentionSearchRequest searchRequest = new AttentionSearchRequest(
-                1L, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 0, 10, "createdAt", "desc"
+                "1000000001", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 0, 10, "createdAt", "desc"
         );
         Page<Attention> attentionPage = new PageImpl<>(Collections.singletonList(attention));
         

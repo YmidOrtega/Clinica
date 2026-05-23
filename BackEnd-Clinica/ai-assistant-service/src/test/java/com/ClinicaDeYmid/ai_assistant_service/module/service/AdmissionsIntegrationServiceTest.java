@@ -24,8 +24,8 @@ class AdmissionsIntegrationServiceTest {
     @Test
     void createAttention_Success() {
         // Arrange
-        AttentionRequestDto request = new AttentionRequestDto(1L, 1L, 1L, null, null, null, null, null, null, null, null, null, 1L);
-        AttentionResponseDto expectedResponse = new AttentionResponseDto(1L, 1L, 1L, "CREATED", "ATT-001", "ACCIDENT", "YELLOW", "Walk-in", true, false, "2024-01-01");
+        AttentionRequestDto request = new AttentionRequestDto("1000000001", 1L, 1L, null, null, null, null, null, null, null, null, null, 1L);
+        AttentionResponseDto expectedResponse = new AttentionResponseDto(1L, "1000000001", 1L, "CREATED", "ATT-001", "ACCIDENT", "YELLOW", "Walk-in", true, false, "2024-01-01");
         
         when(admissionsClient.createAttention(request)).thenReturn(expectedResponse);
 
@@ -41,7 +41,7 @@ class AdmissionsIntegrationServiceTest {
     @Test
     void createAttention_Failure() {
         // Arrange
-        AttentionRequestDto request = new AttentionRequestDto(1L, 1L, 1L, null, null, null, null, null, null, null, null, null, 1L);
+        AttentionRequestDto request = new AttentionRequestDto("1000000001", 1L, 1L, null, null, null, null, null, null, null, null, null, 1L);
         when(admissionsClient.createAttention(request)).thenThrow(new RuntimeException("Service down"));
 
         // Act & Assert
@@ -52,7 +52,7 @@ class AdmissionsIntegrationServiceTest {
     void getAttentionById_Success() {
         // Arrange
         Long attentionId = 1L;
-        AttentionResponseDto expectedResponse = new AttentionResponseDto(1L, 1L, 1L, "CREATED", "ATT-001", "ACCIDENT", "YELLOW", "Walk-in", true, false, "2024-01-01");
+        AttentionResponseDto expectedResponse = new AttentionResponseDto(1L, "1000000001", 1L, "CREATED", "ATT-001", "ACCIDENT", "YELLOW", "Walk-in", true, false, "2024-01-01");
         
         when(admissionsClient.getAttentionById(attentionId)).thenReturn(expectedResponse);
 

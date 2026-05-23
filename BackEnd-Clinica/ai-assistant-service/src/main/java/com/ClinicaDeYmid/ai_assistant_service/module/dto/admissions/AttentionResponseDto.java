@@ -7,7 +7,7 @@ public record AttentionResponseDto(
         Long id,
 
         @JsonProperty("patient_id")
-        Long patientId,
+        String patientId,
 
         @JsonProperty("doctor_id")
         Long doctorId,

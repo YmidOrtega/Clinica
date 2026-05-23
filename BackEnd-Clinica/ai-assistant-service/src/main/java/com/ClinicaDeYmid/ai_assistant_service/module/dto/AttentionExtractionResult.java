@@ -7,7 +7,7 @@ import java.util.List;
 public record AttentionExtractionResult(
 
         @JsonProperty("patient_id")
-        Long patientId,
+        String patientId,
 
         @JsonProperty("doctor_id")
         Long doctorId,

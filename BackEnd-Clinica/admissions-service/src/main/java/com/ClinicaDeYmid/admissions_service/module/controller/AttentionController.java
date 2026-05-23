@@ -14,6 +14,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -101,7 +102,7 @@ public class AttentionController {
     @CircuitBreaker(name = "admissions-service", fallbackMethod = "getAttentionsByPatientIdFallback")
     @Operation(summary = "Get attentions by patient ID", description = "Retrieves all attentions for a specific patient. Accessible by SUPER_ADMIN, ADMIN, RECEPTIONIST, and DOCTOR roles.")
     public ResponseEntity<List<PatientWithAttentionsResponse>> getAttentionsByPatientId(
-            @PathVariable @NotNull @Positive Long patientId) {
+            @PathVariable @NotBlank String patientId) {
 
         log.info("Fetching attentions for patient ID: {}", patientId);
 
@@ -113,7 +114,7 @@ public class AttentionController {
     @GetMapping("/patient/{patientId}/active")
     @Operation(summary = "Retrieve active attention by patient ID", description = "Fetches the active attention record for a specific patient.")
     public ResponseEntity<List<PatientWithAttentionsResponse>> getActiveAttentionByPatientId(
-            @PathVariable @NotNull @Positive(message = "Patient ID must be positive") Long patientId) {
+            @PathVariable @NotBlank String patientId) {
 
         log.info("Retrieving active attention for patient ID: {}", patientId);
 
@@ -265,7 +266,7 @@ public class AttentionController {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
     }
 
-    private ResponseEntity<List<PatientWithAttentionsResponse>> getAttentionsByPatientIdFallback(Long patientId, Throwable ex) {
+    private ResponseEntity<List<PatientWithAttentionsResponse>> getAttentionsByPatientIdFallback(String patientId, Throwable ex) {
         log.error("Circuit breaker activated for getAttentionsByPatientId. PatientId: {}, Error: {}", patientId, ex.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
     }

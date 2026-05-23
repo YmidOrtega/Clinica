@@ -205,7 +205,7 @@ public class AttentionRecordService {
         log.info("Validating external dependencies for patient ID: {}", requestDto.patientId());
 
         if (requestDto.patientId() != null) {
-            validateExternalResource(() -> patientClient.getPatientByIdentificationNumber(requestDto.patientId().toString()), requestDto.patientId(), MSG_PATIENT_NOT_FOUND);
+            validateExternalResource(() -> patientClient.getPatientByIdentificationNumber(requestDto.patientId()), requestDto.patientId(), MSG_PATIENT_NOT_FOUND);
         }
 
         if (requestDto.doctorId() != null) {
@@ -234,7 +234,7 @@ public class AttentionRecordService {
 
         // Validar paciente solo si cambió
         if (requestDto.patientId() != null && !requestDto.patientId().equals(existingAttention.getPatientId())) {
-            validateExternalResource(() -> patientClient.getPatientByIdentificationNumber(requestDto.patientId().toString()), 
+            validateExternalResource(() -> patientClient.getPatientByIdentificationNumber(requestDto.patientId()),
                     requestDto.patientId(), MSG_PATIENT_NOT_FOUND);
         }
 

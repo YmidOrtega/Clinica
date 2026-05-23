@@ -13,8 +13,8 @@ public record AttentionRequestDto(
         Long id,
 
         @Schema(description = "Documento de identificación del paciente", example = "1234567890", required = true)
-        @NotNull(message = "El documento de identificación del paciente no puede ser nulo")
-        Long patientId,
+        @NotBlank(message = "El documento de identificación del paciente no puede ser nulo")
+        String patientId,
 
         @Schema(description = "ID del doctor", example = "85", required = true)
         @NotNull(message = "El ID del doctor no puede ser nulo")

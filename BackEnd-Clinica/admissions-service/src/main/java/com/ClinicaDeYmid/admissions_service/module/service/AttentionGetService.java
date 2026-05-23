@@ -69,7 +69,7 @@ public class AttentionGetService {
     }
 
     @Transactional(readOnly = true)
-    public List<PatientWithAttentionsResponse> getAttentionsByPatientId(Long patientId) {
+    public List<PatientWithAttentionsResponse> getAttentionsByPatientId(String patientId) {
         log.info("Fetching attentions for patient ID: {}", patientId);
 
         List<Attention> attentions = attentionRepository.findByPatientId(patientId);
@@ -77,7 +77,7 @@ public class AttentionGetService {
         // Obtener nombre del paciente
         String patientName = "";
         try {
-            GetPatientDto patient = patientClient.getPatientByIdentificationNumber(patientId.toString());
+            GetPatientDto patient = patientClient.getPatientByIdentificationNumber(patientId);
             if (patient != null) {
                 patientName = patient.name() + (patient.lastName() != null ? " " + patient.lastName() : "");
             }
@@ -91,7 +91,7 @@ public class AttentionGetService {
     }
 
     @Transactional(readOnly = true)
-    public List<PatientWithAttentionsResponse> getActiveAttentionByPatientId(Long patientId) {
+    public List<PatientWithAttentionsResponse> getActiveAttentionByPatientId(String patientId) {
         log.info("Fetching active attention for patient ID: {}", patientId);
 
         List<Attention> activeAttention = Collections.singletonList(
@@ -102,7 +102,7 @@ public class AttentionGetService {
         // Obtener nombre del paciente
         String patientName = "";
         try {
-            GetPatientDto patient = patientClient.getPatientByIdentificationNumber(patientId.toString());
+            GetPatientDto patient = patientClient.getPatientByIdentificationNumber(patientId);
             if (patient != null) {
                 patientName = patient.name() + (patient.lastName() != null ? " " + patient.lastName() : "");
             }
@@ -133,9 +133,9 @@ public class AttentionGetService {
         }
 
         // Resolver nombres de pacientes para cada atención
-        Function<Long, String> patientNameResolver = (id) -> {
+        Function<String, String> patientNameResolver = (id) -> {
             try {
-                GetPatientDto patient = patientClient.getPatientByIdentificationNumber(id.toString());
+                GetPatientDto patient = patientClient.getPatientByIdentificationNumber(id);
                 if (patient == null) return "";
                 return patient.name() + (patient.lastName() != null ? " " + patient.lastName() : "");
             } catch (Exception e) {

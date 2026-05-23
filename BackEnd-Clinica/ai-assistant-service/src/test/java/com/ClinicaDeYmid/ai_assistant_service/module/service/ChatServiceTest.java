@@ -20,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,6 +37,9 @@ class ChatServiceTest {
 
     @Mock
     private AdmissionsIntegrationService admissionsIntegrationService;
+
+    @Mock
+    private AttentionDataExtractor attentionDataExtractor;
 
     @Mock
     private ObjectMapper objectMapper;
@@ -82,6 +86,8 @@ class ChatServiceTest {
         when(conversationHistoryService.getOrCreateActiveConversation(userId, username, sessionId)).thenReturn(conversation);
         when(conversationHistoryService.getConversationMessages(1L)).thenReturn(Collections.emptyList());
         when(aiService.generateResponse(eq(message), eq(username), anyList(), anyMap())).thenReturn(aiResponse);
+        when(attentionDataExtractor.extract(aiResponse)).thenReturn(Optional.empty());
+        when(attentionDataExtractor.stripActionBlock(aiResponse)).thenReturn(aiResponse);
         doReturn("{\"intent\":\"GENERAL_CONVERSATION\"}").when(objectMapper).writeValueAsString(any());
 
         // Act

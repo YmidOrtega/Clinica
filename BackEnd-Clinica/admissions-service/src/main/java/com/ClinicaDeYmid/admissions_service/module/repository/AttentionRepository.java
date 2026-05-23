@@ -16,10 +16,10 @@ public interface AttentionRepository extends JpaRepository<Attention, Long>, Jpa
     // Solo un @EntityGraph por colección para evitar MultipleBagFetchException.
     // Las colecciones restantes (diagnosticCodes, userHistory) usan @BatchSize(25) en la entidad.
     @EntityGraph(attributePaths = {"authorizations"})
-    List<Attention> findByPatientId(Long patientId);
+    List<Attention> findByPatientId(String patientId);
 
     @EntityGraph(attributePaths = {"authorizations"})
-    Optional<Attention> findByPatientIdAndStatus(Long patientId, AttentionStatus status);
+    Optional<Attention> findByPatientIdAndStatus(String patientId, AttentionStatus status);
 
     @EntityGraph(attributePaths = {"authorizations"})
     List<Attention> findByDoctorId(Long doctorId);
