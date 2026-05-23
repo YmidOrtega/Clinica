@@ -1,119 +1,74 @@
 package com.ClinicaDeYmid.api_gateway.ratelimit;
 
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 public class RateLimitService {
 
     private final RedisTemplate<String, String> redisTemplate;
-    private final Map<String, Bucket> userBuckets = new ConcurrentHashMap<>();
-    private final Map<String, Bucket> ipBuckets = new ConcurrentHashMap<>();
 
-    // Límites configurados
-    private static final long USER_RATE_LIMIT = 100; // requests por minuto
-    private static final long IP_RATE_LIMIT = 1000;  // requests por minuto
-    private static final Duration REFILL_DURATION = Duration.ofMinutes(1);
+    private static final long USER_RATE_LIMIT = 100;
+    private static final long IP_RATE_LIMIT = 1000;
+    private static final long WINDOW_SECONDS = 60;
 
     public RateLimitService(RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
-    /**
-     * Verifica si un usuario puede hacer una petición
-     * @param userId ID del usuario
-     * @return true si puede hacer la petición, false si excede el límite
-     */
-    public boolean allowUser(String userId) {
+    public Mono<Boolean> allowUser(String userId) {
         if (userId == null || userId.isEmpty()) {
-            return true; // Si no hay usuario, solo aplica el límite por IP
+            return Mono.just(true);
         }
-
-        String key = "rate_limit:user:" + userId;
-        return checkRateLimit(key, USER_RATE_LIMIT, userBuckets);
+        return checkRedisLimit("rate_limit:user:" + userId, USER_RATE_LIMIT);
     }
 
-    /**
-     * Verifica si una IP puede hacer una petición
-     * @param ipAddress Dirección IP
-     * @return true si puede hacer la petición, false si excede el límite
-     */
-    public boolean allowIp(String ipAddress) {
+    public Mono<Boolean> allowIp(String ipAddress) {
         if (ipAddress == null || ipAddress.isEmpty()) {
-            return true;
+            return Mono.just(true);
         }
-
-        String key = "rate_limit:ip:" + ipAddress;
-        return checkRateLimit(key, IP_RATE_LIMIT, ipBuckets);
+        return checkRedisLimit("rate_limit:ip:" + ipAddress, IP_RATE_LIMIT);
     }
 
-    /**
-     * Verifica el límite de rate usando buckets
-     */
-    private boolean checkRateLimit(String key, long limit, Map<String, Bucket> bucketMap) {
-        Bucket bucket = bucketMap.computeIfAbsent(key, k -> createBucket(limit));
-        return bucket.tryConsume(1);
+    private Mono<Boolean> checkRedisLimit(String key, long limit) {
+        return Mono.fromCallable(() -> {
+            Long count = redisTemplate.opsForValue().increment(key);
+            if (count == null) return true;
+            if (count == 1) {
+                redisTemplate.expire(key, WINDOW_SECONDS, TimeUnit.SECONDS);
+            }
+            boolean allowed = count <= limit;
+            if (!allowed) {
+                log.warn("Rate limit excedido para clave: {}", key);
+            }
+            return allowed;
+        }).onErrorResume(e -> {
+            log.error("Error en Redis al verificar rate limit para {}: {}", key, e.getMessage());
+            return Mono.just(true);
+        });
     }
 
-    /**
-     * Crea un nuevo bucket con la configuración especificada
-     */
-    private Bucket createBucket(long capacity) {
-        Bandwidth bandwidth = Bandwidth.builder()
-                .capacity(capacity)
-                .refillIntervally(capacity, REFILL_DURATION)
-                .build();
-        return Bucket.builder()
-                .addLimit(bandwidth)
-                .build();
+    public Mono<Long> getRemainingForUser(String userId) {
+        if (userId == null || userId.isEmpty()) return Mono.just(USER_RATE_LIMIT);
+        return getRemaining("rate_limit:user:" + userId, USER_RATE_LIMIT);
     }
 
-    /**
-     * Obtiene el tiempo de espera restante para el usuario
-     */
-    public long getRemainingSecondsForUser(String userId) {
-        if (userId == null || userId.isEmpty()) {
-            return 0;
-        }
-        String key = "rate_limit:user:" + userId;
-        Bucket bucket = userBuckets.get(key);
-        if (bucket != null) {
-            return bucket.getAvailableTokens();
-        }
-        return USER_RATE_LIMIT;
+    public Mono<Long> getRemainingForIp(String ipAddress) {
+        if (ipAddress == null || ipAddress.isEmpty()) return Mono.just(IP_RATE_LIMIT);
+        return getRemaining("rate_limit:ip:" + ipAddress, IP_RATE_LIMIT);
     }
 
-    /**
-     * Obtiene el tiempo de espera restante para la IP
-     */
-    public long getRemainingSecondsForIp(String ipAddress) {
-        if (ipAddress == null || ipAddress.isEmpty()) {
-            return 0;
-        }
-        String key = "rate_limit:ip:" + ipAddress;
-        Bucket bucket = ipBuckets.get(key);
-        if (bucket != null) {
-            return bucket.getAvailableTokens();
-        }
-        return IP_RATE_LIMIT;
-    }
-
-    /**
-     * Limpia los buckets antiguos
-     */
-    public void cleanupOldBuckets() {
-        // Se puede implementar una limpieza periódica si es necesario
-        if (userBuckets.size() > 10000) {
-            userBuckets.clear();
-        }
-        if (ipBuckets.size() > 10000) {
-            ipBuckets.clear();
-        }
+    private Mono<Long> getRemaining(String key, long limit) {
+        return Mono.fromCallable(() -> {
+            String val = redisTemplate.opsForValue().get(key);
+            if (val == null) return limit;
+            return Math.max(0, limit - Long.parseLong(val));
+        }).onErrorReturn(limit);
     }
 }
