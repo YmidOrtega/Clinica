@@ -2,32 +2,22 @@ package com.ClinicaDeYmid.api_gateway.service;
 
 import com.ClinicaDeYmid.api_gateway.entity.RequestLog;
 import com.ClinicaDeYmid.api_gateway.repository.RequestLogRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.logging.Logger;
 
-/**
- * Servicio para gestionar el logging de peticiones
- * Guarda información de todas las peticiones en base de datos para analytics
- */
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class RequestLogService {
 
-    private static final Logger logger = Logger.getLogger(RequestLogService.class.getName());
     private final RequestLogRepository requestLogRepository;
 
-    public RequestLogService(RequestLogRepository requestLogRepository) {
-        this.requestLogRepository = requestLogRepository;
-    }
-
-    /**
-     * Guarda un log de petición de forma asíncrona
-     * No bloquea la respuesta al cliente
-     */
-    @Async
+    @Async("requestLogExecutor")
     @Transactional
     public void logRequest(
             String userId,
@@ -58,17 +48,13 @@ public class RequestLogService {
 
             requestLogRepository.save(requestLog);
 
-            logger.fine("Request log saved: " + endpoint + " - " + statusCode);
+            log.debug("Request log saved: {} - {}", endpoint, statusCode);
         } catch (Exception e) {
-            // No lanzar excepción para no afectar la respuesta
-            logger.warning("Error saving request log: " + e.getMessage());
+            log.warn("Error saving request log: {}", e.getMessage());
         }
     }
 
-    /**
-     * Versión simplificada para logging rápido
-     */
-    @Async
+    @Async("requestLogExecutor")
     @Transactional
     public void logRequest(
             String userId,
@@ -78,24 +64,18 @@ public class RequestLogService {
             Long durationMs,
             String ipAddress
     ) {
-        logRequest(userId, null, endpoint, httpMethod, statusCode, 
+        logRequest(userId, null, endpoint, httpMethod, statusCode,
                   durationMs, ipAddress, null, extractServiceName(endpoint), null);
     }
 
-    /**
-     * Extrae el nombre del servicio desde el endpoint
-     */
     private String extractServiceName(String endpoint) {
         if (endpoint == null || endpoint.isEmpty()) {
             return "unknown";
         }
-
-        // Formato esperado: /api/v1/service-name/...
         String[] parts = endpoint.split("/");
         if (parts.length >= 4) {
             return parts[3];
         }
-
         return "unknown";
     }
 }

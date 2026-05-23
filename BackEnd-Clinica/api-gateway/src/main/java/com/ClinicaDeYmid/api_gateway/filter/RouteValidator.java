@@ -1,16 +1,14 @@
 package com.ClinicaDeYmid.api_gateway.filter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.function.Predicate;
-import java.util.logging.Logger;
 
+@Slf4j
 @Component
 public class RouteValidator {
-
-    private static final Logger logger = Logger.getLogger(RouteValidator.class.getName());
 
     public static final List<String> openApiEndpoints = List.of(
             "/api/v1/auth/login",
@@ -27,7 +25,7 @@ public class RouteValidator {
         boolean secured = openApiEndpoints.stream()
                 .noneMatch(endpoint -> matchesEndpoint(requestPath, endpoint));
 
-        logger.info("Path: " + requestPath + " - Is secured: " + secured);
+        log.debug("Path: {} - Is secured: {}", requestPath, secured);
         return secured;
     }
 
