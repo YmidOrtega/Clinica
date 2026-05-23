@@ -7,6 +7,8 @@ import com.ClinicaDeYmid.ai_assistant_service.module.dto.ConversationHistoryDto;
 import com.ClinicaDeYmid.ai_assistant_service.module.entity.ConversationHistory;
 import com.ClinicaDeYmid.ai_assistant_service.module.entity.ConversationMessage;
 import com.ClinicaDeYmid.ai_assistant_service.infra.security.UserContextHolder;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,6 +30,7 @@ public class ChatService {
     private final AIService aiService;
     private final ConversationHistoryService conversationHistoryService;
     private final AdmissionsIntegrationService admissionsIntegrationService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Procesa un mensaje del usuario y genera respuesta
@@ -207,31 +211,21 @@ public class ChatService {
         return (long) Math.abs(uuid.hashCode());
     }
 
-    /**
-     * Construye metadata en formato JSON
-     */
     private String buildMetadata(String intent, String action, Long attentionId) {
         if (intent == null && action == null && attentionId == null) {
             return null;
         }
 
-        StringBuilder metadata = new StringBuilder("{");
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (intent != null) metadata.put("intent", intent);
+        if (action != null) metadata.put("action", action);
+        if (attentionId != null) metadata.put("attention_id", attentionId);
 
-        if (intent != null) {
-            metadata.append("\"intent\":\"").append(intent).append("\"");
+        try {
+            return objectMapper.writeValueAsString(metadata);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize metadata: {}", e.getMessage());
+            return null;
         }
-
-        if (action != null) {
-            if (metadata.length() > 1) metadata.append(",");
-            metadata.append("\"action\":\"").append(action).append("\"");
-        }
-
-        if (attentionId != null) {
-            if (metadata.length() > 1) metadata.append(",");
-            metadata.append("\"attention_id\":").append(attentionId);
-        }
-
-        metadata.append("}");
-        return metadata.toString();
     }
 }

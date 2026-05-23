@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.ai_assistant_service.module.repository.ConversationHist
 import com.ClinicaDeYmid.ai_assistant_service.module.repository.ConversationMessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,16 +51,24 @@ public class ConversationHistoryService {
         }
 
         // Crear nueva conversación
+        String resolvedSessionId = sessionId != null ? sessionId : UUID.randomUUID().toString();
         ConversationHistory newConversation = ConversationHistory.builder()
                 .userId(userId)
                 .username(username)
-                .sessionId(sessionId != null ? sessionId : UUID.randomUUID().toString())
+                .sessionId(resolvedSessionId)
                 .isActive(true)
                 .build();
 
-        ConversationHistory saved = conversationRepository.save(newConversation);
-        log.info("Created new conversation for user: {} with sessionId: {}", userId, saved.getSessionId());
-        return saved;
+        try {
+            ConversationHistory saved = conversationRepository.save(newConversation);
+            log.info("Created new conversation for user: {} with sessionId: {}", userId, saved.getSessionId());
+            return saved;
+        } catch (DataIntegrityViolationException e) {
+            // Concurrent request already created conversation with the same sessionId
+            log.debug("Concurrent conversation creation detected for sessionId: {}, fetching existing", resolvedSessionId);
+            return conversationRepository.findBySessionId(resolvedSessionId)
+                    .orElseThrow(() -> new IllegalStateException("Conversation not found after conflict for sessionId: " + resolvedSessionId));
+        }
     }
 
     /**
