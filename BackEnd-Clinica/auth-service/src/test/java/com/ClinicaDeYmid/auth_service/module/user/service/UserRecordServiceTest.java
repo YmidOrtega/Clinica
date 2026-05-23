@@ -69,6 +69,7 @@ class UserRecordServiceTest {
         user.setRole(role);
 
         userResponseDTO = new UserResponseDTO(
+                1L,
                 "some-uuid",
                 "usernameTest",
                 "test@example.com",

@@ -140,6 +140,7 @@ public class TokenService {
                     .withIssuedAt(new Date())
                     .withExpiresAt(Date.from(getAccessTokenExpirationTime()))
                     .withJWTId(UUID.randomUUID().toString())
+                    .withClaim("user_id", user.getId())
                     .withClaim("email", user.getEmail())
                     .withClaim("type", "access")
                     .withClaim("role", user.getRole().getName())

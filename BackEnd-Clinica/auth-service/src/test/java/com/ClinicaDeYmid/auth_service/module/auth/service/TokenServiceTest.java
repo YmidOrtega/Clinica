@@ -82,6 +82,7 @@ class TokenServiceTest {
         assertNotNull(token);
         DecodedJWT decodedJWT = JWT.decode(token);
         assertEquals(testUser.getUuid(), decodedJWT.getSubject());
+        assertEquals(testUser.getId(), decodedJWT.getClaim("user_id").asLong());
         assertEquals(testUser.getEmail(), decodedJWT.getClaim("email").asString());
         assertEquals("access", decodedJWT.getClaim("type").asString());
         assertEquals(testRole.getName(), decodedJWT.getClaim("role").asString());

@@ -4,6 +4,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import com.ClinicaDeYmid.auth_service.module.user.enums.StatusUser;
 
 public record UserResponseDTO(
+        @Schema(description = "ID numérico del usuario", example = "42")
+        Long id,
+
         @Schema(description = "UUID del usuario", example = "d9e8c123-4567-890a-bcde-f1234567890a")
         String uuid,
 
