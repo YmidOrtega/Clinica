@@ -94,7 +94,7 @@ public class HealthProvider {
     @Column(name = "deletion_reason", length = 500)
     private String deletionReason;
 
-    @OneToMany(mappedBy = "healthProvider", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "healthProvider", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Contract> contracts = new ArrayList<>();
 
