@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.auth_service.module.user.service;
 
 import com.ClinicaDeYmid.auth_service.infra.exceptions.UserNotFoundException;
+import com.ClinicaDeYmid.auth_service.module.auth.service.PasswordPolicyService;
 import com.ClinicaDeYmid.auth_service.module.user.dto.UserPasswordUpdateDTO;
 import com.ClinicaDeYmid.auth_service.module.user.dto.UserRequestDTO;
 import com.ClinicaDeYmid.auth_service.module.user.dto.UserResponseDTO;
@@ -30,6 +31,7 @@ public class UserRecordService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final PasswordPolicyService passwordPolicyService;
 
     /**
      * Obtiene un usuario o lanza excepción si no existe
@@ -126,6 +128,12 @@ public class UserRecordService {
         if (!passwordEncoder.matches(passwordUpdateDTO.currentPassword(), user.getPassword())) {
             throw new IllegalArgumentException("La contraseña actual es incorrecta");
         }
+
+        if (passwordPolicyService.isPasswordInHistory(user, passwordUpdateDTO.newPassword())) {
+            throw new IllegalArgumentException("No puedes reutilizar una contraseña reciente");
+        }
+
+        passwordPolicyService.savePasswordToHistory(user);
 
         // Actualizar contraseña
         user.setPassword(passwordEncoder.encode(passwordUpdateDTO.newPassword()));

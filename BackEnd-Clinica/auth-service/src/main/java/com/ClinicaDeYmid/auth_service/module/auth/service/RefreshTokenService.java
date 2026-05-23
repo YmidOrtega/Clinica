@@ -136,21 +136,17 @@ public class RefreshTokenService {
         List<RefreshToken> activeSessions = getUserActiveSessions(user);
 
         if (activeSessions.size() > maxActiveSessions) {
-            log.info("Usuario {} excedió el límite de sesiones activas. Limpiando...",
-                    user.getEmail());
-
-            // Revocar las sesiones más antiguas
-            // La lista viene ordenada por createdAt DESC, entonces saltamos los más recientes
             int tokensToRevoke = activeSessions.size() - maxActiveSessions;
+            log.info("Usuario {} excedió el límite de sesiones. Revocando {} sesiones antiguas.",
+                    user.getEmail(), tokensToRevoke);
 
-            activeSessions.stream()
-                    .skip(maxActiveSessions)  // Saltamos los tokens más recientes
-                    .forEach(token -> {
-                        token.revoke();
-                        refreshTokenRepository.save(token);
-                    });
+            List<Long> idsToRevoke = activeSessions.stream()
+                    .skip(maxActiveSessions)
+                    .map(RefreshToken::getId)
+                    .toList();
 
-            log.debug("Se revocaron {} sesiones antiguas", tokensToRevoke);
+            refreshTokenRepository.revokeByUserAndIds(user, idsToRevoke);
+            log.debug("Se revocaron {} sesiones antiguas en batch", tokensToRevoke);
         }
     }
 
