@@ -56,6 +56,16 @@ public class AIService {
                     .call()
                     .content();
 
+            // Strip Qwen3/thinking-model <think>...</think> blocks if LM Studio includes them
+            if (response != null) {
+                response = response.replaceAll("(?s)<think>.*?</think>\\s*", "").strip();
+            }
+
+            if (response == null || response.isBlank()) {
+                log.warn("AI returned empty response for user {}. Check LM Studio reasoning/thinking settings — enable 'Include reasoning in response'.", username);
+                return "Lo siento, no pude generar una respuesta en este momento. Por favor intenta de nuevo.";
+            }
+
             log.debug("Successfully generated response for user: {}", username);
             return response;
 
