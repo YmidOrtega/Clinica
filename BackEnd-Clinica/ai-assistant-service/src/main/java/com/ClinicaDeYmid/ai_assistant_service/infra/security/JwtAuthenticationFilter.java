@@ -43,16 +43,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 // Extraer información del token
+                Long userId = jwtTokenProvider.getUserIdFromToken(jwt);
                 String uuid = jwtTokenProvider.getUuidFromToken(jwt);
                 String email = jwtTokenProvider.getEmailFromToken(jwt);
                 String role = jwtTokenProvider.getRoleFromToken(jwt);
                 List<String> permissions = jwtTokenProvider.getPermissionsFromToken(jwt);
 
-                log.debug("Usuario autenticado: {} (UUID: {}) con rol: {}", email, uuid, role);
+                log.debug("Usuario autenticado: {} (UUID: {}, ID: {}) con rol: {}", email, uuid, userId, role);
 
                 // Crear CustomUserDetails con la información del token
                 CustomUserDetails userDetails = CustomUserDetails.builder()
-                        .userId(null) // userId no está disponible en el token
+                        .userId(userId)
                         .uuid(uuid)
                         .email(email)
                         .role(role)

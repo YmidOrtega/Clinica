@@ -42,6 +42,9 @@ class ChatServiceTest {
     private AttentionDataExtractor attentionDataExtractor;
 
     @Mock
+    private UserIdentityService userIdentityService;
+
+    @Mock
     private ObjectMapper objectMapper;
 
     @Mock
@@ -78,6 +81,7 @@ class ChatServiceTest {
 
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(userIdentityService.resolveUserId(userId, uuid, username)).thenReturn(userId);
 
         ConversationHistory conversation = new ConversationHistory();
         conversation.setId(1L);
@@ -123,7 +127,8 @@ class ChatServiceTest {
 
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
-        
+        when(userIdentityService.resolveUserId(userId, uuid, username)).thenReturn(userId);
+
         when(conversationHistoryService.getUserConversationHistory(userId)).thenReturn(Collections.emptyList());
 
         // Act
@@ -132,6 +137,40 @@ class ChatServiceTest {
         // Assert
         assertNotNull(history);
         verify(conversationHistoryService).getUserConversationHistory(userId);
+    }
+
+    @Test
+    void processMessage_ResolvesUserIdFromIdentityService() throws Exception {
+        String uuid = "test-uuid";
+        String username = "test@example.com";
+        Long resolvedUserId = 99L;
+        String sessionId = "session-123";
+        String message = "Hello";
+        String aiResponse = "Hi there!";
+
+        ChatRequestDto requestDto = new ChatRequestDto(message, sessionId);
+        CustomUserDetails userDetails = new CustomUserDetails(null, uuid, username, "ROLE_ADMIN", Collections.emptyList());
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+        when(userIdentityService.resolveUserId(null, uuid, username)).thenReturn(resolvedUserId);
+
+        ConversationHistory conversation = new ConversationHistory();
+        conversation.setId(1L);
+        conversation.setSessionId(sessionId);
+
+        when(conversationHistoryService.getOrCreateActiveConversation(resolvedUserId, username, sessionId)).thenReturn(conversation);
+        when(conversationHistoryService.getConversationMessages(1L)).thenReturn(Collections.emptyList());
+        when(aiService.generateResponse(eq(message), eq(username), anyList(), anyMap())).thenReturn(aiResponse);
+        when(attentionDataExtractor.extract(aiResponse)).thenReturn(Optional.empty());
+        when(attentionDataExtractor.stripActionBlock(aiResponse)).thenReturn(aiResponse);
+        doReturn("{\"intent\":\"GENERAL_CONVERSATION\"}").when(objectMapper).writeValueAsString(any());
+
+        ChatResponseDto response = chatService.processMessage(requestDto);
+
+        assertNotNull(response);
+        verify(userIdentityService).resolveUserId(null, uuid, username);
+        verify(conversationHistoryService).getOrCreateActiveConversation(resolvedUserId, username, sessionId);
     }
 
     @Test

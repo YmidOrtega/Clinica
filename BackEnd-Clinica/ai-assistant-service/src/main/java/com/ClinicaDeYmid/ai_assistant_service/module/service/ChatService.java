@@ -35,6 +35,7 @@ public class ChatService {
     private final ConversationHistoryService conversationHistoryService;
     private final AdmissionsIntegrationService admissionsIntegrationService;
     private final AttentionDataExtractor attentionDataExtractor;
+    private final UserIdentityService userIdentityService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -55,11 +56,7 @@ public class ChatService {
         String username = userDetails.getEmail();
 
         // Fallback: generar userId a partir del UUID si no está disponible
-        Long userId = userDetails.getUserId();
-        if (userId == null) {
-            userId = generateUserIdFromUuid(uuid);
-            log.debug("Generated userId {} from UUID {} for user {}", userId, uuid, username);
-        }
+        Long userId = userIdentityService.resolveUserId(userDetails.getUserId(), uuid, username);
 
         log.info("Processing chat message for user: {} (ID: {}, UUID: {})", username, userId, uuid);
 
@@ -145,11 +142,11 @@ public class ChatService {
         }
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        Long userId = userDetails.getUserId();
-
-        if (userId == null) {
-            userId = generateUserIdFromUuid(userDetails.getUuid());
-        }
+        Long userId = userIdentityService.resolveUserId(
+                userDetails.getUserId(),
+                userDetails.getUuid(),
+                userDetails.getEmail()
+        );
 
         log.debug("Fetching conversation history for userId: {}", userId);
         return conversationHistoryService.getUserConversationHistory(userId);
@@ -167,13 +164,23 @@ public class ChatService {
     /**
      * Construye el historial de mensajes para contexto
      */
+    private static final int MAX_HISTORY_MESSAGES = 10;
+
     private List<String> buildConversationHistory(ConversationHistory conversation) {
         List<ConversationMessage> messages = conversationHistoryService.getConversationMessages(
                 conversation.getId()
         );
 
-        // Convertir a lista de strings alternando USER/ASSISTANT
-        return messages.stream()
+        int size = messages.size();
+        if (size <= 1) return List.of();
+
+        // Exclude the last message (current user turn already saved) to avoid duplication
+        int end = size - 1;
+        int start = Math.max(0, end - MAX_HISTORY_MESSAGES);
+        // Ensure start on a USER message so USER/ASSISTANT alternation holds
+        if ((end - start) % 2 != 0) start++;
+
+        return messages.subList(start, end).stream()
                 .map(ConversationMessage::getContent)
                 .collect(Collectors.toList());
     }
@@ -211,18 +218,6 @@ public class ChatService {
         }
 
         return "GENERAL_CONVERSATION";
-    }
-
-    /**
-     * Genera un userId consistente a partir del UUID
-     * Usa el hashCode del UUID para generar un Long positivo
-     */
-    private Long generateUserIdFromUuid(String uuid) {
-        if (uuid == null) {
-            return 0L; // Sistema por defecto
-        }
-        // Usar hashCode pero asegurar que sea positivo
-        return (long) Math.abs(uuid.hashCode());
     }
 
     private AttentionRequestDto toAttentionRequest(AttentionExtractionResult extracted, Long userId) {
