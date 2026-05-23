@@ -30,8 +30,7 @@ public class StatusContractService {
     private Long getCurrentUserId() {
         Long userId = UserContextHolder.getCurrentUserId();
         if (userId == null) {
-            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
-            return 1L;
+            throw new SecurityException("No hay usuario autenticado en el contexto de seguridad");
         }
         return userId;
     }
