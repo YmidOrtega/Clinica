@@ -73,17 +73,23 @@ public class AIService {
     }
 
     private String buildSystemPrompt(String template, String username, Map<String, Object> context) {
-        String prompt = template.replace("{username}", username);
+        String prompt = template.replace("{username}", sanitizeContextValue(username));
 
         if (context != null) {
             for (Map.Entry<String, Object> entry : context.entrySet()) {
                 String placeholder = "{" + entry.getKey() + "}";
-                String value = entry.getValue() != null ? entry.getValue().toString() : "";
+                String value = entry.getValue() != null ? sanitizeContextValue(entry.getValue().toString()) : "";
                 prompt = prompt.replace(placeholder, value);
             }
         }
 
         return prompt;
+    }
+
+    private String sanitizeContextValue(String value) {
+        if (value == null) return "";
+        String sanitized = value.replaceAll("[\\{\\}\\[\\]<>]", "");
+        return sanitized.length() > 500 ? sanitized.substring(0, 500) : sanitized;
     }
 
     private List<Message> buildMessageList(String systemPrompt,
