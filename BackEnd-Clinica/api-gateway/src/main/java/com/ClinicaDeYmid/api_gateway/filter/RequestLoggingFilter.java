@@ -3,6 +3,8 @@ package com.ClinicaDeYmid.api_gateway.filter;
 import com.ClinicaDeYmid.api_gateway.service.RequestLogService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -14,29 +16,14 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.logging.Logger;
 
-/**
- * Filtro global para logging de peticiones y métricas de latencia
- * - Registra todas las peticiones en la base de datos
- * - Captura métricas de latencia usando Micrometer
- * - Registra percentiles (p50, p90, p99) por endpoint y servicio
- */
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class RequestLoggingFilter implements GlobalFilter, Ordered {
-
-    private static final Logger logger = Logger.getLogger(RequestLoggingFilter.class.getName());
 
     private final RequestLogService requestLogService;
     private final MeterRegistry meterRegistry;
-
-    public RequestLoggingFilter(
-            RequestLogService requestLogService,
-            MeterRegistry meterRegistry
-    ) {
-        this.requestLogService = requestLogService;
-        this.meterRegistry = meterRegistry;
-    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -52,10 +39,8 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         String userAgent = request.getHeaders().getFirst("User-Agent");
         String serviceName = extractServiceName(endpoint);
 
-        logger.info(String.format(
-                "Request: %s %s | User: %s | IP: %s",
-                httpMethod, endpoint, userId != null ? userId : "anonymous", ipAddress
-        ));
+        log.info("Request: {} {} | User: {} | IP: {}", httpMethod, endpoint,
+                userId != null ? userId : "anonymous", ipAddress);
 
         return chain.filter(exchange)
                 .doOnSuccess(aVoid -> {
@@ -83,10 +68,8 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
                             null
                     );
 
-                    logger.info(String.format(
-                            "Response: %s %s | Status: %d | Duration: %dms",
-                            httpMethod, endpoint, statusCode, durationMs
-                    ));
+                    log.info("Response: {} {} | Status: {} | Duration: {}ms",
+                            httpMethod, endpoint, statusCode, durationMs);
                 })
                 .doOnError(error -> {
                     // Manejar errores
@@ -113,10 +96,8 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
                             error.getMessage()
                     );
 
-                    logger.warning(String.format(
-                            "Error: %s %s | Status: %d | Duration: %dms | Error: %s",
-                            httpMethod, endpoint, statusCode, durationMs, error.getMessage()
-                    ));
+                    log.warn("Error: {} {} | Status: {} | Duration: {}ms | Error: {}",
+                            httpMethod, endpoint, statusCode, durationMs, error.getMessage());
                 });
     }
 
@@ -157,7 +138,7 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
                 ).increment();
             }
         } catch (Exception e) {
-            logger.warning("Error recording metrics: " + e.getMessage());
+            log.warn("Error recording metrics: {}", e.getMessage());
         }
     }
 

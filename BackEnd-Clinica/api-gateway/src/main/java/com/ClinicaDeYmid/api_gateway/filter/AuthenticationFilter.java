@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.api_gateway.filter;
 
 import com.ClinicaDeYmid.api_gateway.security.JwtValidatorService;
 import com.ClinicaDeYmid.api_gateway.security.TokenBlacklistServiceGateway;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -13,12 +14,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.util.logging.Logger;
-
+@Slf4j
 @Component
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
-
-    private static final Logger logger = Logger.getLogger(AuthenticationFilter.class.getName());
 
     private final RouteValidator routeValidator;
     private final JwtValidatorService jwtValidatorService;
@@ -39,17 +37,13 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
 
-            logger.info("Processing request to path: " + path);
+            log.debug("Processing request to path: {}", path);
 
-            // Si la ruta NO requiere autenticación, permitir el paso
             if (!routeValidator.isSecured(request)) {
-                logger.info("Path is not secured, allowing request: " + path);
+                log.debug("Path is not secured, allowing request: {}", path);
                 return chain.filter(exchange);
             }
 
-            logger.info("Path requires authentication: " + path);
-
-            // Verificar si existe el header Authorization
             if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
                 return onError(exchange, "No se ha proporcionado el token de autenticación", HttpStatus.UNAUTHORIZED);
             }
@@ -62,36 +56,27 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             String token = authHeader.substring(7);
 
             return jwtValidatorService.validateAndDecodeToken(token)
-                    .flatMap(decodedJWT -> {
-                        return tokenBlacklistServiceGateway.isTokenBlacklisted(token)
-                                .flatMap(isBlacklisted -> {
-                                    if (isBlacklisted) {
-                                        logger.warning("Token está en la blacklist");
-                                        return onError(exchange, "Token inválido (revocado o en blacklist)", HttpStatus.UNAUTHORIZED);
-                                    }
+                    .flatMap(decodedJWT -> tokenBlacklistServiceGateway.isTokenBlacklisted(token)
+                            .flatMap(isBlacklisted -> {
+                                if (isBlacklisted) {
+                                    log.warn("Token está en la blacklist");
+                                    return onError(exchange, "Token inválido (revocado o en blacklist)", HttpStatus.UNAUTHORIZED);
+                                }
 
-                                    String userId = decodedJWT.getSubject();
-                                    String userEmail = decodedJWT.getClaim("email").asString();
+                                String userId = decodedJWT.getSubject();
+                                String userEmail = decodedJWT.getClaim("email").asString();
 
-                                    logger.info("Token validado exitosamente para usuario: " + userEmail);
+                                log.debug("Token validado exitosamente para usuario: {}", userEmail);
 
-                                    // Crear el request mutado con los headers adicionales
-                                    ServerHttpRequest mutatedRequest = request.mutate()
-                                            .header("X-User-ID", userId)
-                                            .header("X-User-Email", userEmail)
-                                            .build();
+                                ServerHttpRequest mutatedRequest = request.mutate()
+                                        .header("X-User-ID", userId)
+                                        .header("X-User-Email", userEmail)
+                                        .build();
 
-                                    // Crear el exchange mutado
-                                    ServerWebExchange mutatedExchange = exchange.mutate()
-                                            .request(mutatedRequest)
-                                            .build();
-
-                                    return chain.filter(mutatedExchange);
-                                });
-                    })
+                                return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                            }))
                     .onErrorResume(e -> {
-                        logger.warning("Error de validación de token: " + e.getMessage());
-                        // Si el mensaje contiene "no se pudo inicializar el algoritmo" o "Auth-Service está disponible", responde 503
+                        log.warn("Error de validación de token: {}", e.getMessage());
                         if (e.getMessage() != null && e.getMessage().toLowerCase().contains("auth-service")) {
                             return onError(exchange, "El sistema de autenticación está temporalmente fuera de servicio. Intenta más tarde.", HttpStatus.SERVICE_UNAVAILABLE);
                         }
@@ -101,7 +86,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {
-        logger.severe("API Gateway Security Error: " + err);
+        log.error("API Gateway Security Error: {}", err);
 
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(httpStatus);
