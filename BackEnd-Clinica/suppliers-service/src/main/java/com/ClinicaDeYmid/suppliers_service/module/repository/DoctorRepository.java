@@ -248,6 +248,26 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     List<Doctor> findDoctorsWithoutSchedules();
 
     /**
+     * Cuenta doctores activos con horarios configurados
+     */
+    @Query("""
+        SELECT COUNT(DISTINCT d) FROM Doctor d
+        JOIN DoctorSchedule ds ON ds.doctor.id = d.id
+        WHERE d.active = true AND ds.active = true
+        """)
+    long countDoctorsWithSchedules();
+
+    /**
+     * Cuenta doctores activos sin horarios configurados
+     */
+    @Query("""
+        SELECT COUNT(d) FROM Doctor d
+        WHERE d.active = true
+        AND d.id NOT IN (SELECT DISTINCT ds.doctor.id FROM DoctorSchedule ds WHERE ds.active = true)
+        """)
+    long countDoctorsWithoutSchedules();
+
+    /**
      * Encuentra doctor incluyendo eliminados (bypasea @SQLRestriction)
      */
     @Query(value = "SELECT * FROM doctors WHERE id = :id", nativeQuery = true)

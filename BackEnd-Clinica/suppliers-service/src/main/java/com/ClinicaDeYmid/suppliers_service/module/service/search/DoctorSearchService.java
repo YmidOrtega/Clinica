@@ -175,8 +175,8 @@ public class DoctorSearchService {
 
         long totalActive = doctorRepository.countActiveDoctors();
         long totalInactive = doctorRepository.count() - totalActive;
-        long withSchedules = doctorRepository.findDoctorsWithSchedules().size();
-        long withoutSchedules = doctorRepository.findDoctorsWithoutSchedules().size();
+        long withSchedules = doctorRepository.countDoctorsWithSchedules();
+        long withoutSchedules = doctorRepository.countDoctorsWithoutSchedules();
 
         return new DoctorStatisticsDTO(
                 totalActive,
