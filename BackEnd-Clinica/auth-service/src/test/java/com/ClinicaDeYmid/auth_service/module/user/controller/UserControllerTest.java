@@ -59,7 +59,7 @@ class UserControllerTest {
         RoleDTO roleDto = new RoleDTO(1L, "ROLE_USER");
 
         UserResponseDTO response = new UserResponseDTO(
-                "uuid", "username", "email@test.com", true, com.ClinicaDeYmid.auth_service.module.user.enums.StatusUser.ACTIVE, roleDto
+                1L, "uuid", "username", "email@test.com", true, com.ClinicaDeYmid.auth_service.module.user.enums.StatusUser.ACTIVE, roleDto
         ); 
 
         when(userRecordService.createUser(any(UserRequestDTO.class))).thenReturn(response);
@@ -75,7 +75,7 @@ class UserControllerTest {
     void getUserById_Success() throws Exception {
         RoleDTO roleDto = new RoleDTO(1L, "ROLE_USER");
         UserResponseDTO response = new UserResponseDTO(
-                "uuid", "username", "email@test.com", true, com.ClinicaDeYmid.auth_service.module.user.enums.StatusUser.ACTIVE, roleDto
+                1L, "uuid", "username", "email@test.com", true, com.ClinicaDeYmid.auth_service.module.user.enums.StatusUser.ACTIVE, roleDto
         );
 
         when(userGetService.getUserById(1L)).thenReturn(response);
