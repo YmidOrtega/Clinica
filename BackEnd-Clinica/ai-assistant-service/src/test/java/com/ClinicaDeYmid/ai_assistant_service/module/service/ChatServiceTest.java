@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.ai_assistant_service.module.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ClinicaDeYmid.ai_assistant_service.infra.security.CustomUserDetails;
 import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatRequestDto;
 import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatResponseDto;
@@ -19,7 +20,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,6 +36,9 @@ class ChatServiceTest {
 
     @Mock
     private AdmissionsIntegrationService admissionsIntegrationService;
+
+    @Mock
+    private ObjectMapper objectMapper;
 
     @Mock
     private SecurityContext securityContext;
@@ -57,7 +60,7 @@ class ChatServiceTest {
     }
 
     @Test
-    void processMessage_Success() {
+    void processMessage_Success() throws Exception {
         // Arrange
         String uuid = "test-uuid";
         String username = "test@example.com";
@@ -79,6 +82,7 @@ class ChatServiceTest {
         when(conversationHistoryService.getOrCreateActiveConversation(userId, username, sessionId)).thenReturn(conversation);
         when(conversationHistoryService.getConversationMessages(1L)).thenReturn(Collections.emptyList());
         when(aiService.generateResponse(eq(message), eq(username), anyList(), anyMap())).thenReturn(aiResponse);
+        doReturn("{\"intent\":\"GENERAL_CONVERSATION\"}").when(objectMapper).writeValueAsString(any());
 
         // Act
         ChatResponseDto response = chatService.processMessage(requestDto);
