@@ -1,12 +1,15 @@
 package com.ClinicaDeYmid.ai_assistant_service.module.service;
 
 import com.ClinicaDeYmid.ai_assistant_service.infra.security.CustomUserDetails;
+import com.ClinicaDeYmid.ai_assistant_service.module.dto.AttentionExtractionResult;
 import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatRequestDto;
 import com.ClinicaDeYmid.ai_assistant_service.module.dto.ChatResponseDto;
 import com.ClinicaDeYmid.ai_assistant_service.module.dto.ConversationHistoryDto;
+import com.ClinicaDeYmid.ai_assistant_service.module.dto.admissions.AttentionRequestDto;
+import com.ClinicaDeYmid.ai_assistant_service.module.dto.admissions.AttentionResponseDto;
+import com.ClinicaDeYmid.ai_assistant_service.module.dto.admissions.HealthProviderRequestDto;
 import com.ClinicaDeYmid.ai_assistant_service.module.entity.ConversationHistory;
 import com.ClinicaDeYmid.ai_assistant_service.module.entity.ConversationMessage;
-import com.ClinicaDeYmid.ai_assistant_service.infra.security.UserContextHolder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +34,7 @@ public class ChatService {
     private final AIService aiService;
     private final ConversationHistoryService conversationHistoryService;
     private final AdmissionsIntegrationService admissionsIntegrationService;
+    private final AttentionDataExtractor attentionDataExtractor;
     private final ObjectMapper objectMapper;
 
     /**
@@ -77,27 +82,35 @@ public class ChatService {
         // Construir contexto adicional
         Map<String, Object> context = buildContext(username, userId);
 
-        // Generar respuesta con Gemini
-        String aiResponse = aiService.generateResponse(
+        String rawAiResponse = aiService.generateResponse(
                 request.message(),
                 username,
                 conversationHistory,
                 context
         );
 
-        // Detectar intent y acciones (aquí puedes agregar lógica más sofisticada)
-        String intent = detectIntent(request.message());
+        Optional<AttentionExtractionResult> extracted = attentionDataExtractor.extract(rawAiResponse);
+        String aiResponse = attentionDataExtractor.stripActionBlock(rawAiResponse);
+
+        String intent = extracted.isPresent() ? "CREATE_ATTENTION" : detectIntent(request.message());
         String action = null;
         Long attentionId = null;
 
-        // Si el intent es crear atención, ejecutar acción
-        if ("CREATE_ATTENTION".equals(intent)) {
-            // TODO: Extraer datos del mensaje y crear atención
-            // attentionId = createAttentionFromMessage(request.message(), userId);
-            action = "ATTENTION_CREATED";
+        if (extracted.isPresent()) {
+            try {
+                AttentionRequestDto attentionRequest = toAttentionRequest(extracted.get(), userId);
+                AttentionResponseDto created = admissionsIntegrationService.createAttention(attentionRequest);
+                action = "ATTENTION_CREATED";
+                attentionId = created.id();
+                log.info("Attention {} created via AI assistant for patient {}", attentionId, extracted.get().patientId());
+            } catch (Exception e) {
+                log.error("Failed to create attention from AI extraction for patient {}: {}",
+                        extracted.get().patientId(), e.getMessage());
+                action = "ATTENTION_CREATION_FAILED";
+                aiResponse = aiResponse + "\n\n⚠️ No pude registrar la atención en el sistema: " + sanitizeErrorMessage(e);
+            }
         }
 
-        // Guardar respuesta del asistente
         String metadata = buildMetadata(intent, action, attentionId);
         conversationHistoryService.saveMessage(
                 conversation,
@@ -209,6 +222,35 @@ public class ChatService {
         }
         // Usar hashCode pero asegurar que sea positivo
         return (long) Math.abs(uuid.hashCode());
+    }
+
+    private AttentionRequestDto toAttentionRequest(AttentionExtractionResult extracted, Long userId) {
+        List<HealthProviderRequestDto> providers = extracted.healthProviders().stream()
+                .map(hp -> new HealthProviderRequestDto(hp.nit(), hp.contractId(), null, null, null))
+                .collect(Collectors.toList());
+
+        return new AttentionRequestDto(
+                extracted.patientId(),
+                extracted.doctorId(),
+                extracted.configurationServiceId(),
+                "CREATED",
+                extracted.cause() != null ? extracted.cause().toUpperCase() : null,
+                providers,
+                null,
+                extracted.triageLevel() != null ? extracted.triageLevel().toUpperCase() : null,
+                extracted.entryMethod(),
+                null,
+                extracted.observations(),
+                null,
+                userId
+        );
+    }
+
+    private String sanitizeErrorMessage(Exception e) {
+        String msg = e.getMessage();
+        if (msg == null) return "error desconocido";
+        // Evitar exponer detalles internos del stack al usuario
+        return msg.length() > 200 ? msg.substring(0, 200) : msg;
     }
 
     private String buildMetadata(String intent, String action, Long attentionId) {
