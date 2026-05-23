@@ -38,8 +38,7 @@ public class DoctorRecordService {
     private Long getCurrentUserId() {
         Long userId = UserContextHolder.getCurrentUserId();
         if (userId == null) {
-            log.warn("No se pudo obtener userId del contexto de seguridad, usando fallback");
-            return 1L; // Fallback para desarrollo/testing
+            throw new SecurityException("No authenticated user in context");
         }
         return userId;
     }
