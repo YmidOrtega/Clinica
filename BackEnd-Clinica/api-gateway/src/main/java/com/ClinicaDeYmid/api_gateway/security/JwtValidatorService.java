@@ -6,7 +6,9 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import io.github.resilience4j.retry.annotation.Retry;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -15,13 +17,13 @@ import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Logger;
 
+@Slf4j
 @Service
 public class JwtValidatorService {
 
-    private static final Logger logger = Logger.getLogger(JwtValidatorService.class.getName());
     private static final String ISSUER = "ClinicaDeYmid";
 
     @Value("${jwt.secret}")
@@ -36,26 +38,29 @@ public class JwtValidatorService {
     private final WebClient webClient;
     private final AtomicReference<RSAPublicKey> publicKey = new AtomicReference<>(null);
     private final AtomicReference<Algorithm> algorithm = new AtomicReference<>(null);
-    private volatile boolean isPublicKeyLoading = false;
+    private final AtomicBoolean isPublicKeyLoading = new AtomicBoolean(false);
 
     public JwtValidatorService(WebClient webClient) {
         this.webClient = webClient;
+    }
+
+    @Scheduled(fixedRate = 3_600_000)
+    public void refreshPublicKey() {
+        log.info("Refrescando clave pública RSA del auth-service (rotación horaria)");
+        publicKey.set(null);
+        algorithm.set(null);
     }
 
     @Retry(name = "public-key-retry", fallbackMethod = "fallbackEnsurePublicKeyLoaded")
     public Mono<Void> ensurePublicKeyLoaded() {
         if (publicKey.get() != null) return Mono.empty();
 
-        synchronized (this) {
-            if (publicKey.get() != null) return Mono.empty();
-            if (isPublicKeyLoading) {
-                return Mono.error(new IllegalStateException("La clave pública se está cargando, intenta nuevamente."));
-            }
-            isPublicKeyLoading = true;
+        if (!isPublicKeyLoading.compareAndSet(false, true)) {
+            return Mono.error(new IllegalStateException("La clave pública se está cargando, intenta nuevamente."));
         }
 
         String publicKeyEndpoint = "/api/v1/auth/public-key";
-        logger.info("Intentando obtener clave pública de: " + authServiceUrl + publicKeyEndpoint);
+        log.info("Intentando obtener clave pública de: {}{}", authServiceUrl, publicKeyEndpoint);
 
         return webClient.get()
                 .uri(authServiceUrl + publicKeyEndpoint)
@@ -73,21 +78,22 @@ public class JwtValidatorService {
                         RSAPublicKey key = (RSAPublicKey) keyFactory.generatePublic(publicKeySpec);
                         publicKey.set(key);
                         algorithm.set(Algorithm.RSA256(key, null));
-                        logger.info("Clave pública RSA obtenida y procesada del auth-service.");
+                        log.info("Clave pública RSA obtenida y procesada del auth-service.");
                     } catch (Exception e) {
-                        logger.severe("Error procesando clave pública obtenida del auth-service: " + e.getMessage());
+                        log.error("Error procesando clave pública obtenida del auth-service: {}", e.getMessage());
                         throw new RuntimeException("Error procesando clave pública del auth-service", e);
                     }
                 })
-                .doOnError(e -> logger.severe("Error al obtener la clave pública del auth-service: " + e.getMessage()))
+                .doOnError(e -> log.error("Error al obtener la clave pública del auth-service: {}", e.getMessage()))
                 .then()
-                .doFinally(signal -> isPublicKeyLoading = false);
+                .doFinally(signal -> isPublicKeyLoading.set(false));
     }
 
     public Mono<Void> fallbackEnsurePublicKeyLoaded(Throwable e) {
-        logger.severe("No se pudo obtener la clave pública después de los reintentos: " + e.getMessage());
+        log.error("No se pudo obtener la clave pública después de los reintentos: {}", e.getMessage());
         publicKey.set(null);
         algorithm.set(null);
+        isPublicKeyLoading.set(false);
         return Mono.error(new RuntimeException("No se pudo obtener la clave pública del auth-service.", e));
     }
 
@@ -96,20 +102,20 @@ public class JwtValidatorService {
             return ensurePublicKeyLoaded()
                     .then(Mono.defer(() -> {
                         if (algorithm.get() == null) {
-                            logger.severe("No se pudo inicializar el algoritmo de firma para validar el JWT.");
+                            log.error("No se pudo inicializar el algoritmo de firma para validar el JWT.");
                             return Mono.error(new RuntimeException("No se pudo inicializar el algoritmo para validar el JWT. ¿El Auth-Service está disponible?"));
                         }
                         try {
-                            logger.info("Validando token...");
+                            log.debug("Validando token RS256...");
                             DecodedJWT jwt = JWT.require(algorithm.get())
                                     .withIssuer(ISSUER)
-                                    .acceptLeeway(10)
+                                    .acceptLeeway(5)
                                     .build()
                                     .verify(token);
-                            logger.info("Token válido. Issued at: " + jwt.getIssuedAt() + ", Exp: " + jwt.getExpiresAt());
+                            log.debug("Token válido. Exp: {}", jwt.getExpiresAt());
                             return Mono.just(jwt);
                         } catch (JWTVerificationException e) {
-                            logger.warning("Token inválido o expirado: " + e.getMessage());
+                            log.warn("Token inválido o expirado: {}", e.getMessage());
                             return Mono.error(new RuntimeException("Token inválido o expirado", e));
                         }
                     }));
@@ -121,16 +127,16 @@ public class JwtValidatorService {
                 algorithm.set(Algorithm.HMAC256(hmacSecret));
             }
             try {
-                logger.info("Validando token...");
+                log.debug("Validando token HS256...");
                 DecodedJWT jwt = JWT.require(algorithm.get())
                         .withIssuer(ISSUER)
-                        .acceptLeeway(10)
+                        .acceptLeeway(5)
                         .build()
                         .verify(token);
-                logger.info("Token válido. Issued at: " + jwt.getIssuedAt() + ", Exp: " + jwt.getExpiresAt());
+                log.debug("Token válido. Exp: {}", jwt.getExpiresAt());
                 return Mono.just(jwt);
             } catch (JWTVerificationException e) {
-                logger.warning("Token inválido o expirado: " + e.getMessage());
+                log.warn("Token inválido o expirado: {}", e.getMessage());
                 return Mono.error(new RuntimeException("Token inválido o expirado", e));
             }
         }
