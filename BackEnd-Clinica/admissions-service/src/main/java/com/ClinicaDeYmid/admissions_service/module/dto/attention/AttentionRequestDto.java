@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.admissions_service.module.dto.attention;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import com.ClinicaDeYmid.admissions_service.module.enums.AttentionStatus;
 import com.ClinicaDeYmid.admissions_service.module.enums.Cause;
@@ -12,14 +13,17 @@ public record AttentionRequestDto(
         @Schema(description = "ID de la atención (solo para actualizar)", example = "150")
         Long id,
 
+        @JsonProperty("patient_id")
         @Schema(description = "Documento de identificación del paciente", example = "1234567890", required = true)
         @NotBlank(message = "El documento de identificación del paciente no puede ser nulo")
         String patientId,
 
+        @JsonProperty("doctor_id")
         @Schema(description = "ID del doctor", example = "85", required = true)
         @NotNull(message = "El ID del doctor no puede ser nulo")
         Long doctorId,
 
+        @JsonProperty("configuration_service_id")
         @Schema(description = "ID del servicio de configuración", example = "20", required = true)
         @NotNull(message = "El ID del servicio de configuración no puede ser nulo")
         Long configurationServiceId,
@@ -32,16 +36,20 @@ public record AttentionRequestDto(
         @NotNull(message = "La causa de la atención no puede ser nulo")
         Cause cause,
 
+        @JsonProperty("health_providers")
         @Schema(description = "Lista de prestadores de salud con sus contratos", required = true)
         @Size(min = 1, message = "Debe haber al menos un proveedor de salud")
         List<@Valid HealthProviderRequestDto> healthProviders,
 
+        @JsonProperty("diagnostic_codes")
         @Schema(description = "Lista de códigos de diagnóstico (CIE10)", example = "[\"A01\", \"B02\"]")
         List<@Size(max = 20) String> diagnosticCodes,
 
+        @JsonProperty("triage_level")
         @Schema(description = "Nivel de triaje", example = "II", implementation = TriageLevel.class)
         TriageLevel triageLevel,
 
+        @JsonProperty("entry_method")
         @Schema(description = "Método de entrada (ejemplo: Urgencias)", example = "Urgencias")
         @Size(max = 50, message = "El método de entrada no puede exceder 50 caracteres")
         String entryMethod,
@@ -57,6 +65,7 @@ public record AttentionRequestDto(
         @Schema(description = "Lista de autorizaciones asociadas")
         List<@Valid AuthorizationRequestDto> authorizations,
 
+        @JsonProperty("user_id")
         @Schema(description = "ID del usuario que realiza la acción", example = "42", required = true)
         @NotNull(message = "El ID del usuario que realiza la acción no puede ser nulo")
         Long userId
