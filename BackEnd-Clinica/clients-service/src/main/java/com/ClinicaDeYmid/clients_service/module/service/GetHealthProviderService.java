@@ -162,9 +162,8 @@ public class GetHealthProviderService {
             Map<String, Object> stats = new HashMap<>();
 
             long totalActive = healthProviderRepository.countActiveProviders();
-            long totalDeleted = healthProviderRepository.findDeleted(Pageable.unpaged()).getTotalElements();
-            long withActiveContracts = healthProviderRepository
-                    .findProvidersWithActiveContracts(Pageable.unpaged()).getTotalElements();
+            long totalDeleted = healthProviderRepository.countDeletedProviders();
+            long withActiveContracts = healthProviderRepository.countProvidersWithActiveContracts();
 
             stats.put("totalActive", totalActive);
             stats.put("totalDeleted", totalDeleted);
