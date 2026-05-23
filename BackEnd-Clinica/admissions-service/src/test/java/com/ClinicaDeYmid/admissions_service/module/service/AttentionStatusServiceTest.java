@@ -2,8 +2,10 @@ package com.ClinicaDeYmid.admissions_service.module.service;
 
 import com.ClinicaDeYmid.admissions_service.infra.exception.EntityNotFoundException;
 import com.ClinicaDeYmid.admissions_service.infra.exception.ValidationException;
+import com.ClinicaDeYmid.admissions_service.infra.security.UserContextHolder;
 import com.ClinicaDeYmid.admissions_service.module.entity.Attention;
 import com.ClinicaDeYmid.admissions_service.module.repository.AttentionRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,10 +31,15 @@ class AttentionStatusServiceTest {
 
     @BeforeEach
     void setUp() {
+        UserContextHolder.setUserId(1L);
         attention = new Attention();
         attention.setId(1L);
         attention.setActive(false);
-        // Default is not deleted
+    }
+
+    @AfterEach
+    void tearDown() {
+        UserContextHolder.clear();
     }
 
     @Test

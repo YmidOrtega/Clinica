@@ -11,7 +11,9 @@ import com.ClinicaDeYmid.suppliers_service.module.mapper.DoctorMapper;
 import com.ClinicaDeYmid.suppliers_service.module.repository.DoctorRepository;
 import com.ClinicaDeYmid.suppliers_service.module.repository.SpecialtyRepository;
 import com.ClinicaDeYmid.suppliers_service.module.repository.SubSpecialtyRepository;
+import com.ClinicaDeYmid.suppliers_service.infra.security.UserContextHolder;
 import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,7 @@ class DoctorRecordServiceTest {
 
     @BeforeEach
     void setUp() {
+        UserContextHolder.setUserId(1L);
         speciality = new Speciality();
         speciality.setId(1L);
         speciality.setName("Cardiología");
@@ -110,6 +113,11 @@ class DoctorRecordServiceTest {
                 LocalDateTime.now(),
                 List.of(new SpecialtyDetailsDto(1L, "Cardiología", 101, List.of(new SubSpecialtyDetailsDto(10L, "Cardiología Pediátrica", 201))))
         );
+    }
+
+    @AfterEach
+    void tearDown() {
+        UserContextHolder.clear();
     }
 
     @Test
