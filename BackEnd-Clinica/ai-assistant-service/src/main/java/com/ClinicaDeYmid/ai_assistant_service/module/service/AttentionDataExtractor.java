@@ -57,7 +57,7 @@ public class AttentionDataExtractor {
     }
 
     private void validate(AttentionExtractionResult r) {
-        if (r.patientId() == null)
+        if (r.patientId() == null || r.patientId().isBlank())
             throw new IllegalArgumentException("patient_id is required");
         if (r.doctorId() == null || r.doctorId() <= 0)
             throw new IllegalArgumentException("doctor_id must be a positive number");

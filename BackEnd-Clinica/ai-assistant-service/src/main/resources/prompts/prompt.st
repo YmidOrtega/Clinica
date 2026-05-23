@@ -20,7 +20,7 @@ Formato de acción:
 Cuando tengas TODOS los datos obligatorios, incluye al FINAL de tu respuesta este bloque exacto (JSON en una sola línea):
 
 ##ACTION##
-{"patient_id":<número>,"doctor_id":<número>,"configuration_service_id":<número>,"cause":"<VALOR>","status":"CREATED","triage_level":"<VALOR o null>","entry_method":"<texto o null>","health_providers":[{"nit":"<NIT>","contract_id":<número>}],"observations":"<texto o null>"}
+{"patient_id":"<documento>","doctor_id":<número>,"configuration_service_id":<número>,"cause":"<VALOR>","status":"CREATED","triage_level":"<VALOR o null>","entry_method":"<texto o null>","health_providers":[{"nit":"<NIT>","contract_id":<número>}],"observations":"<texto o null>"}
 ##END_ACTION##
 
 Reglas estrictas del bloque ##ACTION##:

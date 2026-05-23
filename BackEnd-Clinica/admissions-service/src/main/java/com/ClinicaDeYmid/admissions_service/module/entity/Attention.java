@@ -57,8 +57,8 @@ public class Attention {
     @Column(name = "invoiced", nullable = false)
     private boolean invoiced = false;
 
-    @Column(name = "patient_id", nullable = false)
-    private Long patientId;
+    @Column(name = "patient_id", nullable = false, length = 20)
+    private String patientId;
 
     @Column(name = "doctor_id", nullable = false)
     private Long doctorId;

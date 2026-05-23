@@ -53,23 +53,23 @@ class AttentionRepositoryTest {
         configService = entityManager.persist(configService);
 
         Attention attention = new Attention();
-        attention.setPatientId(100L);
+        attention.setPatientId("1000000100");
         attention.setDoctorId(200L);
         attention.setStatus(AttentionStatus.CREATED);
         attention.setCause(Cause.ROUTINE_CHECKUP);
         attention.setConfigurationService(configService);
         attention.setCreatedAt(LocalDateTime.now());
         attention.setUpdatedAt(LocalDateTime.now());
-        
+
         attentionRepository.save(attention);
 
         // Act
-        List<Attention> result = attentionRepository.findByPatientId(100L);
+        List<Attention> result = attentionRepository.findByPatientId("1000000100");
 
         // Assert
         assertNotNull(result);
         assertFalse(result.isEmpty());
-        assertEquals(100L, result.get(0).getPatientId());
+        assertEquals("1000000100", result.get(0).getPatientId());
     }
 
     @Test
@@ -95,7 +95,7 @@ class AttentionRepositoryTest {
         configService = entityManager.persist(configService);
 
         Attention attention = new Attention();
-        attention.setPatientId(101L);
+        attention.setPatientId("1000000101");
         attention.setDoctorId(201L);
         attention.setStatus(AttentionStatus.CREATED);
         attention.setCause(Cause.ROUTINE_CHECKUP);
@@ -106,10 +106,10 @@ class AttentionRepositoryTest {
         attentionRepository.save(attention);
 
         // Act
-        Optional<Attention> result = attentionRepository.findByPatientIdAndStatus(101L, AttentionStatus.CREATED);
+        Optional<Attention> result = attentionRepository.findByPatientIdAndStatus("1000000101", AttentionStatus.CREATED);
 
         // Assert
         assertTrue(result.isPresent());
-        assertEquals(101L, result.get().getPatientId());
+        assertEquals("1000000101", result.get().getPatientId());
     }
 }

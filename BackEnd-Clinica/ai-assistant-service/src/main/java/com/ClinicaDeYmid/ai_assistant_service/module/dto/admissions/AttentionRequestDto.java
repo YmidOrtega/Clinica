@@ -6,7 +6,7 @@ import java.util.List;
 
 public record AttentionRequestDto(
         @JsonProperty("patient_id")
-        Long patientId,
+        String patientId,
 
         @JsonProperty("doctor_id")
         Long doctorId,

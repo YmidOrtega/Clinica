@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 
 public class AttentionSpecifications {
 
-    public static Specification<Attention> hasPatientId(Long patientId) {
+    public static Specification<Attention> hasPatientId(String patientId) {
         return (root, query, criteriaBuilder) ->
                 patientId == null ? null : criteriaBuilder.equal(root.get("patientId"), patientId);
     }

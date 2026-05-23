@@ -81,7 +81,7 @@ class AttentionControllerIntegrationTest {
         HealthProviderRequestDto hpRequestDto = new HealthProviderRequestDto("NIT123", 1L);
 
         AttentionRequestDto requestDto = new AttentionRequestDto(
-                null, 1L, 2L, 3L, AttentionStatus.CREATED, Cause.ACCIDENT,
+                null, "1000000001", 2L, 3L, AttentionStatus.CREATED, Cause.ACCIDENT,
                 List.of(hpRequestDto), List.<String>of(), TriageLevel.YELLOW, "ER",
                 companionDto, "Observations", Collections.<AuthorizationRequestDto>emptyList(), 4L
         );
@@ -113,7 +113,7 @@ class AttentionControllerIntegrationTest {
         HealthProviderRequestDto hpRequestDto = new HealthProviderRequestDto("NIT123", 1L);
 
         AttentionRequestDto requestDto = new AttentionRequestDto(
-                null, 1L, 2L, 3L, AttentionStatus.CREATED, Cause.ACCIDENT,
+                null, "1000000001", 2L, 3L, AttentionStatus.CREATED, Cause.ACCIDENT,
                 List.of(hpRequestDto), List.<String>of(), TriageLevel.YELLOW, "ER",
                 companionDto, "Observations", Collections.<AuthorizationRequestDto>emptyList(), 4L
         );

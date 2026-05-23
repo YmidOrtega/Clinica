@@ -71,8 +71,8 @@ class AttentionControllerTest {
         com.ClinicaDeYmid.admissions_service.module.dto.attention.HealthProviderRequestDto healthProviderRequestDto = new com.ClinicaDeYmid.admissions_service.module.dto.attention.HealthProviderRequestDto("NIT123", 1L);
         
         attentionRequestDto = new AttentionRequestDto(
-                1L,
-                1L,
+                null,
+                "1000000001",
                 1L,
                 1L,
                 AttentionStatus.CREATED,
@@ -131,9 +131,9 @@ class AttentionControllerTest {
     @Test
     @WithMockUser(roles = "DOCTOR")
     void getAttentionsByPatientId_Success() throws Exception {
-        when(attentionGetService.getAttentionsByPatientId(1L)).thenReturn(List.of());
+        when(attentionGetService.getAttentionsByPatientId("1000000001")).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/v1/attentions/patient/{patientId}", 1L))
+        mockMvc.perform(get("/api/v1/attentions/patient/{patientId}", "1000000001"))
                 .andExpect(status().isOk());
     }
 

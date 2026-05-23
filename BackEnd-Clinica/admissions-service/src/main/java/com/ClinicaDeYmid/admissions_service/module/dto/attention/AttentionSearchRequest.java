@@ -11,7 +11,7 @@ import java.time.LocalDate;
 
 public record AttentionSearchRequest(
         @Schema(description = "Documento de identificación del paciente", example = "1234567890")
-        Long patientId,
+        String patientId,
 
         @Schema(description = "ID del doctor", example = "85")
         Long doctorId,

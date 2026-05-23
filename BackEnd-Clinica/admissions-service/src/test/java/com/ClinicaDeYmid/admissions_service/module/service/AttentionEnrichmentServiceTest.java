@@ -58,7 +58,7 @@ class AttentionEnrichmentServiceTest {
     void setUp() {
         attention = new Attention();
         attention.setId(1L);
-        attention.setPatientId(1L);
+        attention.setPatientId("1000000001");
         attention.setDoctorId(1L);
         
         ConfigurationService configService = new ConfigurationService();
