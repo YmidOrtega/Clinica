@@ -26,7 +26,7 @@ public class AuditLogService {
     /**
      * Registra una acción de auditoría (asíncrono para no afectar performance)
      */
-    @Async
+    @Async("auditExecutor")
     @Transactional
     public void logAction(
             User user,
@@ -53,7 +53,7 @@ public class AuditLogService {
     /**
      * Registra una acción sin usuario asociado (asíncrono para no afectar performance)
      */
-    @Async
+    @Async("auditExecutor")
     @Transactional
     public void logActionWithoutUser(
             String email,
