@@ -220,6 +220,18 @@ public class AttentionController {
         return new ResponseEntity<>(pdfContent, headers, HttpStatus.OK);
     }
 
+    @PatchMapping("/{id}/mark-invoiced")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @Operation(summary = "Mark attention as invoiced",
+            description = "Marks an attention as invoiced and links it to a sale order. Called by billing-service.")
+    public ResponseEntity<Void> markAsInvoiced(
+            @PathVariable @NotNull @Positive Long id,
+            @RequestParam @NotNull @Positive Long saleOrderId) {
+        log.info("Marking attention ID: {} as invoiced with sale order: {}", id, saleOrderId);
+        attentionStatusService.markAsInvoiced(id, saleOrderId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{id}/activate")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     @Operation(summary = "Activate an attention", description = "Activates an attention by ID. Only SUPER_ADMIN and ADMIN roles can perform this operation.")
