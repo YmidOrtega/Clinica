@@ -133,4 +133,32 @@ public class AttentionStatusService {
 
         log.info("Attention with ID {} restored successfully", id);
     }
+
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "attention-entities", key = "#id"),
+            @CacheEvict(value = "attentionsByPatient", allEntries = true),
+            @CacheEvict(value = "attentionsByDoctor", allEntries = true),
+            @CacheEvict(value = "attentionsByHealthProvider", allEntries = true)
+    })
+    public void markAsInvoiced(Long id, Long saleOrderId) {
+        log.info("Marking attention ID: {} as invoiced with sale order ID: {}", id, saleOrderId);
+
+        Attention attention = attentionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Attention not found with ID: " + id));
+
+        if (attention.isDeleted()) {
+            throw new ValidationException("Cannot invoice a soft-deleted attention.");
+        }
+
+        if (attention.isInvoiced()) {
+            throw new ValidationException("Attention " + id + " is already invoiced.");
+        }
+
+        attention.setInvoiced(true);
+        attention.setInvoiceNumber(saleOrderId);
+        attentionRepository.save(attention);
+
+        log.info("Attention ID: {} marked as invoiced. Invoice reference: {}", id, saleOrderId);
+    }
 }
