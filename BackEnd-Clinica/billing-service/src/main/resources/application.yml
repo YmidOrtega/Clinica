@@ -3,6 +3,14 @@ spring:
     name: billing-service
   flyway:
     location: classpath:db/migration/billing
+  security:
+    # Endpoints públicos adicionales
+    public-paths:
+      - /actuator/health
+      - /actuator/info
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
 
 eureka:
   client:
