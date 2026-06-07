@@ -24,26 +24,26 @@ services:
       command: --log-bin-trust-function-creators=1
 
    # Base de datos para facturación
-   #   billing-db:
-   #      image: mysql:8.0
-   #      container_name: billing-db
-   #      restart: always
-   #      environment:
-   #         MYSQL_ROOT_PASSWORD: ${BILLING_DB_ROOT_PASSWORD}
-   #         MYSQL_DATABASE: ${BILLING_DB_NAME}
-   #         MYSQL_USER: ${BILLING_DB_USER}
-   #         MYSQL_PASSWORD: ${BILLING_DB_PASSWORD}
-   #      ports:
-   #         - "3308:3306"
-   #      volumes:
-   #         - billing_data:/var/lib/mysql
-   #      networks:
-   #         - clinica-net
-   #      healthcheck:
-   #         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-   #         timeout: 20s
-   #         retries: 10
-   #      command: --log-bin-trust-function-creators=1
+   billing-db:
+      image: mysql:8.0
+      container_name: billing-db
+      restart: always
+      environment:
+         MYSQL_ROOT_PASSWORD: ${BILLING_DB_ROOT_PASSWORD}
+         MYSQL_DATABASE: ${BILLING_DB_NAME}
+         MYSQL_USER: ${BILLING_DB_USER}
+         MYSQL_PASSWORD: ${BILLING_DB_PASSWORD}
+      ports:
+         - "3308:3306"
+      volumes:
+         - billing_data:/var/lib/mysql
+      networks:
+         - clinica-net
+      healthcheck:
+         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+         timeout: 20s
+         retries: 10
+      command: --log-bin-trust-function-creators=1
 
    # Base de datos para admisiones
    admissions-db:
@@ -564,7 +564,7 @@ services:
 volumes:
    gateway_data:
    patient_data:
-   #billing_data:
+   billing_data:
    admissions_data:
    ai_assistant_data:
    suppliers_data:
