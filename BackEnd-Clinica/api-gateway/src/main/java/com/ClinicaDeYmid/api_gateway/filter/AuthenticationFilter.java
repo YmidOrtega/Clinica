@@ -68,6 +68,15 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
                                 log.debug("Token validado exitosamente para usuario: {}", userEmail);
 
+                                // Identidad para los filtros posteriores del gateway
+                                // (UserRateLimitFilter). Va como atributo y no como cabecera
+                                // porque el cliente no puede fabricar atributos.
+                                exchange.getAttributes()
+                                        .put(GatewayAttributes.AUTHENTICATED_USER_ID, userId);
+
+                                // header() reemplaza el valor entrante, de modo que una
+                                // cabecera X-User-ID enviada por el cliente nunca llega al
+                                // servicio destino.
                                 ServerHttpRequest mutatedRequest = request.mutate()
                                         .header("X-User-ID", userId)
                                         .header("X-User-Email", userEmail)

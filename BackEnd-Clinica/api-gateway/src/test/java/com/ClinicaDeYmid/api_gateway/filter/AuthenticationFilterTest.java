@@ -7,6 +7,7 @@ import com.auth0.jwt.interfaces.Claim;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -19,6 +20,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -123,6 +125,66 @@ class AuthenticationFilterTest {
                 .verifyComplete();
 
         verify(filterChain).filter(any(ServerWebExchange.class));
+    }
+
+    @Test
+    void filter_ShouldPublishAuthenticatedUserIdAsExchangeAttribute() {
+        String validToken = "valid.jwt.token";
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/secured")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + validToken)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        DecodedJWT decodedJWT = mock(DecodedJWT.class);
+        Claim claim = mock(Claim.class);
+        when(decodedJWT.getSubject()).thenReturn("user-123");
+        when(decodedJWT.getClaim("email")).thenReturn(claim);
+        when(claim.asString()).thenReturn("user@example.com");
+
+        when(routeValidator.isSecured(any())).thenReturn(true);
+        when(jwtValidatorService.validateAndDecodeToken(validToken)).thenReturn(Mono.just(decodedJWT));
+        when(tokenBlacklistServiceGateway.isTokenBlacklisted(validToken)).thenReturn(Mono.just(false));
+        when(filterChain.filter(any(ServerWebExchange.class))).thenReturn(Mono.empty());
+
+        Mono<Void> result = authenticationFilter.apply(new AuthenticationFilter.Config()).filter(exchange, filterChain);
+
+        StepVerifier.create(result)
+                .verifyComplete();
+
+        // UserRateLimitFilter depende de este atributo para poder aplicar el límite por usuario
+        assertEquals("user-123", exchange.getAttribute(GatewayAttributes.AUTHENTICATED_USER_ID));
+    }
+
+    @Test
+    void filter_ShouldNotTrustClientSuppliedUserIdHeader() {
+        String validToken = "valid.jwt.token";
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/secured")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + validToken)
+                .header("X-User-ID", "attacker-supplied")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        DecodedJWT decodedJWT = mock(DecodedJWT.class);
+        Claim claim = mock(Claim.class);
+        when(decodedJWT.getSubject()).thenReturn("real-user");
+        when(decodedJWT.getClaim("email")).thenReturn(claim);
+        when(claim.asString()).thenReturn("user@example.com");
+
+        when(routeValidator.isSecured(any())).thenReturn(true);
+        when(jwtValidatorService.validateAndDecodeToken(validToken)).thenReturn(Mono.just(decodedJWT));
+        when(tokenBlacklistServiceGateway.isTokenBlacklisted(validToken)).thenReturn(Mono.just(false));
+
+        ArgumentCaptor<ServerWebExchange> captor = ArgumentCaptor.forClass(ServerWebExchange.class);
+        when(filterChain.filter(captor.capture())).thenReturn(Mono.empty());
+
+        Mono<Void> result = authenticationFilter.apply(new AuthenticationFilter.Config()).filter(exchange, filterChain);
+
+        StepVerifier.create(result)
+                .verifyComplete();
+
+        assertEquals("real-user", exchange.getAttribute(GatewayAttributes.AUTHENTICATED_USER_ID));
+        assertEquals("real-user",
+                captor.getValue().getRequest().getHeaders().getFirst("X-User-ID"));
     }
 
     @Test
