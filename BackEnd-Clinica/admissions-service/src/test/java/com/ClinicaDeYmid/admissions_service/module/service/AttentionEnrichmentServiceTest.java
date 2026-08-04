@@ -18,16 +18,18 @@ import com.ClinicaDeYmid.admissions_service.module.feignclient.UserClient;
 import com.ClinicaDeYmid.admissions_service.module.mapper.AttentionMapper;
 import com.ClinicaDeYmid.admissions_service.module.mapper.AuthorizationMapper;
 import feign.FeignException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -49,13 +51,31 @@ class AttentionEnrichmentServiceTest {
     @Mock
     private AuthorizationMapper authorizationMapper;
 
-    @InjectMocks
+    // Executor real: mockearlo dejaría las tareas sin ejecutar y el join() colgaría.
+    private ExecutorService enrichmentExecutor;
+
     private AttentionEnrichmentService attentionEnrichmentService;
 
     private Attention attention;
 
+    @AfterEach
+    void tearDown() {
+        enrichmentExecutor.shutdown();
+    }
+
     @BeforeEach
     void setUp() {
+        enrichmentExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        attentionEnrichmentService = new AttentionEnrichmentService(
+                patientClient,
+                doctorClient,
+                healthProviderClient,
+                userClient,
+                attentionMapper,
+                authorizationMapper,
+                enrichmentExecutor
+        );
+
         attention = new Attention();
         attention.setId(1L);
         attention.setPatientId("1000000001");
