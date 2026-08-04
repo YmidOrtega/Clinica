@@ -29,6 +29,7 @@ public class SaleOrderItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sale_order_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_sale_order_item_sale_order"))
+    @ToString.Exclude
     private SaleOrder saleOrder;
 
     @Column(name = "portfolio_id")
