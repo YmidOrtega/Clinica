@@ -1,11 +1,14 @@
 package com.ClinicaDeYmid.billing_service.module.sale.service;
 
 import com.ClinicaDeYmid.billing_service.infra.exception.SaleOrderItemNotFoundException;
+import com.ClinicaDeYmid.billing_service.module.config.service.TaxResolverService;
+import com.ClinicaDeYmid.billing_service.module.pricing.service.PriceResolverService;
 import com.ClinicaDeYmid.billing_service.module.sale.dto.SaleOrderItemRequestDto;
 import com.ClinicaDeYmid.billing_service.module.sale.dto.SaleOrderItemResponseDto;
 import com.ClinicaDeYmid.billing_service.module.sale.dto.SaleOrderResponseDto;
 import com.ClinicaDeYmid.billing_service.module.sale.entity.SaleOrder;
 import com.ClinicaDeYmid.billing_service.module.sale.entity.SaleOrderItem;
+import com.ClinicaDeYmid.billing_service.module.sale.enums.SaleItemType;
 import com.ClinicaDeYmid.billing_service.module.sale.mapper.SaleOrderItemMapper;
 import com.ClinicaDeYmid.billing_service.module.sale.mapper.SaleOrderMapper;
 import com.ClinicaDeYmid.billing_service.module.sale.repository.SaleOrderItemRepository;
@@ -15,7 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Slf4j
@@ -28,6 +33,8 @@ public class SaleOrderItemService {
     private final SaleOrderItemMapper itemMapper;
     private final SaleOrderMapper orderMapper;
     private final SaleOrderService saleOrderService;
+    private final PriceResolverService priceResolver;
+    private final TaxResolverService taxResolver;
 
     @Transactional(readOnly = true)
     public List<SaleOrderItemResponseDto> findByOrder(Long saleOrderId) {
@@ -54,6 +61,7 @@ public class SaleOrderItemService {
         try {
             SaleOrderItem item = itemMapper.toEntity(dto);
             item.setSaleOrder(order);
+            applyResolvedPricing(order, item, dto);
             item.calculateSubtotal();
             order.getItems().add(item);
             order.recalculateTotals();
@@ -83,6 +91,7 @@ public class SaleOrderItemService {
 
         try {
             itemMapper.updateEntity(dto, item);
+            applyResolvedPricing(order, item, dto);
             item.calculateSubtotal();
             order.recalculateTotals();
 
@@ -117,6 +126,51 @@ public class SaleOrderItemService {
         item.setAuthorized(true);
         item.setAuthorizationId(authorizationId);
         return itemMapper.toResponseDto(itemRepository.save(item));
+    }
+
+    /**
+     * Fija el precio unitario y la tasa de impuesto del ítem desde el servidor.
+     * <p>
+     * Cuando el ítem identifica un servicio del catálogo (por {@code portfolioId} o
+     * {@code codeCups}) el precio lo determina {@link PriceResolverService} siguiendo la
+     * cadena override → manual → tarifa de contrato → precio base del portafolio, y el
+     * {@code unitPrice} que venga en la petición se ignora: el cliente HTTP no fija lo que
+     * se cobra.
+     * <p>
+     * Los ítems sin portafolio ni CUPS (conceptos manuales: {@code OTHER}, insumos no
+     * catalogados) no tienen contra qué resolverse, así que ahí sí se exige un precio
+     * explícito en la petición.
+     */
+    private void applyResolvedPricing(SaleOrder order, SaleOrderItem item, SaleOrderItemRequestDto dto) {
+        boolean catalogued = item.getPortfolioId() != null || StringUtils.hasText(item.getCodeCups());
+
+        if (catalogued) {
+            PriceResolverService.PriceResolution resolution = priceResolver.resolve(
+                    order.getContractId(), item.getPortfolioId(), item.getCodeCups());
+
+            if (dto.unitPrice() != null && dto.unitPrice().compareTo(resolution.price()) != 0) {
+                log.warn("Precio enviado ({}) ignorado para portafolio: {} cups: {}; se aplica {} resuelto por {}",
+                        dto.unitPrice(), item.getPortfolioId(), item.getCodeCups(),
+                        resolution.price(), resolution.source());
+            }
+
+            item.setUnitPrice(resolution.price());
+        } else {
+            if (dto.unitPrice() == null) {
+                throw new IllegalStateException(
+                        "El precio unitario es obligatorio para ítems sin portafolio ni código CUPS.");
+            }
+            log.info("Ítem manual sin catálogo; se usa el precio enviado: {}", dto.unitPrice());
+            item.setUnitPrice(dto.unitPrice());
+        }
+
+        item.setTaxRate(resolveTaxRate(item.getItemType()));
+    }
+
+    private BigDecimal resolveTaxRate(SaleItemType itemType) {
+        return itemType == SaleItemType.SUPPLY
+                ? taxResolver.resolveRateForMedications()
+                : taxResolver.resolveRateForServices();
     }
 
     SaleOrderItem getOrThrow(Long id) {

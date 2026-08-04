@@ -128,6 +128,11 @@
 **Servicios**
 - [x] `SaleOrderService` (crear, confirmar, cancelar)
 - [x] `SaleOrderItemService` (agregar, eliminar ítems)
+- [x] Resolución de precio en servidor: `SaleOrderItemService` invoca `PriceResolverService`
+      al agregar/actualizar ítems. El `unitPrice` de la petición solo se honra en ítems sin
+      portafolio ni CUPS (conceptos manuales); en los catalogados se ignora.
+- [x] `TaxResolverService` (módulo `config`) — resuelve la tasa desde `tax_configuration`.
+      Solo impuestos aditivos (IVA, INC); las retenciones se difieren al módulo `invoice`.
 
 **Controladores**
 - [x] `SaleOrderController` — `ADMIN`, `RECEPTIONIST` (crear/confirmar); `SUPER_ADMIN` (cancelar)

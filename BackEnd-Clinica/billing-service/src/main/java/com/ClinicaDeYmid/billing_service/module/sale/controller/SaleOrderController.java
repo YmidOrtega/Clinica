@@ -201,12 +201,17 @@ public class SaleOrderController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
     @Operation(summary = "Agregar ítem a la orden",
             description = "Agrega un servicio, examen, insumo u honorario. "
-                    + "Calcula el subtotal y recalcula los totales de la orden. Solo en DRAFT.")
+                    + "El precio unitario lo resuelve el servidor (override → manual → tarifa "
+                    + "de contrato → precio base del portafolio) cuando el ítem trae portafolio "
+                    + "o código CUPS; para conceptos manuales sin catálogo el precio es "
+                    + "obligatorio en la petición. La tasa de impuesto se toma de la "
+                    + "configuración. Calcula el subtotal y recalcula los totales. Solo en DRAFT.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Ítem agregado, totales actualizados"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos"),
             @ApiResponse(responseCode = "404", description = "Orden no encontrada"),
-            @ApiResponse(responseCode = "409", description = "Orden no editable o portafolio duplicado"),
+            @ApiResponse(responseCode = "409", description = "Orden no editable, portafolio duplicado, "
+                    + "precio no resoluble o ítem manual sin precio"),
             @ApiResponse(responseCode = "403", description = "Sin permisos suficientes")
     })
     public ResponseEntity<SaleOrderResponseDto> addItem(
@@ -220,11 +225,13 @@ public class SaleOrderController {
     @PutMapping("/{saleOrderId}/items/{itemId}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')")
     @Operation(summary = "Actualizar ítem de la orden",
-            description = "Recalcula el subtotal del ítem y los totales de la orden. Solo en DRAFT.")
+            description = "Vuelve a resolver el precio y la tasa de impuesto en el servidor, "
+                    + "y recalcula el subtotal del ítem y los totales de la orden. Solo en DRAFT.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Ítem actualizado"),
             @ApiResponse(responseCode = "404", description = "Orden o ítem no encontrado"),
-            @ApiResponse(responseCode = "409", description = "Orden no editable"),
+            @ApiResponse(responseCode = "409", description = "Orden no editable, precio no resoluble "
+                    + "o ítem manual sin precio"),
             @ApiResponse(responseCode = "403", description = "Sin permisos suficientes")
     })
     public ResponseEntity<SaleOrderResponseDto> updateItem(
