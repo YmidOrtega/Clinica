@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -36,6 +37,7 @@ public class AttentionEnrichmentService {
     private final UserClient userClient;
     private final AttentionMapper attentionMapper;
     private final AuthorizationMapper authorizationMapper;
+    private final ExecutorService enrichmentExecutor;
 
     private <T> T fetchExternalResource(Supplier<T> supplier, String resourceName, Object id) {
         try {
@@ -58,7 +60,10 @@ public class AttentionEnrichmentService {
 
     public AttentionResponseDto enrichAttentionResponseDto(Attention attention) {
 
-        // Lanzar llamadas independientes en paralelo (aprovecha virtual threads de Java 21)
+        // Lanzar las llamadas independientes en paralelo sobre hilos virtuales (Java 21):
+        // la latencia total pasa de ser la suma de las cuatro a ser la de la más lenta.
+        // El executor se pasa explícitamente; el pool por defecto de supplyAsync
+        // (ForkJoinPool.commonPool) no es apto para I/O bloqueante. Ver AsyncConfig.
         CompletableFuture<GetPatientDto> patientFuture = attention.getPatientId() != null
                 ? CompletableFuture.supplyAsync(() -> {
                     try {
@@ -67,12 +72,13 @@ public class AttentionEnrichmentService {
                         log.warn("No se pudo obtener paciente con patientId {}: {}", attention.getPatientId(), e.getMessage());
                         return null;
                     }
-                })
+                }, enrichmentExecutor)
                 : CompletableFuture.completedFuture(null);
 
         CompletableFuture<GetDoctorDto> doctorFuture = attention.getDoctorId() != null
                 ? CompletableFuture.supplyAsync(() ->
-                    fetchExternalResource(() -> doctorClient.getDoctorById(attention.getDoctorId()), "doctor", attention.getDoctorId()))
+                    fetchExternalResource(() -> doctorClient.getDoctorById(attention.getDoctorId()), "doctor", attention.getDoctorId()),
+                    enrichmentExecutor)
                 : CompletableFuture.completedFuture(null);
 
         CompletableFuture<List<GetHealthProviderDto>> healthProviderFuture = (attention.getHealthProviderNit() != null && !attention.getHealthProviderNit().isEmpty())
@@ -89,7 +95,8 @@ public class AttentionEnrichmentService {
                                 }
                             })
                             .filter(Objects::nonNull)
-                            .collect(Collectors.toList()))
+                            .collect(Collectors.toList()),
+                    enrichmentExecutor)
                 : CompletableFuture.completedFuture(Collections.emptyList());
 
         CompletableFuture<List<AttentionUserHistoryResponseDto>> historyFuture = attention.getUserHistory() != null
@@ -99,7 +106,8 @@ public class AttentionEnrichmentService {
                                 GetUserDto userDetails = fetchExternalResource(() -> userClient.getUserById(history.getUserId()), "usuario", history.getUserId());
                                 return new AttentionUserHistoryResponseDto(history.getId(), userDetails, history.getActionType(), history.getActionTimestamp(), history.getObservations());
                             })
-                            .collect(Collectors.toList()))
+                            .collect(Collectors.toList()),
+                    enrichmentExecutor)
                 : CompletableFuture.completedFuture(Collections.emptyList());
 
         // Esperar resultados de todas las llamadas paralelas
