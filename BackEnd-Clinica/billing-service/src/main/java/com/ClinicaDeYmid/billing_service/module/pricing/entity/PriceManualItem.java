@@ -31,6 +31,7 @@ public class PriceManualItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "price_manual_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_price_manual_item_manual"))
+    @ToString.Exclude
     private PriceManual priceManual;
 
     @Column(name = "portfolio_id")

@@ -50,6 +50,7 @@ public class PriceManual {
     @OneToMany(mappedBy = "priceManual", fetch = FetchType.LAZY,
             cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @ToString.Exclude
     private List<PriceManualItem> items = new ArrayList<>();
 
     @Column(name = "active", nullable = false)

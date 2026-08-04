@@ -78,6 +78,7 @@ public class SaleOrder {
     @OneToMany(mappedBy = "saleOrder", fetch = FetchType.LAZY,
             cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @ToString.Exclude
     private List<SaleOrderItem> items = new ArrayList<>();
 
     @CreationTimestamp
