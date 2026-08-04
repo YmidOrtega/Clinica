@@ -69,7 +69,7 @@ Adicionalmente, un sistema de salud tiene requisitos no negociables:
 | Migraciones       | Flyway                              | Historial versionado de esquema; obligatorio en sistemas de salud (auditoría)    |
 | ORM               | Hibernate + MapStruct 1.6           | JPA estándar; MapStruct genera el código de mapping en compile time (zero reflect)|
 | Resiliencia       | Resilience4j                        | Circuit breaker, retry con backoff exponencial, fallback declarativo             |
-| Cache / Rate Limit| Redis 7                             | Cache distribuida + token bucket para rate limiting en el gateway               |
+| Cache / Rate Limit| Redis 7                             | Cache distribuida + contador atómico para rate limiting en el gateway           |
 | IA                | Spring AI + Gemini API              | Abstracción portable (Gemini en prod, LM Studio en local)                        |
 | Contenedores      | Docker + Compose                    | Stack completo levantable con un solo comando                                    |
 | Testing           | JUnit 5 + Mockito                   | Pruebas unitarias de servicios, controladores e integraciones                    |
@@ -79,7 +79,13 @@ Adicionalmente, un sistema de salud tiene requisitos no negociables:
 
 ## 4. Microservicios — Responsabilidades
 
-### 4.1 Patient Service (`:8082`)
+> **Nota sobre los puertos.** Los puertos indicados abajo son los del perfil `docker`,
+> definidos en el `application.yml` de cada servicio y mapeados en `docker-compose.yml`.
+> En el perfil `dev` los servicios de dominio arrancan con `server.port=0` (puerto efímero
+> asignado por el sistema operativo) para poder levantar varias instancias en la misma
+> máquina sin colisiones; se localizan por nombre lógico a través de Eureka, no por puerto.
+
+### 4.1 Patient Service (`:8081`)
 
 Propietario del dominio clínico del paciente.
 
@@ -148,7 +154,7 @@ AttentionController
 | `GREEN`  | 4         | No urgente                            |
 | `BLUE`   | 5         | Consulta rutinaria                    |
 
-### 4.3 Auth Service (`:8084`)
+### 4.3 Auth Service (`:8086`)
 
 Autenticación centralizada. Emite tokens JWT firmados con RSA-256.
 
@@ -172,7 +178,7 @@ DoctorController
           └── UnavailabilityRepository → Tabla doctor_unavailability
 ```
 
-### 4.5 Clients Service (`:8086`)
+### 4.5 Clients Service (`:8087`)
 
 Proveedores de salud: aseguradoras, EPS, redes de clínicas.
 
@@ -184,7 +190,7 @@ HealthProviderController
           └── PortfolioRepository      → Tabla portfolios
 ```
 
-### 4.6 AI Assistant Service (`:8087`)
+### 4.6 AI Assistant Service (`:8084`)
 
 Asistente conversacional con memoria de sesión e integración con el flujo de admisiones.
 
@@ -203,10 +209,30 @@ El asistente detecta intención en la conversación: si el médico describe sín
 Punto de entrada único para todo el tráfico externo.
 
 ```
-Filtros de entrada:
-  LoggingFilter   → Registra cada request (método, path, status, tiempo) en PostgreSQL
-  RateLimitFilter → Token bucket por usuario en Redis: max N req/seg
-  AuthFilter      → Valida JWT (clave pública RSA-256) antes de enrutar
+Cadena de filtros, en orden de ejecución:
+
+  IpRateLimitFilter    → Global, orden 0.  1000 req/min por IP.
+                         Va antes de autenticar porque tiene que cubrir el login y el
+                         resto de rutas públicas, que es donde ataca quien no tiene
+                         credenciales.
+
+  AuthenticationFilter → Por ruta, orden 1. Valida la firma RSA-256 con la clave pública
+                         del auth-service, consulta la blacklist en Redis, publica la
+                         identidad en un atributo del exchange e inyecta
+                         X-User-ID / X-User-Email hacia el servicio destino.
+
+  UserRateLimitFilter  → Global, orden 10. 100 req/min por usuario.
+                         Va después de autenticar: la identidad ya está verificada, así
+                         que el contador no se puede falsear rotando cabeceras.
+
+  RequestLoggingFilter → Global. Registra método, path, status y tiempo en PostgreSQL
+                         (escritura asíncrona en un executor dedicado).
+
+  RouteValidator       → Lista blanca de rutas públicas consultada por
+                         AuthenticationFilter (login, public-key, health, swagger).
+
+Los dos límites de tráfico están deliberadamente en filtros distintos porque protegen de
+ataques distintos y deben evaluarse en momentos distintos de la cadena. Ver SECURITY.md §5.3.
 
 Por cada ruta configurada:
   Resilience4j:
@@ -284,14 +310,26 @@ Intento 3 → falla
 
 ### 7.3 Rate Limiting (Redis)
 
+Contador de ventana fija implementado con operaciones atómicas de Redis (`INCR` + `EXPIRE`).
+
 ```
 Por cada request que llega al gateway:
-  1. Obtiene userId del JWT
-  2. Consulta en Redis: tokens_disponibles[userId]
-  3. Si tokens > 0 → decrementa y permite
-  4. Si tokens = 0 → 429 Too Many Requests
-  5. Redis recarga tokens a tasa configurable (token bucket)
+  1. Deriva la clave: rate_limit:ip:<ip> y, si hay token, rate_limit:user:<userId>
+  2. INCR sobre la clave (atómico)
+  3. Si el contador vale 1 → EXPIRE a 60s (arranca la ventana)
+  4. Si el contador <= límite → permite
+  5. Si lo supera → 429 Too Many Requests
+  6. Al expirar la clave, la ventana se reinicia desde cero
 ```
+
+Se aplican dos límites independientes: **100 req/min por usuario** y **1000 req/min por IP**.
+El de IP existe porque protege endpoints donde todavía no hay usuario autenticado —el login,
+sobre todo—; el umbral es más alto porque tras un NAT corporativo hay muchos usuarios
+legítimos compartiendo IP.
+
+**Limitación conocida:** una ventana fija tiene el problema del borde — 100 peticiones en el
+segundo 59 y otras 100 en el 61 son 200 en dos segundos reales. Un token bucket con recarga
+continua lo suavizaría, a costa de un script Lua para mantener la atomicidad.
 
 ---
 

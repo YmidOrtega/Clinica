@@ -114,14 +114,34 @@ Los access tokens de corta vida limitan la ventana de exposición si un token es
 
 ```
 POST /api/v1/auth/logout
-  {refreshToken}
+  Authorization: Bearer <accessToken>
 
 Auth Service:
-  · Marca refresh token como REVOKED en base de datos
-  · El access token sigue siendo técnicamente válido hasta expirar
-    (corta duración = ventana máxima de 15 min)
+  · Marca el refresh token como REVOKED en base de datos
+  · Añade el access token a una blacklist en Redis:
+        SHA-256(token) → "revoked", con TTL = vida restante del token
   · Registra evento de logout en AuditLog
+
+API Gateway, en cada request:
+  · Valida la firma RSA del token
+  · Consulta la blacklist antes de enrutar → si está, 401
 ```
+
+Existe además `POST /api/v1/auth/logout-all` para cerrar todas las sesiones del usuario:
+revoca en lote todos sus refresh tokens y añade el access token actual a la blacklist.
+
+**Dos decisiones de diseño en la blacklist:**
+
+- **Se almacena el hash SHA-256 del token, nunca el token.** Un volcado de Redis no entrega
+  credenciales utilizables.
+- **El TTL es la vida restante del propio token.** Pasado ese punto el token expira por sí
+  mismo y la entrada sobra, así que Redis la elimina solo: la blacklist no crece sin límite
+  y no necesita proceso de limpieza.
+
+**Degradación si Redis no está disponible:** la comprobación de blacklist falla *en abierto*
+(ver §5.5). La firma del token se sigue validando siempre, así que no se aceptan tokens
+falsos; lo que se pierde es la revocación anticipada durante la caída, con una exposición
+acotada a la vida del access token (15 min).
 
 ---
 
@@ -193,42 +213,118 @@ No se realiza ninguna llamada al Auth Service en tiempo de request — los roles
 
 ## 5. Rate Limiting
 
-El API Gateway implementa un token bucket por usuario usando Redis.
+El API Gateway aplica dos límites independientes —por usuario y por IP— con contadores de
+ventana fija en Redis.
 
-### 5.1 Algoritmo Token Bucket
+### 5.1 Algoritmo — Contador de Ventana Fija
+
+Implementado con operaciones atómicas de Redis (`INCR` + `EXPIRE`), no con token bucket.
 
 ```
-Estado inicial: tokens_disponibles[userId] = CAPACITY (ej. 100)
-
 Por cada request:
-  IF tokens_disponibles[userId] > 0:
-    DECREMENT tokens_disponibles[userId]
-    ALLOW request
+  count = INCR(clave)
+  IF count == 1:
+    EXPIRE(clave, 60s)          # arranca la ventana en el primer hit
+  IF count <= LIMITE:
+    ALLOW
   ELSE:
     RETURN 429 Too Many Requests
 
-Recarga (cada segundo):
-  tokens_disponibles[userId] = MIN(CAPACITY, tokens + REFILL_RATE)
+Al expirar la clave, el contador desaparece y la ventana se reinicia.
 ```
 
-### 5.2 Cabeceras de Respuesta
+`INCR` es atómico en Redis, así que el conteo es correcto aunque haya varias instancias del
+gateway compartiendo la misma instancia de Redis.
 
-El gateway incluye información de rate limiting en las respuestas:
+**Limitación conocida:** en una ventana fija, 100 peticiones en el segundo 59 y otras 100 en
+el 61 suman 200 en dos segundos reales. Un token bucket con recarga continua suaviza ese
+efecto de borde, a costa de un script Lua para mantener la atomicidad de leer-recargar-decrementar.
+
+### 5.2 Límites Aplicados
+
+| Clave Redis            | Límite        | Motivo                                                        |
+| ---------------------- | ------------- | ------------------------------------------------------------- |
+| `rate_limit:user:<id>` | 100 req/min   | Impide extracción masiva desde una cuenta comprometida        |
+| `rate_limit:ip:<ip>`   | 1000 req/min  | Cubre endpoints sin usuario autenticado (login); umbral alto porque tras un NAT hay muchos usuarios legítimos |
+
+La IP se resuelve leyendo `X-Forwarded-For`, luego `X-Real-IP`, y por último la dirección
+remota de la conexión.
+
+### 5.3 Cada Límite en su Punto de la Cadena
+
+Los dos límites no son intercambiables: protegen de ataques distintos y por eso se evalúan en
+momentos distintos del pipeline del gateway.
 
 ```
-X-RateLimit-Remaining: 47
-X-RateLimit-Limit: 100
-X-RateLimit-Reset: 1716134460
+Request
+   │
+   ▼
+IpRateLimitFilter        orden 0    ← antes de autenticar
+   │                                  cubre el login y cualquier endpoint público,
+   │                                  que es donde ataca quien no tiene credenciales
+   ▼
+AuthenticationFilter     orden 1    ← filtro de ruta; valida la firma RSA,
+   │                                  consulta la blacklist y publica la identidad
+   │                                  en el atributo AUTHENTICATED_USER_ID
+   ▼
+UserRateLimitFilter      orden 10   ← después de autenticar
+   │                                  la identidad ya es de fiar; frena la extracción
+   │                                  masiva desde una cuenta comprometida
+   ▼
+Servicio destino
 ```
 
-### 5.3 Escenarios de Protección
+Spring Cloud Gateway combina filtros globales y de ruta en una sola cadena ordenada, y asigna
+a cada filtro de ruta el orden `índice + 1`. Como `AuthenticationFilter` es `filters[0]` en
+todas las rutas, su orden efectivo es **1**; de ahí los valores 0 y 10 elegidos para los dos
+filtros de rate limiting.
+
+**La identidad se lee de un atributo del intercambio, no de la cabecera `X-User-ID`.** Un
+cliente puede fabricar cabeceras: si el contador se llevara por cabecera, bastaría con rotar
+un identificador falso en cada petición para tener siempre un contador nuevo y anular el
+límite. Un atributo del `ServerWebExchange` solo lo escribe un filtro de este proceso, después
+de haber verificado la firma del token. La cabecera se sigue enviando al servicio destino, y
+`AuthenticationFilter` la reescribe siempre, de modo que un `X-User-ID` entrante nunca
+atraviesa el gateway.
+
+En rutas públicas no hay identidad y `UserRateLimitFilter` no interviene; ahí la única
+protección es el límite por IP, que es exactamente el reparto buscado.
+
+> **Nota histórica.** Ambos límites vivían en un único filtro global de orden 0 que leía
+> `X-User-ID` antes de que `AuthenticationFilter` la inyectara, así que la rama por usuario
+> nunca llegaba a activarse y en la práctica solo operaba el límite por IP. Separarlos en dos
+> filtros con órdenes explícitos corrige el fallo y hace visible en el código por qué cada
+> límite va donde va.
+
+### 5.4 Cabeceras de Respuesta
+
+Cuando se supera el límite, la respuesta `429` incluye:
+
+```
+X-RateLimit-Remaining: 0
+Retry-After: 60
+```
+
+Las respuestas permitidas no llevan cabeceras de rate limiting.
+
+### 5.5 Comportamiento ante Fallo de Redis
+
+Si Redis no responde, el rate limiting **falla en abierto**: se permite el request y se
+registra el error. Es una decisión consciente — una caída de la cache no debe tumbar un
+sistema hospitalario, y el rate limiting es una capa de protección, no de autenticación:
+la validación de la firma del JWT sigue operando con normalidad.
+
+En un entorno con requisitos regulatorios de revocación inmediata, la blacklist de tokens
+(§2.5) debería pasar a fallar en cerrado, manteniendo el fail-open solo aquí.
+
+### 5.6 Escenarios de Protección
 
 | Escenario              | Protección                                    |
 | ---------------------- | --------------------------------------------- |
-| Fuerza bruta en login  | Rate limit + bloqueo de cuenta tras N fallos  |
+| Fuerza bruta en login  | Rate limit por IP + bloqueo de cuenta tras N fallos |
 | Scraping de pacientes  | Rate limit por userId impide extracción masiva |
 | DoS desde un usuario   | 429 rápido, sin carga al microservicio        |
-| DoS desde IP anónima   | Rate limit aplicado antes de validar JWT      |
+| DoS desde IP anónima   | Rate limit por IP aplicado antes de validar JWT |
 
 ---
 
