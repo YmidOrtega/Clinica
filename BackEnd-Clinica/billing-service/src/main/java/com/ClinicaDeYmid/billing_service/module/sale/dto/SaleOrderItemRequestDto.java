@@ -33,8 +33,11 @@ public record SaleOrderItemRequestDto(
         @Min(value = 1, message = "La cantidad debe ser mayor a cero.")
         Integer quantity,
 
-        @Schema(description = "Precio unitario", example = "45000.00")
-        @NotNull(message = "El precio unitario es obligatorio.")
+        @Schema(description = "Precio unitario. Solo se tiene en cuenta para ítems sin "
+                + "portafolio ni código CUPS (conceptos manuales), donde es obligatorio. "
+                + "Si el ítem está catalogado, el precio lo resuelve el servidor y este "
+                + "valor se ignora.",
+                example = "45000.00")
         @DecimalMin(value = "0.00", message = "El precio no puede ser negativo.")
         BigDecimal unitPrice,
 
@@ -43,9 +46,9 @@ public record SaleOrderItemRequestDto(
         @DecimalMax(value = "100.00", message = "El descuento no puede superar 100%.")
         BigDecimal discountPercentage,
 
-        @Schema(description = "Tasa de impuesto aplicable (%)", example = "0.00")
-        @DecimalMin(value = "0.00", message = "La tasa de impuesto no puede ser negativa.")
-        @DecimalMax(value = "100.00", message = "La tasa de impuesto no puede superar 100%.")
+        @Schema(description = "Ignorado. La tasa de impuesto se resuelve desde "
+                + "tax_configuration según el tipo de ítem.",
+                accessMode = Schema.AccessMode.READ_ONLY)
         BigDecimal taxRate,
 
         @Schema(description = "¿Servicio autorizado por la aseguradora?", example = "false")

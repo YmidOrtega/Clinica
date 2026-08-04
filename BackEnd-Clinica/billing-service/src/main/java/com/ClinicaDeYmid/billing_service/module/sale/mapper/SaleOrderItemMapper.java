@@ -13,14 +13,20 @@ public interface SaleOrderItemMapper {
     @Mapping(target = "saleOrderId", source = "saleOrder.id")
     SaleOrderItemResponseDto toResponseDto(SaleOrderItem entity);
 
+    // unitPrice y taxRate los fija el servidor (PriceResolverService / TaxResolverService),
+    // nunca la petición; subtotal se deriva de ambos en calculateSubtotal().
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "saleOrder", ignore = true)
     @Mapping(target = "subtotal", ignore = true)
+    @Mapping(target = "unitPrice", ignore = true)
+    @Mapping(target = "taxRate", ignore = true)
     @Mapping(target = "authorized", defaultValue = "false")
     SaleOrderItem toEntity(SaleOrderItemRequestDto dto);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "saleOrder", ignore = true)
     @Mapping(target = "subtotal", ignore = true)
+    @Mapping(target = "unitPrice", ignore = true)
+    @Mapping(target = "taxRate", ignore = true)
     void updateEntity(SaleOrderItemRequestDto dto, @MappingTarget SaleOrderItem entity);
 }

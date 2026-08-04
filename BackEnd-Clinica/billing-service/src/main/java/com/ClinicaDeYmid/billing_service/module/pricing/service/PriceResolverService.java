@@ -51,13 +51,10 @@ public class PriceResolverService {
             return new PriceResolution(effective, PriceSource.OVERRIDE, o.getId());
         }
 
-        Optional<PriceManualItem> manualItem = portfolioId != null
-                ? manualItemRepository.findActiveItemInManual(null, portfolioId, codeCups)
-                        .or(() -> manualItemRepository.findByPortfolioIdAndActiveTrue(portfolioId)
-                                .stream().findFirst())
-                : (codeCups != null
-                        ? manualItemRepository.findByCodeCupsAndActiveTrue(codeCups).stream().findFirst()
-                        : Optional.empty());
+        Optional<PriceManualItem> manualItem = (portfolioId != null || codeCups != null)
+                ? manualItemRepository.findActiveItemsInManual(null, portfolioId, codeCups)
+                        .stream().findFirst()
+                : Optional.empty();
 
         if (manualItem.isPresent()) {
             PriceManualItem item = manualItem.get();
