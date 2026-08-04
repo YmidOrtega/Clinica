@@ -267,7 +267,7 @@ public class SaleOrderController {
             description = "Marca el ítem como autorizado por la aseguradora y registra el ID de autorización.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Ítem autorizado"),
-            @ApiResponse(responseCode = "404", description = "Ítem no encontrado"),
+            @ApiResponse(responseCode = "404", description = "Ítem no encontrado en la orden indicada"),
             @ApiResponse(responseCode = "403", description = "Sin permisos suficientes")
     })
     public ResponseEntity<SaleOrderItemResponseDto> authorizeItem(
@@ -275,7 +275,8 @@ public class SaleOrderController {
             @PathVariable @Min(1) Long itemId,
             @RequestParam @Min(1) Long authorizationId) {
 
-        log.info("Autorizando ítem ID: {} con autorización ID: {}", itemId, authorizationId);
-        return ResponseEntity.ok(itemService.authorizeItem(itemId, authorizationId));
+        log.info("Autorizando ítem ID: {} de orden ID: {} con autorización ID: {}",
+                itemId, saleOrderId, authorizationId);
+        return ResponseEntity.ok(itemService.authorizeItem(saleOrderId, itemId, authorizationId));
     }
 }

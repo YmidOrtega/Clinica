@@ -80,7 +80,7 @@ public class SaleOrderItemService {
         log.info("Actualizando ítem ID: {} de la orden ID: {}", itemId, saleOrderId);
         SaleOrder order = saleOrderService.getWithItemsOrThrow(saleOrderId);
         saleOrderService.requireDraft(order);
-        SaleOrderItem item = getOrThrow(itemId);
+        SaleOrderItem item = requireItemOf(order, itemId);
 
         if (dto.portfolioId() != null
                 && !dto.portfolioId().equals(item.getPortfolioId())
@@ -109,7 +109,7 @@ public class SaleOrderItemService {
         log.info("Eliminando ítem ID: {} de la orden ID: {}", itemId, saleOrderId);
         SaleOrder order = saleOrderService.getWithItemsOrThrow(saleOrderId);
         saleOrderService.requireDraft(order);
-        SaleOrderItem item = getOrThrow(itemId);
+        SaleOrderItem item = requireItemOf(order, itemId);
 
         order.getItems().remove(item);
         order.recalculateTotals();
@@ -120,9 +120,10 @@ public class SaleOrderItemService {
     }
 
     @Transactional
-    public SaleOrderItemResponseDto authorizeItem(Long itemId, Long authorizationId) {
-        log.info("Autorizando ítem ID: {} con autorización ID: {}", itemId, authorizationId);
-        SaleOrderItem item = getOrThrow(itemId);
+    public SaleOrderItemResponseDto authorizeItem(Long saleOrderId, Long itemId, Long authorizationId) {
+        log.info("Autorizando ítem ID: {} de la orden ID: {} con autorización ID: {}",
+                itemId, saleOrderId, authorizationId);
+        SaleOrderItem item = getOrThrow(itemId, saleOrderId);
         item.setAuthorized(true);
         item.setAuthorizationId(authorizationId);
         return itemMapper.toResponseDto(itemRepository.save(item));
@@ -173,8 +174,25 @@ public class SaleOrderItemService {
                 : taxResolver.resolveRateForServices();
     }
 
-    SaleOrderItem getOrThrow(Long id) {
-        return itemRepository.findById(id)
-                .orElseThrow(() -> new SaleOrderItemNotFoundException(id));
+    /**
+     * Obtiene el ítem de la colección ya cargada de la orden. Al buscarlo dentro de la
+     * propia orden, la pertenencia queda garantizada por construcción y se evita una
+     * consulta extra. Devuelve la instancia gestionada por el contexto de persistencia,
+     * necesaria para que {@code orphanRemoval} actúe al eliminarla de la colección.
+     */
+    private SaleOrderItem requireItemOf(SaleOrder order, Long itemId) {
+        return order.getItems().stream()
+                .filter(i -> itemId.equals(i.getId()))
+                .findFirst()
+                .orElseThrow(() -> new SaleOrderItemNotFoundException(itemId, order.getId()));
+    }
+
+    /**
+     * Variante para operaciones que no cargan la orden completa: exige en la propia
+     * consulta que el ítem pertenezca a la orden indicada.
+     */
+    SaleOrderItem getOrThrow(Long itemId, Long saleOrderId) {
+        return itemRepository.findByIdAndSaleOrderId(itemId, saleOrderId)
+                .orElseThrow(() -> new SaleOrderItemNotFoundException(itemId, saleOrderId));
     }
 }
