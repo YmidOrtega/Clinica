@@ -68,7 +68,8 @@
 
 **Seguridad + infraestructura**
 - [x] Agregar `spring-boot-starter-security` al pom.xml (SecurityConfig permisivo temporal)
-- [ ] Agregar `com.auth0:java-jwt` + implementar `JwtTokenProvider` + `JwtAuthenticationFilter` + `@EnableMethodSecurity`
+- [x] Agregar `io.jsonwebtoken:jjwt` + implementar `JwtTokenProvider` + `JwtAuthenticationFilter` + `CustomUserDetails` + `@EnableMethodSecurity`
+      (se usa jjwt, no `com.auth0:java-jwt`, por consistencia con los otros cinco servicios consumidores)
 
 ---
 
