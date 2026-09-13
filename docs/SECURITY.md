@@ -195,16 +195,19 @@ Desbloqueo:
 
 ### 4.3 Implementación
 
-Los roles viajan dentro del JWT. Cada microservicio extrae los roles del claim `roles` y aplica `@PreAuthorize` en los controladores:
+El rol viaja dentro del JWT en el claim `role`. La librería `clinica-commons-security` valida el token
+como OAuth2 Resource Server (firma RS256, issuer `ClinicaDeYmid`, expiración, `sub` presente y
+`type = access`), convierte el rol en la autoridad `ROLE_<ROL>` y cada controlador aplica
+`@PreAuthorize`:
 
 ```java
-@PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
-@GetMapping("/{id}")
-public ResponseEntity<PatientResponse> getPatient(@PathVariable UUID id) { ... }
+@GetMapping("/{uuid}")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
+ResponseEntity<PatientDetailsView> get(@PathVariable UUID uuid) { ... }
 
-@PreAuthorize("hasRole('ADMIN')")
-@DeleteMapping("/{id}")
-public ResponseEntity<Void> deletePatient(@PathVariable UUID id) { ... }
+@PostMapping("/{uuid}/deactivation")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+ResponseEntity<PatientView> deactivate(@PathVariable UUID uuid, ...) { ... }
 ```
 
 No se realiza ninguna llamada al Auth Service en tiempo de request — los roles están en el token, la validación es local.
@@ -374,6 +377,27 @@ Microservicio → BD:      Conexión autenticada por usuario/contraseña de base
 ```
 
 Las credenciales de base de datos y las claves RSA se inyectan vía variables de entorno (`.env`), nunca hardcodeadas en el código fuente.
+
+### 7.1 Mínimo privilegio en la base de pacientes
+
+`patient-db` crea dos usuarios con `patient-service/docker/mysql-init/01-create-users.sh`:
+
+| Usuario            | Uso                         | Permisos                                              |
+| ------------------ | --------------------------- | ----------------------------------------------------- |
+| `patient_migrator` | Flyway, solo al arrancar    | DDL y DML sobre `patient_db`                          |
+| `patient_app`      | Conexiones de la aplicación | `SELECT`, `INSERT`, `UPDATE` (sin `DELETE`, DDL ni `GRANT`) |
+
+La base solo está en la red interna `patient-data`, compartida únicamente con `patient-service`, y no
+publica puertos (el archivo `docker-compose.patient-debug.yml` los abre en `127.0.0.1` para depurar).
+`DatabaseAccessIT` verifica con MySQL real que `patient_app` no puede borrar, alterar el esquema,
+crear triggers ni concederse permisos.
+
+### 7.2 Datos personales en respuestas y logs
+
+- Las búsquedas por documento o nombre usan `POST` para que esos datos no queden en URLs.
+- Los errores nunca repiten valores recibidos ni detalles de SQL; incluyen `code` y `traceId`.
+- `IdentityDocument` se imprime enmascarado (`CEDULA_DE_CIUDADANIA:******5432`) y los demás valores
+  personales se imprimen como `[redacted]`.
 
 ---
 

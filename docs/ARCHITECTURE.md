@@ -87,32 +87,64 @@ Adicionalmente, un sistema de salud tiene requisitos no negociables:
 
 ### 4.1 Patient Service (`:8081`)
 
-Propietario del dominio clínico del paciente.
+Propietario del **registro administrativo** del paciente: identidad, datos demográficos, contacto,
+afiliación en salud, residencia y estado. La historia clínica vive en `clinical-history-service`.
+
+**Arquitectura hexagonal pragmática:**
 
 ```
-PatientController
-    └── PatientService
-          ├── PatientRepository          → Tabla patients (MySQL)
-          ├── AllergyRepository          → Tabla allergies
-          ├── ChronicDiseaseRepository   → Tabla chronic_diseases
-          ├── MedicationRepository       → Tabla current_medications
-          ├── FamilyHistoryRepository    → Tabla family_histories
-          └── VaccinationRepository      → Tabla vaccination_records
+infrastructure/web          PatientController, DTOs de entrada/salida, ETag/If-Match
+infrastructure/persistence  JpaPatients (Spring Data), EnversPatientHistory
+infrastructure/clients      ResilientHealthProviderDirectory (Feign + Resilience4j + Caffeine)
+        │
+application                 PatientCommands, PatientQueries
+                            puertos: HealthProviderDirectory, PatientHistory
+        │
+domain                      Patient (métodos de intención, sin setters)
+                            IdentityDocument, Demographics, ContactInfo, EmergencyContact,
+                            Affiliation, Residence
+                            PatientStatus (sellado: Active | Inactive | Deceased)
+                            PatientException (sellada)
 ```
 
-**Entidades principales:**
+Las dependencias solo apuntan hacia el dominio, y lo verifica un test de ArchUnit. El dominio lleva
+anotaciones JPA para no duplicar el modelo; las dependencias externas (`clients-service`, auditoría)
+están detrás de puertos.
 
-| Entidad           | Descripción                                                    |
-| ----------------- | -------------------------------------------------------------- |
-| `Patient`         | Datos demográficos: UUID, tipo/número de identificación, DOB, género, contacto, afiliación |
-| `MedicalHistory`  | Historia clínica general del paciente                          |
-| `Allergy`         | Alergias con nivel de severidad                                |
-| `ChronicDisease`  | Enfermedades crónicas diagnosticadas                           |
-| `CurrentMedication` | Medicamentos activos con dosis y frecuencia                  |
-| `FamilyHistory`   | Antecedentes familiares relevantes                             |
-| `VaccinationRecord` | Registro de vacunas aplicadas                                |
+**Reglas de negocio en el dominio, integridad en la base de datos:**
 
-**Soft delete:** `deleted_at` + `deleted_by` en todas las tablas — los registros nunca se eliminan físicamente.
+- El dominio valida la edad según el tipo de documento (solo al registrar o cambiar documento o fecha
+  de nacimiento), el contacto de emergencia para menores y las transiciones de estado.
+- MySQL solo aplica restricciones deterministas: `CHECK` de formatos, consistencia de afiliación y
+  estado, unicidad de documento. No hay triggers.
+
+**Defensa en profundidad:**
+
+| Riesgo                                   | Control                                                   |
+| ---------------------------------------- | --------------------------------------------------------- |
+| Escritura directa en la base             | Usuario `patient_app` sin `DELETE` ni DDL; `CHECK` en MySQL |
+| Otro servicio accede a la base           | Red Docker `patient-data` interna, sin puerto publicado   |
+| Datos inválidos por un bug               | Entidad sin setters y valores que se validan al construirse |
+| Ediciones concurrentes                   | `@Version` + `If-Match` obligatorio (`412`/`428`)         |
+| Cambios sin trazabilidad                 | `createdBy`/`updatedBy` desde el JWT e historial con Envers |
+
+**Resiliencia frente a `clients-service`:** timeout de 1 s de conexión y 2 s de lectura, circuit
+breaker, caché local de aseguradoras (5 min) y último valor conocido (24 h). Consultar un paciente
+nunca falla por culpa de `clients-service`; registrar con aseguradora responde `503` si no se puede
+validar.
+
+**Sin caché de pacientes:** la prueba de carga con 500.000 pacientes a 5 veces el pico de una clínica
+de 5.000 pacientes diarios da p95 de 5 ms en lecturas (`patient-service/load-test/README.md`).
+
+### 4.1.1 Librerías compartidas (`libs/`)
+
+| Librería                    | Contenido                                                                 |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `clinica-commons-web`       | `DomainException` + `ErrorCategory`, manejador RFC 9457 con `code` y `traceId`, sin datos de entrada en las respuestas |
+| `clinica-commons-security`  | Resource Server JWT RS256 (issuer y tipo `access`), roles, `CurrentUser`, propagación del token en Feign, `AuditorAware`, 401/403 en RFC 9457 |
+
+Son dependencias de compilación con versión fija (`1.0.0`), no servicios: una falla en una versión solo
+afecta a los servicios que la adopten.
 
 ### 4.2 Admissions Service (`:8083`)
 
@@ -403,7 +435,9 @@ Clinica/
 │   │       ├── module/entity/          # User, Role, RefreshToken, AuditLog
 │   │       ├── module/service/         # Auth, User, PasswordReset
 │   │       └── module/controller/      # AuthController
-│   ├── patient-service/                # Pacientes y expedientes
+│   ├── libs/                           # clinica-commons-web, clinica-commons-security
+│   ├── patient-service/                # Registro administrativo de pacientes
+│   ├── clinical-history-service/       # Historia clínica (en migración)
 │   ├── admissions-service/             # Atenciones, triage, autorizaciones
 │   ├── suppliers-service/              # Médicos, especialidades, horarios
 │   ├── clients-service/                # Aseguradoras, contratos
