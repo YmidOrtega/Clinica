@@ -11,8 +11,6 @@ import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -158,35 +156,6 @@ public class Patient {
     @Column(name = "updated_at", nullable = false)
     @Schema(description = "Timestamp when the patient record was last updated.")
     private LocalDateTime updatedAt;
-
-    @OneToOne(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Schema(description = "Historia clínica completa del paciente")
-    private MedicalHistory medicalHistory;
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Schema(description = "Lista de alergias del paciente")
-    @Builder.Default
-    private List<Allergy> allergies = new ArrayList<>();
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Schema(description = "Lista de enfermedades crónicas del paciente")
-    @Builder.Default
-    private List<ChronicDisease> chronicDiseases = new ArrayList<>();
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Schema(description = "Lista de medicamentos actuales del paciente")
-    @Builder.Default
-    private List<CurrentMedication> currentMedications = new ArrayList<>();
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Schema(description = "Antecedentes familiares del paciente")
-    @Builder.Default
-    private List<FamilyHistory> familyHistories = new ArrayList<>();
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Schema(description = "Historial de vacunaciones del paciente")
-    @Builder.Default
-    private List<VaccinationRecord> vaccinationRecords = new ArrayList<>();
 
     @Column(name = "deleted_at")
     @Schema(description = "Fecha de eliminación del paciente")

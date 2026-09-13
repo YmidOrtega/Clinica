@@ -404,102 +404,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Maneja MedicalRecordException
-     */
-    @ExceptionHandler(MedicalRecordException.class)
-    public ResponseEntity<ErrorResponse> handleMedicalRecordException(
-            MedicalRecordException ex,
-            HttpServletRequest request) {
-
-        log.error("Medical record error: {}", ex.getMessage());
-
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(ZonedDateTime.now())
-                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
-                .error(HttpStatus.UNPROCESSABLE_ENTITY.getReasonPhrase())
-                .errorCode(ex.getErrorCode())
-                .message(ex.getMessage())
-                .userMessage("Error al procesar el registro médico")
-                .path(request.getRequestURI())
-                .method(request.getMethod())
-                .operation(ex.getOperation())
-                .metadata(buildMetadata(ex))
-                .traceId(generateTraceId())
-                .build();
-
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-    }
-
-    /**
-     * Maneja CriticalAllergyException
-     */
-    @ExceptionHandler(CriticalAllergyException.class)
-    public ResponseEntity<ErrorResponse> handleCriticalAllergyException(
-            CriticalAllergyException ex,
-            HttpServletRequest request) {
-
-        log.error("Critical allergy warning: {}", ex.getMessage());
-
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("patientId", ex.getPatientId());
-        metadata.put("allergen", ex.getAllergen());
-        metadata.put("severity", ex.getSeverity());
-        metadata.put("alertLevel", "CRITICAL");
-
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(ZonedDateTime.now())
-                .status(HttpStatus.PRECONDITION_FAILED.value())
-                .error("Critical Allergy Alert")
-                .errorCode(ex.getErrorCode())
-                .message(ex.getMessage())
-                .userMessage("ALERTA: Alergia crítica detectada - Se requiere atención inmediata")
-                .path(request.getRequestURI())
-                .method(request.getMethod())
-                .operation(ex.getOperation())
-                .metadata(metadata)
-                .traceId(generateTraceId())
-                .build();
-
-        return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED).body(errorResponse);
-    }
-
-    /**
-     * Maneja InvalidMedicalDataException
-     */
-    @ExceptionHandler(InvalidMedicalDataException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidMedicalData(
-            InvalidMedicalDataException ex,
-            HttpServletRequest request) {
-
-        log.warn("Invalid medical data: {}", ex.getMessage());
-
-        List<ErrorResponse.ValidationError> validationErrors = ex.getInvalidFields().entrySet().stream()
-                .map(entry -> ErrorResponse.ValidationError.builder()
-                        .field(entry.getKey())
-                        .message(entry.getValue())
-                        .code("INVALID_MEDICAL_DATA")
-                        .build())
-                .collect(Collectors.toList());
-
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(ZonedDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
-                .errorCode(ex.getErrorCode())
-                .message(ex.getMessage())
-                .userMessage("Los datos médicos proporcionados no son válidos")
-                .path(request.getRequestURI())
-                .method(request.getMethod())
-                .operation(ex.getOperation())
-                .validationErrors(validationErrors)
-                .metadata(Map.of("dataType", ex.getDataType()))
-                .traceId(generateTraceId())
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-    }
-
-    /**
      * Maneja DataIntegrityViolationException
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -740,10 +644,6 @@ public class GlobalExceptionHandler {
             metadata.put("resourceType", drEx.getResourceType());
             metadata.put("duplicateField", drEx.getDuplicateField());
             metadata.put("duplicateValue", drEx.getDuplicateValue());
-        } else if (ex instanceof MedicalRecordException) {
-            MedicalRecordException mrEx = (MedicalRecordException) ex;
-            metadata.put("recordType", mrEx.getRecordType());
-            metadata.put("patientId", mrEx.getPatientId());
         }
 
         return metadata;

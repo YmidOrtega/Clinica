@@ -41,6 +41,7 @@
 		<module>auth-service</module>
 		<module>billing-service</module>
 		<module>clients-service</module>
+		<module>clinical-history-service</module>
 		<module>eureka-service</module>
 		<module>patient-service</module>
 		<module>suppliers-service</module>

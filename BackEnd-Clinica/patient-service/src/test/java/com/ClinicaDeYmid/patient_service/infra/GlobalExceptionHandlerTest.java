@@ -216,57 +216,6 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("Should handle MedicalRecordException and return 422")
-    void handleMedicalRecordException() {
-        MedicalRecordException exception = new MedicalRecordException(
-                "Invalid medical history record", "MedicalHistory", 123L);
-
-        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleMedicalRecordException(exception, request);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals("MEDICAL_RECORD_ERROR", response.getBody().getErrorCode());
-    }
-
-    @Test
-    @DisplayName("Should handle CriticalAllergyException and return 412")
-    void handleCriticalAllergyException() {
-        CriticalAllergyException exception = new CriticalAllergyException(
-                "Critical allergy detected", 123L, "Penicillin", com.ClinicaDeYmid.patient_service.module.enums.AllergySeverity.LIFE_THREATENING);
-
-        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleCriticalAllergyException(exception, request);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.PRECONDITION_FAILED, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals("CRITICAL_ALLERGY_WARNING", response.getBody().getErrorCode());
-        assertEquals(123L, response.getBody().getMetadata().get("patientId"));
-        assertEquals("Penicillin", response.getBody().getMetadata().get("allergen"));
-        assertEquals(com.ClinicaDeYmid.patient_service.module.enums.AllergySeverity.LIFE_THREATENING, response.getBody().getMetadata().get("severity"));
-    }
-
-    @Test
-    @DisplayName("Should handle InvalidMedicalDataException and return 400")
-    void handleInvalidMedicalDataException() {
-        Map<String, String> invalidFields = new HashMap<>();
-        invalidFields.put("bloodPressure", "Invalid format");
-        invalidFields.put("temperature", "Out of range");
-
-        InvalidMedicalDataException exception = new InvalidMedicalDataException(
-                "Invalid vital signs data", "VitalSigns", invalidFields);
-
-        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleInvalidMedicalData(exception, request);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals("INVALID_MEDICAL_DATA", response.getBody().getErrorCode());
-        assertEquals(2, response.getBody().getValidationErrors().size());
-        assertEquals("VitalSigns", response.getBody().getMetadata().get("dataType"));
-    }
-
-    @Test
     @DisplayName("Should handle DataIntegrityViolationException and return 409")
     void handleDataIntegrityViolationException() {
         DataIntegrityViolationException exception = new DataIntegrityViolationException("Duplicate entry for key");
