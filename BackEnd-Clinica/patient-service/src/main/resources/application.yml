@@ -1,65 +1,98 @@
 server:
-  port: 8081
+  port: ${PATIENT_SERVICE_PORT:8081}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 spring:
   application:
     name: patient-service
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${PATIENT_DB_URL:jdbc:mysql://localhost:3307/patient_db}
+    username: ${PATIENT_DB_APP_USER:patient_app}
+    password: ${PATIENT_DB_APP_PASSWORD:}
+    hikari:
+      pool-name: patient-service
+      maximum-pool-size: ${PATIENT_DB_POOL_SIZE:15}
+      connection-timeout: 5000
   flyway:
-    location: classpath:db/migration/patient
+    locations: classpath:db/migration/patient
+    user: ${PATIENT_DB_MIGRATOR_USER:patient_migrator}
+    password: ${PATIENT_DB_MIGRATOR_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  cloud:
+    openfeign:
+      client:
+        config:
+          clients-service:
+            connect-timeout: 1000
+            read-timeout: 2000
+    circuitbreaker:
+      resilience4j:
+        disable-time-limiter: true
+
+clinica:
+  patient:
+    time-zone: America/Bogota
+    health-providers:
+      fresh-ttl: 5m
+      last-known-ttl: 24h
+      maximum-size: 1000
   security:
-    # Endpoints públicos adicionales
-    public-paths:
-      - /actuator/health
-      - /actuator/info
-      - /v3/api-docs/**
-      - /swagger-ui/**
-      - /swagger-ui.html
+    jwt:
+      public-key: ${JWT_PUBLIC_KEY:}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      clients-service:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 1500ms
+        slow-call-rate-threshold: 80
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
   instance:
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
     prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 5
-    lease-expiration-duration-in-seconds: 10
 
-# Configuración de Swagger/OpenAPI
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+
 springdoc:
-  api-docs:
-    path: /v3/api-docs
   swagger-ui:
-    path: /swagger-ui.html
-    enabled: true
-    try-it-out-enabled: true
-    operations-sorter: method
-    tags-sorter: alpha
-    filter: true
-    doc-expansion: none
-  show-actuator: true
+    enabled: ${SWAGGER_UI_ENABLED:false}
 
-# Información de la API
-api:
-  version: 1.0.0
-  name: Patient Service API
-  description: Microservicio para la gestión de pacientes
-  contact:
-    name: Development Team
-    email: dev@example.com
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
-
-# JWT CONFIGURATION
-jwt:
-  secret: ${JWT_SECRET}
-  algorithm: RS256
-  rsa:
-    public-key: ${JWT_PUBLIC_KEY:}
-
-# LOGGING PARA DEBUGGING DE SEGURIDAD
 logging:
-  level:
-    com.ClinicaDeYmid.patient_service.infra.security: DEBUG
-    org.springframework.security: DEBUG
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
