@@ -33,6 +33,7 @@
 	</properties>
 
 	<modules>
+		<module>libs/clinica-commons-web</module>
 		<module>admissions-service</module>
 		<module>ai-assistant-service</module>
 		<module>api-gateway</module>
