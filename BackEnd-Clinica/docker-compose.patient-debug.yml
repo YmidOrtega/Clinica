@@ -1,0 +1,17 @@
+services:
+   patient-db:
+      ports:
+         - "127.0.0.1:3307:3306"
+      networks:
+         - patient-data
+         - patient-debug
+
+   patient-service:
+      ports:
+         - "127.0.0.1:8081:8081"
+      environment:
+         - SWAGGER_UI_ENABLED=true
+
+networks:
+   patient-debug:
+      driver: bridge

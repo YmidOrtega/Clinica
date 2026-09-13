@@ -9,19 +9,20 @@ services:
       environment:
          MYSQL_ROOT_PASSWORD: ${PATIENT_DB_ROOT_PASSWORD}
          MYSQL_DATABASE: ${PATIENT_DB_NAME}
-         MYSQL_USER: ${PATIENT_DB_USER}
-         MYSQL_PASSWORD: ${PATIENT_DB_PASSWORD}
-      ports:
-         - "3307:3306"
+         PATIENT_DB_MIGRATOR_USER: ${PATIENT_DB_MIGRATOR_USER}
+         PATIENT_DB_MIGRATOR_PASSWORD: ${PATIENT_DB_MIGRATOR_PASSWORD}
+         PATIENT_DB_APP_USER: ${PATIENT_DB_APP_USER}
+         PATIENT_DB_APP_PASSWORD: ${PATIENT_DB_APP_PASSWORD}
       volumes:
          - patient_data:/var/lib/mysql
+         - ./patient-service/docker/mysql-init:/docker-entrypoint-initdb.d:ro
       networks:
-         - clinica-net
+         - patient-data
       healthcheck:
-         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-         timeout: 20s
+         test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+         interval: 10s
+         timeout: 5s
          retries: 10
-      command: --log-bin-trust-function-creators=1
 
    # Base de datos para facturación
    billing-db:
@@ -230,7 +231,7 @@ services:
          retries: 5
          start_period: 60s
 
-   #Servicios Spring Boot (con configuración Redis estandarizada)
+   #Servicios Spring Boot
    patient-service:
       build: ./patient-service
       container_name: patient-service
@@ -239,35 +240,23 @@ services:
             condition: service_healthy
          eureka-service:
             condition: service_healthy
-         redis-cache:
-            condition: service_healthy
       environment:
-         - SPRING_DATASOURCE_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${PATIENT_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${PATIENT_DB_PASSWORD}
-         - SPRING_DATA_REDIS_HOST=redis-cache
-         - SPRING_DATA_REDIS_PORT=6379
-         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_DATA_REDIS_TIMEOUT=2000ms
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
-         - JWT_SECRET=${JWT_SECRET}
-         - JWT_EXPIRATION=${JWT_EXPIRATION}
+         - PATIENT_DB_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
+         - PATIENT_DB_MIGRATOR_USER=${PATIENT_DB_MIGRATOR_USER}
+         - PATIENT_DB_MIGRATOR_PASSWORD=${PATIENT_DB_MIGRATOR_PASSWORD}
+         - PATIENT_DB_APP_USER=${PATIENT_DB_APP_USER}
+         - PATIENT_DB_APP_PASSWORD=${PATIENT_DB_APP_PASSWORD}
          - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
-         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-         - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-         - SPRING_PROFILES_ACTIVE=docker
-      ports:
-         - "8081:8081"
+         - EUREKA_URL=http://eureka-service:8761/eureka/
       networks:
          - clinica-net
+         - patient-data
       healthcheck:
-         test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
-         interval: 30s
-         timeout: 10s
+         test: [ "CMD", "curl", "-fs", "http://localhost:8081/actuator/health/readiness" ]
+         interval: 15s
+         timeout: 5s
          retries: 5
-         start_period: 90s
+         start_period: 60s
 
 #   billing-service:
 #      build: ./billing-service
@@ -576,3 +565,6 @@ volumes:
 networks:
    clinica-net:
       driver: bridge
+   patient-data:
+      driver: bridge
+      internal: true
