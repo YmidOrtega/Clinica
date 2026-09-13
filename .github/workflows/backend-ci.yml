@@ -53,13 +53,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Install shared libraries
+        working-directory: BackEnd-Clinica
+        run: |
+          mvn -B install -f libs/clinica-commons-web/pom.xml
+          mvn -B install -f libs/clinica-commons-security/pom.xml
+
       - name: Build ${{ matrix.service }}
         working-directory: BackEnd-Clinica/${{ matrix.service }}
-        run: mvn clean install -DskipTests
+        run: mvn -B clean install -DskipTests
 
-      - name: Run tests for ${{ matrix.service }}
+      - name: Run unit and integration tests for ${{ matrix.service }}
         working-directory: BackEnd-Clinica/${{ matrix.service }}
-        run: mvn test
+        run: mvn -B verify
 
       - name: Generate test coverage report
         working-directory: BackEnd-Clinica/${{ matrix.service }}
