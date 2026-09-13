@@ -134,186 +134,151 @@ Establece la nueva contraseña usando el token recibido.
 
 ## 2. Patient Service — `/api/v1/patients`
 
-### GET `/`
+Registro administrativo del paciente: identidad, contacto, afiliación, residencia y estado. La historia
+clínica (alergias, enfermedades crónicas, medicamentos, antecedentes, vacunas) pertenece a
+`clinical-history-service`.
 
-Lista todos los pacientes activos con paginación.
+**Convenciones del servicio:**
 
-**Query params:**
+- El paciente se identifica por `uuid`. El número de documento nunca va en la URL.
+- Toda modificación exige `If-Match` con la versión recibida en el `ETag`. Sin cabecera: `428`;
+  con versión desactualizada: `412`.
+- Los errores siguen RFC 9457 (`application/problem+json`) con `code` estable y `traceId`.
 
-| Param  | Tipo    | Default | Descripción           |
-| ------ | ------- | ------- | --------------------- |
-| `page` | integer | `0`     | Número de página      |
-| `size` | integer | `20`    | Elementos por página  |
-| `sort` | string  | `lastName,asc` | Campo y dirección |
+**Roles:**
+
+| Operación                                        | Roles                                   |
+| ------------------------------------------------ | --------------------------------------- |
+| Consultar y buscar                               | SUPER_ADMIN, ADMIN, DOCTOR, NURSE, RECEPTIONIST |
+| Registrar y actualizar datos                     | SUPER_ADMIN, ADMIN, RECEPTIONIST        |
+| Desactivar y reactivar                           | SUPER_ADMIN, ADMIN                      |
+| Registrar fallecimiento                          | SUPER_ADMIN, ADMIN, DOCTOR              |
+| Historial de cambios                             | SUPER_ADMIN, ADMIN                      |
+
+### POST `/`
+
+Registra un paciente. Si tiene aseguradora, se valida contra `clients-service`: si no existe responde
+`422 HEALTH_PROVIDER_NOT_FOUND` y si no es posible validarla, `503 HEALTH_PROVIDER_UNAVAILABLE`.
+
+**Request:**
+```json
+{
+  "document": { "type": "CEDULA_DE_CIUDADANIA", "number": "1098765432" },
+  "demographics": {
+    "firstNames": "Ana María", "lastNames": "Restrepo Gómez", "birthDate": "1990-04-12",
+    "sex": "FEMALE", "countryOfOrigin": "CO", "disability": "NONE"
+  },
+  "contact": { "mobile": "3001234567", "phone": null, "email": "ana@example.com" },
+  "emergencyContact": { "fullName": "Luis Restrepo", "relationship": "FATHER", "phone": "3017654321" },
+  "affiliation": { "regime": "CONTRIBUTORY", "affiliateType": "HOLDER", "healthProviderNit": "900123456-7", "policyNumber": null },
+  "residence": { "department": "Santander", "municipality": "Bucaramanga", "zone": "URBAN", "address": "Calle 45 # 27-10" }
+}
+```
+
+Reglas: el tipo de documento debe corresponder a la edad (Registro Civil < 7, Tarjeta de Identidad
+7–17, Cédula ≥ 18); los menores requieren `emergencyContact`; `UNINSURED` no admite aseguradora.
+
+**Response `201 Created`** con `Location: /api/v1/patients/{uuid}` y `ETag: "0"`:
+```json
+{
+  "uuid": "034820b2-cffa-4360-b384-09658f31bf9c",
+  "version": 0,
+  "document": { "type": "CEDULA_DE_CIUDADANIA", "number": "1098765432" },
+  "demographics": { "firstNames": "Ana María", "lastNames": "Restrepo Gómez", "birthDate": "1990-04-12", "sex": "FEMALE", "countryOfOrigin": "CO", "disability": "NONE" },
+  "contact": { "mobile": "3001234567", "email": "ana@example.com" },
+  "emergencyContact": { "fullName": "Luis Restrepo", "relationship": "FATHER", "phone": "3017654321" },
+  "affiliation": { "regime": "CONTRIBUTORY", "affiliateType": "HOLDER", "healthProviderNit": "900123456-7" },
+  "residence": { "department": "Santander", "municipality": "Bucaramanga", "zone": "URBAN", "address": "Calle 45 # 27-10" },
+  "status": { "code": "ACTIVE", "changedAt": "2026-09-13T18:45:46Z" },
+  "audit": { "createdAt": "2026-09-13T18:45:46Z", "createdBy": "7d1c3f2e-…", "updatedAt": "2026-09-13T18:45:46Z", "updatedBy": "7d1c3f2e-…" }
+}
+```
+
+---
+
+### GET `/{uuid}`
+
+Retorna el paciente y la disponibilidad de su aseguradora. Si `clients-service` falla, el paciente se
+entrega igual con el último valor conocido de la aseguradora o `availability: UNAVAILABLE`.
+
+**Response `200 OK`** con `ETag`: el mismo cuerpo de `POST /` más:
+```json
+{
+  "healthProvider": { "availability": "AVAILABLE", "name": "Salud Total EPS S.A.", "type": "EPS" }
+}
+```
+
+`availability`: `AVAILABLE`, `NOT_FOUND`, `UNAVAILABLE`, `NOT_AFFILIATED`.
+
+---
+
+### POST `/search?page=0&size=20`
+
+Busca por documento exacto o por prefijo de apellidos (y opcionalmente nombres), sin distinguir
+mayúsculas ni tildes. Usa `POST` para que los datos personales no queden en URLs ni logs de acceso.
+`size` máximo: 50.
+
+**Request (documento):**
+```json
+{ "document": { "type": "CEDULA_DE_CIUDADANIA", "number": "1098765432" } }
+```
+
+**Request (nombre):**
+```json
+{ "name": { "lastNames": "restrepo", "firstNames": "ana" } }
+```
 
 **Response `200 OK`:**
 ```json
 {
   "content": [
-    {
-      "id": "p1a2b3c4-...",
-      "identificationNumber": "1234567890",
-      "identificationType": "CC",
-      "firstName": "Carlos",
-      "lastName": "Rodríguez",
-      "dateOfBirth": "1985-03-15",
-      "gender": "MALE",
-      "phone": "+57 310 555 0101",
-      "email": "c.rodriguez@email.com",
-      "insuranceAffiliation": "EPS Sura",
-      "createdAt": "2025-01-10T09:00:00"
-    }
+    { "uuid": "034820b2-…", "document": { "type": "CEDULA_DE_CIUDADANIA", "number": "1098765432" },
+      "firstNames": "Ana María", "lastNames": "Restrepo Gómez", "birthDate": "1990-04-12", "sex": "FEMALE", "status": "ACTIVE" }
   ],
-  "totalElements": 142,
-  "totalPages": 8,
-  "size": 20,
-  "number": 0
+  "page": { "size": 20, "number": 0, "totalElements": 1, "totalPages": 1 }
 }
 ```
 
 ---
 
-### POST `/`
+### Actualizaciones — requieren `If-Match`
 
-Registra un nuevo paciente.
+| Método y ruta                     | Cuerpo                                                     |
+| --------------------------------- | ---------------------------------------------------------- |
+| `PUT /{uuid}/document`            | `{ "type": "CEDULA_DE_CIUDADANIA", "number": "1098765432" }` (valida edad) |
+| `PUT /{uuid}/demographics`        | Mismo objeto `demographics` del registro (corrige errores) |
+| `PUT /{uuid}/contact`             | `{ "contact": { … }, "emergencyContact": { … } }`          |
+| `PUT /{uuid}/affiliation`         | Mismo objeto `affiliation` del registro (valida aseguradora) |
+| `PUT /{uuid}/residence`           | Mismo objeto `residence` del registro                      |
 
-**Request:**
-```json
-{
-  "identificationNumber": "9876543210",
-  "identificationType": "CC",
-  "firstName": "María",
-  "lastName": "González",
-  "dateOfBirth": "1990-07-22",
-  "gender": "FEMALE",
-  "phone": "+57 311 555 0202",
-  "email": "m.gonzalez@email.com",
-  "address": "Calle 45 # 12-34, Bogotá",
-  "insuranceAffiliation": "EPS Sanitas"
-}
-```
-
-**Response `201 Created`:**
-```json
-{
-  "id": "p9z8y7x6-...",
-  "identificationNumber": "9876543210",
-  "firstName": "María",
-  "lastName": "González",
-  "createdAt": "2025-05-19T10:15:00"
-}
-```
+**Response `200 OK`** con el paciente actualizado y el nuevo `ETag`. Solo se modifican pacientes
+activos (`422 PATIENT_NOT_ACTIVE`).
 
 ---
 
-### GET `/{id}`
+### Cambios de estado — requieren `If-Match`
 
-Retorna el perfil completo de un paciente con toda su historia clínica.
+| Método y ruta               | Cuerpo                              | Transición              |
+| --------------------------- | ----------------------------------- | ----------------------- |
+| `POST /{uuid}/deactivation` | `{ "reason": "Registro duplicado" }` | ACTIVE → INACTIVE       |
+| `POST /{uuid}/reactivation` | —                                   | INACTIVE → ACTIVE       |
+| `POST /{uuid}/death`        | `{ "dateOfDeath": "2026-09-01" }`   | ACTIVE/INACTIVE → DECEASED (definitivo) |
+
+Los pacientes no se eliminan: la base de datos no concede `DELETE` al usuario de la aplicación.
+
+---
+
+### GET `/{uuid}/history`
+
+Historial completo de versiones del paciente (Hibernate Envers).
 
 **Response `200 OK`:**
 ```json
-{
-  "id": "p1a2b3c4-...",
-  "firstName": "Carlos",
-  "lastName": "Rodríguez",
-  "dateOfBirth": "1985-03-15",
-  "gender": "MALE",
-  "medicalHistory": {
-    "bloodType": "O+",
-    "notes": "Paciente con historial de alergias estacionales."
-  },
-  "allergies": [
-    {
-      "id": "al001",
-      "substance": "Penicilina",
-      "severity": "HIGH",
-      "reaction": "Anafilaxia"
-    }
-  ],
-  "chronicDiseases": [
-    {
-      "id": "cd001",
-      "name": "Hipertensión arterial",
-      "diagnosedAt": "2018-06-01"
-    }
-  ],
-  "currentMedications": [
-    {
-      "id": "med001",
-      "name": "Losartán",
-      "dosage": "50mg",
-      "frequency": "Once daily"
-    }
-  ],
-  "vaccinationRecords": [
-    {
-      "id": "vac001",
-      "vaccine": "COVID-19 — Pfizer",
-      "appliedAt": "2021-04-15",
-      "nextDoseAt": "2021-05-06"
-    }
-  ]
-}
+[
+  { "number": 1, "revisedAt": "2026-09-13T18:45:46Z", "revisedBy": "7d1c3f2e-…", "changeType": "CREATED", "state": { "…": "paciente en esa versión" } },
+  { "number": 2, "revisedAt": "2026-09-13T18:46:02Z", "revisedBy": "5a9e…", "changeType": "UPDATED", "state": { "…": "paciente en esa versión" } }
+]
 ```
-
----
-
-### PUT `/{id}`
-
-Actualiza los datos demográficos de un paciente.
-
-**Request:** (campos a modificar)
-```json
-{
-  "phone": "+57 310 555 9999",
-  "address": "Carrera 7 # 80-15, Bogotá"
-}
-```
-
-**Response `200 OK`:** paciente actualizado
-
----
-
-### DELETE `/{id}`
-
-Soft delete del paciente (marca `deletedAt`).
-
-**Response `204 No Content`**
-
----
-
-### POST `/{id}/allergies`
-
-Agrega una alergia al historial del paciente.
-
-**Request:**
-```json
-{
-  "substance": "Ibuprofeno",
-  "severity": "MEDIUM",
-  "reaction": "Urticaria"
-}
-```
-
-**Response `201 Created`**
-
----
-
-### POST `/{id}/vaccinations`
-
-Registra una vacuna aplicada.
-
-**Request:**
-```json
-{
-  "vaccine": "Influenza estacional",
-  "appliedAt": "2025-03-10",
-  "nextDoseAt": "2026-03-10",
-  "appliedBy": "Dr. Pérez"
-}
-```
-
-**Response `201 Created`**
 
 ---
 

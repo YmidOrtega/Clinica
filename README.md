@@ -26,7 +26,7 @@
 
 ## ✨ Key Features
 
-- 👥 **Patient Management**: Complete patient records with demographics, contacts, and medical history
+- 👥 **Patient Registry**: Patient identity, contact, affiliation and status with full change history, optimistic concurrency and least-privilege database access
 - 📅 **Appointments**: Multi-professional scheduling system with conflict detection
 - 🏥 **Admissions**: Patient admission and discharge workflow management
 - 🤖 **AI Assistant**: Gemini-powered medical assistance and consultation support
@@ -103,9 +103,11 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "your-password"}'
 
-# Get patients (requires authentication)
-curl -X GET http://localhost:8080/api/v1/patients \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+# Search patients by document (requires authentication)
+curl -X POST http://localhost:8080/api/v1/patients/search \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"document": {"type": "CEDULA_DE_CIUDADANIA", "number": "1098765432"}}'
 ```
 
 **API Documentation**: Each service exposes Swagger UI at `http://localhost:{port}/swagger-ui.html`
@@ -204,15 +206,18 @@ Clinica/
 # Run all tests
 mvn test
 
-# Run tests for specific service
-cd BackEnd-Clinica/patient-service
-mvn test
+# Run tests for specific service (shared libraries must be installed first)
+cd BackEnd-Clinica
+mvn install -f libs/clinica-commons-web/pom.xml
+mvn install -f libs/clinica-commons-security/pom.xml
+cd patient-service
+mvn verify   # unit tests + integration tests with Testcontainers (requires Docker)
 
 # Run with coverage report
 mvn clean test jacoco:report
 
 # Run specific test class
-mvn -Dtest=PatientServiceTest test
+mvn -Dtest=PatientTest test
 ```
 
 ---

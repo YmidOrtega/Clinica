@@ -46,10 +46,18 @@ This document provides a comprehensive guide to all environment variables used i
 ```bash
 PATIENT_DB_ROOT_PASSWORD=SecureRootPass2024!
 PATIENT_DB_NAME=patient_db
-PATIENT_DB_USER=patient_user
-PATIENT_DB_PASSWORD=PatientSecure123!
-PATIENT_DB_HOST=jdbc:mysql://localhost:3307/patient_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+PATIENT_DB_MIGRATOR_USER=patient_migrator
+PATIENT_DB_MIGRATOR_PASSWORD=MigratorSecure123!
+PATIENT_DB_APP_USER=patient_app
+PATIENT_DB_APP_PASSWORD=PatientAppSecure123!
+PATIENT_DB_URL=jdbc:mysql://localhost:3307/patient_db
+JWT_PUBLIC_KEY=MIIBIjANBgkqh...
 ```
+
+`PATIENT_DB_MIGRATOR_*` solo lo usa Flyway; la aplicación se conecta con `PATIENT_DB_APP_*`, que no
+tiene permisos de `DELETE` ni de DDL. `JWT_PUBLIC_KEY` acepta la clave pública PEM completa o solo su
+contenido en Base64. Opcionales: `PATIENT_DB_POOL_SIZE`, `EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`,
+`SWAGGER_UI_ENABLED`.
 
 #### Billing Service
 ```bash
