@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 final class PatientRequests {
 
@@ -79,6 +80,15 @@ final class PatientRequests {
         Residence toDomain() {
             return new Residence(department, municipality, zone, address);
         }
+    }
+
+    record UnidentifiedRegistration(Sex sex, Integer estimatedBirthYear, String description) {
+    }
+
+    record Identification(UUID patientUuid, @Valid Register registration, String reason) {
+    }
+
+    record Reversal(String reason) {
     }
 
     record Search(@Valid Document document, @Valid NameSearch name) {

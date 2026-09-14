@@ -9,6 +9,8 @@ import com.ClinicaDeYmid.patient_service.domain.PatientException;
 import com.ClinicaDeYmid.patient_service.domain.PatientFixtures;
 import com.ClinicaDeYmid.patient_service.domain.PatientRegistration;
 import com.ClinicaDeYmid.patient_service.domain.PatientStatus;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatient;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatientEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -143,11 +145,17 @@ class PatientCommandsTest {
 
         final List<PatientEvent> appended = new ArrayList<>();
         final List<Patient> patients = new ArrayList<>();
+        final List<UnidentifiedPatientEvent> appendedUnidentified = new ArrayList<>();
 
         @Override
         public void append(Patient patient, List<PatientEvent> events) {
             patients.add(patient);
             appended.addAll(events);
+        }
+
+        @Override
+        public void appendUnidentified(UnidentifiedPatient patient, List<UnidentifiedPatientEvent> events) {
+            appendedUnidentified.addAll(events);
         }
     }
 

@@ -44,12 +44,14 @@ public class PatientCommands {
 
     public Patient register(PatientRegistration registration) {
         verifyHealthProvider(registration.affiliation());
-        Patient registered = transactions.execute(status -> {
-            if (patients.existsByDocument(registration.document())) {
-                throw new PatientException.DocumentAlreadyRegistered();
-            }
-            return saveWithEvents(Patient.register(registration, clock));
-        });
+        return transactions.execute(status -> registerInCurrentTransaction(registration));
+    }
+
+    Patient registerInCurrentTransaction(PatientRegistration registration) {
+        if (patients.existsByDocument(registration.document())) {
+            throw new PatientException.DocumentAlreadyRegistered();
+        }
+        Patient registered = saveWithEvents(Patient.register(registration, clock));
         log.info("Patient registered: uuid={}", registered.uuid());
         return registered;
     }
@@ -114,7 +116,7 @@ public class PatientCommands {
         return saved;
     }
 
-    private void verifyHealthProvider(Affiliation affiliation) {
+    void verifyHealthProvider(Affiliation affiliation) {
         if (affiliation == null || !affiliation.regime().hasHealthProvider()) {
             return;
         }

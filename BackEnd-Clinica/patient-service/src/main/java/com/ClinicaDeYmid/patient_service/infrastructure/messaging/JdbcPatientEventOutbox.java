@@ -3,6 +3,8 @@ package com.ClinicaDeYmid.patient_service.infrastructure.messaging;
 import com.ClinicaDeYmid.patient_service.application.PatientEventOutbox;
 import com.ClinicaDeYmid.patient_service.domain.Patient;
 import com.ClinicaDeYmid.patient_service.domain.PatientEvent;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatient;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatientEvent;
 import org.slf4j.MDC;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -40,8 +42,23 @@ class JdbcPatientEventOutbox implements PatientEventOutbox {
         for (PatientEvent event : events) {
             UUID eventId = UUID.randomUUID();
             PatientEventMessage message = PatientEventMessage.of(event, patient, eventId, occurredAt, traceId);
-            jdbc.update(INSERT, eventId.toString(), AGGREGATE_TYPE, patient.uuid().toString(), message.type(),
-                    PatientEventJson.write(message), Timestamp.from(occurredAt));
+            insert(eventId, patient.uuid(), message.type(), PatientEventJson.write(message), occurredAt);
         }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void appendUnidentified(UnidentifiedPatient patient, List<UnidentifiedPatientEvent> events) {
+        Instant occurredAt = Instant.now(clock);
+        String traceId = MDC.get("traceId");
+        for (UnidentifiedPatientEvent event : events) {
+            UUID eventId = UUID.randomUUID();
+            UnidentifiedPatientEventMessage message = UnidentifiedPatientEventMessage.of(event, patient, eventId, occurredAt, traceId);
+            insert(eventId, patient.uuid(), message.type(), PatientEventJson.write(message), occurredAt);
+        }
+    }
+
+    private void insert(UUID eventId, UUID aggregateId, String type, String payload, Instant occurredAt) {
+        jdbc.update(INSERT, eventId.toString(), AGGREGATE_TYPE, aggregateId.toString(), type, payload, Timestamp.from(occurredAt));
     }
 }
