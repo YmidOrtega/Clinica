@@ -11,6 +11,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.NotePolicy;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.TriageLevel;
 
+import java.util.List;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -51,7 +52,7 @@ public final class ClinicalFixtures {
     }
 
     public static NoteContent.Progress progress() {
-        return new NoteContent.Progress("Refiere menos dolor", "TA 120/80, abdomen blando", "Evolución favorable", "Continuar manejo");
+        return new NoteContent.Progress("Refiere menos dolor", "TA 120/80, abdomen blando", "Evolución favorable", "Continuar manejo", List.of());
     }
 
     public static NoteContent.Triage triage() {
@@ -64,11 +65,11 @@ public final class ClinicalFixtures {
 
     public static NoteContent.Discharge discharge() {
         return new NoteContent.Discharge("Ingresa por dolor abdominal", "Mejoría con analgesia", "Estable",
-                "Dieta blanda", "Control en 8 días");
+                "Dieta blanda", "Control en 8 días", List.of());
     }
 
     public static SignedNote signed(Encounter encounter, Clinician author, NoteContent content) {
         return new SignedNote(UUID.randomUUID(), encounter.id(), author, author.role().name().toLowerCase() + "@clinica.test", content,
-                null, OPENED_AT.plusSeconds(600), OPENED_AT.plusSeconds(900), false);
+                null, List.of(), OPENED_AT.plusSeconds(600), OPENED_AT.plusSeconds(900), false);
     }
 }

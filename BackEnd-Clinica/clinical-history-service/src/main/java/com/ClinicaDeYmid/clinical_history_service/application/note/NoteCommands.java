@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.clinical_history_service.application.note;
 
 import com.ClinicaDeYmid.clinical_history_service.application.access.RecordAccess;
 import com.ClinicaDeYmid.clinical_history_service.application.integrity.RecordSealing;
+import com.ClinicaDeYmid.clinical_history_service.application.patient.PatientDirectory;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessAction;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
@@ -17,6 +18,10 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.NotePolicy;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteRestriction;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.ListItemHistory;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.ListItemState;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.PatientChart;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.RecordUpdate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,7 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class NoteCommands {
@@ -36,24 +44,32 @@ public class NoteCommands {
     private final ClinicalNotes notes;
     private final RecordSealing sealing;
     private final RecordAccess access;
+    private final ClinicalCoding coding;
+    private final PatientDirectory patients;
+    private final PatientChart chart;
     private final NotePolicy policy;
     private final Clock clock;
 
     public NoteCommands(Encounters encounters, NoteDrafts drafts, ClinicalNotes notes, RecordSealing sealing, RecordAccess access,
-                        NotePolicy policy, Clock clock) {
+                        ClinicalCoding coding, PatientDirectory patients, PatientChart chart, NotePolicy policy, Clock clock) {
         this.encounters = encounters;
         this.drafts = drafts;
         this.notes = notes;
         this.sealing = sealing;
         this.access = access;
+        this.coding = coding;
+        this.patients = patients;
+        this.chart = chart;
         this.policy = policy;
         this.clock = clock;
     }
 
     @Transactional
-    public NoteDraft startDraft(UUID encounterId, NoteContent content, NoteRestriction restriction, Instant occurredAt, Clinician author) {
+    public NoteDraft startDraft(UUID encounterId, NoteContent content, NoteRestriction restriction, List<RecordUpdate> updates,
+                                Instant occurredAt, Clinician author) {
         Encounter encounter = encounters.find(encounterId).orElseThrow(ClinicalException.EncounterNotFound::new);
-        NoteDraft draft = NoteDraft.start(encounter, author, content, restriction, occurredAt, policy, clock);
+        NoteDraft draft = NoteDraft.start(encounter, author, coding.resolve(content), restriction, coding.resolve(updates), occurredAt, policy,
+                clock);
         access.requireEncounter(author, encounter.patientUuid(), encounterId, AccessAction.WRITE_NOTE, draft.id());
         requireAmendable(draft, author);
         drafts.add(draft);
@@ -61,12 +77,13 @@ public class NoteCommands {
     }
 
     @Transactional
-    public NoteDraft reviseDraft(UUID draftId, long expectedVersion, NoteContent content, NoteRestriction restriction, Instant occurredAt,
-                                 Clinician editor) {
+    public NoteDraft reviseDraft(UUID draftId, long expectedVersion, NoteContent content, NoteRestriction restriction,
+                                 List<RecordUpdate> updates, Instant occurredAt, Clinician editor) {
         NoteDraft draft = lockOwnDraft(draftId, expectedVersion, editor);
         Encounter encounter = encounters.find(draft.encounterId()).orElseThrow(ClinicalException.EncounterNotFound::new);
         access.requireEncounter(editor, encounter.patientUuid(), encounter.id(), AccessAction.WRITE_NOTE, draftId);
-        NoteDraft revised = draft.revise(editor, encounter, content, restriction, occurredAt, policy, clock);
+        NoteDraft revised = draft.revise(editor, encounter, coding.resolve(content), restriction, coding.resolve(updates), occurredAt, policy,
+                clock);
         if (!drafts.replace(revised, expectedVersion)) {
             throw new ClinicalException.DraftVersionMismatch();
         }
@@ -85,7 +102,11 @@ public class NoteCommands {
         Encounter encounter = encounters.lock(draft.encounterId()).orElseThrow(ClinicalException.EncounterNotFound::new);
         access.requireEncounter(signer.clinician(), encounter.patientUuid(), encounter.id(), AccessAction.WRITE_NOTE, draftId);
         requireAmendable(draft, signer.clinician());
-        SignedNote note = draft.sign(signer, encounter, policy, clock);
+        sealing.lockRecordOf(encounter.patientUuid());
+        Map<UUID, ListItemState> listItems = chart.listItemsOf(patients.samePersonSubjects(encounter.patientUuid())).stream()
+                .collect(Collectors.toMap(ListItemHistory::itemId, ListItemHistory::state));
+        SignedNote note = draft.withResolvedContent(coding.resolve(draft.content()), coding.resolve(draft.updates()))
+                .sign(signer, encounter, listItems, policy, clock);
         notes.append(note);
         sealing.record(new LedgerEntry.NoteSigned(encounter.patientUuid(), note));
         drafts.remove(draftId);

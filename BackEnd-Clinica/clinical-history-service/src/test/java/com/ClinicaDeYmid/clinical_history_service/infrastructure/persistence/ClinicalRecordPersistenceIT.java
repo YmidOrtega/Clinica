@@ -49,7 +49,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({JdbcPatientReferences.class, JdbcEncounters.class, JdbcClinicalNotes.class, JdbcNoteDrafts.class, JdbcChainLinks.class,
-        JdbcLedgerEntries.class, ClockConfiguration.class, EncryptionConfiguration.class, MySqlTestContainer.class})
+        JdbcLedgerEntries.class, JdbcPatientChart.class, ClockConfiguration.class, EncryptionConfiguration.class, MySqlTestContainer.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ClinicalRecordPersistenceIT {
 
@@ -135,8 +135,8 @@ class ClinicalRecordPersistenceIT {
         Clinician doctor = doctor();
         SignedNote triage = note(encounter, nurse(), new NoteContent.Triage(TriageLevel.I, "Paro respiratorio", "Ingresa en camilla"), 1);
         SignedNote admission = note(encounter, doctor, new NoteContent.Admission("Disnea", "Inicio súbito", "Cianosis", "Falla respiratoria",
-                "Intubación"), 2);
-        SignedNote consultation = note(encounter, doctor, new NoteContent.Consultation("Neumología", "Valoración", "Neumotórax", "Tubo"), 3);
+                "Intubación", List.of()), 2);
+        SignedNote consultation = note(encounter, doctor, new NoteContent.Consultation("Neumología", "Valoración", "Neumotórax", "Tubo", List.of()), 3);
         SignedNote nursing = note(encounter, nurse(), new NoteContent.Nursing("Saturación 94 %", "Aspiración de secreciones"), 4);
         SignedNote evolution = note(encounter, doctor, progress(), 5);
         SignedNote summary = note(encounter, doctor, discharge(), 6);
@@ -166,10 +166,10 @@ class ClinicalRecordPersistenceIT {
         Encounter encounter = encounter(EncounterType.EMERGENCY, OPENED_AT);
         encounters.add(encounter);
         Clinician doctor = doctor();
-        NoteDraft draft = new NoteDraft(UUID.randomUUID(), encounter.id(), doctor, new NoteContent.Progress("Dolor", null, null, null), null,
+        NoteDraft draft = new NoteDraft(UUID.randomUUID(), encounter.id(), doctor, new NoteContent.Progress("Dolor", null, null, null, List.of()), null, List.of(),
                 OPENED_AT, 0, OPENED_AT, OPENED_AT);
         drafts.add(draft);
-        NoteDraft revised = new NoteDraft(draft.id(), draft.encounterId(), doctor, progress(), NoteRestriction.MENTAL_HEALTH, OPENED_AT, 1, OPENED_AT,
+        NoteDraft revised = new NoteDraft(draft.id(), draft.encounterId(), doctor, progress(), NoteRestriction.MENTAL_HEALTH, List.of(), OPENED_AT, 1, OPENED_AT,
                 OPENED_AT.plusSeconds(60));
 
         assertThat(drafts.replace(revised, 1)).isFalse();
@@ -247,6 +247,6 @@ class ClinicalRecordPersistenceIT {
 
     private static SignedNote note(Encounter encounter, Clinician author, NoteContent content, int minute) {
         Instant at = encounter.openedAt().plus(Duration.ofMinutes(minute));
-        return new SignedNote(UUID.randomUUID(), encounter.id(), author, "autor@clinica.test", content, minute == 4 ? NoteRestriction.VIOLENCE : null, at, at.plusSeconds(30), minute == 7);
+        return new SignedNote(UUID.randomUUID(), encounter.id(), author, "autor@clinica.test", content, minute == 4 ? NoteRestriction.VIOLENCE : null, List.of(), at, at.plusSeconds(30), minute == 7);
     }
 }

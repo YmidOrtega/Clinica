@@ -4,9 +4,11 @@ import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalText;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.AppliedUpdate;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +20,7 @@ public record SignedNote(
         String signerEmail,
         NoteContent content,
         NoteRestriction restriction,
+        List<AppliedUpdate> updates,
         Instant occurredAt,
         Instant recordedAt,
         boolean extemporaneous) {
@@ -28,6 +31,7 @@ public record SignedNote(
         Objects.requireNonNull(author, "author");
         Objects.requireNonNull(signerEmail, "signerEmail");
         Objects.requireNonNull(content, "content");
+        updates = updates == null ? List.of() : List.copyOf(updates);
         Objects.requireNonNull(occurredAt, "occurredAt");
         Objects.requireNonNull(recordedAt, "recordedAt");
     }

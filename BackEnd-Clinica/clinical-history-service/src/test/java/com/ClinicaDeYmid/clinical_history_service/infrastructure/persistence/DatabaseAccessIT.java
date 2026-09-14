@@ -127,6 +127,8 @@ class DatabaseAccessIT {
     @ParameterizedTest
     @ValueSource(strings = {
             "DELETE FROM patient_references",
+            "DELETE FROM terminology_concepts",
+            "DELETE FROM terminology_activations",
             "DROP TABLE patient_references",
             "CREATE TABLE shadow (id INT)",
             "CREATE TRIGGER tr_bypass BEFORE INSERT ON patient_references FOR EACH ROW SET NEW.status = 'ACTIVE'"
@@ -151,6 +153,10 @@ class DatabaseAccessIT {
             "UPDATE clinical_ledger.care_team_members SET clinician_uuid = UUID()",
             "UPDATE clinical_ledger.emergency_accesses SET expires_at = NOW(6) + INTERVAL 1 YEAR",
             "DELETE FROM clinical_ledger.emergency_accesses",
+            "UPDATE clinical_ledger.list_item_events SET status = 'ACTIVE'",
+            "DELETE FROM clinical_ledger.list_item_events",
+            "UPDATE clinical_ledger.vital_sign_observations SET value = 100",
+            "DELETE FROM clinical_ledger.vital_sign_observations",
             "CREATE TABLE clinical_ledger.shadow (id INT)",
             "CREATE TRIGGER clinical_ledger.tr_bypass BEFORE INSERT ON clinical_ledger.notes FOR EACH ROW SET NEW.extemporaneous = FALSE"
     })

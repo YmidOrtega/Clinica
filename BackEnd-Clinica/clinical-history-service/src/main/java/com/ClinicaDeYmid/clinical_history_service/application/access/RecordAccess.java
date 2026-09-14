@@ -73,6 +73,33 @@ public class RecordAccess {
         throw ClinicalException.AccessDenied.restrictedNote(clinician, patientUuid, note.id());
     }
 
+    public record Visibility(AccessBasis basis, Clinician reader, List<CareTeamMembership> memberships,
+                             List<EmergencyAccess> emergencyAccesses, Instant now, String emergencyReason, AccessPolicy policy) {
+
+        public boolean canSeeRestricted(UUID authorUuid, UUID encounterId) {
+            return policy.toRestrictedNote(reader, authorUuid, encounterId, memberships, emergencyAccesses, now)
+                    instanceof AccessDecision.Granted;
+        }
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Visibility patientVisibility(Clinician clinician, UUID patientUuid, AccessAction action) {
+        Context context = contextOf(clinician, patientUuid);
+        return switch (policy.toPatient(clinician, context.memberships(), context.emergencyAccesses(), context.now())) {
+            case AccessDecision.Granted granted -> new Visibility(granted.basis(), clinician, context.memberships(), context.emergencyAccesses(),
+                    context.now(), emergencyReason(context, granted.basis()), policy);
+            case AccessDecision.Denied denied -> throw ClinicalException.AccessDenied.careRelationshipRequired(clinician, patientUuid, action,
+                    patientUuid);
+        };
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void recordRead(Clinician clinician, UUID patientUuid, AccessAction action, Visibility visibility, boolean restrictedShown) {
+        String reason = visibility.basis() == AccessBasis.EMERGENCY_ACCESS ? visibility.emergencyReason() : null;
+        audit.record(new AccessEvent(patientUuid, clinician, action, patientUuid, AccessEvent.Outcome.GRANTED, visibility.basis(),
+                restrictedShown, reason, visibility.now()));
+    }
+
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordGranted(Clinician clinician, UUID patientUuid, AccessAction action, UUID resourceId, AccessBasis basis,
                               String emergencyReason) {

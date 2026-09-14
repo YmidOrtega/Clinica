@@ -42,7 +42,7 @@ class JdbcLedgerEntries implements LedgerEntries {
                 (row, index) -> new EncounterClosure(Rows.uuid(row, "encounter_id"), Rows.instant(row, "closed_at"),
                         Rows.clinician(row, "closed_by", "closed_by_role")))
                 .forEach(closure -> entries.add(new LedgerEntry.EncounterClosed(patientUuid, closure)));
-        entries.addAll(jdbc.query(JdbcClinicalNotes.SELECT_NOTE
+        List<LedgerEntry> signed = jdbc.query(JdbcClinicalNotes.SELECT_NOTE
                         + " WHERE encounter_id IN (SELECT id FROM clinical_ledger.encounters WHERE patient_uuid = :patientUuid)",
                 patient, (row, index) -> {
                     try {
@@ -50,7 +50,18 @@ class JdbcLedgerEntries implements LedgerEntries {
                     } catch (EncryptedContentUnreadableException unreadable) {
                         return unreadable(patientUuid, EntryType.NOTE_SIGNED, Rows.uuid(row, "id"), unreadable);
                     }
-                }));
+                });
+        for (LedgerEntry entry : signed) {
+            if (entry instanceof LedgerEntry.NoteSigned noteSigned) {
+                try {
+                    entries.add(new LedgerEntry.NoteSigned(patientUuid, notes.withUpdates(List.of(noteSigned.note())).getFirst()));
+                } catch (EncryptedContentUnreadableException unreadable) {
+                    entries.add(unreadable(patientUuid, EntryType.NOTE_SIGNED, noteSigned.note().id(), unreadable));
+                }
+            } else {
+                entries.add(entry);
+            }
+        }
         entries.addAll(jdbc.query(JdbcClinicalNotes.SELECT_VOID + """
                  JOIN clinical_ledger.notes n ON n.id = v.note_id
                  JOIN clinical_ledger.encounters e ON e.id = n.encounter_id

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.UUID;
 
 @Service
 public class RecordSealing {
@@ -22,6 +23,11 @@ public class RecordSealing {
         this.links = links;
         this.signature = signature;
         this.clock = clock;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lockRecordOf(UUID patientUuid) {
+        links.lockHead(patientUuid);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

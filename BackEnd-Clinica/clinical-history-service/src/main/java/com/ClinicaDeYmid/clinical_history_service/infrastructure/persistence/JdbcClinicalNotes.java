@@ -4,6 +4,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.ClinicalNotes;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteType;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.AppliedUpdate;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption.EncryptedField;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption.Purpose;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,10 +35,12 @@ class JdbcClinicalNotes implements ClinicalNotes {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final ContentEncryption encryption;
+    private final JdbcPatientChart chart;
 
-    JdbcClinicalNotes(NamedParameterJdbcTemplate jdbc, ContentEncryption encryption) {
+    JdbcClinicalNotes(NamedParameterJdbcTemplate jdbc, ContentEncryption encryption, JdbcPatientChart chart) {
         this.jdbc = jdbc;
         this.encryption = encryption;
+        this.chart = chart;
     }
 
     @Override
@@ -64,18 +68,19 @@ class JdbcClinicalNotes implements ClinicalNotes {
                         .addValue("occurredAt", Rows.timestamp(note.occurredAt()))
                         .addValue("recordedAt", Rows.timestamp(note.recordedAt()))
                         .addValue("extemporaneous", note.extemporaneous()));
+        chart.append(patientUuid, note);
     }
 
     @Override
     public Optional<SignedNote> find(UUID id) {
-        return jdbc.query(SELECT_NOTE + " WHERE id = :id", new MapSqlParameterSource("id", id.toString()), this::toNote)
+        return withUpdates(jdbc.query(SELECT_NOTE + " WHERE id = :id", new MapSqlParameterSource("id", id.toString()), this::toNote))
                 .stream().findFirst();
     }
 
     @Override
     public List<SignedNote> ofEncounter(UUID encounterId) {
-        return jdbc.query(SELECT_NOTE + " WHERE encounter_id = :encounterId ORDER BY recorded_at, id",
-                new MapSqlParameterSource("encounterId", encounterId.toString()), this::toNote);
+        return withUpdates(jdbc.query(SELECT_NOTE + " WHERE encounter_id = :encounterId ORDER BY recorded_at, id",
+                new MapSqlParameterSource("encounterId", encounterId.toString()), this::toNote));
     }
 
     @Override
@@ -114,13 +119,20 @@ class JdbcClinicalNotes implements ClinicalNotes {
                 new MapSqlParameterSource("encounterId", encounterId.toString()), this::toVoid);
     }
 
+    List<SignedNote> withUpdates(List<SignedNote> loaded) {
+        Map<UUID, List<AppliedUpdate>> updates = chart.updatesOf(loaded.stream().map(SignedNote::id).toList());
+        return loaded.stream().map(note -> !updates.containsKey(note.id()) ? note : new SignedNote(note.id(), note.encounterId(), note.author(),
+                note.signerEmail(), note.content(), note.restriction(), updates.get(note.id()), note.occurredAt(), note.recordedAt(),
+                note.extemporaneous())).toList();
+    }
+
     SignedNote toNote(ResultSet row, int index) throws SQLException {
         UUID id = Rows.uuid(row, "id");
         NoteType type = NoteType.valueOf(row.getString("type"));
         byte[] content = encryption.decrypt(new EncryptedField(Rows.uuid(row, "content_key_id"), row.getBytes("content_ciphertext")),
                 Purpose.NOTE_CONTENT, id);
         return new SignedNote(id, Rows.uuid(row, "encounter_id"), Rows.clinician(row, "author_uuid", "author_role"),
-                row.getString("author_email"), NoteContentColumn.read(content, type, id), Rows.restriction(row),
+                row.getString("author_email"), NoteContentColumn.read(content, type, id), Rows.restriction(row), List.of(),
                 Rows.instant(row, "occurred_at"),
                 Rows.instant(row, "recorded_at"), row.getBoolean("extemporaneous"));
     }

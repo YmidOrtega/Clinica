@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.List;
 
 class NoteContentTest {
 
@@ -25,14 +26,32 @@ class NoteContentTest {
     }
 
     @Test
+    void diagnosesAreCie10CodesWithASinglePrincipal() {
+        Diagnosis hypertension = new Diagnosis(" i10.x ", Diagnosis.Role.PRINCIPAL, Diagnosis.Type.CONFIRMED_REPEATED, null, null);
+        Diagnosis diabetes = new Diagnosis("E119", Diagnosis.Role.RELATED, Diagnosis.Type.CONFIRMED_NEW, null, null);
+
+        assertThat(hypertension.code()).isEqualTo("I10X");
+        assertThat(new NoteContent.Progress("s", "o", "a", "p", List.of(hypertension, diabetes)).missingFields()).isEmpty();
+        assertThat(new NoteContent.Progress("s", "o", "a", "p", List.of(diabetes)).missingFields()).containsExactly("diagnoses.principal");
+        assertThat(new NoteContent.Progress("s", "o", "a", "p", List.of()).missingFields()).isEmpty();
+        assertThatThrownBy(() -> new NoteContent.Progress("s", "o", "a", "p", List.of(hypertension, hypertension)))
+                .hasMessageContaining("repite el código I10X");
+        assertThatThrownBy(() -> new NoteContent.Progress("s", "o", "a", "p",
+                List.of(hypertension, new Diagnosis("E119", Diagnosis.Role.PRINCIPAL, Diagnosis.Type.IMPRESSION, null, null))))
+                .hasMessageContaining("un diagnóstico principal");
+        assertThatThrownBy(() -> new Diagnosis("I1", Diagnosis.Role.PRINCIPAL, Diagnosis.Type.IMPRESSION, null, null))
+                .isInstanceOf(ClinicalException.InvalidData.class);
+    }
+
+    @Test
     void eachTypeDeclaresItsMandatoryFields() {
-        assertThat(new NoteContent.Admission(null, null, null, null, null).missingFields())
-                .containsExactly("chiefComplaint", "currentIllness", "physicalExam", "assessment", "plan");
+        assertThat(new NoteContent.Admission(null, null, null, null, null, List.of()).missingFields())
+                .containsExactly("chiefComplaint", "currentIllness", "physicalExam", "assessment", "plan", "diagnoses.principal");
         assertThat(new NoteContent.Triage(null, null, null).missingFields()).containsExactly("level", "reason");
-        assertThat(new NoteContent.Consultation(null, null, null, null).missingFields())
+        assertThat(new NoteContent.Consultation(null, null, null, null, List.of()).missingFields())
                 .containsExactly("specialty", "reason", "findings", "recommendations");
-        assertThat(new NoteContent.Discharge(null, null, null, null, null).missingFields())
-                .containsExactly("admissionSummary", "evolutionSummary", "dischargeCondition", "recommendations", "followUp");
+        assertThat(new NoteContent.Discharge(null, null, null, null, null, List.of()).missingFields())
+                .containsExactly("admissionSummary", "evolutionSummary", "dischargeCondition", "recommendations", "followUp", "diagnoses.principal");
         assertThat(new NoteContent.Addendum(null, null).missingFields()).containsExactly("amendsNoteId", "text");
     }
 }
