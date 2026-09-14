@@ -12,6 +12,10 @@ spring:
   threads:
     virtual:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
   datasource:
     url: ${CLINICAL_DB_URL:jdbc:mysql://localhost:3315/clinical_db}
     username: ${CLINICAL_DB_APP_USER:clinical_app}

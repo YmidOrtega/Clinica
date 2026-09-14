@@ -84,6 +84,20 @@ public sealed abstract class ClinicalException extends DomainException {
         }
     }
 
+    public static final class UnknownCode extends ClinicalException {
+        public UnknownCode(String field, String code) {
+            super(ErrorCategory.INVALID_INPUT, "UNKNOWN_CIE10_CODE",
+                    "El código '" + code + "' del campo '" + field + "' no existe en el catálogo CIE-10 vigente");
+        }
+    }
+
+    public static final class TerminologyUnavailable extends ClinicalException {
+        public TerminologyUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "TERMINOLOGY_NOT_ACTIVE",
+                    "No hay un catálogo CIE-10 activo; un administrador debe importarlo y activarlo");
+        }
+    }
+
     public static final class PatientNotFound extends ClinicalException {
         public PatientNotFound() {
             super(ErrorCategory.NOT_FOUND, "CLINICAL_PATIENT_NOT_FOUND", "No se encontró el paciente");
