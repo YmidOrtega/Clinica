@@ -56,6 +56,9 @@ clinica:
       extemporaneous-after: ${CLINICAL_NOTES_EXTEMPORANEOUS_AFTER:24h}
       clock-skew-tolerance: 2m
       max-authentication-age-to-sign: 15m
+    access:
+      relationship-after-closure: 30d
+      emergency-access-duration: 4h
     encryption:
       keys-location: ${CLINICAL_ENCRYPTION_KEYS_LOCATION:}
       active-key-id: ${CLINICAL_ENCRYPTION_ACTIVE_KEY_ID:}

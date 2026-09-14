@@ -1,11 +1,13 @@
 package com.ClinicaDeYmid.clinical_history_service.application.patient;
 
+import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -29,6 +31,13 @@ public class PatientDirectory {
 
     public List<UUID> subjectsOf(UUID patientUuid) {
         return references.subjectsOf(patientUuid);
+    }
+
+    public List<UUID> samePersonSubjects(UUID patientUuid) {
+        UUID person = references.find(patientUuid)
+                .flatMap(reference -> reference instanceof PatientReference.Unidentified unidentified ? unidentified.identifiedAs() : Optional.empty())
+                .orElse(patientUuid);
+        return references.subjectsOf(person);
     }
 
     private PatientLookup fetchFromRegistry(UUID uuid) {

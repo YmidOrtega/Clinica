@@ -1,9 +1,12 @@
 package com.ClinicaDeYmid.clinical_history_service.domain;
 
+import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessAction;
+import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.commons.error.DomainException;
 import com.ClinicaDeYmid.commons.error.ErrorCategory;
 
 import java.util.List;
+import java.util.UUID;
 
 public sealed abstract class ClinicalException extends DomainException {
 
@@ -34,6 +37,50 @@ public sealed abstract class ClinicalException extends DomainException {
         public RecentAuthenticationRequired() {
             super(ErrorCategory.FORBIDDEN, "RECENT_AUTHENTICATION_REQUIRED",
                     "Para firmar necesitas una sesión reciente; vuelve a autenticarte e intenta de nuevo");
+        }
+    }
+
+    public static final class AccessDenied extends ClinicalException {
+
+        private final Clinician actor;
+        private final UUID patientUuid;
+        private final AccessAction action;
+        private final UUID resourceId;
+
+        private AccessDenied(String code, String message, Clinician actor, UUID patientUuid, AccessAction action, UUID resourceId) {
+            super(ErrorCategory.FORBIDDEN, code, message);
+            this.actor = actor;
+            this.patientUuid = patientUuid;
+            this.action = action;
+            this.resourceId = resourceId;
+        }
+
+        public static AccessDenied careRelationshipRequired(Clinician actor, UUID patientUuid, AccessAction action, UUID resourceId) {
+            return new AccessDenied("CARE_RELATIONSHIP_REQUIRED",
+                    "No tienes una relación de cuidado vigente con este paciente; si es una emergencia, solicita acceso de emergencia",
+                    actor, patientUuid, action, resourceId);
+        }
+
+        public static AccessDenied restrictedNote(Clinician actor, UUID patientUuid, UUID noteId) {
+            return new AccessDenied("RESTRICTED_NOTE",
+                    "Esta nota está restringida al equipo de su atención; si es una emergencia, solicita acceso de emergencia",
+                    actor, patientUuid, AccessAction.READ_NOTE, noteId);
+        }
+
+        public Clinician actor() {
+            return actor;
+        }
+
+        public UUID patientUuid() {
+            return patientUuid;
+        }
+
+        public AccessAction action() {
+            return action;
+        }
+
+        public UUID resourceId() {
+            return resourceId;
         }
     }
 

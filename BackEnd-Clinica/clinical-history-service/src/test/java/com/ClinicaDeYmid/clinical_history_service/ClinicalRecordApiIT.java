@@ -8,12 +8,15 @@ import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
+import com.ClinicaDeYmid.clinical_history_service.support.AccessAuditContract;
 import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.TestEncryptionKeys;
 import com.ClinicaDeYmid.clinical_history_service.support.TestJwt;
 import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -64,6 +67,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ClinicalRecordApiIT {
 
     private static final String BASE = "/api/v1/clinical";
+    private static final ObjectMapper JSON = new ObjectMapper();
     private static final String TRIAGE = """
             {"content": {"type": "TRIAGE", "level": "II", "reason": "Dolor torácico opresivo"}}""";
     private static final String DISCHARGE = """
@@ -103,6 +107,7 @@ class ClinicalRecordApiIT {
     @Test
     void emergencyCareFromTriageToDischarge() throws Exception {
         String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
+        joinCareTeam(nurse, encounter, doctor);
 
         signedNote(nurse, encounter, TRIAGE);
         String draft = startDraft(doctor, encounter, """
@@ -204,10 +209,101 @@ class ClinicalRecordApiIT {
         doctor.perform(get(BASE + "/notes/" + nursing + "/signature"))
                 .andExpect(jsonPath("$.verified").value(false))
                 .andExpect(jsonPath("$.problems", contains("PAYLOAD_MISMATCH")));
-        doctor.perform(get(BASE + "/notes/" + triage))
+        nurse.perform(get(BASE + "/notes/" + triage))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("CLINICAL_CONTENT_UNREADABLE"))
                 .andExpect(jsonPath("$.detail", not(containsString("Dolor"))));
+    }
+
+    @Test
+    void careRelationshipGovernsAccessAndEveryDecisionIsAudited() throws Exception {
+        UUID patient = activePatient();
+        String encounter = openEncounter(nurse, patient, "EMERGENCY");
+        Staff outsider = new Staff("DOCTOR");
+
+        outsider.perform(get(BASE + "/encounters/" + encounter))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("CARE_RELATIONSHIP_REQUIRED"));
+        outsider.perform(get(BASE + "/patients/" + patient + "/encounters"))
+                .andExpect(status().isForbidden());
+        outsider.perform(post(BASE + "/patients/" + patient + "/emergency-access").content("{\"reason\": \"urgente\"}"))
+                .andExpect(status().isBadRequest());
+        outsider.perform(post(BASE + "/patients/" + patient + "/emergency-access")
+                        .content("{\"reason\": \"Paciente inconsciente trasladado a reanimación\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.expiresAt").exists());
+        outsider.perform(get(BASE + "/encounters/" + encounter))
+                .andExpect(status().isOk());
+
+        List<JsonNode> events = auditEventsOf(patient);
+
+        assertThat(events).extracting(event -> event.path("action").asText() + ":" + event.path("outcome").asText() + ":"
+                        + event.path("basis").asText())
+                .containsExactly("OPEN_ENCOUNTER:GRANTED:NEW_ENCOUNTER", "READ_ENCOUNTER:DENIED:null", "LIST_ENCOUNTERS:DENIED:null",
+                        "EMERGENCY_ACCESS:GRANTED:EMERGENCY_ACCESS", "READ_ENCOUNTER:GRANTED:EMERGENCY_ACCESS");
+        assertThat(events.get(4).path("emergencyReason").asText()).isEqualTo("Paciente inconsciente trasladado a reanimación");
+        assertThat(events.get(1).path("actor").path("uuid").asText()).isEqualTo(outsider.uuid.toString());
+        assertThat(events).allSatisfy(event -> assertThat(AccessAuditContract.violations(event.toString())).isEmpty());
+    }
+
+    @Test
+    void restrictedNotesStayWithinTheirEncounterTeam() throws Exception {
+        UUID patient = activePatient();
+        String counseling = openEncounter(nurse, patient, "OUTPATIENT");
+        String note = signedNote(nurse, counseling, """
+                {"restriction": "VIOLENCE",
+                 "content": {"type": "NURSING", "observations": "Refiere agresión de su pareja", "careProvided": "Ruta de atención activada"}}""");
+        openEncounter(doctor, patient, "OUTPATIENT");
+
+        doctor.perform(get(BASE + "/encounters/" + counseling))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notes[0].restriction").value("VIOLENCE"))
+                .andExpect(jsonPath("$.notes[0].content").doesNotExist());
+        doctor.perform(get(BASE + "/notes/" + note))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RESTRICTED_NOTE"))
+                .andExpect(jsonPath("$.detail", not(containsString("agresión"))));
+        nurse.perform(get(BASE + "/notes/" + note))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.restriction").value("VIOLENCE"));
+        doctor.perform(post(BASE + "/patients/" + patient + "/emergency-access")
+                        .content("{\"reason\": \"Politraumatismo, se requieren antecedentes completos\"}"))
+                .andExpect(status().isCreated());
+        doctor.perform(get(BASE + "/notes/" + note))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.observations").value("Refiere agresión de su pareja"));
+
+        JsonNode lastRead = auditEventsOf(patient).getLast();
+        assertThat(lastRead.path("action").asText()).isEqualTo("READ_NOTE");
+        assertThat(lastRead.path("restrictedContent").asBoolean()).isTrue();
+        assertThat(lastRead.path("basis").asText()).isEqualTo("EMERGENCY_ACCESS");
+        assertThat(auditEventsOf(patient)).noneSatisfy(event -> assertThat(event.toString()).contains("agresión"));
+    }
+
+    @Test
+    void theCareTeamGrowsOnlyFromWithinWhileTheEncounterIsOpen() throws Exception {
+        UUID patient = activePatient();
+        String encounter = openEncounter(nurse, patient, "OUTPATIENT");
+        Staff outsider = new Staff("DOCTOR");
+
+        outsider.perform(post(BASE + "/encounters/" + encounter + "/care-team")
+                        .content("{\"clinicianUuid\": \"" + outsider.uuid + "\", \"role\": \"DOCTOR\"}"))
+                .andExpect(status().isForbidden());
+        nurse.perform(post(BASE + "/encounters/" + encounter + "/care-team")
+                        .content("{\"clinicianUuid\": \"" + doctor.uuid + "\", \"role\": \"DOCTOR\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.added").value(true));
+        nurse.perform(post(BASE + "/encounters/" + encounter + "/care-team")
+                        .content("{\"clinicianUuid\": \"" + doctor.uuid + "\", \"role\": \"DOCTOR\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.added").value(false));
+        signedNote(nurse, encounter, "{\"content\": {\"type\": \"NURSING\", \"observations\": \"Estable\", \"careProvided\": \"Curación\"}}");
+        doctor.perform(post(BASE + "/encounters/" + encounter + "/closure")).andExpect(status().isOk());
+        doctor.perform(get(BASE + "/patients/" + patient + "/encounters")).andExpect(status().isOk());
+        doctor.perform(post(BASE + "/encounters/" + encounter + "/care-team")
+                        .content("{\"clinicianUuid\": \"" + outsider.uuid + "\", \"role\": \"DOCTOR\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ENCOUNTER_CLOSED"));
     }
 
     @Test
@@ -250,6 +346,8 @@ class ClinicalRecordApiIT {
     @Test
     void closedEncountersAreClarifiedWithAddendaFromTheSameProfile() throws Exception {
         String encounter = openEncounter(doctor, activePatient(), "OUTPATIENT");
+        joinCareTeam(doctor, encounter, nurse);
+        joinCareTeam(doctor, encounter, otherDoctor);
         String note = signedNote(doctor, encounter, """
                 {"content": {"type": "CONSULTATION", "specialty": "Medicina interna", "reason": "Control",
                              "findings": "Sin hallazgos", "recommendations": "Continuar"}}""");
@@ -299,7 +397,11 @@ class ClinicalRecordApiIT {
         String note = signedNote(nurse, encounter, """
                 {"content": {"type": "NURSING", "observations": "Paciente agitado", "careProvided": "Contención verbal"}}""");
 
+        joinCareTeam(nurse, encounter, doctor);
         new Staff("NURSE").perform(post(BASE + "/notes/" + note + "/void").content("{\"reason\": \"Otro paciente\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("CARE_RELATIONSHIP_REQUIRED"));
+        doctor.perform(post(BASE + "/notes/" + note + "/void").content("{\"reason\": \"Otro paciente\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("NOT_THE_AUTHOR"));
         nurse.perform(post(BASE + "/notes/" + note + "/void").content("{\"reason\": \"Registrada en el paciente equivocado\"}"))
@@ -421,6 +523,25 @@ class ClinicalRecordApiIT {
         staff.perform(post(BASE + "/drafts/" + draft + "/signature").header(HttpHeaders.IF_MATCH, "\"0\""))
                 .andExpect(status().isCreated());
         return draft;
+    }
+
+    private void joinCareTeam(Staff member, String encounter, Staff newcomer) throws Exception {
+        member.perform(post(BASE + "/encounters/" + encounter + "/care-team")
+                        .content("{\"clinicianUuid\": \"" + newcomer.uuid + "\", \"role\": \"" + newcomer.role + "\"}"))
+                .andExpect(status().isCreated());
+    }
+
+    private List<JsonNode> auditEventsOf(UUID patient) {
+        return rootJdbc.queryForList("SELECT payload FROM clinical_outbox.outbox_events WHERE aggregateid = ? ORDER BY created_at, id",
+                String.class, patient.toString()).stream().map(ClinicalRecordApiIT::json).toList();
+    }
+
+    private static JsonNode json(String value) {
+        try {
+            return JSON.readTree(value);
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     private final class Staff {

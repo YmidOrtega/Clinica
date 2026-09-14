@@ -84,7 +84,7 @@ class NoteController {
     @GetMapping("/notes/{id}")
     @Operation(summary = "Consultar una nota firmada")
     NoteView note(@PathVariable UUID id) {
-        return NoteView.from(queries.note(id));
+        return NoteView.from(queries.note(id, clinician.require()));
     }
 
     @PostMapping("/notes/{id}/void")
