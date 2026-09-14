@@ -27,7 +27,8 @@ public class ContentEncryption {
     public enum Purpose {
         NOTE_CONTENT,
         DRAFT_CONTENT,
-        VOID_REASON
+        VOID_REASON,
+        EMERGENCY_ACCESS_REASON
     }
 
     public record EncryptedField(UUID dataKeyId, byte[] ciphertext) {

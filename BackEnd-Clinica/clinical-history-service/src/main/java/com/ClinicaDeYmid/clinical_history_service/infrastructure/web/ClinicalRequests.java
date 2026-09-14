@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.web;
 
+import com.ClinicaDeYmid.clinical_history_service.domain.clinician.ClinicalRole;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteRestriction;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,5 +24,11 @@ final class ClinicalRequests {
     }
 
     record Voiding(String reason) {
+    }
+
+    record CareTeamMember(@NotNull(message = "es obligatorio") UUID clinicianUuid, @NotNull(message = "es obligatorio") ClinicalRole role) {
+    }
+
+    record EmergencyAccessRequest(String reason) {
     }
 }

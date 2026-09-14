@@ -61,7 +61,7 @@ class EncounterController {
     @GetMapping("/encounters/{id}")
     @Operation(summary = "Consultar una atención con el índice de sus notas firmadas")
     EncounterRecordView get(@PathVariable UUID id) {
-        return EncounterRecordView.from(queries.encounter(id));
+        return EncounterRecordView.from(queries.encounter(id, clinician.require()));
     }
 
     @PostMapping("/encounters/{id}/closure")
@@ -75,7 +75,7 @@ class EncounterController {
     List<EncounterView> ofPatient(@PathVariable UUID patientUuid,
                                   @RequestParam(defaultValue = "0") @Min(value = 0, message = "no puede ser negativo") int page,
                                   @RequestParam(defaultValue = "20") @Min(value = 1, message = "debe ser al menos 1") @Max(value = 100, message = "no puede superar 100") int size) {
-        return queries.encountersOf(patientUuid, page, size).stream().map(EncounterView::from).toList();
+        return queries.encountersOf(patientUuid, page, size, clinician.require()).stream().map(EncounterView::from).toList();
     }
 
     @PostMapping("/encounters/{id}/drafts")

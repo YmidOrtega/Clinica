@@ -1,7 +1,9 @@
 package com.ClinicaDeYmid.clinical_history_service.application.note;
 
+import com.ClinicaDeYmid.clinical_history_service.application.access.RecordAccess;
 import com.ClinicaDeYmid.clinical_history_service.application.integrity.RecordSealing;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
+import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessAction;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Signer;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
@@ -33,15 +35,17 @@ public class NoteCommands {
     private final NoteDrafts drafts;
     private final ClinicalNotes notes;
     private final RecordSealing sealing;
+    private final RecordAccess access;
     private final NotePolicy policy;
     private final Clock clock;
 
-    public NoteCommands(Encounters encounters, NoteDrafts drafts, ClinicalNotes notes, RecordSealing sealing, NotePolicy policy,
-                        Clock clock) {
+    public NoteCommands(Encounters encounters, NoteDrafts drafts, ClinicalNotes notes, RecordSealing sealing, RecordAccess access,
+                        NotePolicy policy, Clock clock) {
         this.encounters = encounters;
         this.drafts = drafts;
         this.notes = notes;
         this.sealing = sealing;
+        this.access = access;
         this.policy = policy;
         this.clock = clock;
     }
@@ -50,6 +54,7 @@ public class NoteCommands {
     public NoteDraft startDraft(UUID encounterId, NoteContent content, NoteRestriction restriction, Instant occurredAt, Clinician author) {
         Encounter encounter = encounters.find(encounterId).orElseThrow(ClinicalException.EncounterNotFound::new);
         NoteDraft draft = NoteDraft.start(encounter, author, content, restriction, occurredAt, policy, clock);
+        access.requireEncounter(author, encounter.patientUuid(), encounterId, AccessAction.WRITE_NOTE, draft.id());
         requireAmendable(draft, author);
         drafts.add(draft);
         return draft;
@@ -60,6 +65,7 @@ public class NoteCommands {
                                  Clinician editor) {
         NoteDraft draft = lockOwnDraft(draftId, expectedVersion, editor);
         Encounter encounter = encounters.find(draft.encounterId()).orElseThrow(ClinicalException.EncounterNotFound::new);
+        access.requireEncounter(editor, encounter.patientUuid(), encounter.id(), AccessAction.WRITE_NOTE, draftId);
         NoteDraft revised = draft.revise(editor, encounter, content, restriction, occurredAt, policy, clock);
         if (!drafts.replace(revised, expectedVersion)) {
             throw new ClinicalException.DraftVersionMismatch();
@@ -77,6 +83,7 @@ public class NoteCommands {
     public SignedNote sign(UUID draftId, long expectedVersion, Signer signer) {
         NoteDraft draft = lockOwnDraft(draftId, expectedVersion, signer.clinician());
         Encounter encounter = encounters.lock(draft.encounterId()).orElseThrow(ClinicalException.EncounterNotFound::new);
+        access.requireEncounter(signer.clinician(), encounter.patientUuid(), encounter.id(), AccessAction.WRITE_NOTE, draftId);
         requireAmendable(draft, signer.clinician());
         SignedNote note = draft.sign(signer, encounter, policy, clock);
         notes.append(note);
@@ -91,6 +98,7 @@ public class NoteCommands {
     public NoteVoid voidNote(UUID noteId, String reason, Clinician clinician) {
         SignedNote note = notes.find(noteId).orElseThrow(ClinicalException.NoteNotFound::new);
         Encounter encounter = encounters.lock(note.encounterId()).orElseThrow(ClinicalException.EncounterNotFound::new);
+        access.requireEncounter(clinician, encounter.patientUuid(), encounter.id(), AccessAction.VOID_NOTE, noteId);
         NoteVoid noteVoid = note.voidBy(clinician, encounter, reason, notes.voidOf(noteId).isPresent(), clock);
         if (!notes.addVoid(noteVoid)) {
             throw new ClinicalException.NoteAlreadyVoided();

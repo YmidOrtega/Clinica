@@ -75,6 +75,13 @@ class DatabaseAccessIT {
                 VALUES (?, ?, 'TRIAGE', ?, RANDOM_BYTES(80), ?, 'DOCTOR', 'doctor@clinica.test', NOW(6), NOW(6), FALSE)""",
                 NOTE, ENCOUNTER, DATA_KEY, CLINICIAN);
         app.update("""
+                INSERT INTO clinical_ledger.care_team_members (encounter_id, clinician_uuid, clinician_role, added_by, added_at)
+                VALUES (?, ?, 'DOCTOR', ?, NOW(6))""", ENCOUNTER, CLINICIAN, CLINICIAN);
+        app.update("""
+                INSERT INTO clinical_ledger.emergency_accesses (id, patient_uuid, clinician_uuid, clinician_role, reason_key_id,
+                    reason_ciphertext, granted_at, expires_at)
+                VALUES (UUID(), ?, ?, 'NURSE', ?, RANDOM_BYTES(60), NOW(6), NOW(6) + INTERVAL 4 HOUR)""", PATIENT, CLINICIAN, DATA_KEY);
+        app.update("""
                 INSERT INTO clinical_ledger.chain_links (patient_uuid, sequence, entry_type, entry_id, format_version, payload_hash,
                     previous_hash, entry_hash, key_id, seal, sealed_at)
                 VALUES (?, 1, 'NOTE_SIGNED', ?, 1, REPEAT('a', 64), REPEAT('0', 64), REPEAT('b', 64), 'k1', 'c2VhbA==', NOW(6))""",
@@ -133,6 +140,10 @@ class DatabaseAccessIT {
             "ALTER TABLE clinical_ledger.notes DROP CHECK chk_notes_type",
             "UPDATE clinical_ledger.chain_links SET seal = 'forged'",
             "DELETE FROM clinical_ledger.chain_links",
+            "DELETE FROM clinical_ledger.care_team_members",
+            "UPDATE clinical_ledger.care_team_members SET clinician_uuid = UUID()",
+            "UPDATE clinical_ledger.emergency_accesses SET expires_at = NOW(6) + INTERVAL 1 YEAR",
+            "DELETE FROM clinical_ledger.emergency_accesses",
             "CREATE TABLE clinical_ledger.shadow (id INT)",
             "CREATE TRIGGER clinical_ledger.tr_bypass BEFORE INSERT ON clinical_ledger.notes FOR EACH ROW SET NEW.extemporaneous = FALSE"
     })
@@ -150,6 +161,17 @@ class DatabaseAccessIT {
     })
     void applicationUserCannotReplaceOrDestroyDataKeys(String statement) {
         assertDenied(() -> app.execute(statement));
+    }
+
+    @Test
+    void applicationUserPublishesAndPurgesAuditEventsButCannotAlterThem() {
+        String event = UUID.randomUUID().toString();
+        app.update("""
+                INSERT INTO clinical_outbox.outbox_events (id, aggregatetype, aggregateid, type, payload, created_at)
+                VALUES (?, 'clinical.access-audit', ?, 'ClinicalRecordAccessed', '{}', NOW(6))""", event, PATIENT);
+
+        assertDenied(() -> app.update("UPDATE clinical_outbox.outbox_events SET payload = '{\"outcome\": \"GRANTED\"}'"));
+        assertThat(app.update("DELETE FROM clinical_outbox.outbox_events WHERE id = ?", event)).isEqualTo(1);
     }
 
     @Test

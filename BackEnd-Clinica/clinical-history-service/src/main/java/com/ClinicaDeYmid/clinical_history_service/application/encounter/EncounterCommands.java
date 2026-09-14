@@ -1,9 +1,13 @@
 package com.ClinicaDeYmid.clinical_history_service.application.encounter;
 
+import com.ClinicaDeYmid.clinical_history_service.application.access.RecordAccess;
 import com.ClinicaDeYmid.clinical_history_service.application.integrity.RecordSealing;
 import com.ClinicaDeYmid.clinical_history_service.application.patient.PatientDirectory;
 import com.ClinicaDeYmid.clinical_history_service.application.patient.PatientLookup;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
+import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessAction;
+import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessBasis;
+import com.ClinicaDeYmid.clinical_history_service.domain.access.CareTeams;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterClosure;
@@ -32,16 +36,20 @@ public class EncounterCommands {
     private final PatientDirectory patients;
     private final Encounters encounters;
     private final ClinicalNotes notes;
+    private final CareTeams careTeams;
     private final RecordSealing sealing;
+    private final RecordAccess access;
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public EncounterCommands(PatientDirectory patients, Encounters encounters, ClinicalNotes notes, RecordSealing sealing,
-                             TransactionOperations transactions, Clock clock) {
+    public EncounterCommands(PatientDirectory patients, Encounters encounters, ClinicalNotes notes, CareTeams careTeams,
+                             RecordSealing sealing, RecordAccess access, TransactionOperations transactions, Clock clock) {
         this.patients = patients;
         this.encounters = encounters;
         this.notes = notes;
+        this.careTeams = careTeams;
         this.sealing = sealing;
+        this.access = access;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -56,6 +64,8 @@ public class EncounterCommands {
         transactions.executeWithoutResult(status -> {
             sealing.record(new LedgerEntry.EncounterOpened(encounter));
             encounters.add(encounter);
+            careTeams.add(encounter.id(), clinician, clinician, encounter.openedAt());
+            access.recordGranted(clinician, patientUuid, AccessAction.OPEN_ENCOUNTER, encounter.id(), AccessBasis.NEW_ENCOUNTER, null);
         });
         log.info("Encounter {} of type {} opened by {}", encounter.id(), encounter.type(), clinician.uuid());
         return encounter;
@@ -64,6 +74,7 @@ public class EncounterCommands {
     @Transactional
     public Encounter close(UUID encounterId, Clinician clinician) {
         Encounter encounter = encounters.lock(encounterId).orElseThrow(ClinicalException.EncounterNotFound::new);
+        access.requireEncounter(clinician, encounter.patientUuid(), encounterId, AccessAction.CLOSE_ENCOUNTER, encounterId);
         EncounterClosure closure = encounter.close(clinician, notes.ofEncounter(encounterId),
                 notes.voidsInEncounter(encounterId).stream().map(NoteVoid::noteId).collect(Collectors.toSet()), clock);
         encounters.close(closure);

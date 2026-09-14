@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clinica:events:clinical.access-audit.v1",
+  "title": "Acceso a la historia clínica",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "type", "schemaVersion", "occurredAt", "patientUuid", "actor", "action", "resource", "outcome",
+    "restrictedContent"],
+  "properties": {
+    "eventId": {"type": "string", "format": "uuid"},
+    "type": {"enum": ["ClinicalRecordAccessed", "ClinicalRecordAccessDenied"]},
+    "schemaVersion": {"const": 1},
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "traceId": {"type": ["string", "null"]},
+    "patientUuid": {"type": "string", "format": "uuid"},
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uuid", "role"],
+      "properties": {
+        "uuid": {"type": "string", "format": "uuid"},
+        "role": {"enum": ["DOCTOR", "NURSE"]}
+      }
+    },
+    "action": {"enum": ["OPEN_ENCOUNTER", "LIST_ENCOUNTERS", "READ_ENCOUNTER", "READ_NOTE", "WRITE_NOTE", "VOID_NOTE",
+      "CLOSE_ENCOUNTER", "ADD_CARE_TEAM_MEMBER", "EMERGENCY_ACCESS"]},
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {"id": {"type": "string", "format": "uuid"}}
+    },
+    "outcome": {"enum": ["GRANTED", "DENIED"]},
+    "basis": {"enum": ["NEW_ENCOUNTER", "CARE_RELATIONSHIP", "AUTHOR", "EMERGENCY_ACCESS", null]},
+    "restrictedContent": {"type": "boolean"},
+    "emergencyReason": {"type": ["string", "null"], "maxLength": 500}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"outcome": {"const": "GRANTED"}}},
+      "then": {"required": ["basis"], "properties": {"type": {"const": "ClinicalRecordAccessed"}, "basis": {"type": "string"}}},
+      "else": {"properties": {"type": {"const": "ClinicalRecordAccessDenied"}, "basis": {"type": "null"}}}
+    },
+    {
+      "if": {"required": ["basis"], "properties": {"basis": {"const": "EMERGENCY_ACCESS"}}},
+      "then": {"required": ["emergencyReason"], "properties": {"emergencyReason": {"type": "string"}}},
+      "else": {"properties": {"emergencyReason": {"type": "null"}}}
+    }
+  ]
+}
