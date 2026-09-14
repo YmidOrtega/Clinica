@@ -20,6 +20,7 @@
 		<clinica-commons.version>1.0.0</clinica-commons.version>
 		<wiremock.version>3.13.1</wiremock.version>
 		<archunit.version>1.4.1</archunit.version>
+		<json-schema-validator.version>1.5.9</json-schema-validator.version>
 	</properties>
 
 	<dependencies>
@@ -134,6 +135,13 @@
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>mysql</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.networknt</groupId>
+			<artifactId>json-schema-validator</artifactId>
+			<version>${json-schema-validator.version}</version>
 			<scope>test</scope>
 		</dependency>
 
