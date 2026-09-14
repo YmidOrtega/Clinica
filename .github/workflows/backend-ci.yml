@@ -28,6 +28,7 @@ jobs:
           - api-gateway
           - auth-service
           - patient-service
+          - clinical-history-service
           - suppliers-service
           - clients-service
           - admissions-service
@@ -132,6 +133,7 @@ jobs:
           - api-gateway
           - auth-service
           - patient-service
+          - clinical-history-service
           - suppliers-service
           - clients-service
           - admissions-service
