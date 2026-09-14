@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clinica:events:clinical.encounters.v1",
+  "title": "Hechos de las atenciones clínicas",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "type", "schemaVersion", "occurredAt", "patientUuid", "data", "chain"],
+  "properties": {
+    "eventId": {"type": "string", "format": "uuid"},
+    "type": {"enum": ["EncounterOpened", "ClinicalNoteSigned", "ClinicalNoteVoided", "EncounterClosed"]},
+    "schemaVersion": {"const": 1},
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "traceId": {"type": ["string", "null"]},
+    "patientUuid": {"type": "string", "format": "uuid"},
+    "encounterId": {"type": ["string", "null"], "format": "uuid"},
+    "chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "entryHash", "previousHash", "keyId"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 1},
+        "entryHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "previousHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "keyId": {"type": "string"}
+      }
+    },
+    "data": {"type": "object"}
+  },
+  "$defs": {
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uuid", "role"],
+      "properties": {"uuid": {"type": "string", "format": "uuid"}, "role": {"enum": ["DOCTOR", "NURSE"]}}
+    },
+    "diagnosis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "display", "catalogVersion", "role", "type"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[A-Z][0-9]{2}[0-9X]$"},
+        "display": {"type": "string"},
+        "catalogVersion": {"type": "string"},
+        "role": {"enum": ["PRINCIPAL", "RELATED"]},
+        "type": {"enum": ["IMPRESSION", "CONFIRMED_NEW", "CONFIRMED_REPEATED"]}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"type": {"const": "EncounterOpened"}}},
+      "then": {
+        "required": ["encounterId"],
+        "properties": {"data": {
+          "additionalProperties": false,
+          "required": ["encounterType", "openedBy"],
+          "properties": {
+            "encounterType": {"enum": ["OUTPATIENT", "EMERGENCY", "INPATIENT", "TELEHEALTH"]},
+            "admissionId": {"type": ["string", "null"]},
+            "openedBy": {"$ref": "#/$defs/person"}
+          }
+        }}
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "ClinicalNoteSigned"}}},
+      "then": {
+        "required": ["encounterId"],
+        "properties": {"data": {
+          "additionalProperties": false,
+          "required": ["noteId", "noteType", "restricted", "author", "careOccurredAt", "extemporaneous", "diagnoses", "listChanges",
+            "vitalSigns", "attachments"],
+          "properties": {
+            "noteId": {"type": "string", "format": "uuid"},
+            "noteType": {"enum": ["ADMISSION", "PROGRESS", "TRIAGE", "CONSULTATION", "NURSING", "DISCHARGE", "ADDENDUM"]},
+            "restricted": {"type": "boolean"},
+            "author": {"$ref": "#/$defs/person"},
+            "careOccurredAt": {"type": "string", "format": "date-time"},
+            "extemporaneous": {"type": "boolean"},
+            "diagnoses": {"type": "array", "items": {"$ref": "#/$defs/diagnosis"}},
+            "amendsNoteId": {"type": ["string", "null"], "format": "uuid"},
+            "listChanges": {"type": "integer", "minimum": 0},
+            "vitalSigns": {"type": "integer", "minimum": 0},
+            "attachments": {"type": "integer", "minimum": 0}
+          }
+        }}
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "ClinicalNoteVoided"}}},
+      "then": {"properties": {"data": {
+        "additionalProperties": false,
+        "required": ["noteId", "voidedBy"],
+        "properties": {"noteId": {"type": "string", "format": "uuid"}, "voidedBy": {"$ref": "#/$defs/person"}}
+      }}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "EncounterClosed"}}},
+      "then": {
+        "required": ["encounterId"],
+        "properties": {"data": {
+          "additionalProperties": false,
+          "required": ["closedBy"],
+          "properties": {"closedBy": {"$ref": "#/$defs/person"}}
+        }}
+      }
+    }
+  ]
+}

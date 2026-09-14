@@ -522,6 +522,32 @@ class ClinicalRecordApiIT {
     }
 
     @Test
+    void everySealedFactIsPublishedWithTheHeadOfThePatientChain() throws Exception {
+        UUID patient = activePatient();
+        String encounter = openEncounter(doctor, patient, "OUTPATIENT");
+        String note = signedNote(doctor, encounter, """
+                {"content": {"type": "CONSULTATION", "specialty": "Medicina interna", "reason": "Control", "findings": "HTA", "recommendations": "Dieta",
+                             "diagnoses": [{"code": "I10X", "role": "PRINCIPAL", "type": "CONFIRMED_REPEATED"}]}}""");
+        doctor.perform(post(BASE + "/encounters/" + encounter + "/closure")).andExpect(status().isOk());
+
+        List<JsonNode> events = rootJdbc.queryForList("""
+                SELECT payload FROM clinical_outbox.outbox_events WHERE aggregatetype = 'clinical.encounters' AND aggregateid = ?
+                ORDER BY created_at""", String.class, patient.toString()).stream().map(ClinicalRecordApiIT::json).toList();
+
+        assertThat(events).extracting(event -> event.path("type").asText())
+                .containsExactly("EncounterOpened", "ClinicalNoteSigned", "EncounterClosed");
+        assertThat(events).extracting(event -> event.path("chain").path("sequence").asLong()).containsExactly(1L, 2L, 3L);
+        assertThat(events.get(1).path("data").path("noteId").asText()).isEqualTo(note);
+        assertThat(events.get(1).path("data").path("diagnoses").get(0).path("code").asText()).isEqualTo("I10X");
+        assertThat(events).allSatisfy(event -> {
+            assertThat(AccessAuditContract.encounterEventViolations(event.toString())).isEmpty();
+            assertThat(event.toString()).doesNotContain("HTA").doesNotContain("Dieta");
+        });
+        new Staff("ADMIN").perform(get(BASE + "/patients/" + patient + "/integrity"))
+                .andExpect(jsonPath("$.chains[0].head.entryHash").value(events.getLast().path("chain").path("entryHash").asText()));
+    }
+
+    @Test
     void onlySuperAdminsSeeAndRotateTheEncryptionKeys() throws Exception {
         String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
         signedNote(nurse, encounter, TRIAGE);
@@ -747,7 +773,7 @@ class ClinicalRecordApiIT {
     }
 
     private List<JsonNode> auditEventsOf(UUID patient) {
-        return rootJdbc.queryForList("SELECT payload FROM clinical_outbox.outbox_events WHERE aggregateid = ? ORDER BY created_at, id",
+        return rootJdbc.queryForList("SELECT payload FROM clinical_outbox.outbox_events WHERE aggregatetype = 'clinical.access-audit' AND aggregateid = ? ORDER BY created_at, id",
                 String.class, patient.toString()).stream().map(ClinicalRecordApiIT::json).toList();
     }
 

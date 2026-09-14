@@ -17,11 +17,13 @@ public class RecordSealing {
 
     private final ChainLinks links;
     private final ClinicalSignature signature;
+    private final ClinicalEventPublisher events;
     private final Clock clock;
 
-    public RecordSealing(ChainLinks links, ClinicalSignature signature, Clock clock) {
+    public RecordSealing(ChainLinks links, ClinicalSignature signature, ClinicalEventPublisher events, Clock clock) {
         this.links = links;
         this.signature = signature;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -35,6 +37,7 @@ public class RecordSealing {
         ChainLink previous = links.lockHead(entry.patientUuid()).orElse(null);
         ChainLink link = signature.seal(entry, previous, Instant.now(clock));
         links.append(link);
+        events.publish(entry, link);
         return link;
     }
 }
