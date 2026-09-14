@@ -38,6 +38,24 @@ sostenidos.
 - x5: 21.999 peticiones (137,2 req/s), 0 % de errores.
 - Umbrales cumplidos: p95 < 200 ms en lecturas y < 500 ms en búsquedas por nombre y escrituras.
 
+### Con eventos (outbox + Debezium)
+
+Misma prueba con Kafka, Kafka Connect, Kafka UI y dos réplicas de `patient-service` corriendo en la
+misma máquina (k6 apunta a una réplica):
+
+| Operación       | x1 p50 | x1 p95 | x1 p99 | x5 p50 | x5 p95 | x5 p99 |
+|-----------------|--------|--------|--------|--------|--------|--------|
+| readPatient     | 6.8 ms | 11.5 ms | 15.7 ms | 3.7 ms | 5.6 ms | 6.7 ms |
+| searchDocument  | 6.8 ms | 10.8 ms | 14.8 ms | 3.9 ms | 5.7 ms | 6.9 ms |
+| searchName      | 16.7 ms | 48.3 ms | 56.6 ms | 11.6 ms | 40.5 ms | 48.9 ms |
+| registerPatient | 26.8 ms | 37.2 ms | 43.9 ms | 20.2 ms | 24.9 ms | 30.1 ms |
+| updateContact   | 12.5 ms | 28.7 ms | 37.5 ms | 7.8 ms | 20.8 ms | 24.0 ms |
+
+- 0 % de errores en ambos perfiles.
+- Escribir el evento en el outbox dentro de la transacción suma ~7 ms al p95 del registro en el pico.
+- Conciliación al terminar: 844 filas en el outbox y 844 eventos en `patient.events.v1` (840 registros
+  de la prueba y 4 manuales). Ningún evento perdido ni duplicado.
+
 ## Conclusiones
 
 1. **No hace falta caché de pacientes.** Una lectura por UUID responde en p95 de 5–10 ms incluso a
@@ -48,10 +66,15 @@ sostenidos.
    Se reemplazó por búsqueda por prefijo de apellidos (y opcionalmente nombres) sobre el índice
    B-tree `idx_patients_names`: p95 de **37 ms**, sin índice adicional que mantener en cada escritura.
 3. **Los conflictos de edición concurrente se detectan** (`412` con `If-Match`) sin afectar la latencia.
+4. **Publicar eventos con outbox cuesta poco**: unos milisegundos por escritura, sin que
+   `patient-service` dependa de Kafka.
 
 ## Cómo ejecutarla
 
 Requisitos: Docker y Node.js (solo para firmar tokens locales).
+
+Exporta antes las variables `PATIENT_DB_*` (incluidas `PATIENT_DB_DEBEZIUM_*`, que usa el script de
+inicialización de la base) descritas en `docs/variablesDeEntorno.md`.
 
 ```bash
 cd BackEnd-Clinica
