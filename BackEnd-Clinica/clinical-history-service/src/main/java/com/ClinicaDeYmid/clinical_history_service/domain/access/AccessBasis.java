@@ -4,5 +4,6 @@ public enum AccessBasis {
     NEW_ENCOUNTER,
     CARE_RELATIONSHIP,
     AUTHOR,
-    EMERGENCY_ACCESS
+    EMERGENCY_ACCESS,
+    RECORDS_OFFICE
 }

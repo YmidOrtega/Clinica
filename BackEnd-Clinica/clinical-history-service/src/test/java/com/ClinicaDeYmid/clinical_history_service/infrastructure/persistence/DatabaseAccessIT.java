@@ -159,6 +159,8 @@ class DatabaseAccessIT {
             "DELETE FROM clinical_ledger.vital_sign_observations",
             "UPDATE clinical_ledger.note_attachments SET sha256 = REPEAT('a', 64)",
             "DELETE FROM clinical_ledger.note_attachments",
+            "UPDATE clinical_ledger.record_copies SET document_sha256 = REPEAT('a', 64)",
+            "DELETE FROM clinical_ledger.record_copies",
             "CREATE TABLE clinical_ledger.shadow (id INT)",
             "CREATE TRIGGER clinical_ledger.tr_bypass BEFORE INSERT ON clinical_ledger.notes FOR EACH ROW SET NEW.extemporaneous = FALSE"
     })
