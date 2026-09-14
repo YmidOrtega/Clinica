@@ -23,7 +23,7 @@ import java.util.UUID;
 class JdbcClinicalNotes implements ClinicalNotes {
 
     static final String SELECT_NOTE = """
-            SELECT id, encounter_id, type, content_key_id, content_ciphertext, author_uuid, author_role, author_email, occurred_at,
+            SELECT id, encounter_id, type, restriction, content_key_id, content_ciphertext, author_uuid, author_role, author_email, occurred_at,
                    recorded_at, extemporaneous
             FROM clinical_ledger.notes""";
 
@@ -46,14 +46,15 @@ class JdbcClinicalNotes implements ClinicalNotes {
         EncryptedField content = encryption.encrypt(patientUuid, Purpose.NOTE_CONTENT, note.id(), NoteContentColumn.write(note.content()));
         jdbc.update("""
                 INSERT INTO clinical_ledger.notes
-                    (id, encounter_id, type, content_key_id, content_ciphertext, amends_note_id, author_uuid, author_role, author_email,
+                    (id, encounter_id, type, restriction, content_key_id, content_ciphertext, amends_note_id, author_uuid, author_role, author_email,
                      occurred_at, recorded_at, extemporaneous)
-                VALUES (:id, :encounterId, :type, :contentKeyId, :contentCiphertext, :amendsNoteId, :authorUuid, :authorRole, :authorEmail,
+                VALUES (:id, :encounterId, :type, :restriction, :contentKeyId, :contentCiphertext, :amendsNoteId, :authorUuid, :authorRole, :authorEmail,
                         :occurredAt, :recordedAt, :extemporaneous)""",
                 new MapSqlParameterSource()
                         .addValue("id", note.id().toString())
                         .addValue("encounterId", note.encounterId().toString())
                         .addValue("type", note.type().name())
+                        .addValue("restriction", note.isRestricted() ? note.restriction().name() : null)
                         .addValue("contentKeyId", content.dataKeyId().toString())
                         .addValue("contentCiphertext", content.ciphertext())
                         .addValue("amendsNoteId", note.amends().map(UUID::toString).orElse(null))
@@ -119,7 +120,8 @@ class JdbcClinicalNotes implements ClinicalNotes {
         byte[] content = encryption.decrypt(new EncryptedField(Rows.uuid(row, "content_key_id"), row.getBytes("content_ciphertext")),
                 Purpose.NOTE_CONTENT, id);
         return new SignedNote(id, Rows.uuid(row, "encounter_id"), Rows.clinician(row, "author_uuid", "author_role"),
-                row.getString("author_email"), NoteContentColumn.read(content, type, id), Rows.instant(row, "occurred_at"),
+                row.getString("author_email"), NoteContentColumn.read(content, type, id), Rows.restriction(row),
+                Rows.instant(row, "occurred_at"),
                 Rows.instant(row, "recorded_at"), row.getBoolean("extemporaneous"));
     }
 

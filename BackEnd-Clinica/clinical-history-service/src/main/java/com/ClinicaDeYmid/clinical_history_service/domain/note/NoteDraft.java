@@ -17,6 +17,7 @@ public record NoteDraft(
         UUID encounterId,
         Clinician author,
         NoteContent content,
+        NoteRestriction restriction,
         Instant occurredAt,
         long version,
         Instant createdAt,
@@ -32,8 +33,8 @@ public record NoteDraft(
         Objects.requireNonNull(updatedAt, "updatedAt");
     }
 
-    public static NoteDraft start(Encounter encounter, Clinician author, NoteContent content, Instant occurredAt,
-                                  NotePolicy policy, Clock clock) {
+    public static NoteDraft start(Encounter encounter, Clinician author, NoteContent content, NoteRestriction restriction,
+                                  Instant occurredAt, NotePolicy policy, Clock clock) {
         ClinicalText.present(content, "content");
         requireAllowedAuthor(content.type(), author);
         if (content.type() != NoteType.ADDENDUM) {
@@ -45,7 +46,7 @@ public record NoteDraft(
         Instant now = Instant.now(clock);
         Instant occurred = occurredAt == null ? now : occurredAt;
         policy.requireValidOccurrence(encounter, occurred, now);
-        return new NoteDraft(UUID.randomUUID(), encounter.id(), author, content, occurred, 0, now, now);
+        return new NoteDraft(UUID.randomUUID(), encounter.id(), author, content, restriction, occurred, 0, now, now);
     }
 
     public NoteType type() {
@@ -56,8 +57,8 @@ public record NoteDraft(
         return author.isSamePersonAs(clinician);
     }
 
-    public NoteDraft revise(Clinician editor, Encounter encounter, NoteContent revised, Instant occurredAt,
-                            NotePolicy policy, Clock clock) {
+    public NoteDraft revise(Clinician editor, Encounter encounter, NoteContent revised, NoteRestriction revisedRestriction,
+                            Instant occurredAt, NotePolicy policy, Clock clock) {
         requireAuthor(editor);
         ClinicalText.present(revised, "content");
         if (revised.type() != type() || !Objects.equals(amendedNoteOf(revised), amendedNoteOf(content))) {
@@ -66,7 +67,7 @@ public record NoteDraft(
         Instant now = Instant.now(clock);
         Instant occurred = occurredAt == null ? this.occurredAt : occurredAt;
         policy.requireValidOccurrence(encounter, occurred, now);
-        return new NoteDraft(id, encounterId, author, revised, occurred, version + 1, createdAt, now);
+        return new NoteDraft(id, encounterId, author, revised, revisedRestriction, occurred, version + 1, createdAt, now);
     }
 
     public SignedNote sign(Signer signer, Encounter encounter, NotePolicy policy, Clock clock) {
@@ -82,7 +83,7 @@ public record NoteDraft(
         Instant recordedAt = Instant.now(clock);
         policy.requireRecentAuthentication(signer, recordedAt);
         policy.requireValidOccurrence(encounter, occurredAt, recordedAt);
-        return new SignedNote(id, encounterId, signer.clinician(), signer.email(), content, occurredAt, recordedAt,
+        return new SignedNote(id, encounterId, signer.clinician(), signer.email(), content, restriction, occurredAt, recordedAt,
                 policy.isExtemporaneous(occurredAt, recordedAt));
     }
 

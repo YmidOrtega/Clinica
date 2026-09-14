@@ -10,6 +10,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.integrity.EntryType;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteContent;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteDraft;
+import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteRestriction;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.TriageLevel;
@@ -165,10 +166,10 @@ class ClinicalRecordPersistenceIT {
         Encounter encounter = encounter(EncounterType.EMERGENCY, OPENED_AT);
         encounters.add(encounter);
         Clinician doctor = doctor();
-        NoteDraft draft = new NoteDraft(UUID.randomUUID(), encounter.id(), doctor, new NoteContent.Progress("Dolor", null, null, null),
+        NoteDraft draft = new NoteDraft(UUID.randomUUID(), encounter.id(), doctor, new NoteContent.Progress("Dolor", null, null, null), null,
                 OPENED_AT, 0, OPENED_AT, OPENED_AT);
         drafts.add(draft);
-        NoteDraft revised = new NoteDraft(draft.id(), draft.encounterId(), doctor, progress(), OPENED_AT, 1, OPENED_AT,
+        NoteDraft revised = new NoteDraft(draft.id(), draft.encounterId(), doctor, progress(), NoteRestriction.MENTAL_HEALTH, OPENED_AT, 1, OPENED_AT,
                 OPENED_AT.plusSeconds(60));
 
         assertThat(drafts.replace(revised, 1)).isFalse();
@@ -246,6 +247,6 @@ class ClinicalRecordPersistenceIT {
 
     private static SignedNote note(Encounter encounter, Clinician author, NoteContent content, int minute) {
         Instant at = encounter.openedAt().plus(Duration.ofMinutes(minute));
-        return new SignedNote(UUID.randomUUID(), encounter.id(), author, "autor@clinica.test", content, at, at.plusSeconds(30), minute == 7);
+        return new SignedNote(UUID.randomUUID(), encounter.id(), author, "autor@clinica.test", content, minute == 4 ? NoteRestriction.VIOLENCE : null, at, at.plusSeconds(30), minute == 7);
     }
 }

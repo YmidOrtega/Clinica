@@ -17,6 +17,7 @@ public record SignedNote(
         Clinician author,
         String signerEmail,
         NoteContent content,
+        NoteRestriction restriction,
         Instant occurredAt,
         Instant recordedAt,
         boolean extemporaneous) {
@@ -29,6 +30,10 @@ public record SignedNote(
         Objects.requireNonNull(content, "content");
         Objects.requireNonNull(occurredAt, "occurredAt");
         Objects.requireNonNull(recordedAt, "recordedAt");
+    }
+
+    public boolean isRestricted() {
+        return restriction != null;
     }
 
     public NoteType type() {
