@@ -65,9 +65,9 @@ class DatabaseAccessIT {
                 VALUES (?, ?, 'EMERGENCY', NOW(6), ?, 'DOCTOR')""", ENCOUNTER, PATIENT, CLINICIAN);
         app.update("""
                 INSERT INTO clinical_ledger.notes
-                    (id, encounter_id, type, content, author_uuid, author_role, occurred_at, recorded_at, extemporaneous)
-                VALUES (?, ?, 'TRIAGE', '{"type": "TRIAGE", "level": "II", "reason": "Dolor torácico"}', ?, 'DOCTOR', NOW(6), NOW(6), FALSE)""",
-                NOTE, ENCOUNTER, CLINICIAN);
+                    (id, encounter_id, type, content, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous)
+                VALUES (?, ?, 'TRIAGE', '{"type": "TRIAGE", "level": "II", "reason": "Dolor torácico"}', ?, 'DOCTOR', 'doctor@clinica.test',
+                        NOW(6), NOW(6), FALSE)""", NOTE, ENCOUNTER, CLINICIAN);
     }
 
     @Test

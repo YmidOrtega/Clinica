@@ -20,6 +20,7 @@ import static com.ClinicaDeYmid.clinical_history_service.domain.ClinicalFixtures
 import static com.ClinicaDeYmid.clinical_history_service.domain.ClinicalFixtures.nursing;
 import static com.ClinicaDeYmid.clinical_history_service.domain.ClinicalFixtures.openEncounter;
 import static com.ClinicaDeYmid.clinical_history_service.domain.ClinicalFixtures.progress;
+import static com.ClinicaDeYmid.clinical_history_service.domain.ClinicalFixtures.signerAt;
 import static com.ClinicaDeYmid.clinical_history_service.domain.ClinicalFixtures.triage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -114,7 +115,7 @@ class NoteDraftTest {
 
         assertThatThrownBy(() -> draft.revise(doctor(), encounter, progress(), null, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.DraftNotFound.class);
-        assertThatThrownBy(() -> draft.sign(doctor(), encounter, POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> draft.sign(signerAt(doctor(), NOW), encounter, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.DraftNotFound.class);
     }
 
@@ -124,7 +125,7 @@ class NoteDraftTest {
         NoteDraft draft = NoteDraft.start(encounter, doctor, new NoteContent.Progress("Dolor", " ", null, "Plan"), null, POLICY,
                 clockAt(NOW));
 
-        assertThatThrownBy(() -> draft.sign(doctor, encounter, POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> draft.sign(signerAt(doctor, NOW), encounter, POLICY, clockAt(NOW)))
                 .isInstanceOfSatisfying(ClinicalException.NoteIncomplete.class,
                         incomplete -> assertThat(incomplete.missingFields()).containsExactly("objective", "assessment"));
     }
@@ -133,14 +134,27 @@ class NoteDraftTest {
     void signingRecordsWhenTheNoteWasWrittenAndFlagsLateRecords() {
         Clinician doctor = doctor();
         NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), OPENED_AT, POLICY, clockAt(NOW));
+        Instant dayLater = OPENED_AT.plus(Duration.ofHours(24));
 
-        SignedNote onTime = draft.sign(doctor, encounter, POLICY, clockAt(OPENED_AT.plus(Duration.ofHours(24))));
-        SignedNote late = draft.sign(doctor, encounter, POLICY, clockAt(OPENED_AT.plus(Duration.ofHours(24)).plusSeconds(1)));
+        SignedNote onTime = draft.sign(signerAt(doctor, dayLater), encounter, POLICY, clockAt(dayLater));
+        SignedNote late = draft.sign(signerAt(doctor, dayLater), encounter, POLICY, clockAt(dayLater.plusSeconds(1)));
 
         assertThat(onTime.id()).isEqualTo(draft.id());
+        assertThat(onTime.signerEmail()).isEqualTo("doctor@clinica.test");
         assertThat(onTime.recordedAt()).isEqualTo(OPENED_AT.plus(Duration.ofHours(24)));
         assertThat(onTime.extemporaneous()).isFalse();
         assertThat(late.extemporaneous()).isTrue();
+    }
+
+    @Test
+    void signingRequiresASessionIssuedLessThanFifteenMinutesAgo() {
+        Clinician doctor = doctor();
+        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, POLICY, clockAt(NOW));
+
+        assertThatThrownBy(() -> draft.sign(signerAt(doctor, NOW.minus(Duration.ofMinutes(16))), encounter, POLICY, clockAt(NOW)))
+                .isInstanceOf(ClinicalException.RecentAuthenticationRequired.class);
+        assertThat(draft.sign(signerAt(doctor, NOW.minus(Duration.ofMinutes(15))), encounter, POLICY, clockAt(NOW))).isNotNull();
+        assertThatThrownBy(() -> signerAt(doctor, null)).isInstanceOf(ClinicalException.SignerIdentityIncomplete.class);
     }
 
     @Test
@@ -148,7 +162,7 @@ class NoteDraftTest {
         Clinician doctor = doctor();
         NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, POLICY, clockAt(NOW));
 
-        assertThatThrownBy(() -> draft.sign(doctor, closed(encounter), POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> draft.sign(signerAt(doctor, NOW), closed(encounter), POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.EncounterClosed.class);
     }
 }

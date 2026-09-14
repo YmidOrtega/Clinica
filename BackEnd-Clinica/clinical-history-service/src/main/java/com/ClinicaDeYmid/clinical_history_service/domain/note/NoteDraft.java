@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.clinical_history_service.domain.note;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalText;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
+import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Signer;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 
 import java.time.Clock;
@@ -68,9 +69,9 @@ public record NoteDraft(
         return new NoteDraft(id, encounterId, author, revised, occurred, version + 1, createdAt, now);
     }
 
-    public SignedNote sign(Clinician signer, Encounter encounter, NotePolicy policy, Clock clock) {
-        requireAuthor(signer);
-        requireAllowedAuthor(type(), signer);
+    public SignedNote sign(Signer signer, Encounter encounter, NotePolicy policy, Clock clock) {
+        requireAuthor(signer.clinician());
+        requireAllowedAuthor(type(), signer.clinician());
         if (type() != NoteType.ADDENDUM) {
             encounter.requireOpen();
         }
@@ -79,8 +80,9 @@ public record NoteDraft(
             throw new ClinicalException.NoteIncomplete(missing);
         }
         Instant recordedAt = Instant.now(clock);
+        policy.requireRecentAuthentication(signer, recordedAt);
         policy.requireValidOccurrence(encounter, occurredAt, recordedAt);
-        return new SignedNote(id, encounterId, signer, content, occurredAt, recordedAt,
+        return new SignedNote(id, encounterId, signer.clinician(), signer.email(), content, occurredAt, recordedAt,
                 policy.isExtemporaneous(occurredAt, recordedAt));
     }
 

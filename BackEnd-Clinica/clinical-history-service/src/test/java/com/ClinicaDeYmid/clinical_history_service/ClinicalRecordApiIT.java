@@ -20,6 +20,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -58,6 +60,7 @@ class ClinicalRecordApiIT {
 
     @Autowired
     private PatientReferences patients;
+
 
     private final Staff nurse = new Staff("NURSE");
     private final Staff doctor = new Staff("DOCTOR");
@@ -114,6 +117,20 @@ class ClinicalRecordApiIT {
         startDraftRequest(doctor, encounter, TRIAGE)
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("ENCOUNTER_CLOSED"));
+    }
+
+    @Test
+    void signingNeedsARecentSession() throws Exception {
+        String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
+        String draft = startDraft(nurse, encounter, TRIAGE);
+
+        nurse.performWithSessionFrom(Instant.now().minus(Duration.ofMinutes(20)),
+                        post(BASE + "/drafts/" + draft + "/signature").header(HttpHeaders.IF_MATCH, "\"0\""))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RECENT_AUTHENTICATION_REQUIRED"));
+        nurse.perform(post(BASE + "/drafts/" + draft + "/signature").header(HttpHeaders.IF_MATCH, "\"0\""))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.author.email").value("nurse@clinica.test"));
     }
 
     @Test
@@ -302,7 +319,11 @@ class ClinicalRecordApiIT {
         }
 
         ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
-            return mockMvc.perform(request.header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(role, uuid))
+            return performWithSessionFrom(Instant.now(), request);
+        }
+
+        ResultActions performWithSessionFrom(Instant issuedAt, MockHttpServletRequestBuilder request) throws Exception {
+            return mockMvc.perform(request.header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(role, uuid, issuedAt))
                     .contentType(MediaType.APPLICATION_JSON));
         }
     }

@@ -157,8 +157,8 @@ class ClinicalRecordPersistenceIT {
 
         assertThatThrownBy(() -> jdbc.update("""
                 INSERT INTO clinical_ledger.notes
-                    (id, encounter_id, type, content, author_uuid, author_role, occurred_at, recorded_at, extemporaneous)
-                VALUES (UUID(), ?, 'DISCHARGE', '{"type": "PROGRESS"}', UUID(), 'DOCTOR', NOW(6), NOW(6), FALSE)""",
+                    (id, encounter_id, type, content, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous)
+                VALUES (UUID(), ?, 'DISCHARGE', '{"type": "PROGRESS"}', UUID(), 'DOCTOR', 'doctor@clinica.test', NOW(6), NOW(6), FALSE)""",
                 encounter.id().toString())).hasMessageContaining("chk_notes_content_type");
         assertThatThrownBy(() -> jdbc.update("""
                 INSERT INTO clinical_ledger.encounters (id, patient_uuid, type, opened_at, opened_by, opened_by_role)
@@ -172,6 +172,6 @@ class ClinicalRecordPersistenceIT {
 
     private static SignedNote note(Encounter encounter, Clinician author, NoteContent content, int minute) {
         Instant at = encounter.openedAt().plus(Duration.ofMinutes(minute));
-        return new SignedNote(UUID.randomUUID(), encounter.id(), author, content, at, at.plusSeconds(30), minute == 7);
+        return new SignedNote(UUID.randomUUID(), encounter.id(), author, "autor@clinica.test", content, at, at.plusSeconds(30), minute == 7);
     }
 }

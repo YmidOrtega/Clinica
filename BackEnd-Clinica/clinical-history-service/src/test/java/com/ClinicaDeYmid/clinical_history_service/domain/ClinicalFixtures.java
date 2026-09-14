@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.clinical_history_service.domain;
 
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.ClinicalRole;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
+import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Signer;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterStatus;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
@@ -19,7 +20,7 @@ import java.util.UUID;
 public final class ClinicalFixtures {
 
     public static final Instant OPENED_AT = Instant.parse("2026-09-10T14:00:00Z");
-    public static final NotePolicy POLICY = new NotePolicy(Duration.ofHours(24), Duration.ofMinutes(2));
+    public static final NotePolicy POLICY = new NotePolicy(Duration.ofHours(24), Duration.ofMinutes(2), Duration.ofMinutes(15));
 
     private ClinicalFixtures() {
     }
@@ -34,6 +35,10 @@ public final class ClinicalFixtures {
 
     public static Clinician nurse() {
         return new Clinician(UUID.randomUUID(), ClinicalRole.NURSE);
+    }
+
+    public static Signer signerAt(Clinician clinician, Instant authenticatedAt) {
+        return new Signer(clinician, clinician.role().name().toLowerCase() + "@clinica.test", authenticatedAt);
     }
 
     public static Encounter openEncounter(EncounterType type) {
@@ -63,7 +68,7 @@ public final class ClinicalFixtures {
     }
 
     public static SignedNote signed(Encounter encounter, Clinician author, NoteContent content) {
-        return new SignedNote(UUID.randomUUID(), encounter.id(), author, content, OPENED_AT.plusSeconds(600),
+        return new SignedNote(UUID.randomUUID(), encounter.id(), author, author.role().name().toLowerCase() + "@clinica.test", content, OPENED_AT.plusSeconds(600),
                 OPENED_AT.plusSeconds(900), false);
     }
 }

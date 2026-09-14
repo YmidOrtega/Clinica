@@ -75,9 +75,9 @@ class NoteController {
     }
 
     @PostMapping("/drafts/{id}/signature")
-    @Operation(summary = "Firmar el borrador", description = "La nota pasa al registro inmutable y el borrador desaparece")
+    @Operation(summary = "Firmar el borrador", description = "Exige una sesión emitida hace menos de 15 minutos; la nota pasa al registro inmutable y el borrador desaparece")
     ResponseEntity<NoteView> sign(@PathVariable UUID id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        SignedNote note = commands.sign(id, EntityTags.requiredVersion(ifMatch), clinician.require());
+        SignedNote note = commands.sign(id, EntityTags.requiredVersion(ifMatch), clinician.requireSigner());
         return ResponseEntity.created(URI.create(EncounterController.BASE_PATH + "/notes/" + note.id())).body(NoteView.from(note));
     }
 

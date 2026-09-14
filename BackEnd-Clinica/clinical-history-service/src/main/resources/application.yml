@@ -55,6 +55,7 @@ clinica:
     notes:
       extemporaneous-after: ${CLINICAL_NOTES_EXTEMPORANEOUS_AFTER:24h}
       clock-skew-tolerance: 2m
+      max-authentication-age-to-sign: 15m
   security:
     jwt:
       public-key: ${JWT_PUBLIC_KEY:}

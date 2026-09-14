@@ -16,11 +16,12 @@ public class ClinicalNoteConfiguration {
     @ConfigurationProperties("clinica.clinical.notes")
     public record NoteProperties(
             @DefaultValue("24h") Duration extemporaneousAfter,
-            @DefaultValue("2m") Duration clockSkewTolerance) {
+            @DefaultValue("2m") Duration clockSkewTolerance,
+            @DefaultValue("15m") Duration maxAuthenticationAgeToSign) {
     }
 
     @Bean
     NotePolicy notePolicy(NoteProperties properties) {
-        return new NotePolicy(properties.extemporaneousAfter(), properties.clockSkewTolerance());
+        return new NotePolicy(properties.extemporaneousAfter(), properties.clockSkewTolerance(), properties.maxAuthenticationAgeToSign());
     }
 }
