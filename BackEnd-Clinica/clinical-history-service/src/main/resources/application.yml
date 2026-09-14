@@ -56,9 +56,20 @@ clinica:
       extemporaneous-after: ${CLINICAL_NOTES_EXTEMPORANEOUS_AFTER:24h}
       clock-skew-tolerance: 2m
       max-authentication-age-to-sign: 15m
+    seal:
+      keys-location: ${CLINICAL_SEAL_KEYS_LOCATION:}
+      active-key-id: ${CLINICAL_SEAL_ACTIVE_KEY_ID:}
   security:
     jwt:
       public-key: ${JWT_PUBLIC_KEY:}
+    public-paths:
+      - /actuator/health
+      - /actuator/health/**
+      - /actuator/info
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /api/v1/clinical/seal-keys
 
 resilience4j:
   circuitbreaker:

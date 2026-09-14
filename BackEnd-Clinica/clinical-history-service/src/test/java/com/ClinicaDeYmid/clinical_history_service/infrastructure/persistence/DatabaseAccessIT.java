@@ -68,6 +68,11 @@ class DatabaseAccessIT {
                     (id, encounter_id, type, content, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous)
                 VALUES (?, ?, 'TRIAGE', '{"type": "TRIAGE", "level": "II", "reason": "Dolor torácico"}', ?, 'DOCTOR', 'doctor@clinica.test',
                         NOW(6), NOW(6), FALSE)""", NOTE, ENCOUNTER, CLINICIAN);
+        app.update("""
+                INSERT INTO clinical_ledger.chain_links (patient_uuid, sequence, entry_type, entry_id, format_version, payload_hash,
+                    previous_hash, entry_hash, key_id, seal, sealed_at)
+                VALUES (?, 1, 'NOTE_SIGNED', ?, 1, REPEAT('a', 64), REPEAT('0', 64), REPEAT('b', 64), 'k1', 'c2VhbA==', NOW(6))""",
+                PATIENT, NOTE);
     }
 
     @Test
@@ -119,6 +124,8 @@ class DatabaseAccessIT {
             "DELETE FROM clinical_ledger.note_voids",
             "DROP TABLE clinical_ledger.notes",
             "ALTER TABLE clinical_ledger.notes DROP CHECK chk_notes_type",
+            "UPDATE clinical_ledger.chain_links SET seal = 'forged'",
+            "DELETE FROM clinical_ledger.chain_links",
             "CREATE TABLE clinical_ledger.shadow (id INT)",
             "CREATE TRIGGER clinical_ledger.tr_bypass BEFORE INSERT ON clinical_ledger.notes FOR EACH ROW SET NEW.extemporaneous = FALSE"
     })
@@ -129,7 +136,8 @@ class DatabaseAccessIT {
     @ParameterizedTest
     @ValueSource(strings = {
             "UPDATE clinical_ledger.notes SET extemporaneous = TRUE",
-            "DELETE FROM clinical_ledger.notes"
+            "DELETE FROM clinical_ledger.notes",
+            "UPDATE clinical_ledger.chain_links SET seal = 'forged'"
     })
     void migrationsCannotRewriteSignedNotesEither(String statement) {
         assertDenied(() -> migrator.execute(statement));

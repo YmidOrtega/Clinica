@@ -1,10 +1,12 @@
 package com.ClinicaDeYmid.clinical_history_service.application.note;
 
+import com.ClinicaDeYmid.clinical_history_service.application.integrity.RecordSealing;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Signer;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounters;
+import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.ClinicalNotes;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteContent;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteDraft;
@@ -29,13 +31,16 @@ public class NoteCommands {
     private final Encounters encounters;
     private final NoteDrafts drafts;
     private final ClinicalNotes notes;
+    private final RecordSealing sealing;
     private final NotePolicy policy;
     private final Clock clock;
 
-    public NoteCommands(Encounters encounters, NoteDrafts drafts, ClinicalNotes notes, NotePolicy policy, Clock clock) {
+    public NoteCommands(Encounters encounters, NoteDrafts drafts, ClinicalNotes notes, RecordSealing sealing, NotePolicy policy,
+                        Clock clock) {
         this.encounters = encounters;
         this.drafts = drafts;
         this.notes = notes;
+        this.sealing = sealing;
         this.policy = policy;
         this.clock = clock;
     }
@@ -73,6 +78,7 @@ public class NoteCommands {
         requireAmendable(draft, signer.clinician());
         SignedNote note = draft.sign(signer, encounter, policy, clock);
         notes.append(note);
+        sealing.record(new LedgerEntry.NoteSigned(encounter.patientUuid(), note));
         drafts.remove(draftId);
         log.info("Note {} of type {} signed by {} in encounter {}{}", note.id(), note.type(), signer.clinician().uuid(), note.encounterId(),
                 note.extemporaneous() ? " (extemporaneous)" : "");
@@ -87,6 +93,7 @@ public class NoteCommands {
         if (!notes.addVoid(noteVoid)) {
             throw new ClinicalException.NoteAlreadyVoided();
         }
+        sealing.record(new LedgerEntry.NoteVoided(encounter.patientUuid(), noteVoid));
         log.info("Note {} voided by {}", noteId, clinician.uuid());
         return noteVoid;
     }

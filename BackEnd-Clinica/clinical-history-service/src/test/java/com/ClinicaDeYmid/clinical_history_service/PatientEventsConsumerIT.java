@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferenc
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.PatientEvents;
 import com.ClinicaDeYmid.clinical_history_service.support.TestJwt;
+import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -73,6 +74,8 @@ class PatientEventsConsumerIT {
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         registry.add("clinica.security.jwt.public-key", TestJwt::publicKeyBase64);
+        registry.add("clinica.clinical.seal.keys-location", TestSealKeys::directory);
+        registry.add("clinica.clinical.seal.active-key-id", () -> TestSealKeys.ACTIVE_KEY_ID);
         registry.add("eureka.client.enabled", () -> false);
     }
 

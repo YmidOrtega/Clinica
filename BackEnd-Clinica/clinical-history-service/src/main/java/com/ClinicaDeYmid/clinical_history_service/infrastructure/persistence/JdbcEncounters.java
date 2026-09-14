@@ -20,7 +20,7 @@ import java.util.UUID;
 @Repository
 class JdbcEncounters implements Encounters {
 
-    private static final String SELECT = """
+    static final String SELECT = """
             SELECT e.id, e.patient_uuid, e.type, e.admission_id, e.opened_at, e.opened_by, e.opened_by_role,
                    c.closed_at, c.closed_by, c.closed_by_role
             FROM clinical_ledger.encounters e
@@ -85,7 +85,7 @@ class JdbcEncounters implements Encounters {
                 JdbcEncounters::toEncounter);
     }
 
-    private static Encounter toEncounter(ResultSet row, int index) throws SQLException {
+    static Encounter toEncounter(ResultSet row, int index) throws SQLException {
         Instant closedAt = Rows.instant(row, "closed_at");
         EncounterStatus status = closedAt == null
                 ? new EncounterStatus.Open()
