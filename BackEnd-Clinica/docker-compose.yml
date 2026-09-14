@@ -13,6 +13,8 @@ services:
          PATIENT_DB_MIGRATOR_PASSWORD: ${PATIENT_DB_MIGRATOR_PASSWORD}
          PATIENT_DB_APP_USER: ${PATIENT_DB_APP_USER}
          PATIENT_DB_APP_PASSWORD: ${PATIENT_DB_APP_PASSWORD}
+         PATIENT_DB_DEBEZIUM_USER: ${PATIENT_DB_DEBEZIUM_USER}
+         PATIENT_DB_DEBEZIUM_PASSWORD: ${PATIENT_DB_DEBEZIUM_PASSWORD}
       volumes:
          - patient_data:/var/lib/mysql
          - ./patient-service/docker/mysql-init:/docker-entrypoint-initdb.d:ro
@@ -230,6 +232,86 @@ services:
          timeout: 10s
          retries: 5
          start_period: 60s
+
+   # Plataforma de eventos
+   kafka:
+      image: apache/kafka:4.3.1
+      container_name: kafka
+      restart: always
+      environment:
+         CLUSTER_ID: ${KAFKA_CLUSTER_ID:-Q2xpbmljYUthZmthMDAwMQ}
+         KAFKA_NODE_ID: 1
+         KAFKA_PROCESS_ROLES: broker,controller
+         KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093
+         KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092
+         KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+         KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+         KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+         KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+         KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+         KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+         KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+         KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+         KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+         KAFKA_LOG_DIRS: /var/lib/kafka/data
+      volumes:
+         - kafka_data:/var/lib/kafka/data
+      networks:
+         - kafka-net
+      healthcheck:
+         test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null"]
+         interval: 10s
+         timeout: 10s
+         retries: 10
+         start_period: 20s
+
+   kafka-connect:
+      image: quay.io/debezium/connect:3.6.2.Final
+      container_name: kafka-connect
+      restart: always
+      depends_on:
+         kafka:
+            condition: service_healthy
+      environment:
+         BOOTSTRAP_SERVERS: kafka:9092
+         GROUP_ID: clinica-connect
+         CONFIG_STORAGE_TOPIC: connect.configs
+         OFFSET_STORAGE_TOPIC: connect.offsets
+         STATUS_STORAGE_TOPIC: connect.status
+         CONFIG_STORAGE_REPLICATION_FACTOR: 1
+         OFFSET_STORAGE_REPLICATION_FACTOR: 1
+         STATUS_STORAGE_REPLICATION_FACTOR: 1
+         CONNECT_CONFIG_PROVIDERS: env
+         CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+         KAFKA_REPLICATION_FACTOR: 1
+         PATIENT_DB_HOST: patient-db
+         PATIENT_DB_DEBEZIUM_USER: ${PATIENT_DB_DEBEZIUM_USER}
+         PATIENT_DB_DEBEZIUM_PASSWORD: ${PATIENT_DB_DEBEZIUM_PASSWORD}
+      networks:
+         - kafka-net
+         - patient-data
+      healthcheck:
+         test: ["CMD-SHELL", "curl -fs http://localhost:8083/connectors > /dev/null"]
+         interval: 10s
+         timeout: 5s
+         retries: 12
+         start_period: 30s
+
+   kafka-connect-init:
+      image: curlimages/curl:8.16.0
+      container_name: kafka-connect-init
+      restart: "no"
+      depends_on:
+         kafka-connect:
+            condition: service_healthy
+         patient-db:
+            condition: service_healthy
+      entrypoint: ["sh", "/register-connectors.sh"]
+      volumes:
+         - ./platform/kafka-connect/register-connectors.sh:/register-connectors.sh:ro
+         - ./patient-service/debezium:/connectors/patient-service:ro
+      networks:
+         - kafka-net
 
    #Servicios Spring Boot
    patient-service:
@@ -561,10 +643,14 @@ volumes:
    clients_data:
    redis_data:
    redis_insight_data:
+   kafka_data:
 
 networks:
    clinica-net:
       driver: bridge
    patient-data:
+      driver: bridge
+      internal: true
+   kafka-net:
       driver: bridge
       internal: true

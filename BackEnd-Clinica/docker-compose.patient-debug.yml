@@ -4,7 +4,7 @@ services:
          - "127.0.0.1:3307:3306"
       networks:
          - patient-data
-         - patient-debug
+         - debug-net
 
    patient-service:
       ports:
@@ -12,6 +12,31 @@ services:
       environment:
          - SWAGGER_UI_ENABLED=true
 
+   kafka-connect:
+      ports:
+         - "127.0.0.1:8083:8083"
+      networks:
+         - kafka-net
+         - patient-data
+         - debug-net
+
+   kafka-ui:
+      image: ghcr.io/kafbat/kafka-ui:v1.5.0
+      container_name: kafka-ui
+      depends_on:
+         kafka:
+            condition: service_healthy
+      environment:
+         KAFKA_CLUSTERS_0_NAME: clinica
+         KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+         KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: debezium
+         KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8083
+      ports:
+         - "127.0.0.1:8090:8080"
+      networks:
+         - kafka-net
+         - debug-net
+
 networks:
-   patient-debug:
+   debug-net:
       driver: bridge
