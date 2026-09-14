@@ -32,14 +32,31 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/clinica-p
 export JWT_PUBLIC_KEY=$(openssl pkey -in /tmp/clinica-private.pem -pubout | grep -v '^-----' | tr -d '\n')
 sh platform/clinical-keys/generate-dev-keys.sh          # escribe en ./.secrets/clinical
 
-# 2. Stack (exporta antes las variables de docs/variablesDeEntorno.md)
+# 2. Stack: OpenBao genera las credenciales; solo hacen falta nombres de bases e ids de claves
+export PATIENT_DB_NAME=patient_db CLINICAL_DB_NAME=clinical_db
+export CLINICAL_SEAL_ACTIVE_KEY_ID=seal-dev CLINICAL_ENCRYPTION_ACTIVE_KEY_ID=master-dev
 docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml \
   up -d --build patient-service clinical-history-service kafka-connect-init
 
-# 3. Prueba
+# 3. Pruebas
 COMPOSE_PROJECT=clinical-e2e JWT_PRIVATE_KEY=/tmp/clinica-private.pem \
   sh platform/e2e/clinical-e2e.sh
+COMPOSE_PROJECT=clinical-e2e JWT_PRIVATE_KEY=/tmp/clinica-private.pem \
+  sh platform/e2e/openbao-e2e.sh
 ```
+
+## Prueba de OpenBao
+
+`openbao-e2e.sh` corre sobre el mismo stack y detiene nodos a propósito:
+
+| Paso                         | Qué demuestra                                                            |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| Clúster                      | Tres nodos desellados, raft con tres votantes y un nodo activo           |
+| Políticas                    | Cada AppRole lee solo sus rutas; el agente de infraestructura no escribe |
+| Configuración de contenedores | Ninguna contraseña ni clave aparece en `docker inspect`                 |
+| Conmutación                  | Cae el nodo activo, otro asume, los logins siguen y una réplica de `patient-service` arranca; el nodo vuelve desellado solo |
+| Aislamiento                  | Con los tres nodos caídos `patient-service` sigue registrando pacientes y el clúster se recupera sin intervención |
+| Auditoría                    | Los logins AppRole quedan en el registro de auditoría                    |
 
 El script descubre los puertos publicados con `docker compose port`; si el stack corre en otra parte,
 define `PATIENT_URL` y `CLINICAL_URL`. Para que la epicrisis se firme con diagnóstico hay que importar
