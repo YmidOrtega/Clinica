@@ -203,7 +203,9 @@ openbao-3 ┘        ▲                         ▲
 | `openbao-agent`     | Renderiza en volúmenes dedicados los secretos de los contenedores que no son Spring     |
 
 Los servicios Spring leen sus secretos **una vez al arrancar**: si OpenBao cae después, siguen
-funcionando; solo falla el arranque de instancias nuevas mientras no haya nodo activo. Cada consumidor
+funcionando; solo falla el arranque de instancias nuevas mientras no haya nodo activo. La excepción es
+el motor transit, que `clinical-history-service` usa en cada firma y al abrir la clave de un paciente
+fuera de caché (sección 4.2). Cada consumidor
 tiene su propia política y solo lee sus rutas. Operación, rotación y recuperación en
 `BackEnd-Clinica/platform/openbao/README.md`.
 
@@ -221,8 +223,9 @@ infrastructure/web          EncounterController, NoteController, AttachmentContr
                             PatientChartController, IntegrityController, RecordCopyController,
                             TerminologyController, CareAccessController, EncryptionAdminController
 infrastructure/persistence  notas, atenciones, listas vivas, cadena de integridad, outbox
-infrastructure/signature    firma SHA-256 del contenido canónico + sello ECDSA P-256
-infrastructure/encryption   envelope encryption AES-GCM (DEK por paciente, KEK fuera de la base)
+infrastructure/signature    firma SHA-256 del contenido canónico + sello ECDSA P-256 en transit
+infrastructure/encryption   envelope encryption AES-GCM (DEK por paciente, KEK en transit)
+infrastructure/transit      cliente del motor transit de OpenBao (cifrar, descifrar, firmar, versiones)
 infrastructure/attachments  cliente S3 (AWS SDK v2) sobre almacenamiento con Object Lock
 infrastructure/terminology  importador CIE-10 (.xlsx con StAX, idempotente por SHA-256)
 infrastructure/messaging    consumidor de patient.events.v1, copia local, DLT
@@ -242,15 +245,17 @@ se borran y cuyo cambio siempre nace de una nota firmada. El usuario `clinical_a
 borradores.
 
 **Firma e integridad.** Al firmar se calcula el SHA-256 de un JSON canónico (claves ordenadas, sin
-nulos, `formatVersion 1`), se sella con una clave ECDSA P-256 que vive fuera de la base y se
-encadena en `clinical_ledger.chain_links`: apertura de atención, nota, anulación y cierre entran en
+nulos, `formatVersion 1`), se sella con la clave ECDSA P-256 `clinical-seal` del motor transit de
+OpenBao, que nunca sale de él, y se encadena en `clinical_ledger.chain_links`: apertura de atención, nota, anulación y cierre entran en
 una cadena por paciente. `GET /patients/{uuid}/integrity` recalcula la cadena completa sin exponer
 contenido clínico. Firmar exige un token emitido hace menos de 15 minutos (`403
 RECENT_AUTHENTICATION_REQUIRED`).
 
-**Cifrado.** Todo el contenido narrativo se cifra con AES-GCM usando una DEK por paciente envuelta
-por una clave maestra en disco (`CLINICAL_ENCRYPTION_KEYS_LOCATION`); el AAD incluye el propósito y
-el identificador del registro, de modo que un bloque cifrado no se puede mover de sitio. La base
+**Cifrado.** Todo el contenido narrativo se cifra con AES-GCM usando una DEK por paciente que transit
+envuelve con la clave `clinical-kek`; el AAD incluye el propósito y el identificador del registro, de
+modo que un bloque cifrado no se puede mover de sitio, y la envoltura queda atada al paciente. Sin
+OpenBao se sigue leyendo lo que está en caché y se verifica la integridad; firmar y abrir pacientes
+nuevos responde `503 CLINICAL_KEYS_UNAVAILABLE`. La base
 añade cifrado InnoDB con `component_keyring_file`, redo, undo y binlog cifrados. El hash de la
 cadena se calcula sobre el texto en claro, así que rotar claves no rompe la integridad.
 
