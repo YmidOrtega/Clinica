@@ -1,4 +1,132 @@
 services:
+   # Secretos
+
+   openbao-bootstrap:
+      build: ./platform/openbao
+      image: clinica/openbao-tools:2.6.2
+      container_name: openbao-bootstrap
+      restart: "no"
+      user: root
+      entrypoint: ["sh", "/scripts/bootstrap.sh"]
+      network_mode: none
+      volumes:
+         - ./platform/openbao/scripts:/scripts:ro
+         - openbao_seal:/openbao/seal
+         - openbao_tls:/openbao/tls
+         - openbao_bootstrap:/openbao/bootstrap
+
+   openbao-1: &openbao-node
+      image: openbao/openbao:2.6.2
+      container_name: openbao-1
+      hostname: openbao-1
+      restart: always
+      command: ["server"]
+      depends_on:
+         openbao-bootstrap:
+            condition: service_completed_successfully
+      environment: &openbao-node-environment
+         BAO_RAFT_NODE_ID: openbao-1
+         BAO_API_ADDR: https://openbao-1:8200
+         BAO_CLUSTER_ADDR: https://openbao-1:8201
+         BAO_ADDR: https://127.0.0.1:8200
+         BAO_CACERT: /openbao/tls/ca.crt
+      volumes:
+         - ./platform/openbao/openbao.hcl:/openbao/config/openbao.hcl:ro
+         - openbao_tls:/openbao/tls:ro
+         - openbao_seal:/openbao/seal:ro
+         - openbao_1_data:/openbao/file
+         - openbao_1_audit:/openbao/logs
+      networks:
+         secrets-net:
+            aliases:
+               - openbao
+      healthcheck:
+         test: ["CMD", "bao", "status"]
+         interval: 10s
+         timeout: 5s
+         retries: 12
+         start_period: 10s
+
+   openbao-2:
+      <<: *openbao-node
+      container_name: openbao-2
+      hostname: openbao-2
+      environment:
+         <<: *openbao-node-environment
+         BAO_RAFT_NODE_ID: openbao-2
+         BAO_API_ADDR: https://openbao-2:8200
+         BAO_CLUSTER_ADDR: https://openbao-2:8201
+      volumes:
+         - ./platform/openbao/openbao.hcl:/openbao/config/openbao.hcl:ro
+         - openbao_tls:/openbao/tls:ro
+         - openbao_seal:/openbao/seal:ro
+         - openbao_2_data:/openbao/file
+         - openbao_2_audit:/openbao/logs
+
+   openbao-3:
+      <<: *openbao-node
+      container_name: openbao-3
+      hostname: openbao-3
+      environment:
+         <<: *openbao-node-environment
+         BAO_RAFT_NODE_ID: openbao-3
+         BAO_API_ADDR: https://openbao-3:8200
+         BAO_CLUSTER_ADDR: https://openbao-3:8201
+      volumes:
+         - ./platform/openbao/openbao.hcl:/openbao/config/openbao.hcl:ro
+         - openbao_tls:/openbao/tls:ro
+         - openbao_seal:/openbao/seal:ro
+         - openbao_3_data:/openbao/file
+         - openbao_3_audit:/openbao/logs
+
+   openbao-init:
+      image: clinica/openbao-tools:2.6.2
+      container_name: openbao-init
+      restart: "no"
+      user: root
+      entrypoint: ["sh", "/scripts/configure.sh"]
+      depends_on:
+         openbao-1:
+            condition: service_started
+         openbao-2:
+            condition: service_started
+         openbao-3:
+            condition: service_started
+      volumes:
+         - ./platform/openbao/scripts:/scripts:ro
+         - ./platform/openbao/policies:/openbao/policies:ro
+         - openbao_tls:/openbao/tls:ro
+         - openbao_bootstrap:/openbao/bootstrap
+         - openbao_approle_patient:/openbao/approle/patient-service
+         - openbao_approle_clinical:/openbao/approle/clinical-history-service
+         - openbao_approle_agent:/openbao/approle/infra-agent
+      networks:
+         - secrets-net
+
+   openbao-agent:
+      image: clinica/openbao-tools:2.6.2
+      container_name: openbao-agent
+      restart: always
+      command: ["agent", "-config=/openbao/config/agent.hcl"]
+      depends_on:
+         openbao-init:
+            condition: service_completed_successfully
+      volumes:
+         - ./platform/openbao/agent.hcl:/openbao/config/agent.hcl:ro
+         - openbao_tls:/openbao/tls:ro
+         - openbao_approle_agent:/openbao/approle:ro
+         - patient_db_secrets:/rendered/patient-db
+         - clinical_db_secrets:/rendered/clinical-db
+         - clinical_storage_secrets:/rendered/clinical-storage
+         - kafka_connect_secrets:/rendered/kafka-connect
+      networks:
+         - secrets-net
+      healthcheck:
+         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password; do test -s /rendered/$$f || exit 1; done"]
+         interval: 5s
+         timeout: 3s
+         retries: 24
+
    # Bases de datos
 
    # Base de datos para pacientes
@@ -747,6 +875,22 @@ services:
 
 # Volúmenes para persistencia de datos
 volumes:
+   openbao_seal:
+   openbao_tls:
+   openbao_bootstrap:
+   openbao_1_data:
+   openbao_2_data:
+   openbao_3_data:
+   openbao_1_audit:
+   openbao_2_audit:
+   openbao_3_audit:
+   openbao_approle_patient:
+   openbao_approle_clinical:
+   openbao_approle_agent:
+   patient_db_secrets:
+   clinical_db_secrets:
+   clinical_storage_secrets:
+   kafka_connect_secrets:
    gateway_data:
    patient_data:
    billing_data:
@@ -772,5 +916,8 @@ networks:
       driver: bridge
       internal: true
    kafka-net:
+      driver: bridge
+      internal: true
+   secrets-net:
       driver: bridge
       internal: true
