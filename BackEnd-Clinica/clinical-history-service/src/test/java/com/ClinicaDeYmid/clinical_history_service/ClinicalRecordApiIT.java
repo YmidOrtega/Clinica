@@ -1,9 +1,16 @@
 package com.ClinicaDeYmid.clinical_history_service;
 
+import com.ClinicaDeYmid.clinical_history_service.application.encounter.EncounterCommands;
+import com.ClinicaDeYmid.clinical_history_service.application.integrity.IntegrityQueries;
+import com.ClinicaDeYmid.clinical_history_service.domain.clinician.ClinicalRole;
+import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
+import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
+import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.TestJwt;
+import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
@@ -14,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,11 +31,18 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.IntStream;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
@@ -61,6 +76,14 @@ class ClinicalRecordApiIT {
     @Autowired
     private PatientReferences patients;
 
+    @Autowired
+    private JdbcTemplate rootJdbc;
+
+    @Autowired
+    private EncounterCommands encounterCommands;
+
+    @Autowired
+    private IntegrityQueries integrityQueries;
 
     private final Staff nurse = new Staff("NURSE");
     private final Staff doctor = new Staff("DOCTOR");
@@ -72,6 +95,8 @@ class ClinicalRecordApiIT {
         registry.add("clinica.clinical.patient-events.enabled", () -> false);
         registry.add("spring.kafka.admin.auto-create", () -> false);
         registry.add("clinica.security.jwt.public-key", TestJwt::publicKeyBase64);
+        registry.add("clinica.clinical.seal.keys-location", TestSealKeys::directory);
+        registry.add("clinica.clinical.seal.active-key-id", () -> TestSealKeys.ACTIVE_KEY_ID);
         registry.add("eureka.client.enabled", () -> false);
     }
 
@@ -120,7 +145,7 @@ class ClinicalRecordApiIT {
     }
 
     @Test
-    void signingNeedsARecentSession() throws Exception {
+    void signingNeedsARecentSessionAndLeavesAVerifiableSeal() throws Exception {
         String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
         String draft = startDraft(nurse, encounter, TRIAGE);
 
@@ -131,6 +156,71 @@ class ClinicalRecordApiIT {
         nurse.perform(post(BASE + "/drafts/" + draft + "/signature").header(HttpHeaders.IF_MATCH, "\"0\""))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.author.email").value("nurse@clinica.test"));
+
+        doctor.perform(get(BASE + "/notes/" + draft + "/signature"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verified").value(true))
+                .andExpect(jsonPath("$.signer.uuid").value(nurse.uuid.toString()))
+                .andExpect(jsonPath("$.chain.sequence").value(2))
+                .andExpect(jsonPath("$.chain.seal.algorithm").value("SHA256withECDSA"))
+                .andExpect(jsonPath("$.chain.seal.keyId").value(TestSealKeys.ACTIVE_KEY_ID));
+        mockMvc.perform(get(BASE + "/seal-keys"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].keyId").value(TestSealKeys.ACTIVE_KEY_ID))
+                .andExpect(jsonPath("$[0].active").value(true));
+    }
+
+    @Test
+    void integrityVerificationDetectsTamperingOutsideTheApplication() throws Exception {
+        UUID patient = activePatient();
+        String encounter = openEncounter(nurse, patient, "EMERGENCY");
+        String triage = signedNote(nurse, encounter, TRIAGE);
+        String nursing = signedNote(nurse, encounter, """
+                {"content": {"type": "NURSING", "observations": "Paciente agitado", "careProvided": "Contención verbal"}}""");
+        nurse.perform(post(BASE + "/notes/" + nursing + "/void").content("{\"reason\": \"Paciente equivocado\"}"))
+                .andExpect(status().isOk());
+
+        new Staff("MEDICAL_RECORDS").perform(get(BASE + "/patients/" + patient + "/integrity"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verified").value(true))
+                .andExpect(jsonPath("$.chains[0].entries").value(4))
+                .andExpect(jsonPath("$.chains[0].head.sequence").value(4))
+                .andExpect(jsonPath("$.chains[0].problems", hasSize(0)));
+        new Staff("RECEPTIONIST").perform(get(BASE + "/patients/" + patient + "/integrity"))
+                .andExpect(status().isForbidden());
+
+        rootJdbc.update("UPDATE clinical_ledger.notes SET content = JSON_SET(content, '$.level', 'V') WHERE id = ?", triage);
+        rootJdbc.update("DELETE FROM clinical_ledger.note_voids WHERE note_id = ?", nursing);
+
+        new Staff("ADMIN").perform(get(BASE + "/patients/" + patient + "/integrity"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verified").value(false))
+                .andExpect(jsonPath("$.chains[0].problems[*].kind", contains("PAYLOAD_MISMATCH", "MISSING_ENTRY")))
+                .andExpect(jsonPath("$.chains[0].problems[0].entryId").value(triage))
+                .andExpect(jsonPath("$.chains[0].problems[1].entryType").value("NOTE_VOIDED"));
+        doctor.perform(get(BASE + "/notes/" + triage + "/signature"))
+                .andExpect(jsonPath("$.verified").value(false))
+                .andExpect(jsonPath("$.problems", contains("PAYLOAD_MISMATCH")));
+    }
+
+    @Test
+    void concurrentWritesForOnePatientKeepASingleUnbrokenChain() throws Exception {
+        UUID patient = activePatient();
+        Clinician clinician = new Clinician(doctor.uuid, ClinicalRole.DOCTOR);
+        List<Callable<Encounter>> openings = IntStream.range(0, 12)
+                .<Callable<Encounter>>mapToObj(i -> () -> encounterCommands.open(patient, EncounterType.OUTPATIENT, null, clinician))
+                .toList();
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (Future<Encounter> opening : executor.invokeAll(openings)) {
+                opening.get();
+            }
+        }
+
+        assertThat(integrityQueries.verifyPatient(patient)).singleElement().satisfies(chain -> {
+            assertThat(chain.verified()).isTrue();
+            assertThat(chain.entries()).isEqualTo(12);
+        });
     }
 
     @Test

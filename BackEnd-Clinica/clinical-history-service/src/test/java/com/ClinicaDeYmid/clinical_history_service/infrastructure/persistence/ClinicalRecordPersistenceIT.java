@@ -5,6 +5,9 @@ import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterClosure;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterStatus;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
+import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainLink;
+import com.ClinicaDeYmid.clinical_history_service.domain.integrity.EntryType;
+import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteContent;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteDraft;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
@@ -22,10 +25,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static com.ClinicaDeYmid.clinical_history_service.domain.ClinicalFixtures.discharge;
@@ -37,8 +42,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({JdbcPatientReferences.class, JdbcEncounters.class, JdbcClinicalNotes.class, JdbcNoteDrafts.class, ClockConfiguration.class,
-        MySqlTestContainer.class})
+@Import({JdbcPatientReferences.class, JdbcEncounters.class, JdbcClinicalNotes.class, JdbcNoteDrafts.class, JdbcChainLinks.class,
+        JdbcLedgerEntries.class, ClockConfiguration.class, MySqlTestContainer.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ClinicalRecordPersistenceIT {
 
@@ -57,12 +62,22 @@ class ClinicalRecordPersistenceIT {
     private JdbcNoteDrafts drafts;
 
     @Autowired
+    private TransactionTemplate transactions;
+
+    @Autowired
+    private JdbcChainLinks chainLinks;
+
+    @Autowired
+    private JdbcLedgerEntries ledgerEntries;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     private UUID patient;
 
     @BeforeEach
     void clean() {
+        jdbc.update("DELETE FROM clinical_ledger.chain_links");
         jdbc.update("DELETE FROM clinical_workspace.note_drafts");
         jdbc.update("DELETE FROM clinical_ledger.note_voids");
         jdbc.update("DELETE FROM clinical_ledger.notes WHERE amends_note_id IS NOT NULL");
@@ -151,6 +166,47 @@ class ClinicalRecordPersistenceIT {
     }
 
     @Test
+    void rebuildsEveryLedgerEntryOfAPatientFromTheStoredRows() {
+        Encounter encounter = encounter(EncounterType.OUTPATIENT, OPENED_AT);
+        encounters.add(encounter);
+        SignedNote evolution = note(encounter, doctor(), progress(), 1);
+        notes.append(evolution);
+        NoteVoid voiding = new NoteVoid(evolution.id(), "Error", evolution.author(), OPENED_AT.plusSeconds(600));
+        notes.addVoid(voiding);
+        EncounterClosure closure = new EncounterClosure(encounter.id(), OPENED_AT.plusSeconds(900), doctor());
+        encounters.close(closure);
+
+        assertThat(ledgerEntries.recordedFor(patient)).containsExactly(
+                new LedgerEntry.EncounterOpened(encounters.find(encounter.id()).orElseThrow()),
+                new LedgerEntry.EncounterClosed(patient, closure),
+                new LedgerEntry.NoteSigned(patient, evolution),
+                new LedgerEntry.NoteVoided(patient, voiding));
+        assertThat(ledgerEntries.recordedFor(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void appendsChainLinksAndFindsTheHeadUnderLock() {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        ChainLink genesis = link(1, EntryType.ENCOUNTER_OPENED, first, ChainLink.GENESIS_HASH, "a".repeat(64));
+        ChainLink next = link(2, EntryType.NOTE_SIGNED, second, "a".repeat(64), "b".repeat(64));
+
+        assertThat(lockHead(patient)).isEmpty();
+        chainLinks.append(genesis);
+        chainLinks.append(next);
+
+        assertThat(lockHead(patient)).contains(next);
+        assertThat(chainLinks.chainOf(patient)).containsExactly(genesis, next);
+        assertThat(chainLinks.linkOf(new LedgerEntry.Key(EntryType.NOTE_SIGNED, second))).contains(next);
+        assertThatThrownBy(() -> chainLinks.append(link(3, EntryType.NOTE_SIGNED, second, "b".repeat(64), "c".repeat(64))))
+                .hasMessageContaining("uk_chain_links_entry");
+        assertThatThrownBy(() -> chainLinks.append(link(3, EntryType.NOTE_VOIDED, second, "a".repeat(64), "c".repeat(64))))
+                .hasMessageContaining("uk_chain_links_previous_hash");
+        assertThatThrownBy(() -> lockHead(UUID.randomUUID()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     void databaseRejectsContentThatContradictsTheNoteType() {
         Encounter encounter = encounter(EncounterType.EMERGENCY, OPENED_AT);
         encounters.add(encounter);
@@ -164,6 +220,15 @@ class ClinicalRecordPersistenceIT {
                 INSERT INTO clinical_ledger.encounters (id, patient_uuid, type, opened_at, opened_by, opened_by_role)
                 VALUES (?, ?, 'EMERGENCY', NOW(6), UUID(), 'DOCTOR')""", UUID.randomUUID().toString(), UUID.randomUUID().toString()))
                 .hasMessageContaining("fk_encounters_patient");
+    }
+
+    private Optional<ChainLink> lockHead(UUID patientUuid) {
+        return transactions.execute(status -> chainLinks.lockHead(patientUuid));
+    }
+
+    private ChainLink link(long sequence, EntryType type, UUID entryId, String previousHash, String entryHash) {
+        return new ChainLink(patient, sequence, type, entryId, 1, "d".repeat(64), previousHash, entryHash, "seal-2026", "c2VhbA==",
+                OPENED_AT.plusSeconds(sequence));
     }
 
     private Encounter encounter(EncounterType type, Instant openedAt) {
