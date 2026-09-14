@@ -27,14 +27,12 @@ Requisitos: Docker, Node.js (para firmar tokens), `jq` y `curl`.
 ```bash
 cd BackEnd-Clinica
 
-# 1. Claves: RSA para los tokens y las claves de sello y cifrado del servicio
+# 1. Clave RSA para firmar los tokens de prueba
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/clinica-private.pem
 export JWT_PUBLIC_KEY=$(openssl pkey -in /tmp/clinica-private.pem -pubout | grep -v '^-----' | tr -d '\n')
-sh platform/clinical-keys/generate-dev-keys.sh          # escribe en ./.secrets/clinical
 
-# 2. Stack: OpenBao genera las credenciales; solo hacen falta nombres de bases e ids de claves
+# 2. Stack: OpenBao genera las credenciales y las claves de transit; solo hacen falta los nombres de las bases
 export PATIENT_DB_NAME=patient_db CLINICAL_DB_NAME=clinical_db
-export CLINICAL_SEAL_ACTIVE_KEY_ID=seal-dev CLINICAL_ENCRYPTION_ACTIVE_KEY_ID=master-dev
 docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml \
   up -d --build patient-service clinical-history-service kafka-connect-init
 
@@ -63,6 +61,6 @@ define `PATIENT_URL` y `CLINICAL_URL`. Para que la epicrisis se firme con diagn�
 y activar antes una versión del catálogo CIE-10 (`clinical-history-service/docs/catalogo-cie10.md`);
 sin catálogo el script toma la rama alterna y comprueba que la epicrisis se rechaza.
 
-Las claves de desarrollo que genera `generate-dev-keys.sh` no sirven para producción, y si se pierden
-el contenido clínico cifrado con ellas queda ilegible: en un entorno real viven en un gestor de
-secretos y se respaldan (`clinical-history-service/docs/claves-y-cifrado.md`).
+Las claves de cifrado y sello de la historia clínica viven en transit dentro del clúster OpenBao del
+stack: `docker compose down -v` las destruye junto con los datos que protegen
+(`clinical-history-service/docs/claves-y-cifrado.md`).

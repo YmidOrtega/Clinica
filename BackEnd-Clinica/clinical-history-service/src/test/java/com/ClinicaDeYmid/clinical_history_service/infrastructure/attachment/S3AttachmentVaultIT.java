@@ -5,9 +5,10 @@ import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.config.ClockConfiguration;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.EncryptedContentUnreadableException;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.EncryptionConfiguration;
-import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitConfiguration;
 import com.ClinicaDeYmid.clinical_history_service.support.MinioTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
+import com.ClinicaDeYmid.clinical_history_service.support.OpenBaoTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.SampleFiles;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({S3AttachmentVault.class, AttachmentStorageConfiguration.class, EncryptionConfiguration.class, ClockConfiguration.class,
+@Import({S3AttachmentVault.class, AttachmentStorageConfiguration.class, EncryptionConfiguration.class, TransitConfiguration.class, OpenBaoTestContainer.class, ClockConfiguration.class,
         MySqlTestContainer.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class S3AttachmentVaultIT {
@@ -51,7 +52,6 @@ class S3AttachmentVaultIT {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        ClinicalTestProperties.encryption(registry);
         MinioTestContainer.register(registry, STAGING, ARCHIVE);
     }
 

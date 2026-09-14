@@ -15,12 +15,11 @@ import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferenc
 import com.ClinicaDeYmid.clinical_history_service.support.AccessAuditContract;
 import com.ClinicaDeYmid.clinical_history_service.support.Cie10WorkbookFixture;
 import com.ClinicaDeYmid.clinical_history_service.support.MinioTestContainer;
+import com.ClinicaDeYmid.clinical_history_service.support.OpenBaoTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.SampleFiles;
 import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
-import com.ClinicaDeYmid.clinical_history_service.support.TestEncryptionKeys;
 import com.ClinicaDeYmid.clinical_history_service.support.TestJwt;
-import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -205,10 +204,10 @@ class ClinicalRecordApiIT {
                 .andExpect(jsonPath("$.signer.uuid").value(nurse.uuid.toString()))
                 .andExpect(jsonPath("$.chain.sequence").value(2))
                 .andExpect(jsonPath("$.chain.seal.algorithm").value("SHA256withECDSA"))
-                .andExpect(jsonPath("$.chain.seal.keyId").value(TestSealKeys.ACTIVE_KEY_ID));
+                .andExpect(jsonPath("$.chain.seal.keyId").value(OpenBaoTestContainer.SEAL_KEY_ID));
         mockMvc.perform(get(BASE + "/seal-keys"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].keyId").value(TestSealKeys.ACTIVE_KEY_ID))
+                .andExpect(jsonPath("$[0].keyId").value(OpenBaoTestContainer.SEAL_KEY_ID))
                 .andExpect(jsonPath("$[0].active").value(true));
     }
 
@@ -605,7 +604,7 @@ class ClinicalRecordApiIT {
         new Staff("ADMIN").perform(post(BASE + "/admin/encryption/rewrap")).andExpect(status().isForbidden());
         new Staff("SUPER_ADMIN").perform(get(BASE + "/admin/encryption"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.activeMasterKeyId").value(TestEncryptionKeys.ACTIVE_KEY_ID))
+                .andExpect(jsonPath("$.activeMasterKeyId").value(OpenBaoTestContainer.ENCRYPTION_KEY_ID))
                 .andExpect(jsonPath("$.pendingRewrap").value(0))
                 .andExpect(jsonPath("$.retiredKeysCanBeRemoved").value(true));
         new Staff("SUPER_ADMIN").perform(post(BASE + "/admin/encryption/rewrap"))

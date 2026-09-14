@@ -78,12 +78,13 @@ clinica:
       archive-bucket: ${CLINICAL_ATTACHMENTS_ARCHIVE_BUCKET:clinical-attachments}
       retention-after-last-care: P15Y
       create-buckets: ${CLINICAL_ATTACHMENTS_CREATE_BUCKETS:false}
+    transit:
+      mount: ${CLINICAL_TRANSIT_MOUNT:transit}
+      key-refresh-interval: 5m
     encryption:
-      keys-location: ${CLINICAL_ENCRYPTION_KEYS_LOCATION:}
-      active-key-id: ${CLINICAL_ENCRYPTION_ACTIVE_KEY_ID:}
+      transit-key: ${CLINICAL_ENCRYPTION_TRANSIT_KEY:clinical-kek}
     seal:
-      keys-location: ${CLINICAL_SEAL_KEYS_LOCATION:}
-      active-key-id: ${CLINICAL_SEAL_ACTIVE_KEY_ID:}
+      transit-key: ${CLINICAL_SEAL_TRANSIT_KEY:clinical-seal}
   security:
     jwt:
       public-key: ${JWT_PUBLIC_KEY:}
@@ -148,6 +149,8 @@ spring:
       - vault://secret/clinical/db/migrator?prefix=clinical.db.migrator.
       - vault://secret/clinical/db/app?prefix=clinical.db.app.
       - vault://secret/clinical/storage/attachments?prefix=clinical.storage.attachments.
+      - optional:vault://secret/clinical/retired-master-keys?prefix=clinica.clinical.encryption.retired-master-keys.
+      - optional:vault://secret/clinical/retired-seal-keys?prefix=clinica.clinical.seal.retired-public-keys.
   cloud:
     vault:
       enabled: true

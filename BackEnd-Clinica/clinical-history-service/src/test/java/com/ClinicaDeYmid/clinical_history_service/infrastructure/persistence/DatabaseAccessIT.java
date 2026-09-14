@@ -18,6 +18,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
 
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import static com.ClinicaDeYmid.clinical_history_service.support.SecretFiles.withSecretFiles;
@@ -198,12 +199,16 @@ class DatabaseAccessIT {
 
     @Test
     void applicationUserAddsWrappingsWhenMasterKeysRotate() {
-        app.update("""
+        String insert = """
                 INSERT INTO clinical_keys.data_key_wrappings (data_key_id, master_key_id, wrapped_key, created_at)
-                VALUES (?, 'master-2027', RANDOM_BYTES(61), NOW(6))""", DATA_KEY);
+                VALUES (?, ?, ?, NOW(6))""";
+        app.update(insert, DATA_KEY, "master-2027", new byte[61]);
+        app.update(insert, DATA_KEY, "clinical-kek-v1", ("vault:v1:" + "A".repeat(80)).getBytes(StandardCharsets.US_ASCII));
 
         assertThat(app.queryForObject("SELECT COUNT(*) FROM clinical_keys.data_key_wrappings WHERE data_key_id = ?", Long.class, DATA_KEY))
-                .isEqualTo(2);
+                .isEqualTo(3);
+        assertThatThrownBy(() -> app.update(insert, DATA_KEY, "clinical-kek-v2", new byte[89]))
+                .hasMessageContaining("chk_data_key_wrappings_length");
     }
 
     @ParameterizedTest

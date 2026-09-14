@@ -11,6 +11,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -90,12 +91,14 @@ public class ContentEncryption {
     }
 
     public Status status() {
+        masterKeys.refresh();
         String active = masterKeys.activeKeyId();
         return new Status(active, masterKeys.availableKeyIds(), store.countDataKeys(), store.countNotWrappedBy(active),
                 store.wrappingsPerMasterKey());
     }
 
     public long rewrapWithActiveMasterKey() {
+        masterKeys.refresh();
         String active = masterKeys.activeKeyId();
         long rewrapped = 0;
         while (true) {
@@ -116,7 +119,11 @@ public class ContentEncryption {
             DataKeyStore.Wrapping source = readableWrapping(dataKeyId);
             byte[] raw = unwrap(source);
             try {
-                store.insertWrapping(dataKeyId, active, masterKeys.wrap(dataKeyId, source.patientUuid(), raw), now);
+                MasterKeys.Wrapping wrapping = masterKeys.wrap(dataKeyId, source.patientUuid(), raw);
+                if (!wrapping.masterKeyId().equals(active)) {
+                    throw new IllegalStateException("The active master key changed during the rewrap; run it again");
+                }
+                store.insertWrapping(dataKeyId, wrapping.masterKeyId(), wrapping.wrappedKey(), now);
             } finally {
                 Arrays.fill(raw, (byte) 0);
             }
@@ -145,7 +152,8 @@ public class ContentEncryption {
         }
         byte[] raw = AesGcm.randomKey();
         try {
-            store.insertWrapping(dataKeyId, masterKeys.activeKeyId(), masterKeys.wrap(dataKeyId, patientUuid, raw), now);
+            MasterKeys.Wrapping wrapping = masterKeys.wrap(dataKeyId, patientUuid, raw);
+            store.insertWrapping(dataKeyId, wrapping.masterKeyId(), wrapping.wrappedKey(), now);
             SecretKey key = new SecretKeySpec(raw, "AES");
             afterCommit(() -> {
                 dataKeys.put(dataKeyId, key);
@@ -199,7 +207,7 @@ public class ContentEncryption {
         });
     }
 
-    private static String associatedData(Purpose purpose, UUID recordId, UUID dataKeyId) {
-        return "clinica.clinical.content/v1|" + purpose + "|" + recordId + "|" + dataKeyId;
+    private static byte[] associatedData(Purpose purpose, UUID recordId, UUID dataKeyId) {
+        return ("clinica.clinical.content/v1|" + purpose + "|" + recordId + "|" + dataKeyId).getBytes(StandardCharsets.UTF_8);
     }
 }
