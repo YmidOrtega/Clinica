@@ -50,12 +50,21 @@ PATIENT_DB_MIGRATOR_USER=patient_migrator
 PATIENT_DB_MIGRATOR_PASSWORD=MigratorSecure123!
 PATIENT_DB_APP_USER=patient_app
 PATIENT_DB_APP_PASSWORD=PatientAppSecure123!
+PATIENT_DB_DEBEZIUM_USER=patient_debezium
+PATIENT_DB_DEBEZIUM_PASSWORD=DebeziumSecure123!
 PATIENT_DB_URL=jdbc:mysql://localhost:3307/patient_db
 JWT_PUBLIC_KEY=MIIBIjANBgkqh...
 ```
 
+#### Plataforma de eventos
+```bash
+KAFKA_CLUSTER_ID=Q2xpbmljYUthZmthMDAwMQ   # opcional; identificador KRaft en Base64 de 16 bytes
+PATIENT_SERVICE_REPLICAS=2               # opcional; instancias de patient-service
+```
+
 `PATIENT_DB_MIGRATOR_*` solo lo usa Flyway; la aplicación se conecta con `PATIENT_DB_APP_*`, que no
-tiene permisos de `DELETE` ni de DDL. `JWT_PUBLIC_KEY` acepta la clave pública PEM completa o solo su
+tiene permisos de `DELETE` ni de DDL sobre el registro. `PATIENT_DB_DEBEZIUM_*` lo usa Kafka Connect
+para leer el outbox. `JWT_PUBLIC_KEY` acepta la clave pública PEM completa o solo su
 contenido en Base64. Opcionales: `PATIENT_DB_POOL_SIZE`, `EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`,
 `SWAGGER_UI_ENABLED`.
 

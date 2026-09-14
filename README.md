@@ -72,6 +72,7 @@ docker-compose ps
 - 🌐 **API Gateway**: http://localhost:8080
 - 🔍 **Eureka Dashboard**: http://localhost:8761
 - 📊 **Redis Insight**: http://localhost:8002
+- 📨 **Kafka UI** (debug override): http://127.0.0.1:8090
 - 📚 **Swagger UI**: http://localhost:{service-port}/swagger-ui.html
 
 ---
@@ -188,6 +189,7 @@ Clinica/
 - 🔍 **Netflix Eureka** (Service Discovery)
 - 🚪 **Spring Cloud Gateway** (API Gateway)
 - 🔴 **Redis 7** (Distributed Cache)
+- 📨 **Apache Kafka 4 (KRaft) + Debezium 3** (Transactional outbox and change data capture)
 - 🐳 **Docker & Docker Compose**
 - 📊 **Spring Boot Actuator** (Monitoring)
 

@@ -385,14 +385,31 @@ Las credenciales de base de datos y las claves RSA se inyectan vía variables de
 | Usuario            | Uso                         | Permisos                                              |
 | ------------------ | --------------------------- | ----------------------------------------------------- |
 | `patient_migrator` | Flyway, solo al arrancar    | DDL y DML sobre `patient_db`                          |
-| `patient_app`      | Conexiones de la aplicación | `SELECT`, `INSERT`, `UPDATE` (sin `DELETE`, DDL ni `GRANT`) |
+| `patient_app`      | Conexiones de la aplicación | `SELECT`, `INSERT`, `UPDATE` sobre pacientes (sin `DELETE`, DDL ni `GRANT`); `SELECT`, `INSERT`, `DELETE` solo en `patient_outbox` |
+| `patient_debezium` | Debezium (Kafka Connect)    | `SELECT` solo en `patient_outbox`; `REPLICATION SLAVE` y `REPLICATION CLIENT` |
 
 La base solo está en la red interna `patient-data`, compartida únicamente con `patient-service`, y no
 publica puertos (el archivo `docker-compose.patient-debug.yml` los abre en `127.0.0.1` para depurar).
 `DatabaseAccessIT` verifica con MySQL real que `patient_app` no puede borrar, alterar el esquema,
 crear triggers ni concederse permisos.
 
-### 7.2 Datos personales en respuestas y logs
+**Límite conocido de Debezium:** en MySQL el permiso de replicación es global, así que técnicamente
+permite leer el binlog de todo el servidor. Se mitiga con credenciales exclusivas, `kafka-connect` sin
+puertos publicados y solo en las redes que necesita, y porque el usuario no puede consultar tablas
+fuera del outbox. Para aislarlo por completo haría falta un servidor MySQL dedicado al outbox, lo que
+rompería la atomicidad de la transacción.
+
+### 7.2 Eventos y datos personales
+
+- Los eventos solo llevan los datos que necesitan los consumidores: documento, nombres, fecha de
+  nacimiento, sexo, estado y afiliación. Nunca contacto, residencia ni motivos de desactivación
+  (`PatientEventContractTest` lo verifica).
+- El outbox está en un esquema aparte (`patient_outbox`) para que Debezium no tenga acceso a las tablas
+  del registro, y sus filas se purgan a los 7 días.
+- Kafka corre en la red interna `kafka-net` sin puertos publicados. En producción debe añadirse TLS y
+  ACL por consumidor.
+
+### 7.3 Datos personales en respuestas y logs
 
 - Las búsquedas por documento o nombre usan `POST` para que esos datos no queden en URLs.
 - Los errores nunca repiten valores recibidos ni detalles de SQL; incluyen `code` y `traceId`.

@@ -128,6 +128,12 @@ están detrás de puertos.
 | Ediciones concurrentes                   | `@Version` + `If-Match` obligatorio (`412`/`428`)         |
 | Cambios sin trazabilidad                 | `createdBy`/`updatedBy` desde el JWT e historial con Envers |
 
+**Eventos para que los demás servicios no dependan de pacientes:** cada cambio del paciente que otros
+servicios necesitan se escribe en `patient_outbox.outbox_events` dentro de la misma transacción, y
+Debezium lo publica en el topic compactado `patient.events.v1`. `patient-service` no usa Kafka: si
+Kafka o Connect caen, sigue registrando y los eventos salen cuando vuelven. El contrato y las reglas
+para consumidores están en `patient-service/events/README.md`.
+
 **Resiliencia frente a `clients-service`:** timeout de 1 s de conexión y 2 s de lectura, circuit
 breaker, caché local de aseguradoras (5 min) y último valor conocido (24 h). Consultar un paciente
 nunca falla por culpa de `clients-service`; registrar con aseguradora responde `503` si no se puede
@@ -136,7 +142,31 @@ validar.
 **Sin caché de pacientes:** la prueba de carga con 500.000 pacientes a 5 veces el pico de una clínica
 de 5.000 pacientes diarios da p95 de 5 ms en lecturas (`patient-service/load-test/README.md`).
 
-### 4.1.1 Librerías compartidas (`libs/`)
+**Réplicas:** `docker-compose.yml` levanta dos instancias (`PATIENT_SERVICE_REPLICAS`) que Eureka
+balancea; no guardan estado en memoria salvo la caché local de aseguradoras.
+
+### 4.1.1 Plataforma de eventos (Kafka + Debezium)
+
+```
+patient-db (MySQL) ──binlog──►┐
+admissions-db (PostgreSQL) ──WAL──►  kafka-connect (Debezium) ──► kafka (KRaft) ──► consumidores
+<servicio>-db ────────────────►┘            ▲
+                                  kafka-connect-init registra los conectores de cada servicio
+```
+
+| Componente           | Imagen                                 | Rol                                                     |
+| -------------------- | -------------------------------------- | ------------------------------------------------------- |
+| `kafka`              | `apache/kafka:4.3.1` (KRaft, 1 nodo)   | Broker; creación automática de topics desactivada        |
+| `kafka-connect`      | `quay.io/debezium/connect:3.6.2.Final` | Un solo clúster Connect para todos los servicios         |
+| `kafka-connect-init` | `curlimages/curl`                      | Registra (idempotente) cada `*/debezium/*.json` y espera `RUNNING` |
+| `kafka-ui`           | `ghcr.io/kafbat/kafka-ui:v1.5.0`       | Solo en `docker-compose.patient-debug.yml` (`127.0.0.1:8090`) |
+
+Para que otro servicio publique eventos basta con: una tabla outbox en su base de datos, un usuario
+Debezium de solo lectura sobre esa tabla, su JSON de conector en `<servicio>/debezium/` y un volumen
+más en `kafka-connect-init`. Los secretos del conector se resuelven con `EnvVarConfigProvider`, nunca
+van en el JSON. Cada conector MySQL necesita un `database.server.id` único.
+
+### 4.1.2 Librerías compartidas (`libs/`)
 
 | Librería                    | Contenido                                                                 |
 | --------------------------- | ------------------------------------------------------------------------- |
