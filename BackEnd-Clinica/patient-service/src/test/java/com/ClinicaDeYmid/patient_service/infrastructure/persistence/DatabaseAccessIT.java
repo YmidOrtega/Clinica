@@ -16,6 +16,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
 
+import java.util.Map;
+
+import static com.ClinicaDeYmid.patient_service.support.SecretFiles.withSecretFiles;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -30,15 +33,15 @@ class DatabaseAccessIT {
     private static final String DEBEZIUM_PASSWORD = "debezium-test-secret";
 
     @Container
-    static final MySQLContainer<?> MYSQL = new MySQLContainer<>(MySqlTestContainer.IMAGE)
-            .withEnv("PATIENT_DB_MIGRATOR_USER", MIGRATOR)
-            .withEnv("PATIENT_DB_MIGRATOR_PASSWORD", MIGRATOR_PASSWORD)
-            .withEnv("PATIENT_DB_APP_USER", APP)
-            .withEnv("PATIENT_DB_APP_PASSWORD", APP_PASSWORD)
-            .withEnv("PATIENT_DB_DEBEZIUM_USER", DEBEZIUM)
-            .withEnv("PATIENT_DB_DEBEZIUM_PASSWORD", DEBEZIUM_PASSWORD)
+    static final MySQLContainer<?> MYSQL = withSecretFiles(new MySQLContainer<>(MySqlTestContainer.IMAGE)
             .withCopyFileToContainer(MountableFile.forHostPath("docker/mysql-init/01-create-users.sh", 0755),
-                    "/docker-entrypoint-initdb.d/01-create-users.sh");
+                    "/docker-entrypoint-initdb.d/01-create-users.sh"), Map.of(
+            "PATIENT_DB_MIGRATOR_USER", MIGRATOR,
+            "PATIENT_DB_MIGRATOR_PASSWORD", MIGRATOR_PASSWORD,
+            "PATIENT_DB_APP_USER", APP,
+            "PATIENT_DB_APP_PASSWORD", APP_PASSWORD,
+            "PATIENT_DB_DEBEZIUM_USER", DEBEZIUM,
+            "PATIENT_DB_DEBEZIUM_PASSWORD", DEBEZIUM_PASSWORD));
 
     private static JdbcTemplate app;
     private static JdbcTemplate debezium;

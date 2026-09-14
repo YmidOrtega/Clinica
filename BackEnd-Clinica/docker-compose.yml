@@ -134,22 +134,26 @@ services:
       image: mysql:8.0
       container_name: patient-db
       restart: always
+      depends_on:
+         openbao-agent:
+            condition: service_healthy
       environment:
-         MYSQL_ROOT_PASSWORD: ${PATIENT_DB_ROOT_PASSWORD}
+         MYSQL_ROOT_PASSWORD_FILE: /run/secrets/patient-db/root-password
          MYSQL_DATABASE: ${PATIENT_DB_NAME}
-         PATIENT_DB_MIGRATOR_USER: ${PATIENT_DB_MIGRATOR_USER}
-         PATIENT_DB_MIGRATOR_PASSWORD: ${PATIENT_DB_MIGRATOR_PASSWORD}
-         PATIENT_DB_APP_USER: ${PATIENT_DB_APP_USER}
-         PATIENT_DB_APP_PASSWORD: ${PATIENT_DB_APP_PASSWORD}
-         PATIENT_DB_DEBEZIUM_USER: ${PATIENT_DB_DEBEZIUM_USER}
-         PATIENT_DB_DEBEZIUM_PASSWORD: ${PATIENT_DB_DEBEZIUM_PASSWORD}
+         PATIENT_DB_MIGRATOR_USER_FILE: /run/secrets/patient-db/migrator-user
+         PATIENT_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/patient-db/migrator-password
+         PATIENT_DB_APP_USER_FILE: /run/secrets/patient-db/app-user
+         PATIENT_DB_APP_PASSWORD_FILE: /run/secrets/patient-db/app-password
+         PATIENT_DB_DEBEZIUM_USER_FILE: /run/secrets/patient-db/debezium-user
+         PATIENT_DB_DEBEZIUM_PASSWORD_FILE: /run/secrets/patient-db/debezium-password
       volumes:
          - patient_data:/var/lib/mysql
          - ./patient-service/docker/mysql-init:/docker-entrypoint-initdb.d:ro
+         - patient_db_secrets:/run/secrets/patient-db:ro
       networks:
          - patient-data
       healthcheck:
-         test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+         test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$(cat $$MYSQL_ROOT_PASSWORD_FILE)\" --silent"]
          interval: 10s
          timeout: 5s
          retries: 10
@@ -158,23 +162,27 @@ services:
       build: ./clinical-history-service/docker/mysql
       container_name: clinical-db
       restart: always
+      depends_on:
+         openbao-agent:
+            condition: service_healthy
       environment:
-         MYSQL_ROOT_PASSWORD: ${CLINICAL_DB_ROOT_PASSWORD}
+         MYSQL_ROOT_PASSWORD_FILE: /run/secrets/clinical-db/root-password
          MYSQL_DATABASE: ${CLINICAL_DB_NAME}
-         CLINICAL_DB_MIGRATOR_USER: ${CLINICAL_DB_MIGRATOR_USER}
-         CLINICAL_DB_MIGRATOR_PASSWORD: ${CLINICAL_DB_MIGRATOR_PASSWORD}
-         CLINICAL_DB_APP_USER: ${CLINICAL_DB_APP_USER}
-         CLINICAL_DB_APP_PASSWORD: ${CLINICAL_DB_APP_PASSWORD}
-         CLINICAL_DB_DEBEZIUM_USER: ${CLINICAL_DB_DEBEZIUM_USER}
-         CLINICAL_DB_DEBEZIUM_PASSWORD: ${CLINICAL_DB_DEBEZIUM_PASSWORD}
+         CLINICAL_DB_MIGRATOR_USER_FILE: /run/secrets/clinical-db/migrator-user
+         CLINICAL_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/clinical-db/migrator-password
+         CLINICAL_DB_APP_USER_FILE: /run/secrets/clinical-db/app-user
+         CLINICAL_DB_APP_PASSWORD_FILE: /run/secrets/clinical-db/app-password
+         CLINICAL_DB_DEBEZIUM_USER_FILE: /run/secrets/clinical-db/debezium-user
+         CLINICAL_DB_DEBEZIUM_PASSWORD_FILE: /run/secrets/clinical-db/debezium-password
       volumes:
          - clinical_data:/var/lib/mysql
          - clinical_keyring:/var/lib/mysql-keyring
          - ./clinical-history-service/docker/mysql-init:/docker-entrypoint-initdb.d:ro
+         - clinical_db_secrets:/run/secrets/clinical-db:ro
       networks:
          - clinical-data
       healthcheck:
-         test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+         test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$(cat $$MYSQL_ROOT_PASSWORD_FILE)\" --silent"]
          interval: 10s
          timeout: 5s
          retries: 10
@@ -184,11 +192,15 @@ services:
       container_name: clinical-storage
       restart: always
       command: server /data --console-address ":9001"
+      depends_on:
+         openbao-agent:
+            condition: service_healthy
       environment:
-         MINIO_ROOT_USER: ${CLINICAL_STORAGE_ROOT_USER}
-         MINIO_ROOT_PASSWORD: ${CLINICAL_STORAGE_ROOT_PASSWORD}
+         MINIO_ROOT_USER_FILE: /run/secrets/clinical-storage/root-user
+         MINIO_ROOT_PASSWORD_FILE: /run/secrets/clinical-storage/root-password
       volumes:
          - clinical_attachments:/data
+         - clinical_storage_secrets:/run/secrets/clinical-storage:ro
       networks:
          - clinical-data
       healthcheck:
@@ -206,11 +218,12 @@ services:
             condition: service_healthy
       entrypoint: ["sh", "/init-storage.sh"]
       environment:
-         MINIO_ROOT_USER: ${CLINICAL_STORAGE_ROOT_USER}
-         MINIO_ROOT_PASSWORD: ${CLINICAL_STORAGE_ROOT_PASSWORD}
-         CLINICAL_ATTACHMENTS_ACCESS_KEY: ${CLINICAL_ATTACHMENTS_ACCESS_KEY}
-         CLINICAL_ATTACHMENTS_SECRET_KEY: ${CLINICAL_ATTACHMENTS_SECRET_KEY}
+         MINIO_ROOT_USER_FILE: /run/secrets/clinical-storage/root-user
+         MINIO_ROOT_PASSWORD_FILE: /run/secrets/clinical-storage/root-password
+         CLINICAL_ATTACHMENTS_ACCESS_KEY_FILE: /run/secrets/clinical-storage/attachments-access-key
+         CLINICAL_ATTACHMENTS_SECRET_KEY_FILE: /run/secrets/clinical-storage/attachments-secret-key
       volumes:
+         - clinical_storage_secrets:/run/secrets/clinical-storage:ro
          - ./clinical-history-service/docker/storage-init/init-storage.sh:/init-storage.sh:ro
          - ./clinical-history-service/docker/storage-init/clinical-app-policy.json:/policies/clinical-app-policy.json:ro
       networks:
@@ -462,6 +475,8 @@ services:
       depends_on:
          kafka:
             condition: service_healthy
+         openbao-agent:
+            condition: service_healthy
       environment:
          BOOTSTRAP_SERVERS: kafka:9092
          GROUP_ID: clinica-connect
@@ -471,15 +486,14 @@ services:
          CONFIG_STORAGE_REPLICATION_FACTOR: 1
          OFFSET_STORAGE_REPLICATION_FACTOR: 1
          STATUS_STORAGE_REPLICATION_FACTOR: 1
-         CONNECT_CONFIG_PROVIDERS: env
+         CONNECT_CONFIG_PROVIDERS: env,dir
          CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+         CONNECT_CONFIG_PROVIDERS_DIR_CLASS: org.apache.kafka.common.config.provider.DirectoryConfigProvider
          KAFKA_REPLICATION_FACTOR: 1
          PATIENT_DB_HOST: patient-db
-         PATIENT_DB_DEBEZIUM_USER: ${PATIENT_DB_DEBEZIUM_USER}
-         PATIENT_DB_DEBEZIUM_PASSWORD: ${PATIENT_DB_DEBEZIUM_PASSWORD}
          CLINICAL_DB_HOST: clinical-db
-         CLINICAL_DB_DEBEZIUM_USER: ${CLINICAL_DB_DEBEZIUM_USER}
-         CLINICAL_DB_DEBEZIUM_PASSWORD: ${CLINICAL_DB_DEBEZIUM_PASSWORD}
+      volumes:
+         - kafka_connect_secrets:/run/secrets/kafka-connect:ro
       networks:
          - kafka-net
          - patient-data
@@ -519,19 +533,22 @@ services:
       depends_on:
          patient-db:
             condition: service_healthy
+         openbao-init:
+            condition: service_completed_successfully
          eureka-service:
             condition: service_healthy
       environment:
+         - SPRING_PROFILES_ACTIVE=openbao
          - PATIENT_DB_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
-         - PATIENT_DB_MIGRATOR_USER=${PATIENT_DB_MIGRATOR_USER}
-         - PATIENT_DB_MIGRATOR_PASSWORD=${PATIENT_DB_MIGRATOR_PASSWORD}
-         - PATIENT_DB_APP_USER=${PATIENT_DB_APP_USER}
-         - PATIENT_DB_APP_PASSWORD=${PATIENT_DB_APP_PASSWORD}
          - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
          - EUREKA_URL=http://eureka-service:8761/eureka/
+      volumes:
+         - openbao_tls:/run/secrets/openbao-tls:ro
+         - openbao_approle_patient:/run/secrets/openbao/approle:ro
       networks:
          - clinica-net
          - patient-data
+         - secrets-net
       healthcheck:
          test: [ "CMD", "curl", "-fs", "http://localhost:8081/actuator/health/readiness" ]
          interval: 15s
@@ -549,16 +566,15 @@ services:
             condition: service_healthy
          clinical-storage-init:
             condition: service_completed_successfully
+         openbao-init:
+            condition: service_completed_successfully
          kafka:
             condition: service_healthy
          eureka-service:
             condition: service_healthy
       environment:
+         - SPRING_PROFILES_ACTIVE=openbao
          - CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/${CLINICAL_DB_NAME}
-         - CLINICAL_DB_MIGRATOR_USER=${CLINICAL_DB_MIGRATOR_USER}
-         - CLINICAL_DB_MIGRATOR_PASSWORD=${CLINICAL_DB_MIGRATOR_PASSWORD}
-         - CLINICAL_DB_APP_USER=${CLINICAL_DB_APP_USER}
-         - CLINICAL_DB_APP_PASSWORD=${CLINICAL_DB_APP_PASSWORD}
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
          - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
          - EUREKA_URL=http://eureka-service:8761/eureka/
@@ -567,14 +583,15 @@ services:
          - CLINICAL_ENCRYPTION_KEYS_LOCATION=/run/secrets/clinical/encryption
          - CLINICAL_ENCRYPTION_ACTIVE_KEY_ID=${CLINICAL_ENCRYPTION_ACTIVE_KEY_ID}
          - CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000
-         - CLINICAL_ATTACHMENTS_ACCESS_KEY=${CLINICAL_ATTACHMENTS_ACCESS_KEY}
-         - CLINICAL_ATTACHMENTS_SECRET_KEY=${CLINICAL_ATTACHMENTS_SECRET_KEY}
       volumes:
          - ${CLINICAL_KEYS_DIR:-./.secrets/clinical}:/run/secrets/clinical:ro
+         - openbao_tls:/run/secrets/openbao-tls:ro
+         - openbao_approle_clinical:/run/secrets/openbao/approle:ro
       networks:
          - clinica-net
          - clinical-data
          - kafka-net
+         - secrets-net
       healthcheck:
          test: [ "CMD", "curl", "-fs", "http://localhost:8089/actuator/health/readiness" ]
          interval: 15s

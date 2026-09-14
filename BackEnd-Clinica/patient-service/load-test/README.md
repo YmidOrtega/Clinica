@@ -73,8 +73,8 @@ misma máquina (k6 apunta a una réplica):
 
 Requisitos: Docker y Node.js (solo para firmar tokens locales).
 
-Exporta antes las variables `PATIENT_DB_*` (incluidas `PATIENT_DB_DEBEZIUM_*`, que usa el script de
-inicialización de la base) descritas en `docs/variablesDeEntorno.md`.
+Exporta antes `PATIENT_DB_NAME`; las credenciales de la base las genera OpenBao al levantar el stack
+(`docs/variablesDeEntorno.md`).
 
 ```bash
 cd BackEnd-Clinica
@@ -85,7 +85,7 @@ export JWT_PUBLIC_KEY=$(openssl pkey -in /tmp/patient-private.pem -pubout | grep
 docker compose -p patient-load -f docker-compose.yml -f docker-compose.debug.yml \
   up -d --build patient-db eureka-service patient-service
 
-docker exec -i patient-db mysql -uroot -p"$PATIENT_DB_ROOT_PASSWORD" "$PATIENT_DB_NAME" \
+docker exec -i patient-db sh -c 'mysql -uroot -p"$(cat "$MYSQL_ROOT_PASSWORD_FILE")" "$MYSQL_DATABASE"' \
   < patient-service/load-test/seed-patients.sql
 
 TOKEN=$(node patient-service/load-test/generate-token.mjs /tmp/patient-private.pem ADMIN 7200)

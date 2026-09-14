@@ -45,7 +45,7 @@ expect "$status" 201 "registro del paciente"
 PATIENT=$(jq -r .uuid "$WORK/body")
 
 attempt=0
-until docker exec clinical-db sh -c "mysql -N -uroot -p\"\$MYSQL_ROOT_PASSWORD\" \"\$MYSQL_DATABASE\" -e \"SELECT COUNT(*) FROM patient_references WHERE uuid = '$PATIENT'\" 2>/dev/null" | grep -q '^1$'; do
+until docker exec clinical-db sh -c "mysql -N -uroot -p\"\$(cat \$MYSQL_ROOT_PASSWORD_FILE)\" \"\$MYSQL_DATABASE\" -e \"SELECT COUNT(*) FROM patient_references WHERE uuid = '$PATIENT'\" 2>/dev/null" | grep -q '^1$'; do
   attempt=$((attempt + 1)); [ "$attempt" -lt 60 ] || fail "el evento del paciente no llegó a clinical-history-service"; sleep 1
 done
 echo "ok  clinical-history-service recibió patient.events.v1 en ${attempt}s"
