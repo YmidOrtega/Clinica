@@ -5,11 +5,19 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.images.builder.ImageFromDockerfile;
+import org.testcontainers.utility.DockerImageName;
+
+import java.nio.file.Path;
 
 @TestConfiguration(proxyBeanMethods = false)
 public class MySqlTestContainer {
 
-    public static final String IMAGE = "mysql:8.0";
+    public static final DockerImageName IMAGE = DockerImageName
+            .parse(new ImageFromDockerfile("clinica/clinical-mysql-test", false)
+                    .withFileFromPath(".", Path.of("docker/mysql"))
+                    .get())
+            .asCompatibleSubstituteFor("mysql");
 
     @Bean
     @ServiceConnection
