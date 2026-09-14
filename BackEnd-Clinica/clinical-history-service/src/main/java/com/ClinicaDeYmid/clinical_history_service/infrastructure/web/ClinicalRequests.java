@@ -20,7 +20,7 @@ final class ClinicalRequests {
             String admissionId) {
     }
 
-    record Draft(@NotNull(message = "es obligatorio") JsonNode content, NoteRestriction restriction, Instant occurredAt) {
+    record Draft(@NotNull(message = "es obligatorio") JsonNode content, NoteRestriction restriction, JsonNode updates, Instant occurredAt) {
     }
 
     record Voiding(String reason) {

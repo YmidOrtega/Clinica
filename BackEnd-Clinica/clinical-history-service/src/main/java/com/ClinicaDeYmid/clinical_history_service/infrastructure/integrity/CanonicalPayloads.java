@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.integrity.EntryType;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.AppliedUpdate;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.json.NoteContentJsonModule;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -15,6 +16,7 @@ import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -22,6 +24,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.TreeMap;
@@ -35,10 +38,12 @@ final class CanonicalPayloads {
 
     private static final ObjectMapper MAPPER = JsonMapper.builder()
             .addModule(new NoteContentJsonModule())
+            .addModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
             .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-            .serializationInclusion(JsonInclude.Include.NON_NULL)
-            .defaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.NON_NULL))
+            .serializationInclusion(JsonInclude.Include.NON_EMPTY)
+            .defaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_EMPTY, JsonInclude.Include.NON_EMPTY))
             .build();
 
     private CanonicalPayloads() {
@@ -114,7 +119,37 @@ final class CanonicalPayloads {
         payload.put("occurredAt", instant(note.occurredAt()));
         payload.put("recordedAt", instant(note.recordedAt()));
         payload.put("extemporaneous", note.extemporaneous());
+        payload.put("recordUpdates", note.updates().stream()
+                .sorted(Comparator.comparing(update -> update.id().toString()))
+                .map(CanonicalPayloads::update)
+                .toList());
         return payload;
+    }
+
+    private static Map<String, Object> update(AppliedUpdate update) {
+        Map<String, Object> value = new TreeMap<>();
+        value.put("id", update.id().toString());
+        switch (update) {
+            case AppliedUpdate.ListItemAdded added -> {
+                value.put("kind", "LIST_ITEM_ADDED");
+                value.put("category", added.details().category().name());
+                value.put("details", MAPPER.convertValue(added.details(), TreeMap.class));
+            }
+            case AppliedUpdate.ListItemStatusChanged changed -> {
+                value.put("kind", "LIST_ITEM_STATUS_CHANGED");
+                value.put("itemId", changed.itemId().toString());
+                value.put("category", changed.category().name());
+                value.put("status", changed.status().name());
+                value.put("reason", changed.reason());
+            }
+            case AppliedUpdate.VitalSignObserved observed -> {
+                value.put("kind", "VITAL_SIGN_OBSERVED");
+                value.put("vitalSign", observed.kind().name());
+                value.put("value", observed.value().stripTrailingZeros().toPlainString());
+                value.put("measuredAt", instant(observed.measuredAt()));
+            }
+        }
+        return value;
     }
 
     private static Map<String, Object> voiding(NoteVoid noteVoid) {

@@ -14,8 +14,16 @@ public sealed interface NoteContent {
 
     List<String> missingFields();
 
-    record Admission(String chiefComplaint, String currentIllness, String physicalExam, String assessment, String plan)
-            implements NoteContent {
+    default List<Diagnosis> diagnoses() {
+        return List.of();
+    }
+
+    default NoteContent withDiagnoses(List<Diagnosis> resolved) {
+        return this;
+    }
+
+    record Admission(String chiefComplaint, String currentIllness, String physicalExam, String assessment, String plan,
+                     List<Diagnosis> diagnoses) implements NoteContent {
 
         public Admission {
             chiefComplaint = optional(chiefComplaint, "chiefComplaint", SHORT);
@@ -23,6 +31,12 @@ public sealed interface NoteContent {
             physicalExam = optional(physicalExam, "physicalExam", LONG);
             assessment = optional(assessment, "assessment", LONG);
             plan = optional(plan, "plan", LONG);
+            diagnoses = Diagnosis.normalize(diagnoses);
+        }
+
+        @Override
+        public NoteContent withDiagnoses(List<Diagnosis> resolved) {
+            return new Admission(chiefComplaint, currentIllness, physicalExam, assessment, plan, resolved);
         }
 
         @Override
@@ -33,17 +47,25 @@ public sealed interface NoteContent {
         @Override
         public List<String> missingFields() {
             return Missing.of().check(chiefComplaint, "chiefComplaint").check(currentIllness, "currentIllness")
-                    .check(physicalExam, "physicalExam").check(assessment, "assessment").check(plan, "plan").fields();
+                    .check(physicalExam, "physicalExam").check(assessment, "assessment").check(plan, "plan")
+                    .checkPrincipal(diagnoses).fields();
         }
     }
 
-    record Progress(String subjective, String objective, String assessment, String plan) implements NoteContent {
+    record Progress(String subjective, String objective, String assessment, String plan, List<Diagnosis> diagnoses)
+            implements NoteContent {
 
         public Progress {
             subjective = optional(subjective, "subjective", LONG);
             objective = optional(objective, "objective", LONG);
             assessment = optional(assessment, "assessment", LONG);
             plan = optional(plan, "plan", LONG);
+            diagnoses = Diagnosis.normalize(diagnoses);
+        }
+
+        @Override
+        public NoteContent withDiagnoses(List<Diagnosis> resolved) {
+            return new Progress(subjective, objective, assessment, plan, resolved);
         }
 
         @Override
@@ -54,7 +76,7 @@ public sealed interface NoteContent {
         @Override
         public List<String> missingFields() {
             return Missing.of().check(subjective, "subjective").check(objective, "objective")
-                    .check(assessment, "assessment").check(plan, "plan").fields();
+                    .check(assessment, "assessment").check(plan, "plan").checkPrincipalIfAny(diagnoses).fields();
         }
     }
 
@@ -76,13 +98,20 @@ public sealed interface NoteContent {
         }
     }
 
-    record Consultation(String specialty, String reason, String findings, String recommendations) implements NoteContent {
+    record Consultation(String specialty, String reason, String findings, String recommendations, List<Diagnosis> diagnoses)
+            implements NoteContent {
 
         public Consultation {
             specialty = optional(specialty, "specialty", 100);
             reason = optional(reason, "reason", SHORT);
             findings = optional(findings, "findings", LONG);
             recommendations = optional(recommendations, "recommendations", LONG);
+            diagnoses = Diagnosis.normalize(diagnoses);
+        }
+
+        @Override
+        public NoteContent withDiagnoses(List<Diagnosis> resolved) {
+            return new Consultation(specialty, reason, findings, recommendations, resolved);
         }
 
         @Override
@@ -93,7 +122,7 @@ public sealed interface NoteContent {
         @Override
         public List<String> missingFields() {
             return Missing.of().check(specialty, "specialty").check(reason, "reason")
-                    .check(findings, "findings").check(recommendations, "recommendations").fields();
+                    .check(findings, "findings").check(recommendations, "recommendations").checkPrincipalIfAny(diagnoses).fields();
         }
     }
 
@@ -116,7 +145,7 @@ public sealed interface NoteContent {
     }
 
     record Discharge(String admissionSummary, String evolutionSummary, String dischargeCondition, String recommendations,
-                     String followUp) implements NoteContent {
+                     String followUp, List<Diagnosis> diagnoses) implements NoteContent {
 
         public Discharge {
             admissionSummary = optional(admissionSummary, "admissionSummary", LONG);
@@ -124,6 +153,12 @@ public sealed interface NoteContent {
             dischargeCondition = optional(dischargeCondition, "dischargeCondition", SHORT);
             recommendations = optional(recommendations, "recommendations", LONG);
             followUp = optional(followUp, "followUp", LONG);
+            diagnoses = Diagnosis.normalize(diagnoses);
+        }
+
+        @Override
+        public NoteContent withDiagnoses(List<Diagnosis> resolved) {
+            return new Discharge(admissionSummary, evolutionSummary, dischargeCondition, recommendations, followUp, resolved);
         }
 
         @Override
@@ -135,7 +170,7 @@ public sealed interface NoteContent {
         public List<String> missingFields() {
             return Missing.of().check(admissionSummary, "admissionSummary").check(evolutionSummary, "evolutionSummary")
                     .check(dischargeCondition, "dischargeCondition").check(recommendations, "recommendations")
-                    .check(followUp, "followUp").fields();
+                    .check(followUp, "followUp").checkPrincipal(diagnoses).fields();
         }
     }
 
@@ -172,6 +207,17 @@ public sealed interface NoteContent {
                 fields.add(field);
             }
             return this;
+        }
+
+        Missing checkPrincipal(List<Diagnosis> diagnoses) {
+            if (!Diagnosis.hasPrincipal(diagnoses)) {
+                fields.add("diagnoses.principal");
+            }
+            return this;
+        }
+
+        Missing checkPrincipalIfAny(List<Diagnosis> diagnoses) {
+            return diagnoses.isEmpty() ? this : checkPrincipal(diagnoses);
         }
 
         List<String> fields() {

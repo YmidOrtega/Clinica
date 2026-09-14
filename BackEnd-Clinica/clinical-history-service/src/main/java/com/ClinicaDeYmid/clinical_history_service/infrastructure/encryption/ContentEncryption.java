@@ -27,6 +27,8 @@ public class ContentEncryption {
     public enum Purpose {
         NOTE_CONTENT,
         DRAFT_CONTENT,
+        DRAFT_UPDATES,
+        LIST_ITEM_PAYLOAD,
         VOID_REASON,
         EMERGENCY_ACCESS_REASON
     }

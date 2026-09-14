@@ -63,7 +63,8 @@ class NoteController {
     ResponseEntity<DraftView> revise(@PathVariable UUID id, @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                      @Valid @RequestBody ClinicalRequests.Draft request) {
         long version = EntityTags.requiredVersion(ifMatch);
-        return draftResponse(commands.reviseDraft(id, version, contentReader.read(request.content()), request.restriction(), request.occurredAt(),
+        return draftResponse(commands.reviseDraft(id, version, contentReader.read(request.content()), request.restriction(),
+                contentReader.readUpdates(request.updates()), request.occurredAt(),
                 clinician.require()));
     }
 

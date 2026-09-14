@@ -7,8 +7,11 @@ import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
+import com.ClinicaDeYmid.clinical_history_service.domain.terminology.TerminologyRelease;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.terminology.Cie10Importer;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.clinical_history_service.support.AccessAuditContract;
+import com.ClinicaDeYmid.clinical_history_service.support.Cie10WorkbookFixture;
 import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.TestEncryptionKeys;
@@ -18,6 +21,7 @@ import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,7 +76,8 @@ class ClinicalRecordApiIT {
             {"content": {"type": "TRIAGE", "level": "II", "reason": "Dolor torácico opresivo"}}""";
     private static final String DISCHARGE = """
             {"content": {"type": "DISCHARGE", "admissionSummary": "Dolor torácico", "evolutionSummary": "Troponinas negativas",
-                         "dischargeCondition": "Estable", "recommendations": "Evitar esfuerzos", "followUp": "Cardiología en 15 días"}}""";
+                         "dischargeCondition": "Estable", "recommendations": "Evitar esfuerzos", "followUp": "Cardiología en 15 días",
+                         "diagnoses": [{"code": "I10X", "role": "PRINCIPAL", "type": "CONFIRMED_NEW"}]}}""";
 
     @RegisterExtension
     static WireMockExtension patientService = WireMockExtension.newInstance().options(wireMockConfig().dynamicPort()).build();
@@ -95,6 +100,17 @@ class ClinicalRecordApiIT {
     private final Staff nurse = new Staff("NURSE");
     private final Staff doctor = new Staff("DOCTOR");
     private final Staff otherDoctor = new Staff("DOCTOR");
+
+    @Autowired
+    private Cie10Importer cie10;
+
+    @BeforeEach
+    void activeCatalog() {
+        if (cie10.releases().stream().noneMatch(TerminologyRelease::active)) {
+            UUID admin = UUID.randomUUID();
+            cie10.activate(cie10.importWorkbook("cie10.xlsx", Cie10WorkbookFixture.standard(), admin).release().id(), admin);
+        }
+    }
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -304,6 +320,98 @@ class ClinicalRecordApiIT {
                         .content("{\"clinicianUuid\": \"" + outsider.uuid + "\", \"role\": \"DOCTOR\"}"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("ENCOUNTER_CLOSED"));
+    }
+
+    @Test
+    void signedNotesFreezeTheirDiagnosesWithTheCatalogVersion() throws Exception {
+        String encounter = openEncounter(doctor, activePatient(), "INPATIENT");
+
+        startDraftRequest(doctor, encounter, """
+                {"content": {"type": "PROGRESS", "subjective": "Tos", "diagnoses": [{"code": "Z999", "role": "PRINCIPAL", "type": "IMPRESSION"}]}}""")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNKNOWN_CIE10_CODE"));
+        String note = signedNote(doctor, encounter, """
+                {"content": {"type": "ADMISSION", "chiefComplaint": "Disnea", "currentIllness": "Tres días de tos", "physicalExam": "Sibilancias",
+                             "assessment": "Crisis asmática", "plan": "Broncodilatadores",
+                             "diagnoses": [{"code": "J45.9", "role": "PRINCIPAL", "type": "CONFIRMED_REPEATED"},
+                                           {"code": "i10x", "role": "RELATED", "type": "CONFIRMED_REPEATED"}]}}""");
+
+        doctor.perform(get(BASE + "/notes/" + note))
+                .andExpect(jsonPath("$.content.diagnoses[0].code").value("J459"))
+                .andExpect(jsonPath("$.content.diagnoses[0].display").exists())
+                .andExpect(jsonPath("$.content.diagnoses[1].catalogVersion").exists());
+    }
+
+    @Test
+    void signedNotesMaintainListsAndVitalSignsThatStaySealedWithThem() throws Exception {
+        UUID patient = activePatient();
+        String encounter = openEncounter(doctor, patient, "INPATIENT");
+        String now = Instant.now().minusSeconds(60).toString();
+        String admission = signedNote(doctor, encounter, """
+                {"content": {"type": "ADMISSION", "chiefComplaint": "Disnea", "currentIllness": "Tos", "physicalExam": "Sibilancias",
+                             "assessment": "Crisis asmática", "plan": "Salbutamol",
+                             "diagnoses": [{"code": "J459", "role": "PRINCIPAL", "type": "CONFIRMED_REPEATED"}]},
+                 "updates": [
+                   {"kind": "ADD_LIST_ITEM", "details": {"category": "ALLERGY", "substance": "Penicilina", "reaction": "Urticaria", "severity": "SEVERE"}},
+                   {"kind": "ADD_LIST_ITEM", "details": {"category": "CHRONIC_CONDITION", "code": "J459", "notes": "Desde la infancia"}},
+                   {"kind": "RECORD_VITAL_SIGNS", "measuredAt": "%s",
+                    "readings": [{"kind": "RESPIRATORY_RATE", "value": 28}, {"kind": "OXYGEN_SATURATION", "value": 89}]}]}""".formatted(now));
+
+        String lists = doctor.perform(get(BASE + "/patients/" + patient + "/lists"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andExpect(jsonPath("$.items[0].category").value("ALLERGY"))
+                .andExpect(jsonPath("$.items[1].details.display").exists())
+                .andExpect(jsonPath("$.items[1].history[0].origin.noteId").value(admission))
+                .andReturn().getResponse().getContentAsString();
+        String asthma = JsonPath.read(lists, "$.items[1].itemId");
+        doctor.perform(get(BASE + "/patients/" + patient + "/vital-signs").param("kind", "OXYGEN_SATURATION"))
+                .andExpect(jsonPath("$.observations", hasSize(1)))
+                .andExpect(jsonPath("$.observations[0].value").value(89))
+                .andExpect(jsonPath("$.observations[0].unit").value("%"));
+
+        startDraftRequest(doctor, encounter, """
+                {"content": {"type": "PROGRESS", "subjective": "Mejor"},
+                 "updates": [{"kind": "CHANGE_LIST_ITEM_STATUS", "itemId": "%s", "status": "RESOLVED", "reason": "x"}]}""".formatted(UUID.randomUUID()))
+                .andExpect(status().isCreated());
+        String progress = startDraft(doctor, encounter, """
+                {"content": {"type": "PROGRESS", "subjective": "Sin disnea", "objective": "Sin sibilancias", "assessment": "Mejoría", "plan": "Egreso"},
+                 "updates": [{"kind": "CHANGE_LIST_ITEM_STATUS", "itemId": "%s", "status": "RESOLVED", "reason": "Controlada"}]}""".formatted(asthma));
+        doctor.perform(post(BASE + "/drafts/" + progress + "/signature").header(HttpHeaders.IF_MATCH, "\"0\"")).andExpect(status().isCreated());
+        doctor.perform(get(BASE + "/patients/" + patient + "/lists").param("category", "CHRONIC_CONDITION"))
+                .andExpect(jsonPath("$.items[0].status").value("RESOLVED"))
+                .andExpect(jsonPath("$.items[0].history", hasSize(2)));
+
+        doctor.perform(post(BASE + "/notes/" + progress + "/void").content("{\"reason\": \"Evolución de otro paciente\"}")).andExpect(status().isOk());
+        doctor.perform(get(BASE + "/patients/" + patient + "/lists").param("category", "CHRONIC_CONDITION"))
+                .andExpect(jsonPath("$.items[0].status").value("ACTIVE"));
+
+        new Staff("ADMIN").perform(get(BASE + "/patients/" + patient + "/integrity")).andExpect(jsonPath("$.verified").value(true));
+        rootJdbc.update("UPDATE clinical_ledger.vital_sign_observations SET value = 97 WHERE note_id = ? AND kind = 'OXYGEN_SATURATION'", admission);
+        new Staff("ADMIN").perform(get(BASE + "/patients/" + patient + "/integrity"))
+                .andExpect(jsonPath("$.verified").value(false))
+                .andExpect(jsonPath("$.chains[0].problems[0].kind").value("PAYLOAD_MISMATCH"))
+                .andExpect(jsonPath("$.chains[0].problems[0].entryId").value(admission));
+    }
+
+    @Test
+    void listItemsFromRestrictedNotesStayHiddenOutsideTheirTeam() throws Exception {
+        UUID patient = activePatient();
+        String counseling = openEncounter(nurse, patient, "OUTPATIENT");
+        signedNote(nurse, counseling, """
+                {"restriction": "HIV",
+                 "content": {"type": "NURSING", "observations": "Adherencia al tratamiento", "careProvided": "Educación"},
+                 "updates": [{"kind": "ADD_LIST_ITEM", "details": {"category": "CURRENT_MEDICATION", "medication": "Antirretroviral", "dose": "1 tableta"}}]}""");
+        openEncounter(doctor, patient, "OUTPATIENT");
+
+        doctor.perform(get(BASE + "/patients/" + patient + "/lists"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(0)))
+                .andExpect(jsonPath("$.restrictedItemsHidden").value(1));
+        nurse.perform(get(BASE + "/patients/" + patient + "/lists"))
+                .andExpect(jsonPath("$.items[0].details.medication").value("Antirretroviral"))
+                .andExpect(jsonPath("$.restrictedItemsHidden").value(0));
+        assertThat(auditEventsOf(patient).getLast().path("restrictedContent").asBoolean()).isTrue();
     }
 
     @Test

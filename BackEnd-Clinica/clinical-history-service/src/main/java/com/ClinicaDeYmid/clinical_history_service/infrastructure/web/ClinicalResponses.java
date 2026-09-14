@@ -10,6 +10,8 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteDraft;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteRestriction;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.AppliedUpdate;
+import com.ClinicaDeYmid.clinical_history_service.domain.update.RecordUpdate;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
@@ -83,12 +85,12 @@ final class ClinicalResponses {
         }
     }
 
-    record NoteView(UUID id, UUID encounterId, String type, String restriction, NoteContent content, SignerView author, Instant occurredAt,
-                    Instant recordedAt, boolean extemporaneous, VoidView voided) {
+    record NoteView(UUID id, UUID encounterId, String type, String restriction, NoteContent content, List<AppliedUpdate> updates,
+                    SignerView author, Instant occurredAt, Instant recordedAt, boolean extemporaneous, VoidView voided) {
         static NoteView from(NoteEntry entry) {
             SignedNote note = entry.note();
             return new NoteView(note.id(), note.encounterId(), note.type().name(), restrictionOf(note.restriction()), note.content(),
-                    SignerView.from(note),
+                    note.updates(), SignerView.from(note),
                     note.occurredAt(), note.recordedAt(), note.extemporaneous(), VoidView.from(entry.voiding()));
         }
 
@@ -97,11 +99,11 @@ final class ClinicalResponses {
         }
     }
 
-    record DraftView(UUID id, UUID encounterId, String type, String restriction, NoteContent content, Instant occurredAt, long version,
-                     Instant createdAt, Instant updatedAt) {
+    record DraftView(UUID id, UUID encounterId, String type, String restriction, NoteContent content, List<RecordUpdate> updates,
+                     Instant occurredAt, long version, Instant createdAt, Instant updatedAt) {
         static DraftView from(NoteDraft draft) {
             return new DraftView(draft.id(), draft.encounterId(), draft.type().name(), restrictionOf(draft.restriction()), draft.content(),
-                    draft.occurredAt(),
+                    draft.updates(), draft.occurredAt(),
                     draft.version(), draft.createdAt(), draft.updatedAt());
         }
     }

@@ -81,7 +81,8 @@ class EncounterController {
     @PostMapping("/encounters/{id}/drafts")
     @Operation(summary = "Iniciar el borrador de una nota clínica")
     ResponseEntity<DraftView> startDraft(@PathVariable UUID id, @Valid @RequestBody ClinicalRequests.Draft request) {
-        NoteDraft draft = notes.startDraft(id, contentReader.read(request.content()), request.restriction(), request.occurredAt(),
+        NoteDraft draft = notes.startDraft(id, contentReader.read(request.content()), request.restriction(),
+                contentReader.readUpdates(request.updates()), request.occurredAt(),
                 clinician.require());
         return ResponseEntity.created(URI.create(BASE_PATH + "/drafts/" + draft.id()))
                 .eTag(EntityTags.of(draft.version()))

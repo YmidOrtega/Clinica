@@ -22,7 +22,7 @@
         "role": {"enum": ["DOCTOR", "NURSE"]}
       }
     },
-    "action": {"enum": ["OPEN_ENCOUNTER", "LIST_ENCOUNTERS", "READ_ENCOUNTER", "READ_NOTE", "WRITE_NOTE", "VOID_NOTE",
+    "action": {"enum": ["OPEN_ENCOUNTER", "LIST_ENCOUNTERS", "READ_ENCOUNTER", "READ_NOTE", "READ_LISTS", "READ_VITAL_SIGNS", "WRITE_NOTE", "VOID_NOTE",
       "CLOSE_ENCOUNTER", "ADD_CARE_TEAM_MEMBER", "EMERGENCY_ACCESS"]},
     "resource": {
       "type": "object",

@@ -5,6 +5,8 @@ public enum AccessAction {
     LIST_ENCOUNTERS,
     READ_ENCOUNTER,
     READ_NOTE,
+    READ_LISTS,
+    READ_VITAL_SIGNS,
     WRITE_NOTE,
     VOID_NOTE,
     CLOSE_ENCOUNTER,
