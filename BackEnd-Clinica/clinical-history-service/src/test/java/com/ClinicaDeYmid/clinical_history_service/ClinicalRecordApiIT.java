@@ -10,6 +10,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferenc
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
+import com.ClinicaDeYmid.clinical_history_service.support.TestEncryptionKeys;
 import com.ClinicaDeYmid.clinical_history_service.support.TestJwt;
 import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
@@ -207,6 +208,23 @@ class ClinicalRecordApiIT {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("CLINICAL_CONTENT_UNREADABLE"))
                 .andExpect(jsonPath("$.detail", not(containsString("Dolor"))));
+    }
+
+    @Test
+    void onlySuperAdminsSeeAndRotateTheEncryptionKeys() throws Exception {
+        String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
+        signedNote(nurse, encounter, TRIAGE);
+
+        doctor.perform(get(BASE + "/admin/encryption")).andExpect(status().isForbidden());
+        new Staff("ADMIN").perform(post(BASE + "/admin/encryption/rewrap")).andExpect(status().isForbidden());
+        new Staff("SUPER_ADMIN").perform(get(BASE + "/admin/encryption"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeMasterKeyId").value(TestEncryptionKeys.ACTIVE_KEY_ID))
+                .andExpect(jsonPath("$.pendingRewrap").value(0))
+                .andExpect(jsonPath("$.retiredKeysCanBeRemoved").value(true));
+        new Staff("SUPER_ADMIN").perform(post(BASE + "/admin/encryption/rewrap"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rewrapped").value(0));
     }
 
     @Test
