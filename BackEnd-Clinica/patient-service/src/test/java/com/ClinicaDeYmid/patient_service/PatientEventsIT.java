@@ -90,7 +90,8 @@ class PatientEventsIT {
 
     private static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.1")
             .withNetwork(NETWORK)
-            .withListener("kafka:19092");
+            .withListener("kafka:19092")
+            .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
 
     private static GenericContainer<?> connect;
     private static KafkaConsumer<String, String> consumer;
@@ -289,6 +290,7 @@ class PatientEventsIT {
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "patient-events-it-" + UUID.randomUUID());
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         properties.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, "1000");
+        properties.put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         return properties;
