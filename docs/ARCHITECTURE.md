@@ -46,10 +46,11 @@ Adicionalmente, un sistema de salud tiene requisitos no negociables:
         └──────────┘ └──────────┘ └────────┘ └──────────┘ └─────────┘
               │                        │
               ▼                        ▼
-        ┌──────────┐           ┌───────────────┐
-        │AI Assist │           │ Eureka Server │
-        │PostgreSQL│           │   Discovery   │
-        └──────────┘           └───────────────┘
+        ┌──────────┐ ┌──────────┐ ┌───────────────┐
+        │AI Assist │ │ Clinical │ │ Eureka Server │
+        │PostgreSQL│ │ History  │ │   Discovery   │
+        │          │ │MySQL·S3  │ │               │
+        └──────────┘ └──────────┘ └───────────────┘
                                        ▲
                         Todos los servicios se registran aquí
 ```
@@ -164,7 +165,7 @@ admissions-db (PostgreSQL) ──WAL──►  kafka-connect (Debezium) ──�
 | `kafka`              | `apache/kafka:4.3.1` (KRaft, 1 nodo)   | Broker; creación automática de topics desactivada        |
 | `kafka-connect`      | `quay.io/debezium/connect:3.6.2.Final` | Un solo clúster Connect para todos los servicios         |
 | `kafka-connect-init` | `curlimages/curl`                      | Registra (idempotente) cada `*/debezium/*.json` y espera `RUNNING` |
-| `kafka-ui`           | `ghcr.io/kafbat/kafka-ui:v1.5.0`       | Solo en `docker-compose.patient-debug.yml` (`127.0.0.1:8090`) |
+| `kafka-ui`           | `ghcr.io/kafbat/kafka-ui:v1.5.0`       | Solo en `docker-compose.debug.yml` (`127.0.0.1:8090`) |
 
 Para que otro servicio publique eventos basta con: una tabla outbox en su base de datos, un usuario
 Debezium de solo lectura sobre esa tabla, su JSON de conector en `<servicio>/debezium/` y un volumen
@@ -181,7 +182,90 @@ van en el JSON. Cada conector MySQL necesita un `database.server.id` único.
 Son dependencias de compilación con versión fija (`1.0.0`), no servicios: una falla en una versión solo
 afecta a los servicios que la adopten.
 
-### 4.2 Admissions Service (`:8083`)
+### 4.2 Clinical History Service (`:8089`)
+
+Propietario de la **historia clínica**: atenciones, notas firmadas, diagnósticos, listas de
+antecedentes, signos vitales, anexos y auditoría de lectura. Nunca es dueño de la identidad del
+paciente: la recibe por eventos de `patient-service`. Órdenes, resultados y prescripción serán
+servicios aparte que referencian la atención por id.
+
+**Arquitectura hexagonal pragmática:**
+
+```
+infrastructure/web          EncounterController, NoteController, AttachmentController,
+                            PatientChartController, IntegrityController, RecordCopyController,
+                            TerminologyController, CareAccessController, EncryptionAdminController
+infrastructure/persistence  notas, atenciones, listas vivas, cadena de integridad, outbox
+infrastructure/signature    firma SHA-256 del contenido canónico + sello ECDSA P-256
+infrastructure/encryption   envelope encryption AES-GCM (DEK por paciente, KEK fuera de la base)
+infrastructure/attachments  cliente S3 (AWS SDK v2) sobre almacenamiento con Object Lock
+infrastructure/terminology  importador CIE-10 (.xlsx con StAX, idempotente por SHA-256)
+infrastructure/messaging    consumidor de patient.events.v1, copia local, DLT
+        │
+application                 comandos y consultas; puertos ClinicalSignature, DocumentSealer,
+                            AttachmentStore, ConceptCatalog, PatientRegistry
+        │
+domain                      Encounter, Note (BORRADOR → FIRMADA), ClinicalList, VitalSign,
+                            ChainLink, TerminologyRelease, excepciones selladas
+```
+
+**Solo agregar, nunca reescribir.** Una nota firmada es inmutable: se corrige con una nota
+aclaratoria y se deja sin efecto con una anulación motivada, ambas encadenadas a la original. Las
+listas vivas (alergias, crónicas, medicación, antecedentes, vacunas) son filas con estado que nunca
+se borran y cuyo cambio siempre nace de una nota firmada. El usuario `clinical_app` no tiene
+`DELETE` ni DDL; el único esquema con `UPDATE`/`DELETE` es `clinical_workspace`, donde viven los
+borradores.
+
+**Firma e integridad.** Al firmar se calcula el SHA-256 de un JSON canónico (claves ordenadas, sin
+nulos, `formatVersion 1`), se sella con una clave ECDSA P-256 que vive fuera de la base y se
+encadena en `clinical_ledger.chain_links`: apertura de atención, nota, anulación y cierre entran en
+una cadena por paciente. `GET /patients/{uuid}/integrity` recalcula la cadena completa sin exponer
+contenido clínico. Firmar exige un token emitido hace menos de 15 minutos (`403
+RECENT_AUTHENTICATION_REQUIRED`).
+
+**Cifrado.** Todo el contenido narrativo se cifra con AES-GCM usando una DEK por paciente envuelta
+por una clave maestra en disco (`CLINICAL_ENCRYPTION_KEYS_LOCATION`); el AAD incluye el propósito y
+el identificador del registro, de modo que un bloque cifrado no se puede mover de sitio. La base
+añade cifrado InnoDB con `component_keyring_file`, redo, undo y binlog cifrados. El hash de la
+cadena se calcula sobre el texto en claro, así que rotar claves no rompe la integridad.
+
+**Anexos.** El archivo se cifra con la DEK del paciente antes de subirlo, viaja a un bucket de
+espera sin retención y, al firmar la nota, se copia al bucket de archivo con Object Lock en modo
+`COMPLIANCE` hasta la firma + 15 años + 1 día. El SHA-256, el nombre y el tipo forman parte del
+contenido sellado de la nota. No hay URLs firmadas: descargar pasa siempre por el servicio, que
+verifica acceso, audita y comprueba el hash. Detalle en `clinical-history-service/docs/anexos.md`.
+
+**Acceso.** Rol más relación de cuidado: pertenecer al equipo de la atención, vigente mientras esté
+abierta y 30 días después de cerrada. Las notas de categorías sensibles (salud mental, salud sexual,
+VIH, violencia) solo las ve su autor y el equipo de esa atención. Romper el vidrio exige un motivo
+de al menos 10 caracteres, dura 4 horas y queda cifrado en la base. Cada decisión de acceso
+—lecturas, escrituras y rechazos— se publica en `clinical.access-audit.v1`.
+
+**Eventos.** Consume `patient.events.v1` con copia local idempotente por versión y DLT propia;
+si `patient-service` cae, las atenciones de pacientes ya conocidos siguen abriéndose y un paciente
+desconocido responde `503` sin tumbar el servicio. Publica por outbox dos topics sin compactar:
+`clinical.encounters.v1` (hechos y códigos, con la cabeza de la cadena como ancla externa; sin
+texto de notas) y `clinical.access-audit.v1` (auditoría de lectura, clave `patientUuid`).
+
+**Catálogos.** El módulo `terminology` importa la tabla oficial CIE-10 del SISPRO desde el `.xlsx`
+con un lector StAX propio, idempotente por checksum, y la activación es un paso explícito de
+`SUPER_ADMIN`. Las notas firmadas guardan código, descripción y versión del catálogo, de modo que
+una versión nueva no reescribe el pasado. Detalle en
+`clinical-history-service/docs/catalogo-cie10.md`.
+
+**Copia al paciente.** `POST /patients/{uuid}/record-copies` genera un PDF con toda la historia
+—incluidas notas restringidas y anuladas—, los hashes por registro y una página de verificación; el
+SHA-256 del PDF se sella con la clave institucional. Es exclusivo del rol `MEDICAL_RECORDS`, exige
+motivo y queda auditado. Detalle en `clinical-history-service/docs/copias-historia.md`.
+
+**Carga.** Con 50.000 pacientes en la copia local y el pico de una clínica de 5.000 pacientes
+diarios, p95 de lectura y de firma se quedan por debajo de 35 ms
+(`clinical-history-service/load-test/README.md`).
+
+**Réplicas:** dos instancias (`CLINICAL_SERVICE_REPLICAS`) sin estado en memoria, en la red interna
+`clinical-data` junto a su base y su almacenamiento de anexos.
+
+### 4.3 Admissions Service (`:8083`)
 
 Gestiona el ciclo de vida completo de una atención médica.
 
@@ -221,7 +305,7 @@ AttentionController
 | `GREEN`  | 4         | No urgente                            |
 | `BLUE`   | 5         | Consulta rutinaria                    |
 
-### 4.3 Auth Service (`:8086`)
+### 4.4 Auth Service (`:8086`)
 
 Autenticación centralizada. Emite tokens JWT firmados con RSA-256.
 
@@ -233,7 +317,7 @@ AuthController
     └── AuditService           → Registro de todos los eventos de acceso
 ```
 
-### 4.4 Suppliers Service (`:8085`)
+### 4.5 Suppliers Service (`:8085`)
 
 Gestión del personal médico y sus disponibilidades.
 
@@ -245,7 +329,7 @@ DoctorController
           └── UnavailabilityRepository → Tabla doctor_unavailability
 ```
 
-### 4.5 Clients Service (`:8087`)
+### 4.6 Clients Service (`:8087`)
 
 Proveedores de salud: aseguradoras, EPS, redes de clínicas.
 
@@ -257,7 +341,7 @@ HealthProviderController
           └── PortfolioRepository      → Tabla portfolios
 ```
 
-### 4.6 AI Assistant Service (`:8084`)
+### 4.7 AI Assistant Service (`:8084`)
 
 Asistente conversacional con memoria de sesión e integración con el flujo de admisiones.
 
@@ -271,7 +355,7 @@ AIAssistantController
 
 El asistente detecta intención en la conversación: si el médico describe síntomas de un paciente, puede iniciar automáticamente la creación de una atención llamando al Admissions Service internamente.
 
-### 4.7 API Gateway (`:8080`)
+### 4.8 API Gateway (`:8080`)
 
 Punto de entrada único para todo el tráfico externo.
 
@@ -334,6 +418,7 @@ Cada servicio es dueño exclusivo de su base de datos. No hay JOINs entre servic
 | Servicio         | Motor      | Justificación                                                          |
 | ---------------- | ---------- | ---------------------------------------------------------------------- |
 | Patient          | MySQL 8    | Esquema relacional estable, buena integración con Hibernate             |
+| Clinical History | MySQL 8    | Cifrado InnoDB con keyring; esquemas separados para libro, borradores y claves |
 | Admissions       | PostgreSQL | Enums nativos para triage y estados; mejor soporte para audit triggers |
 | Auth             | MySQL 8    | Tablas de usuarios con índices en email y username                     |
 | Suppliers        | MySQL 8    | Relaciones médico ↔ especialidad                                       |
@@ -472,7 +557,7 @@ Clinica/
 │   │       └── module/controller/      # AuthController
 │   ├── libs/                           # clinica-commons-web, clinica-commons-security
 │   ├── patient-service/                # Registro administrativo de pacientes
-│   ├── clinical-history-service/       # Historia clínica (en migración)
+│   ├── clinical-history-service/       # Historia clínica: notas firmadas, anexos, auditoría
 │   ├── admissions-service/             # Atenciones, triage, autorizaciones
 │   ├── suppliers-service/              # Médicos, especialidades, horarios
 │   ├── clients-service/                # Aseguradoras, contratos

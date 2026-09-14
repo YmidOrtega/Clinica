@@ -342,7 +342,198 @@ Vuelve a `UNIDENTIFIED` y conserva el motivo.
 
 ---
 
-## 3. Admissions Service — `/api/v1/attentions`
+## 3. Clinical History Service — `/api/v1/clinical`
+
+Historia clínica: atenciones, notas firmadas, diagnósticos, listas de antecedentes, signos vitales,
+anexos y copias para el paciente. La identidad del paciente pertenece a `patient-service` y llega por
+eventos; aquí el paciente siempre se referencia por `patientUuid`.
+
+**Convenciones del servicio:**
+
+- Una nota nace como **borrador** (`clinical_workspace`, editable y borrable) y al firmarse pasa al
+  **libro** (`clinical_ledger`, inmutable). Corregir una nota firmada es escribir una adenda; dejarla
+  sin efecto es anularla con motivo.
+- Los borradores usan `If-Match` con la versión del `ETag` (`428` sin cabecera, `412` desactualizado).
+- Firmar exige un token emitido hace menos de 15 minutos: si no, `403 RECENT_AUTHENTICATION_REQUIRED`.
+- Ver o escribir exige **relación de cuidado**: pertenecer al equipo de esa atención (vigente mientras
+  esté abierta y 30 días después de cerrada). Sin ella, `403` — y el rechazo queda auditado.
+- Los errores siguen RFC 9457 con `code` estable y `traceId`.
+
+**Roles:**
+
+| Operación                                              | Roles                                        |
+| ------------------------------------------------------ | -------------------------------------------- |
+| Atenciones, notas, anexos, listas y signos vitales      | DOCTOR, NURSE (+ relación de cuidado)        |
+| Verificar integridad y firma                            | DOCTOR, NURSE, MEDICAL_RECORDS, ADMIN, SUPER_ADMIN |
+| Copia de la historia para el paciente                   | MEDICAL_RECORDS                              |
+| Catálogo CIE-10: importar y activar                     | SUPER_ADMIN                                  |
+| Rotación de claves de cifrado                           | SUPER_ADMIN                                  |
+
+### POST `/encounters`
+
+Abre una atención. Quien la abre entra en el equipo de cuidado.
+
+```json
+{ "patientUuid": "3f1c…", "type": "EMERGENCY", "admissionId": "A-2026-114" }
+```
+
+`type`: `OUTPATIENT`, `EMERGENCY`, `INPATIENT` o `TELEHEALTH`. `admissionId` es opcional y solo referencia la
+admisión administrativa. Responde `201` con el id de la atención. Si el paciente no está en la copia
+local y `patient-service` no responde, devuelve `503` sin afectar al resto del servicio.
+
+### GET `/encounters/{id}`
+
+Devuelve la atención con su equipo de cuidado y sus notas firmadas. Las notas restringidas solo
+aparecen para su autor y el equipo de esa atención.
+
+### POST `/encounters/{id}/closure`
+
+Cierra la atención. Solo el equipo de cuidado de esa atención; queda sellado en la cadena.
+
+### GET `/patients/{patientUuid}/encounters`
+
+Atenciones del paciente, de la más reciente a la más antigua.
+
+### POST `/encounters/{id}/care-team`
+
+Suma a alguien al equipo de cuidado, solo con la atención abierta.
+
+```json
+{ "clinicianUuid": "9a2e…", "role": "DOCTOR" }
+```
+
+### POST `/patients/{patientUuid}/emergency-access`
+
+Romper el vidrio: acceso de urgencia sin relación previa.
+
+```json
+{ "reason": "Paciente inconsciente en reanimación, requiere antecedentes" }
+```
+
+El motivo exige 10 caracteres o más, dura 4 horas, se guarda cifrado, cubre también las notas
+restringidas y se publica en la auditoría.
+
+### POST `/encounters/{id}/drafts`
+
+Crea el borrador de una nota. `content` es el contenido estructurado según su `type`
+(`ADMISSION`, `PROGRESS`, `CONSULTATION` y `DISCHARGE` las escribe un médico; `NURSING` enfermería;
+`TRIAGE` y `ADDENDUM` cualquiera de los dos), `updates` son los cambios
+en listas vivas y signos vitales que se aplicarán al firmar, `restriction` marca la categoría
+sensible y `occurredAt` permite registrar una nota extemporánea con su fecha real de atención.
+
+```json
+{
+  "content": {
+    "type": "PROGRESS",
+    "subjective": "Refiere mejoría del dolor",
+    "objective": "Alerta, hidratada, abdomen blando",
+    "assessment": "Evolución favorable",
+    "plan": "Continuar manejo",
+    "diagnoses": [{ "code": "I10X", "role": "PRINCIPAL", "type": "CONFIRMED_REPEATED" }]
+  },
+  "updates": [
+    { "kind": "RECORD_VITAL_SIGNS", "measuredAt": "2026-09-14T13:05:00Z",
+      "readings": [{ "kind": "HEART_RATE", "value": 78 }] }
+  ],
+  "restriction": null,
+  "occurredAt": null
+}
+```
+
+`role` del diagnóstico: `PRINCIPAL` o `RELATED`; `type`: `IMPRESSION`, `CONFIRMED_NEW` o
+`CONFIRMED_REPEATED`. La nota de ingreso y la epicrisis exigen diagnóstico principal (`422` si falta).
+`restriction`: `MENTAL_HEALTH`, `SEXUAL_HEALTH`, `HIV` o `VIOLENCE`.
+
+La adenda es una nota más: `{ "type": "ADDENDUM", "amendsNoteId": "…", "text": "…" }`. Es la única
+que se puede escribir con la atención ya cerrada, porque corregir una nota firmada nunca debe exigir
+reabrirla.
+
+### GET `/drafts` · GET `/drafts/{id}` · PUT `/drafts/{id}` · DELETE `/drafts/{id}`
+
+Borradores propios. Un borrador ajeno responde `404`, no `403`: quien no es su autor no debe saber que
+existe. `PUT` y `DELETE` exigen `If-Match`.
+
+### POST `/drafts/{id}/signature`
+
+Firma el borrador y lo convierte en nota inmutable: calcula el SHA-256 del contenido canónico, lo
+sella con la clave institucional, lo encadena, archiva los anexos en almacenamiento WORM y aplica los
+`updates` a las listas vivas y los signos vitales. Exige `If-Match`. Responde `201` con la nota, su
+firma y sus anexos.
+
+### GET `/notes/{id}` · POST `/notes/{id}/void`
+
+Consulta una nota firmada o la anula con motivo (`{ "reason": "…" }`). Anular no borra: agrega un
+registro encadenado, revierte el efecto de la nota sobre las listas vivas y deja el original legible
+para quien ya podía verlo. Solo el autor y solo con la atención abierta.
+
+### Anexos
+
+| Operación | Endpoint                                        |
+| --------- | ----------------------------------------------- |
+| Adjuntar  | `POST /drafts/{draftId}/attachments` (multipart `file`) |
+| Listar    | `GET /drafts/{draftId}/attachments`             |
+| Quitar    | `DELETE /drafts/{draftId}/attachments/{attachmentId}` |
+| Descargar | `GET /notes/{noteId}/attachments/{attachmentId}` |
+
+Solo PDF, JPEG y PNG, hasta 20 MB, validados por sus bytes iniciales y no por la extensión. El archivo
+se cifra antes de subirse y solo se archiva con retención WORM cuando se firma la nota; los que nunca
+se firman se purgan. La descarga verifica el SHA-256 antes de responder y queda auditada.
+
+### GET `/patients/{patientUuid}/lists`
+
+Listas vivas del paciente, con `category` opcional: `ALLERGY`, `CHRONIC_CONDITION`,
+`CURRENT_MEDICATION`, `FAMILY_HISTORY`, `PAST_HISTORY`, `VACCINATION`. Cada ítem trae la nota que lo
+originó; nada se borra, cambia de estado.
+
+### GET `/patients/{patientUuid}/vital-signs`
+
+Serie de signos vitales, con `kind` y rango de fechas opcionales.
+
+### GET `/patients/{patientUuid}/integrity`
+
+Recalcula la cadena de hashes del paciente y responde `verified` con el detalle por registro. No
+expone contenido clínico, por eso también lo pueden consultar ADMIN y MEDICAL_RECORDS. Un registro
+cuya clave de cifrado no se puede abrir aparece como `UNREADABLE_ENTRY`.
+
+### GET `/notes/{id}/signature` · GET `/seal-keys`
+
+Firma de una nota (hash, sello, `keyId`, autor y fecha) y claves públicas del sello. `/seal-keys` es
+público: sirve para verificar una historia sin credenciales.
+
+### POST `/patients/{patientUuid}/record-copies`
+
+Genera la copia de la historia para el paciente en PDF (rol `MEDICAL_RECORDS`).
+
+```json
+{ "reason": "Solicitud de la paciente en ventanilla" }
+```
+
+Incluye notas restringidas y anuladas, los hashes por registro y una página de verificación; el
+SHA-256 del PDF se sella con la clave institucional. `GET /record-copies/{copyId}` devuelve sus
+metadatos y `POST /record-copies/{copyId}/verification` (multipart `file`) comprueba que un PDF
+recibido es exactamente el emitido. Cada copia se audita con su motivo.
+
+### Catálogo CIE-10
+
+| Operación                 | Endpoint                                                   | Rol           |
+| ------------------------- | ---------------------------------------------------------- | ------------- |
+| Buscar códigos            | `GET /terminology/cie10?q=R07&limit=20`                    | DOCTOR, NURSE |
+| Listar versiones          | `GET /admin/terminology/cie10/releases`                    | SUPER_ADMIN   |
+| Importar versión          | `POST /admin/terminology/cie10/releases` (multipart `file`) | SUPER_ADMIN   |
+| Activar versión           | `POST /admin/terminology/cie10/releases/{id}/activation`   | SUPER_ADMIN   |
+
+La importación es idempotente por checksum del archivo y devuelve las advertencias encontradas. Sin
+catálogo activo, una nota con diagnósticos responde `503 TERMINOLOGY_NOT_ACTIVE`.
+
+### Administración de claves
+
+`GET /admin/encryption` lista las claves maestras y `POST /admin/encryption/rewrap` vuelve a envolver
+las DEK con la clave activa. Solo `SUPER_ADMIN`; el procedimiento está en
+`clinical-history-service/docs/claves-y-cifrado.md`.
+
+---
+
+## 4. Admissions Service — `/api/v1/attentions`
 
 ### GET `/`
 
@@ -461,7 +652,7 @@ Cambia el estado de una atención.
 
 ---
 
-## 4. Suppliers Service — `/api/v1/doctors`
+## 5. Suppliers Service — `/api/v1/doctors`
 
 ### GET `/`
 
@@ -528,7 +719,7 @@ Registra un período de no disponibilidad (vacaciones, incapacidad, etc.).
 
 ---
 
-## 5. Clients Service — `/api/v1/health-providers`
+## 6. Clients Service — `/api/v1/health-providers`
 
 ### GET `/`
 
@@ -575,7 +766,7 @@ Retorna los contratos activos con un proveedor.
 
 ---
 
-## 6. AI Assistant Service — `/api/v1/ai`
+## 7. AI Assistant Service — `/api/v1/ai`
 
 ### POST `/chat`
 
@@ -633,7 +824,7 @@ Retorna el historial de una sesión de conversación.
 
 ---
 
-## 7. Códigos de Error Comunes
+## 8. Códigos de Error Comunes
 
 | Código | Significado                                          |
 | ------ | ---------------------------------------------------- |

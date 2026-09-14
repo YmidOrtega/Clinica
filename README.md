@@ -85,6 +85,7 @@ docker-compose ps
 | **API Gateway** | 8080 | PostgreSQL | Spring Cloud Gateway | ✅ Active |
 | **Auth Service** | 8086 | MySQL | Spring Security + JWT | ✅ Active |
 | **Patient Service** | 8081 | MySQL | Spring Boot | ✅ Active |
+| **Clinical History Service** | 8089 | MySQL + S3 (WORM) | Spring Boot | ✅ Active |
 | **Admissions Service** | 8083 | PostgreSQL | Spring Boot | ✅ Active |
 | **Clients Service** | 8087 | MySQL | Spring Boot | ✅ Active |
 | **Suppliers Service** | 8085 | MySQL | Spring Boot | ✅ Active |
@@ -160,6 +161,7 @@ Clinica/
 │   ├── auth-service/
 │   ├── billing-service/      # 🚧 In Development
 │   ├── clients-service/
+│   ├── clinical-history-service/
 │   ├── eureka-service/
 │   ├── patient-service/
 │   ├── suppliers-service/
