@@ -64,6 +64,20 @@ if ! bao secrets list -format=json | jq -e 'has("secret/")' > /dev/null; then
   bao secrets enable -path=secret -version=2 kv
 fi
 
+if ! bao secrets list -format=json | jq -e 'has("transit/")' > /dev/null; then
+  bao secrets enable transit
+fi
+
+transit_key() {
+  if ! bao read "transit/keys/$1" > /dev/null 2>&1; then
+    bao write -f "transit/keys/$1" type="$2" exportable=false allow_plaintext_backup=false > /dev/null
+    echo "Created transit key $1 ($2)"
+  fi
+}
+
+transit_key clinical-kek aes256-gcm96
+transit_key clinical-seal ecdsa-p256
+
 if ! bao auth list -format=json | jq -e 'has("approle/")' > /dev/null; then
   bao auth enable approle
 fi
