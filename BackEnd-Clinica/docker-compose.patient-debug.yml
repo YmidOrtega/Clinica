@@ -8,7 +8,7 @@ services:
 
    patient-service:
       ports:
-         - "127.0.0.1:8081:8081"
+         - "127.0.0.1:8081-8082:8081"
       environment:
          - SWAGGER_UI_ENABLED=true
 

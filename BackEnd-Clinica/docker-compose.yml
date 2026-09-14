@@ -316,7 +316,9 @@ services:
    #Servicios Spring Boot
    patient-service:
       build: ./patient-service
-      container_name: patient-service
+      restart: unless-stopped
+      deploy:
+         replicas: ${PATIENT_SERVICE_REPLICAS:-2}
       depends_on:
          patient-db:
             condition: service_healthy
