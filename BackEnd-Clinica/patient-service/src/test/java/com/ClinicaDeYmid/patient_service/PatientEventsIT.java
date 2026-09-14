@@ -191,6 +191,32 @@ class PatientEventsIT {
         }
     }
 
+    @Test
+    @Order(5)
+    void publishesUnidentifiedPatientsAndTheirIdentificationWithoutTheDescription() throws Exception {
+        String arrival = mockMvc.perform(authorized(post("/api/v1/unidentified-patients")
+                        .content("{\"sex\": \"FEMALE\", \"estimatedBirthYear\": 1992, \"description\": \"Mujer con vestido verde\"}")))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String unidentifiedUuid = JsonPath.read(arrival, "$.uuid");
+        String patientUuid = register(PatientJson.uniqueCedula());
+        mockMvc.perform(authorized(post("/api/v1/unidentified-patients/" + unidentifiedUuid + "/identification")
+                        .header(HttpHeaders.IF_MATCH, "\"0\"")
+                        .content("{\"patientUuid\": \"" + patientUuid + "\", \"reason\": \"Cédula\"}")))
+                .andExpect(status().isOk());
+
+        List<ConsumerRecord<String, String>> events = awaitEvents(unidentifiedUuid, received -> received.size() >= 2);
+
+        assertThat(events).extracting(record -> field(record, "type"))
+                .containsExactly("UnidentifiedPatientRegistered", "UnidentifiedPatientIdentified");
+        assertThat(JSON.readTree(events.get(1).value()).at("/data/unidentifiedPatient/identifiedPatientUuid").asText())
+                .isEqualTo(patientUuid);
+        assertThat(events).allSatisfy(record -> {
+            assertThat(PatientEventContract.violations(record.value())).isEmpty();
+            assertThat(record.value()).doesNotContain("vestido", "Cédula");
+        });
+    }
+
     private String register(String document) throws Exception {
         String body = mockMvc.perform(authorized(post("/api/v1/patients").content(PatientJson.uninsuredRegistration(document))))
                 .andExpect(status().isCreated())
