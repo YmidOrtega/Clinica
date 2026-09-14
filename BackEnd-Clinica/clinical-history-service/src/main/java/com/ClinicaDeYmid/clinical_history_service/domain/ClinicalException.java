@@ -123,6 +123,12 @@ public sealed abstract class ClinicalException extends DomainException {
         }
     }
 
+    public static final class RecordCopyNotFound extends ClinicalException {
+        public RecordCopyNotFound() {
+            super(ErrorCategory.NOT_FOUND, "RECORD_COPY_NOT_FOUND", "No se encontró la copia de la historia clínica");
+        }
+    }
+
     public static final class PatientNotFound extends ClinicalException {
         public PatientNotFound() {
             super(ErrorCategory.NOT_FOUND, "CLINICAL_PATIENT_NOT_FOUND", "No se encontró el paciente");

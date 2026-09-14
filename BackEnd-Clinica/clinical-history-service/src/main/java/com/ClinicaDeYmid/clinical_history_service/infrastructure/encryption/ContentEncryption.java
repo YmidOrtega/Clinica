@@ -31,6 +31,7 @@ public class ContentEncryption {
         LIST_ITEM_PAYLOAD,
         ATTACHMENT_NAME,
         ATTACHMENT_CONTENT,
+        RECORD_COPY_REASON,
         VOID_REASON,
         EMERGENCY_ACCESS_REASON
     }

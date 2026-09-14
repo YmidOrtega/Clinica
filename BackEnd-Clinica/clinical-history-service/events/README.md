@@ -107,6 +107,8 @@ RecordAccess ── misma transacción que la lectura o escritura ──► clin
 - `restrictedContent` marca la lectura de notas restringidas (salud mental, salud sexual, VIH,
   violencia).
 - `emergencyReason` solo viaja cuando el acceso se apoyó en un acceso de emergencia.
+- `EXPORT_RECORD` registra las copias en PDF emitidas por el área de archivo clínico (`MEDICAL_RECORDS`),
+  con `basis: RECORDS_OFFICE` y `exportReason`.
 - Ningún evento lleva texto clínico.
 - `traceId`, `basis` y `emergencyReason` pueden llegar ausentes en lugar de `null`: el Outbox Event
   Router de Debezium omite los campos nulos al expandir el JSON. Los consumidores deben tratar ausente y

@@ -18,7 +18,8 @@ record AccessAuditMessage(
         String outcome,
         String basis,
         boolean restrictedContent,
-        String emergencyReason) {
+        String emergencyReason,
+        String exportReason) {
 
     static final int SCHEMA_VERSION = 1;
 
@@ -30,9 +31,9 @@ record AccessAuditMessage(
 
     static AccessAuditMessage of(AccessEvent event, UUID eventId, String traceId) {
         return new AccessAuditMessage(eventId, typeOf(event.outcome()), SCHEMA_VERSION, event.occurredAt(), traceId, event.patientUuid(),
-                new Actor(event.actor().uuid(), event.actor().role().name()), event.action().name(), new Resource(event.resourceId()),
+                new Actor(event.actor().uuid(), event.actor().role()), event.action().name(), new Resource(event.resourceId()),
                 event.outcome().name(), event.basis() == null ? null : event.basis().name(), event.restrictedContent(),
-                event.emergencyReason());
+                event.emergencyReason(), event.exportReason());
     }
 
     static String typeOf(AccessEvent.Outcome outcome) {

@@ -25,6 +25,9 @@ import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -39,6 +42,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
@@ -519,6 +523,51 @@ class ClinicalRecordApiIT {
         Instant extended = s3.headObject(request -> request.bucket("api-attachments").key("attachments/" + attachment)).objectLockRetainUntilDate();
         assertThat(initial).isAfter(Instant.now().plus(Duration.ofDays(365L * 15 - 1)));
         assertThat(extended).isAfter(initial.plus(Duration.ofDays(700)));
+    }
+
+    @Test
+    void recordsOfficeIssuesSealedPdfCopiesThatCanBeVerifiedLater() throws Exception {
+        UUID patient = activePatient();
+        String encounter = openEncounter(nurse, patient, "EMERGENCY");
+        signedNote(nurse, encounter, """
+                {"restriction": "VIOLENCE", "content": {"type": "NURSING", "observations": "Hematomas en brazos", "careProvided": "Ruta activada"}}""");
+        Staff records = new Staff("MEDICAL_RECORDS");
+
+        doctor.perform(post(BASE + "/patients/" + patient + "/record-copies").content("{\"reason\": \"Solicitud de la paciente\"}"))
+                .andExpect(status().isForbidden());
+        records.perform(post(BASE + "/patients/" + patient + "/record-copies").content("{\"reason\": \"corto\"}"))
+                .andExpect(status().isBadRequest());
+        MvcResult issued = records.perform(post(BASE + "/patients/" + patient + "/record-copies")
+                        .content("{\"reason\": \"Derecho de petición radicado por la paciente\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/pdf"))
+                .andReturn();
+        byte[] pdf = issued.getResponse().getContentAsByteArray();
+        String copyId = issued.getResponse().getHeader("X-Record-Copy-Id");
+
+        try (PDDocument document = Loader.loadPDF(pdf)) {
+            assertThat(new PDFTextStripper().getText(document).replaceAll("\\s+", " "))
+                    .contains("Ana María Restrepo Gómez", "Hematomas en brazos", "RESTRINGIDA VIOLENCE", "verificada sin problemas", copyId);
+        }
+        records.perform(get(BASE + "/record-copies/" + copyId))
+                .andExpect(jsonPath("$.documentSha256").value(Attachment.sha256Of(pdf)))
+                .andExpect(jsonPath("$.chainVerified").value(true))
+                .andExpect(jsonPath("$.entries").value(2))
+                .andExpect(jsonPath("$.reason").value("Derecho de petición radicado por la paciente"));
+        records.perform(multipart(BASE + "/record-copies/" + copyId + "/verification").file(new MockMultipartFile("file", "copia.pdf", "application/pdf", pdf)))
+                .andExpect(jsonPath("$.authentic").value(true));
+        byte[] altered = pdf.clone();
+        altered[altered.length / 2] ^= 1;
+        records.perform(multipart(BASE + "/record-copies/" + copyId + "/verification").file(new MockMultipartFile("file", "copia.pdf", "application/pdf", altered)))
+                .andExpect(jsonPath("$.authentic").value(false))
+                .andExpect(jsonPath("$.documentMatches").value(false))
+                .andExpect(jsonPath("$.sealValid").value(true));
+
+        JsonNode export = auditEventsOf(patient).getLast();
+        assertThat(export.path("action").asText()).isEqualTo("EXPORT_RECORD");
+        assertThat(export.path("actor").path("role").asText()).isEqualTo("MEDICAL_RECORDS");
+        assertThat(export.path("restrictedContent").asBoolean()).isTrue();
+        assertThat(AccessAuditContract.violations(export.toString())).isEmpty();
     }
 
     @Test

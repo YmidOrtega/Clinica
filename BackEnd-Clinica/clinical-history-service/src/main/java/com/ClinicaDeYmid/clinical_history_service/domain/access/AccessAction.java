@@ -8,6 +8,7 @@ public enum AccessAction {
     READ_LISTS,
     READ_VITAL_SIGNS,
     READ_ATTACHMENT,
+    EXPORT_RECORD,
     WRITE_NOTE,
     VOID_NOTE,
     CLOSE_ENCOUNTER,

@@ -10,14 +10,32 @@ import java.util.UUID;
 
 public record AccessEvent(
         UUID patientUuid,
-        Clinician actor,
+        Actor actor,
         AccessAction action,
         UUID resourceId,
         Outcome outcome,
         AccessBasis basis,
         boolean restrictedContent,
         String emergencyReason,
+        String exportReason,
         Instant occurredAt) {
+
+    public record Actor(UUID uuid, String role) {
+
+        public Actor {
+            Objects.requireNonNull(uuid, "uuid");
+            Objects.requireNonNull(role, "role");
+        }
+
+        public static Actor of(Clinician clinician) {
+            return new Actor(clinician.uuid(), clinician.role().name());
+        }
+    }
+
+    public AccessEvent(UUID patientUuid, Clinician actor, AccessAction action, UUID resourceId, Outcome outcome, AccessBasis basis,
+                       boolean restrictedContent, String emergencyReason, Instant occurredAt) {
+        this(patientUuid, Actor.of(actor), action, resourceId, outcome, basis, restrictedContent, emergencyReason, null, occurredAt);
+    }
 
     public enum Outcome {
         GRANTED,
