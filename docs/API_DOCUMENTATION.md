@@ -282,6 +282,66 @@ Historial completo de versiones del paciente (Hibernate Envers).
 
 ---
 
+### Pacientes sin identificar — `/api/v1/unidentified-patients`
+
+Personas atendidas en urgencias sin documento ni datos (inconscientes, sin acompañante). Tienen un
+agregado propio con código de manilla y se identifican después, vinculándolas con un paciente
+registrado o registrándolo en el mismo paso. Toda modificación exige `If-Match`.
+
+| Operación                               | Roles                                                   |
+| --------------------------------------- | ------------------------------------------------------- |
+| Registrar                               | SUPER_ADMIN, ADMIN, RECEPTIONIST, NURSE, DOCTOR          |
+| Consultar                               | SUPER_ADMIN, ADMIN, DOCTOR, NURSE, RECEPTIONIST, MEDICAL_RECORDS |
+| Identificar y revertir identificación   | SUPER_ADMIN, ADMIN, MEDICAL_RECORDS                     |
+| Registrar fallecimiento                 | SUPER_ADMIN, ADMIN, DOCTOR                              |
+
+#### POST `/`
+
+**Request:**
+```json
+{ "sex": "MALE", "estimatedBirthYear": 1980, "description": "Hombre adulto inconsciente, camisa azul, cicatriz en la frente" }
+```
+
+**Response `201 Created`** con `ETag: "0"`:
+```json
+{
+  "uuid": "5b1f0c2e-…",
+  "version": 0,
+  "code": "NN-2026-000123",
+  "sex": "MALE",
+  "estimatedBirthYear": 1980,
+  "description": "Hombre adulto inconsciente, camisa azul, cicatriz en la frente",
+  "status": { "code": "UNIDENTIFIED", "changedAt": "2026-09-13T20:10:00Z" },
+  "audit": { "createdAt": "…", "createdBy": "…", "updatedAt": "…", "updatedBy": "…" }
+}
+```
+
+#### POST `/{uuid}/identification`
+
+Vincula con un paciente existente **o** registra al paciente real y lo vincula en la misma transacción.
+`reason` es obligatorio. El paciente destino debe estar activo.
+
+```json
+{ "patientUuid": "034820b2-…", "reason": "Un familiar presentó la cédula" }
+```
+```json
+{ "registration": { "document": { … }, "demographics": { … }, "contact": { … }, "affiliation": { … }, "residence": { … } },
+  "reason": "Recuperó la conciencia y dio sus datos" }
+```
+
+**Response `200 OK`:** `status.code = IDENTIFIED` y `status.identifiedPatientUuid`.
+
+#### POST `/{uuid}/identification-reversal`
+
+Deshace una identificación equivocada: `{ "reason": "La familia confirmó que no es la persona" }`.
+Vuelve a `UNIDENTIFIED` y conserva el motivo.
+
+#### POST `/{uuid}/death`
+
+`{ "dateOfDeath": "2026-09-13" }`. Solo para pacientes aún sin identificar; es definitivo.
+
+---
+
 ## 3. Admissions Service — `/api/v1/attentions`
 
 ### GET `/`
