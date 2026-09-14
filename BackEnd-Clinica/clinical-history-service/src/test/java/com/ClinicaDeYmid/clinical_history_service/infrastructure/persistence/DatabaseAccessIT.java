@@ -29,6 +29,8 @@ class DatabaseAccessIT {
     private static final String MIGRATOR_PASSWORD = "migrator-test-secret";
     private static final String APP = "clinical_app";
     private static final String APP_PASSWORD = "app-test-secret";
+    private static final String DEBEZIUM = "clinical_debezium";
+    private static final String DEBEZIUM_PASSWORD = "debezium-test-secret";
 
     private static final String PATIENT = "3f6c1b2a-7d4e-4a5b-9c8d-1e2f3a4b5c6d";
     private static final String ENCOUNTER = "8a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
@@ -42,11 +44,14 @@ class DatabaseAccessIT {
             .withEnv("CLINICAL_DB_MIGRATOR_PASSWORD", MIGRATOR_PASSWORD)
             .withEnv("CLINICAL_DB_APP_USER", APP)
             .withEnv("CLINICAL_DB_APP_PASSWORD", APP_PASSWORD)
+            .withEnv("CLINICAL_DB_DEBEZIUM_USER", DEBEZIUM)
+            .withEnv("CLINICAL_DB_DEBEZIUM_PASSWORD", DEBEZIUM_PASSWORD)
             .withCopyFileToContainer(MountableFile.forHostPath("docker/mysql-init/01-create-users.sh", 0755),
                     "/docker-entrypoint-initdb.d/01-create-users.sh");
 
     private static JdbcTemplate app;
     private static JdbcTemplate migrator;
+    private static JdbcTemplate debezium;
     private static TransactionTemplate appTransaction;
 
     @BeforeAll
@@ -57,6 +62,8 @@ class DatabaseAccessIT {
         app = new JdbcTemplate(appDataSource);
         appTransaction = new TransactionTemplate(new DataSourceTransactionManager(appDataSource));
         migrator = new JdbcTemplate(new DriverManagerDataSource(MYSQL.getJdbcUrl(), MIGRATOR, MIGRATOR_PASSWORD));
+        debezium = new JdbcTemplate(new DriverManagerDataSource(MYSQL.getJdbcUrl().replace("/" + MYSQL.getDatabaseName(), "/clinical_outbox"),
+                DEBEZIUM, DEBEZIUM_PASSWORD));
 
         app.update("""
                 INSERT INTO patient_references (uuid, kind, source_version, code, estimated_birth_year, sex, status, updated_at)
@@ -171,6 +178,9 @@ class DatabaseAccessIT {
                 VALUES (?, 'clinical.access-audit', ?, 'ClinicalRecordAccessed', '{}', NOW(6))""", event, PATIENT);
 
         assertDenied(() -> app.update("UPDATE clinical_outbox.outbox_events SET payload = '{\"outcome\": \"GRANTED\"}'"));
+        assertThat(debezium.queryForObject("SELECT COUNT(*) FROM clinical_outbox.outbox_events WHERE id = ?", Long.class, event)).isEqualTo(1);
+        assertDenied(() -> debezium.queryForObject("SELECT COUNT(*) FROM clinical_ledger.notes", Long.class));
+        assertDenied(() -> debezium.update("DELETE FROM clinical_outbox.outbox_events"));
         assertThat(app.update("DELETE FROM clinical_outbox.outbox_events WHERE id = ?", event)).isEqualTo(1);
     }
 

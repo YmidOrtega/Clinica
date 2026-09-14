@@ -59,6 +59,8 @@ clinica:
     access:
       relationship-after-closure: 30d
       emergency-access-duration: 4h
+    outbox:
+      retention: 7d
     encryption:
       keys-location: ${CLINICAL_ENCRYPTION_KEYS_LOCATION:}
       active-key-id: ${CLINICAL_ENCRYPTION_ACTIVE_KEY_ID:}
