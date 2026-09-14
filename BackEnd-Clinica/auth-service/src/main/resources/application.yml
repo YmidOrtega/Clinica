@@ -1,42 +1,108 @@
 server:
-  port: 8086
+  port: ${AUTH_SERVICE_PORT:8086}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 spring:
   application:
     name: auth-service
+  config:
+    import: optional:configtree:/run/secrets/openbao/
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:mysql://localhost:3308/auth_db}
+    username: ${AUTH_DB_APP_USER:auth_app}
+    password: ${AUTH_DB_APP_PASSWORD:}
+    hikari:
+      pool-name: auth-service
+      maximum-pool-size: ${AUTH_DB_POOL_SIZE:15}
+      connection-timeout: 5000
   flyway:
-    location: classpath:db/migration/auth
+    locations: classpath:db/migration/auth
+    user: ${AUTH_DB_MIGRATOR_USER:auth_migrator}
+    password: ${AUTH_DB_MIGRATOR_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+      org.hibernate.envers.default_catalog: auth_history
+  cloud:
+    vault:
+      enabled: false
+
+clinica:
+  auth:
+    time-zone: America/Bogota
+    password-deny-lists: classpath:passwords/ncsc-100k-common.txt
+    password-service-words: clinica, clinicadeymid, ymid
+    argon2:
+      memory-kib: 19456
+      iterations: 2
+      parallelism: 1
+    login-throttle:
+      address-free-attempts: 5
+      address-max-delay: 15m
+      account-free-attempts: 10
+      account-max-delay: 1m
+      account-lock-threshold: 100
+      retention: 30d
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
   instance:
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
     prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 5
-    lease-expiration-duration-in-seconds: 10
-# Configuración de Swagger/OpenAPI
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    enabled: true
-    try-it-out-enabled: true
-    operations-sorter: method
-    tags-sorter: alpha
-    filter: true
-    doc-expansion: none
-  show-actuator: true
 
-api:
-  version: 1.0.0
-  name: Auth Service API
-  description: Microservicio para la gestión de autenticación y autorización
-  contact:
-    name: Development Team
-    email: dev@example.com
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+
+---
+spring:
+  config:
+    activate:
+      on-profile: openbao
+    import:
+      - vault://secret/auth/db/migrator?prefix=auth.db.migrator.
+      - vault://secret/auth/db/app?prefix=auth.db.app.
+  cloud:
+    vault:
+      enabled: true
+      uri: ${OPENBAO_ADDR:https://openbao:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${approle.role-id}
+        secret-id: ${approle.secret-id}
+      ssl:
+        trust-store: file:/run/secrets/openbao-tls/ca.crt
+        trust-store-type: PEM
+  datasource:
+    username: ${auth.db.app.username}
+    password: ${auth.db.app.password}
+  flyway:
+    user: ${auth.db.migrator.username}
+    password: ${auth.db.migrator.password}
