@@ -15,6 +15,7 @@ public record SignedNote(
         UUID id,
         UUID encounterId,
         Clinician author,
+        String signerEmail,
         NoteContent content,
         Instant occurredAt,
         Instant recordedAt,
@@ -24,6 +25,7 @@ public record SignedNote(
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(encounterId, "encounterId");
         Objects.requireNonNull(author, "author");
+        Objects.requireNonNull(signerEmail, "signerEmail");
         Objects.requireNonNull(content, "content");
         Objects.requireNonNull(occurredAt, "occurredAt");
         Objects.requireNonNull(recordedAt, "recordedAt");

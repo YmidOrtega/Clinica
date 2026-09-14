@@ -71,11 +71,17 @@ final class ClinicalResponses {
         }
     }
 
-    record NoteView(UUID id, UUID encounterId, String type, NoteContent content, ClinicianView author, Instant occurredAt,
+    record SignerView(UUID uuid, String role, String email) {
+        static SignerView from(SignedNote note) {
+            return new SignerView(note.author().uuid(), note.author().role().name(), note.signerEmail());
+        }
+    }
+
+    record NoteView(UUID id, UUID encounterId, String type, NoteContent content, SignerView author, Instant occurredAt,
                     Instant recordedAt, boolean extemporaneous, VoidView voided) {
         static NoteView from(NoteEntry entry) {
             SignedNote note = entry.note();
-            return new NoteView(note.id(), note.encounterId(), note.type().name(), note.content(), ClinicianView.from(note.author()),
+            return new NoteView(note.id(), note.encounterId(), note.type().name(), note.content(), SignerView.from(note),
                     note.occurredAt(), note.recordedAt(), note.extemporaneous(), VoidView.from(entry.voiding()));
         }
 

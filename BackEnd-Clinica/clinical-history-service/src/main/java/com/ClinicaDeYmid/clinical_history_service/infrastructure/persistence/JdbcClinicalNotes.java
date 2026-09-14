@@ -17,11 +17,11 @@ import java.util.UUID;
 @Repository
 class JdbcClinicalNotes implements ClinicalNotes {
 
-    private static final String SELECT_NOTE = """
-            SELECT id, encounter_id, content, author_uuid, author_role, occurred_at, recorded_at, extemporaneous
+    static final String SELECT_NOTE = """
+            SELECT id, encounter_id, content, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous
             FROM clinical_ledger.notes""";
 
-    private static final String SELECT_VOID = """
+    static final String SELECT_VOID = """
             SELECT v.note_id, v.reason, v.voided_by, v.voided_by_role, v.voided_at
             FROM clinical_ledger.note_voids v""";
 
@@ -35,8 +35,8 @@ class JdbcClinicalNotes implements ClinicalNotes {
     public void append(SignedNote note) {
         jdbc.update("""
                 INSERT INTO clinical_ledger.notes
-                    (id, encounter_id, type, content, amends_note_id, author_uuid, author_role, occurred_at, recorded_at, extemporaneous)
-                VALUES (:id, :encounterId, :type, :content, :amendsNoteId, :authorUuid, :authorRole, :occurredAt, :recordedAt, :extemporaneous)""",
+                    (id, encounter_id, type, content, amends_note_id, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous)
+                VALUES (:id, :encounterId, :type, :content, :amendsNoteId, :authorUuid, :authorRole, :authorEmail, :occurredAt, :recordedAt, :extemporaneous)""",
                 new MapSqlParameterSource()
                         .addValue("id", note.id().toString())
                         .addValue("encounterId", note.encounterId().toString())
@@ -45,6 +45,7 @@ class JdbcClinicalNotes implements ClinicalNotes {
                         .addValue("amendsNoteId", note.amends().map(UUID::toString).orElse(null))
                         .addValue("authorUuid", note.author().uuid().toString())
                         .addValue("authorRole", note.author().role().name())
+                        .addValue("authorEmail", note.signerEmail())
                         .addValue("occurredAt", Rows.timestamp(note.occurredAt()))
                         .addValue("recordedAt", Rows.timestamp(note.recordedAt()))
                         .addValue("extemporaneous", note.extemporaneous()));
@@ -91,13 +92,13 @@ class JdbcClinicalNotes implements ClinicalNotes {
                 new MapSqlParameterSource("encounterId", encounterId.toString()), JdbcClinicalNotes::toVoid);
     }
 
-    private static SignedNote toNote(ResultSet row, int index) throws SQLException {
+    static SignedNote toNote(ResultSet row, int index) throws SQLException {
         return new SignedNote(Rows.uuid(row, "id"), Rows.uuid(row, "encounter_id"), Rows.clinician(row, "author_uuid", "author_role"),
-                NoteContentColumn.read(row.getString("content")), Rows.instant(row, "occurred_at"), Rows.instant(row, "recorded_at"),
+                row.getString("author_email"), NoteContentColumn.read(row.getString("content")), Rows.instant(row, "occurred_at"), Rows.instant(row, "recorded_at"),
                 row.getBoolean("extemporaneous"));
     }
 
-    private static NoteVoid toVoid(ResultSet row, int index) throws SQLException {
+    static NoteVoid toVoid(ResultSet row, int index) throws SQLException {
         return new NoteVoid(Rows.uuid(row, "note_id"), row.getString("reason"), Rows.clinician(row, "voided_by", "voided_by_role"),
                 Rows.instant(row, "voided_at"));
     }

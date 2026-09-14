@@ -29,13 +29,16 @@ public final class TestJwt {
     }
 
     public static String bearer(String role, UUID user) {
-        Instant now = Instant.now();
+        return bearer(role, user, Instant.now());
+    }
+
+    public static String bearer(String role, UUID user, Instant issuedAt) {
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .issuer("ClinicaDeYmid")
                 .subject(user.toString())
                 .jwtID(UUID.randomUUID().toString())
-                .issueTime(Date.from(now))
-                .expirationTime(Date.from(now.plus(Duration.ofMinutes(15))))
+                .issueTime(Date.from(issuedAt))
+                .expirationTime(Date.from(Instant.now().plus(Duration.ofMinutes(15))))
                 .claim("user_id", 1L)
                 .claim("email", role.toLowerCase() + "@clinica.test")
                 .claim("type", "access")

@@ -23,6 +23,20 @@ public sealed abstract class ClinicalException extends DomainException {
         }
     }
 
+    public static final class SignerIdentityIncomplete extends ClinicalException {
+        public SignerIdentityIncomplete() {
+            super(ErrorCategory.FORBIDDEN, "SIGNER_IDENTITY_INCOMPLETE",
+                    "Tu sesión no trae los datos necesarios para firmar; inicia sesión de nuevo");
+        }
+    }
+
+    public static final class RecentAuthenticationRequired extends ClinicalException {
+        public RecentAuthenticationRequired() {
+            super(ErrorCategory.FORBIDDEN, "RECENT_AUTHENTICATION_REQUIRED",
+                    "Para firmar necesitas una sesión reciente; vuelve a autenticarte e intenta de nuevo");
+        }
+    }
+
     public static final class PatientNotFound extends ClinicalException {
         public PatientNotFound() {
             super(ErrorCategory.NOT_FOUND, "CLINICAL_PATIENT_NOT_FOUND", "No se encontró el paciente");

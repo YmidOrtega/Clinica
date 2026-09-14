@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.clinical_history_service.application.note;
 
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
+import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Signer;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounters;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.ClinicalNotes;
@@ -66,14 +67,14 @@ public class NoteCommands {
     }
 
     @Transactional
-    public SignedNote sign(UUID draftId, long expectedVersion, Clinician signer) {
-        NoteDraft draft = lockOwnDraft(draftId, expectedVersion, signer);
+    public SignedNote sign(UUID draftId, long expectedVersion, Signer signer) {
+        NoteDraft draft = lockOwnDraft(draftId, expectedVersion, signer.clinician());
         Encounter encounter = encounters.lock(draft.encounterId()).orElseThrow(ClinicalException.EncounterNotFound::new);
-        requireAmendable(draft, signer);
+        requireAmendable(draft, signer.clinician());
         SignedNote note = draft.sign(signer, encounter, policy, clock);
         notes.append(note);
         drafts.remove(draftId);
-        log.info("Note {} of type {} signed by {} in encounter {}{}", note.id(), note.type(), signer.uuid(), note.encounterId(),
+        log.info("Note {} of type {} signed by {} in encounter {}{}", note.id(), note.type(), signer.clinician().uuid(), note.encounterId(),
                 note.extemporaneous() ? " (extemporaneous)" : "");
         return note;
     }
