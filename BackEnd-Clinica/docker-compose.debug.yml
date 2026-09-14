@@ -1,4 +1,11 @@
 services:
+   openbao-1:
+      ports:
+         - "127.0.0.1:8200:8200"
+      networks:
+         - secrets-net
+         - debug-net
+
    patient-db:
       ports:
          - "127.0.0.1:3307:3306"
