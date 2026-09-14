@@ -14,7 +14,7 @@
 
 	<groupId>com.ClinicaDeYmid</groupId>
 	<artifactId>clinica-commons-security</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<packaging>jar</packaging>
 	<name>clinica-commons-security</name>
 	<description>Shared JWT resource server security for the clinic servlet services.</description>
@@ -41,7 +41,7 @@
 		<dependency>
 			<groupId>com.ClinicaDeYmid</groupId>
 			<artifactId>clinica-commons-web</artifactId>
-			<version>1.0.0</version>
+			<version>1.1.0</version>
 		</dependency>
 
 		<dependency>
