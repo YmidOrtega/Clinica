@@ -57,6 +57,19 @@ public sealed abstract class PatientException extends DomainException {
         }
     }
 
+    public static final class UnidentifiedNotFound extends PatientException {
+        public UnidentifiedNotFound() {
+            super(ErrorCategory.NOT_FOUND, "UNIDENTIFIED_PATIENT_NOT_FOUND", "No se encontró el paciente sin identificar solicitado");
+        }
+    }
+
+    public static final class InvalidUnidentifiedStatusTransition extends PatientException {
+        public InvalidUnidentifiedStatusTransition(UnidentifiedPatientStatus.Code from, UnidentifiedPatientStatus.Code to) {
+            super(ErrorCategory.RULE_VIOLATION, "UNIDENTIFIED_PATIENT_INVALID_STATUS_TRANSITION",
+                    "Un paciente sin identificar en estado " + from + " no puede pasar a " + to);
+        }
+    }
+
     public static final class NotActive extends PatientException {
         public NotActive() {
             super(ErrorCategory.RULE_VIOLATION, "PATIENT_NOT_ACTIVE",
