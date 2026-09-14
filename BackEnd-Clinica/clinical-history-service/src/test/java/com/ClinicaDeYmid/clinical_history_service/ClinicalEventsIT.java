@@ -60,9 +60,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class AccessAuditEventsIT {
+class ClinicalEventsIT {
 
     private static final String TOPIC = "clinical.access-audit.v1";
+    private static final String ENCOUNTERS_TOPIC = "clinical.encounters.v1";
     private static final String CONNECTOR = "clinical-outbox";
     private static final String DEBEZIUM_USER = "clinical_debezium";
     private static final String DEBEZIUM_PASSWORD = "debezium-test-secret";
@@ -108,7 +109,7 @@ class AccessAuditEventsIT {
                 .withNetwork(NETWORK)
                 .withExposedPorts(8083)
                 .withEnv("BOOTSTRAP_SERVERS", "kafka:19092")
-                .withEnv("GROUP_ID", "clinical-audit-it")
+                .withEnv("GROUP_ID", "clinical-events-it")
                 .withEnv("CONFIG_STORAGE_TOPIC", "connect.configs")
                 .withEnv("OFFSET_STORAGE_TOPIC", "connect.offsets")
                 .withEnv("STATUS_STORAGE_TOPIC", "connect.status")
@@ -162,7 +163,8 @@ class AccessAuditEventsIT {
         mockMvc.perform(as("DOCTOR", UUID.randomUUID(), get("/api/v1/clinical/encounters/" + encounter)))
                 .andExpect(status().isForbidden());
 
-        List<ConsumerRecord<String, String>> events = awaitEvents(patient.toString(), 2);
+        List<ConsumerRecord<String, String>> events = awaitEvents(patient.toString(), 2).stream()
+                .filter(record -> TOPIC.equals(record.topic())).toList();
 
         assertThat(events).extracting(record -> new String(record.headers().lastHeader("eventType").value(), StandardCharsets.UTF_8))
                 .allSatisfy(type -> assertThat(type).containsAnyOf("ClinicalRecordAccessed", "ClinicalRecordAccessDenied"));
@@ -179,6 +181,13 @@ class AccessAuditEventsIT {
             assertThat(config.get("retention.ms").value()).isEqualTo("-1");
             assertThat(admin.describeTopics(List.of(TOPIC)).allTopicNames().get().get(TOPIC).partitions()).hasSize(3);
         }
+
+        List<ConsumerRecord<String, String>> facts = awaitEvents(patient.toString(), 3).stream()
+                .filter(record -> ENCOUNTERS_TOPIC.equals(record.topic())).toList();
+        assertThat(facts).hasSize(1);
+        assertThat(field(facts.getFirst().value(), "type")).isEqualTo("EncounterOpened");
+        assertThat(new String(facts.getFirst().headers().lastHeader("eventType").value(), StandardCharsets.UTF_8)).contains("EncounterOpened");
+        assertThat(AccessAuditContract.encounterEventViolations(facts.getFirst().value())).isEmpty();
     }
 
     private static MockHttpServletRequestBuilder as(String role, UUID user, MockHttpServletRequestBuilder request) {
@@ -188,8 +197,8 @@ class AccessAuditEventsIT {
     private static List<ConsumerRecord<String, String>> awaitEvents(String patientUuid, int expected) throws Exception {
         Instant deadline = Instant.now().plus(EVENT_TIMEOUT);
         while (true) {
-            if (consumer.subscription().isEmpty() && topicExists()) {
-                consumer.subscribe(List.of(TOPIC));
+            if (consumer.subscription().size() < 2 && topicExists(TOPIC) && topicExists(ENCOUNTERS_TOPIC)) {
+                consumer.subscribe(List.of(TOPIC, ENCOUNTERS_TOPIC));
             }
             if (!consumer.subscription().isEmpty()) {
                 consumer.poll(Duration.ofMillis(500)).forEach(RECEIVED::add);
@@ -206,9 +215,9 @@ class AccessAuditEventsIT {
         }
     }
 
-    private static boolean topicExists() throws Exception {
+    private static boolean topicExists(String topic) throws Exception {
         try (Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
-            return admin.listTopics().names().get().contains(TOPIC);
+            return admin.listTopics().names().get().contains(topic);
         }
     }
 
@@ -249,7 +258,7 @@ class AccessAuditEventsIT {
     private static Properties consumerProperties() {
         Properties properties = new Properties();
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "clinical-audit-it-" + UUID.randomUUID());
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "clinical-events-it-" + UUID.randomUUID());
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         properties.put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
