@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.clinical_history_service.infrastructure.web;
 
 import com.ClinicaDeYmid.clinical_history_service.application.record.ClinicalRecordQueries.EncounterRecord;
 import com.ClinicaDeYmid.clinical_history_service.application.record.ClinicalRecordQueries.NoteEntry;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterStatus;
@@ -85,12 +86,20 @@ final class ClinicalResponses {
         }
     }
 
+    record AttachmentView(UUID id, String fileName, String mediaType, long size, String sha256) {
+        static AttachmentView from(Attachment attachment) {
+            return new AttachmentView(attachment.id(), attachment.fileName(), attachment.mediaType().mimeType(), attachment.size(),
+                    attachment.sha256());
+        }
+    }
+
     record NoteView(UUID id, UUID encounterId, String type, String restriction, NoteContent content, List<AppliedUpdate> updates,
-                    SignerView author, Instant occurredAt, Instant recordedAt, boolean extemporaneous, VoidView voided) {
+                    List<AttachmentView> attachments, SignerView author, Instant occurredAt, Instant recordedAt, boolean extemporaneous,
+                    VoidView voided) {
         static NoteView from(NoteEntry entry) {
             SignedNote note = entry.note();
             return new NoteView(note.id(), note.encounterId(), note.type().name(), restrictionOf(note.restriction()), note.content(),
-                    note.updates(), SignerView.from(note),
+                    note.updates(), note.attachments().stream().map(AttachmentView::from).toList(), SignerView.from(note),
                     note.occurredAt(), note.recordedAt(), note.extemporaneous(), VoidView.from(entry.voiding()));
         }
 

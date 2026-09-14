@@ -6,12 +6,16 @@ import com.ClinicaDeYmid.clinical_history_service.domain.clinician.ClinicalRole;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.attachment.AttachmentMaintenance;
 import com.ClinicaDeYmid.clinical_history_service.domain.terminology.TerminologyRelease;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.terminology.Cie10Importer;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.clinical_history_service.support.AccessAuditContract;
 import com.ClinicaDeYmid.clinical_history_service.support.Cie10WorkbookFixture;
+import com.ClinicaDeYmid.clinical_history_service.support.MinioTestContainer;
+import com.ClinicaDeYmid.clinical_history_service.support.SampleFiles;
 import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.TestEncryptionKeys;
@@ -31,11 +35,15 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -52,6 +60,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
@@ -59,6 +68,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -104,6 +114,12 @@ class ClinicalRecordApiIT {
     @Autowired
     private Cie10Importer cie10;
 
+    @Autowired
+    private S3Client s3;
+
+    @Autowired
+    private AttachmentMaintenance maintenance;
+
     @BeforeEach
     void activeCatalog() {
         if (cie10.releases().stream().noneMatch(TerminologyRelease::active)) {
@@ -118,6 +134,7 @@ class ClinicalRecordApiIT {
         registry.add("clinica.clinical.patient-events.enabled", () -> false);
         registry.add("spring.kafka.admin.auto-create", () -> false);
         ClinicalTestProperties.register(registry);
+        MinioTestContainer.register(registry, "api-attachments-staging", "api-attachments");
     }
 
     @Test
@@ -415,6 +432,96 @@ class ClinicalRecordApiIT {
     }
 
     @Test
+    void attachmentsTravelSealedWithTheNoteAndDownloadOnlyAfterVerification() throws Exception {
+        UUID patient = activePatient();
+        String encounter = openEncounter(doctor, patient, "INPATIENT");
+        String draft = startDraft(doctor, encounter, """
+                {"content": {"type": "PROGRESS", "subjective": "Dolor", "objective": "Murphy positivo", "assessment": "Colecistitis", "plan": "Cirugía"}}""");
+        byte[] report = SampleFiles.pdf("Ecografía: vesícula con cálculos");
+
+        doctor.perform(multipart(BASE + "/drafts/" + draft + "/attachments").file(new MockMultipartFile("file", "eco hígado.pdf", "application/pdf", report)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.mediaType").value("application/pdf"))
+                .andExpect(jsonPath("$.fileName").value("eco hígado.pdf"))
+                .andExpect(jsonPath("$.sha256").value(Attachment.sha256Of(report)));
+        doctor.perform(get(BASE + "/drafts/" + draft + "/attachments")).andExpect(jsonPath("$", hasSize(1)));
+        String signed = doctor.perform(post(BASE + "/drafts/" + draft + "/signature").header(HttpHeaders.IF_MATCH, "\"0\""))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.attachments[0].size").value(report.length))
+                .andReturn().getResponse().getContentAsString();
+        String attachment = JsonPath.read(signed, "$.attachments[0].id");
+
+        doctor.perform(get(BASE + "/notes/" + draft + "/attachments/" + attachment))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/pdf"))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("attachment")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsByteArray()).isEqualTo(report));
+        new Staff("DOCTOR").perform(get(BASE + "/notes/" + draft + "/attachments/" + attachment))
+                .andExpect(status().isForbidden());
+        assertThat(auditEventsOf(patient)).anySatisfy(event -> {
+            assertThat(event.path("action").asText()).isEqualTo("READ_ATTACHMENT");
+            assertThat(AccessAuditContract.violations(event.toString())).isEmpty();
+        });
+
+        new Staff("ADMIN").perform(get(BASE + "/patients/" + patient + "/integrity")).andExpect(jsonPath("$.verified").value(true));
+        rootJdbc.update("UPDATE clinical_ledger.note_attachments SET sha256 = REPEAT('a', 64) WHERE id = ?", attachment);
+        new Staff("ADMIN").perform(get(BASE + "/patients/" + patient + "/integrity"))
+                .andExpect(jsonPath("$.chains[0].problems[0].kind").value("PAYLOAD_MISMATCH"));
+        doctor.perform(get(BASE + "/notes/" + draft + "/attachments/" + attachment))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("CLINICAL_CONTENT_UNREADABLE"));
+    }
+
+    @Test
+    void rejectsUnsafeFilesAndRemovesUploadsThatAreNeverSigned() throws Exception {
+        String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
+        String draft = startDraft(nurse, encounter, TRIAGE);
+
+        nurse.perform(multipart(BASE + "/drafts/" + draft + "/attachments")
+                        .file(new MockMultipartFile("file", "informe.pdf", "application/pdf", "<html>no soy un pdf</html>".getBytes())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ATTACHMENT"));
+        doctor.perform(multipart(BASE + "/drafts/" + draft + "/attachments").file(new MockMultipartFile("file", "foto.png", "image/png", SampleFiles.png())))
+                .andExpect(status().isNotFound());
+        String detached = JsonPath.read(nurse.perform(multipart(BASE + "/drafts/" + draft + "/attachments")
+                        .file(new MockMultipartFile("file", "herida.png", "image/png", SampleFiles.png())))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.id");
+        String discarded = JsonPath.read(nurse.perform(multipart(BASE + "/drafts/" + draft + "/attachments")
+                        .file(new MockMultipartFile("file", "herida-2.png", "image/png", SampleFiles.png())))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.id");
+
+        nurse.perform(delete(BASE + "/drafts/" + draft + "/attachments/" + detached)).andExpect(status().isNoContent());
+        nurse.perform(delete(BASE + "/drafts/" + draft).header(HttpHeaders.IF_MATCH, "\"0\"")).andExpect(status().isNoContent());
+
+        for (String staged : List.of(detached, discarded)) {
+            assertThatThrownBy(() -> s3.headObject(request -> request.bucket("api-attachments-staging").key("attachments/" + staged)))
+                    .isInstanceOf(NoSuchKeyException.class);
+        }
+    }
+
+    @Test
+    void attachmentRetentionFollowsTheLatestCareOfThePatient() throws Exception {
+        UUID patient = activePatient();
+        String encounter = openEncounter(nurse, patient, "EMERGENCY");
+        String draft = startDraft(nurse, encounter, TRIAGE);
+        String attachment = JsonPath.read(nurse.perform(multipart(BASE + "/drafts/" + draft + "/attachments")
+                        .file(new MockMultipartFile("file", "ekg.pdf", "application/pdf", SampleFiles.pdf("EKG"))))
+                .andReturn().getResponse().getContentAsString(), "$.id");
+        nurse.perform(post(BASE + "/drafts/" + draft + "/signature").header(HttpHeaders.IF_MATCH, "\"0\"")).andExpect(status().isCreated());
+        Instant initial = s3.headObject(request -> request.bucket("api-attachments").key("attachments/" + attachment)).objectLockRetainUntilDate();
+        String later = openEncounter(doctor, patient, "OUTPATIENT");
+        rootJdbc.update("UPDATE clinical_ledger.encounters SET opened_at = NOW(6) + INTERVAL 2 YEAR WHERE id = ?", later);
+
+        maintenance.extendRetentionForRecentCare();
+
+        Instant extended = s3.headObject(request -> request.bucket("api-attachments").key("attachments/" + attachment)).objectLockRetainUntilDate();
+        assertThat(initial).isAfter(Instant.now().plus(Duration.ofDays(365L * 15 - 1)));
+        assertThat(extended).isAfter(initial.plus(Duration.ofDays(700)));
+    }
+
+    @Test
     void onlySuperAdminsSeeAndRotateTheEncryptionKeys() throws Exception {
         String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
         signedNote(nurse, encounter, TRIAGE);
@@ -666,8 +773,9 @@ class ClinicalRecordApiIT {
         }
 
         ResultActions performWithSessionFrom(Instant issuedAt, MockHttpServletRequestBuilder request) throws Exception {
-            return mockMvc.perform(request.header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(role, uuid, issuedAt))
-                    .contentType(MediaType.APPLICATION_JSON));
+            MockHttpServletRequestBuilder authorized = request.header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(role, uuid, issuedAt));
+            return mockMvc.perform(request instanceof MockMultipartHttpServletRequestBuilder ? authorized
+                    : authorized.contentType(MediaType.APPLICATION_JSON));
         }
     }
 }

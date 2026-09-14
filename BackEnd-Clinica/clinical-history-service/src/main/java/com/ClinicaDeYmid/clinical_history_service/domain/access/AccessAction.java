@@ -7,6 +7,7 @@ public enum AccessAction {
     READ_NOTE,
     READ_LISTS,
     READ_VITAL_SIGNS,
+    READ_ATTACHMENT,
     WRITE_NOTE,
     VOID_NOTE,
     CLOSE_ENCOUNTER,

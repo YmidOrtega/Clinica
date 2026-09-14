@@ -61,10 +61,10 @@ public sealed abstract class ClinicalException extends DomainException {
                     actor, patientUuid, action, resourceId);
         }
 
-        public static AccessDenied restrictedNote(Clinician actor, UUID patientUuid, UUID noteId) {
+        public static AccessDenied restrictedNote(Clinician actor, UUID patientUuid, AccessAction action, UUID resourceId) {
             return new AccessDenied("RESTRICTED_NOTE",
                     "Esta nota está restringida al equipo de su atención; si es una emergencia, solicita acceso de emergencia",
-                    actor, patientUuid, AccessAction.READ_NOTE, noteId);
+                    actor, patientUuid, action, resourceId);
         }
 
         public Clinician actor() {
@@ -95,6 +95,31 @@ public sealed abstract class ClinicalException extends DomainException {
         public TerminologyUnavailable() {
             super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "TERMINOLOGY_NOT_ACTIVE",
                     "No hay un catálogo CIE-10 activo; un administrador debe importarlo y activarlo");
+        }
+    }
+
+    public static final class InvalidAttachment extends ClinicalException {
+        public InvalidAttachment(String problem) {
+            super(ErrorCategory.INVALID_INPUT, "INVALID_ATTACHMENT", "El anexo no es válido: " + problem);
+        }
+    }
+
+    public static final class AttachmentNotFound extends ClinicalException {
+        public AttachmentNotFound() {
+            super(ErrorCategory.NOT_FOUND, "ATTACHMENT_NOT_FOUND", "No se encontró el anexo");
+        }
+    }
+
+    public static final class TooManyAttachments extends ClinicalException {
+        public TooManyAttachments(int max) {
+            super(ErrorCategory.RULE_VIOLATION, "TOO_MANY_ATTACHMENTS", "Una nota admite máximo " + max + " anexos");
+        }
+    }
+
+    public static final class AttachmentStorageUnavailable extends ClinicalException {
+        public AttachmentStorageUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "ATTACHMENT_STORAGE_UNAVAILABLE",
+                    "El almacenamiento de anexos no está disponible; intenta de nuevo en unos minutos");
         }
     }
 

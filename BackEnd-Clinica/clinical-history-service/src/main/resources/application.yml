@@ -65,6 +65,15 @@ clinica:
       emergency-access-duration: 4h
     outbox:
       retention: 7d
+    attachments:
+      endpoint: ${CLINICAL_ATTACHMENTS_ENDPOINT:}
+      region: ${CLINICAL_ATTACHMENTS_REGION:us-east-1}
+      access-key: ${CLINICAL_ATTACHMENTS_ACCESS_KEY:}
+      secret-key: ${CLINICAL_ATTACHMENTS_SECRET_KEY:}
+      staging-bucket: ${CLINICAL_ATTACHMENTS_STAGING_BUCKET:clinical-attachments-staging}
+      archive-bucket: ${CLINICAL_ATTACHMENTS_ARCHIVE_BUCKET:clinical-attachments}
+      retention-after-last-care: P15Y
+      create-buckets: ${CLINICAL_ATTACHMENTS_CREATE_BUCKETS:false}
     encryption:
       keys-location: ${CLINICAL_ENCRYPTION_KEYS_LOCATION:}
       active-key-id: ${CLINICAL_ENCRYPTION_ACTIVE_KEY_ID:}
