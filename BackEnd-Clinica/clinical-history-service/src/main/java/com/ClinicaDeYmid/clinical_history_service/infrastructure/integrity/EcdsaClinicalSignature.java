@@ -26,12 +26,13 @@ public class EcdsaClinicalSignature implements ClinicalSignature, DocumentSealer
     public ChainLink seal(LedgerEntry entry, ChainLink previous, Instant sealedAt) {
         long sequence = ChainLink.nextSequenceAfter(previous);
         String previousHash = ChainLink.hashAfter(previous);
+        String keyId = keys.activeKeyId();
         String payloadHash = CanonicalPayloads.sha256(CanonicalPayloads.payload(entry));
         String entryHash = CanonicalPayloads.sha256(CanonicalPayloads.entry(entry.patientUuid(), sequence, entry.type(), entry.entryId(),
-                CanonicalPayloads.FORMAT_VERSION, payloadHash, previousHash, keys.activeKeyId(), sealedAt));
-        String seal = Base64.getEncoder().encodeToString(keys.sign(entryHash.getBytes(StandardCharsets.US_ASCII)));
+                CanonicalPayloads.FORMAT_VERSION, payloadHash, previousHash, keyId, sealedAt));
+        String seal = Base64.getEncoder().encodeToString(keys.sign(keyId, entryHash.getBytes(StandardCharsets.US_ASCII)));
         return new ChainLink(entry.patientUuid(), sequence, entry.type(), entry.entryId(), CanonicalPayloads.FORMAT_VERSION, payloadHash,
-                previousHash, entryHash, keys.activeKeyId(), seal, sealedAt);
+                previousHash, entryHash, keyId, seal, sealedAt);
     }
 
     @Override
@@ -55,7 +56,8 @@ public class EcdsaClinicalSignature implements ClinicalSignature, DocumentSealer
 
     @Override
     public DocumentSeal sealDocument(String sha256) {
-        return new DocumentSeal(keys.activeKeyId(), Base64.getEncoder().encodeToString(keys.sign(documentBytes(sha256))));
+        String keyId = keys.activeKeyId();
+        return new DocumentSeal(keyId, Base64.getEncoder().encodeToString(keys.sign(keyId, documentBytes(sha256))));
     }
 
     @Override

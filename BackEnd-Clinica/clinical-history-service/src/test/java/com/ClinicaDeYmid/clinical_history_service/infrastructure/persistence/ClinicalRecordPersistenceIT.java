@@ -17,8 +17,9 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.TriageLevel;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.config.ClockConfiguration;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.EncryptionConfiguration;
-import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitConfiguration;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
+import com.ClinicaDeYmid.clinical_history_service.support.OpenBaoTestContainer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,8 +27,6 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -49,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({JdbcPatientReferences.class, JdbcEncounters.class, JdbcClinicalNotes.class, JdbcNoteDrafts.class, JdbcChainLinks.class,
-        JdbcLedgerEntries.class, JdbcPatientChart.class, ClockConfiguration.class, EncryptionConfiguration.class, MySqlTestContainer.class})
+        JdbcLedgerEntries.class, JdbcPatientChart.class, ClockConfiguration.class, EncryptionConfiguration.class, TransitConfiguration.class, OpenBaoTestContainer.class, MySqlTestContainer.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ClinicalRecordPersistenceIT {
 
@@ -80,11 +79,6 @@ class ClinicalRecordPersistenceIT {
     private JdbcTemplate jdbc;
 
     private UUID patient;
-
-    @DynamicPropertySource
-    static void encryptionKeys(DynamicPropertyRegistry registry) {
-        ClinicalTestProperties.encryption(registry);
-    }
 
     @BeforeEach
     void clean() {

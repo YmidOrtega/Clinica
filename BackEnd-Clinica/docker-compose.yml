@@ -578,13 +578,8 @@ services:
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
          - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
          - EUREKA_URL=http://eureka-service:8761/eureka/
-         - CLINICAL_SEAL_KEYS_LOCATION=/run/secrets/clinical/seal
-         - CLINICAL_SEAL_ACTIVE_KEY_ID=${CLINICAL_SEAL_ACTIVE_KEY_ID}
-         - CLINICAL_ENCRYPTION_KEYS_LOCATION=/run/secrets/clinical/encryption
-         - CLINICAL_ENCRYPTION_ACTIVE_KEY_ID=${CLINICAL_ENCRYPTION_ACTIVE_KEY_ID}
          - CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000
       volumes:
-         - ${CLINICAL_KEYS_DIR:-./.secrets/clinical}:/run/secrets/clinical:ro
          - openbao_tls:/run/secrets/openbao-tls:ro
          - openbao_approle_clinical:/run/secrets/openbao/approle:ro
       networks:

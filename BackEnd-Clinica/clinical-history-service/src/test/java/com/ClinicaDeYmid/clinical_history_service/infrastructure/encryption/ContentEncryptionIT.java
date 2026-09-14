@@ -3,7 +3,10 @@ package com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.config.ClockConfiguration;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption.EncryptedField;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption.Purpose;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitClient;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitKeys;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
+import com.ClinicaDeYmid.clinical_history_service.support.OpenBaoTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.TestEncryptionKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,10 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Clock;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,7 +49,7 @@ class ContentEncryptionIT {
     @Autowired
     private Clock clock;
 
-    private Path keys;
+    private final Map<String, String> keys = new HashMap<>();
 
     @BeforeEach
     void freshKeys() {
@@ -54,8 +57,8 @@ class ContentEncryptionIT {
         jdbc.update("DELETE FROM clinical_keys.data_key_wrappings");
         jdbc.update("DELETE FROM clinical_keys.data_keys");
         jdbc.update("SET FOREIGN_KEY_CHECKS = 1");
-        keys = TestEncryptionKeys.newDirectory();
-        TestEncryptionKeys.write(keys, "master-2026");
+        keys.clear();
+        keys.put("master-2026", TestEncryptionKeys.randomBase64());
     }
 
     @Test
@@ -111,11 +114,11 @@ class ContentEncryptionIT {
     }
 
     @Test
-    void rotatesTheMasterKeyWithoutReencryptingContent() throws Exception {
+    void rotatesTheMasterKeyWithoutReencryptingContent() {
         UUID patient = UUID.randomUUID();
         UUID note = UUID.randomUUID();
         EncryptedField field = encryption("master-2026").encrypt(patient, Purpose.NOTE_CONTENT, note, NOTE);
-        TestEncryptionKeys.write(keys, "master-2027");
+        keys.put("master-2027", TestEncryptionKeys.randomBase64());
         ContentEncryption rotated = encryption("master-2027");
 
         assertThat(rotated.status().pendingRewrap()).isEqualTo(1);
@@ -125,30 +128,60 @@ class ContentEncryptionIT {
         assertThat(rotated.status().wrappingsPerMasterKey()).containsEntry("master-2026", 1L).containsEntry("master-2027", 1L);
         assertThat(rotated.status().retiredKeysCanBeRemoved()).isTrue();
 
-        Files.delete(keys.resolve("master-2026.key"));
+        keys.remove("master-2026");
 
         assertThat(encryption("master-2027").decrypt(field, Purpose.NOTE_CONTENT, note)).isEqualTo(NOTE);
     }
 
     @Test
-    void contentIsRecoverableOnlyWhileABackupOfTheMasterKeyExists() throws Exception {
+    void contentIsRecoverableOnlyWhileABackupOfTheMasterKeyExists() {
         UUID note = UUID.randomUUID();
         EncryptedField field = encryption("master-2026").encrypt(UUID.randomUUID(), Purpose.NOTE_CONTENT, note, NOTE);
-        Path backup = TestEncryptionKeys.newDirectory();
-        Files.copy(keys.resolve("master-2026.key"), backup.resolve("master-2026.key"));
-        Files.delete(keys.resolve("master-2026.key"));
-        TestEncryptionKeys.write(keys, "master-2027");
+        String backup = keys.remove("master-2026");
+        keys.put("master-2027", TestEncryptionKeys.randomBase64());
 
         assertThatThrownBy(() -> encryption("master-2027").decrypt(field, Purpose.NOTE_CONTENT, note))
                 .isInstanceOf(EncryptedContentUnreadableException.class)
                 .hasMessageContaining("No available master key");
 
-        Files.copy(backup.resolve("master-2026.key"), keys.resolve("master-2026.key"), StandardCopyOption.REPLACE_EXISTING);
+        keys.put("master-2026", backup);
 
         assertThat(encryption("master-2027").decrypt(field, Purpose.NOTE_CONTENT, note)).isEqualTo(NOTE);
     }
 
+    @Test
+    void migratesContentFromRetiredMasterKeysToTransitAndAcrossTransitRotations() {
+        UUID patient = UUID.randomUUID();
+        UUID note = UUID.randomUUID();
+        EncryptedField field = encryption("master-2026").encrypt(patient, Purpose.NOTE_CONTENT, note, NOTE);
+        String transitKey = OpenBaoTestContainer.createKey("kek", "aes256-gcm96");
+        ContentEncryption migrating = transitEncryption(transitKey, Map.copyOf(keys));
+
+        assertThat(migrating.status().activeMasterKeyId()).isEqualTo(transitKey + "-v1");
+        assertThat(migrating.status().availableMasterKeyIds()).containsExactlyInAnyOrder(transitKey + "-v1", "master-2026");
+        assertThat(migrating.rewrapWithActiveMasterKey()).isEqualTo(1);
+        assertThat(transitEncryption(transitKey, Map.of()).decrypt(field, Purpose.NOTE_CONTENT, note)).isEqualTo(NOTE);
+
+        OpenBaoTestContainer.rotate(transitKey);
+        ContentEncryption rotated = transitEncryption(transitKey, Map.of());
+        EncryptedField afterRotation = rotated.encrypt(UUID.randomUUID(), Purpose.NOTE_CONTENT, note, NOTE);
+
+        assertThat(rotated.status().pendingRewrap()).isEqualTo(1);
+        assertThat(rotated.rewrapWithActiveMasterKey()).isEqualTo(1);
+        assertThat(rotated.status().wrappingsPerMasterKey())
+                .containsEntry("master-2026", 1L).containsEntry(transitKey + "-v1", 1L).containsEntry(transitKey + "-v2", 2L);
+        assertThat(rotated.decrypt(field, Purpose.NOTE_CONTENT, note)).isEqualTo(NOTE);
+        assertThat(rotated.decrypt(afterRotation, Purpose.NOTE_CONTENT, note)).isEqualTo(NOTE);
+    }
+
     private ContentEncryption encryption(String activeKeyId) {
-        return new ContentEncryption(MasterKeys.load(new EncryptionProperties(keys, activeKeyId)), store, transactions, clock);
+        MasterKeys masterKeys = MasterKeys.of(LocalKeyEncryptionKeys.active(activeKeyId, Map.copyOf(keys)), LocalKeyEncryptionKeys.retired(Map.of()));
+        return new ContentEncryption(masterKeys, store, transactions, clock);
+    }
+
+    private ContentEncryption transitEncryption(String transitKey, Map<String, String> retired) {
+        TransitKeys transitKeys = new TransitKeys(new TransitClient(OpenBaoTestContainer.template(), "transit"), transitKey, Duration.ofMinutes(5), clock);
+        MasterKeys masterKeys = MasterKeys.of(new TransitKeyEncryptionKeys(transitKeys), LocalKeyEncryptionKeys.retired(retired));
+        return new ContentEncryption(masterKeys, store, transactions, clock);
     }
 }

@@ -78,19 +78,17 @@ JWT_PUBLIC_KEY=MIIBIjANBgkqh...
 CLINICAL_DB_NAME=clinical_db
 CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/clinical_db
 
-CLINICAL_SEAL_KEYS_LOCATION=/run/secrets/clinical/seal        # directorio de claves ECDSA P-256
-CLINICAL_SEAL_ACTIVE_KEY_ID=seal-2026                         # <id>.private.pem / <id>.public.pem
-CLINICAL_ENCRYPTION_KEYS_LOCATION=/run/secrets/clinical/encryption
-CLINICAL_ENCRYPTION_ACTIVE_KEY_ID=master-2026                 # archivo <id>.key en Base64
+CLINICAL_TRANSIT_MOUNT=transit                                # opcional; motor transit de OpenBao
+CLINICAL_ENCRYPTION_TRANSIT_KEY=clinical-kek                  # opcional; clave maestra aes256-gcm96
+CLINICAL_SEAL_TRANSIT_KEY=clinical-seal                       # opcional; clave del sello ecdsa-p256
 
 CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000    # cualquier S3 con Object Lock
 ```
 
-Las claves de sello y de cifrado **no viven en la base de datos**: son archivos montados de solo
-lectura, y `CLINICAL_KEYS_DIR` (por defecto `./.secrets/clinical`) indica qué directorio del anfitrión
-se monta en `/run/secrets/clinical`. Para desarrollo se generan con
-`platform/clinical-keys/generate-dev-keys.sh`. Perder la clave maestra vuelve ilegible el contenido
-clínico: la rotación y la recuperación están en `clinical-history-service/docs/claves-y-cifrado.md`.
+Las claves de sello y de cifrado **viven en el motor transit de OpenBao y nunca salen de él**; el
+servicio no arranca sin OpenBao ni con el perfil `openbao` desactivado. `openbao-init` crea las claves.
+Rotación, migración desde claves en archivos y recuperación en
+`clinical-history-service/docs/claves-y-cifrado.md`.
 Opcionales: `CLINICAL_SERVICE_PORT`, `CLINICAL_SERVICE_REPLICAS`, `CLINICAL_DB_POOL_SIZE`,
 `EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`, `SWAGGER_UI_ENABLED`.
 

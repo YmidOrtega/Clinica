@@ -1,5 +1,8 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption;
 
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitClient;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitKeys;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,8 +16,11 @@ import java.time.Clock;
 public class EncryptionConfiguration {
 
     @Bean
-    ContentEncryption contentEncryption(EncryptionProperties properties, NamedParameterJdbcTemplate jdbc, TransactionOperations transactions,
-                                        Clock clock) {
-        return new ContentEncryption(MasterKeys.load(properties), new DataKeyStore(jdbc), transactions, clock);
+    ContentEncryption contentEncryption(EncryptionProperties properties, TransitClient transit, TransitProperties transitProperties,
+                                        NamedParameterJdbcTemplate jdbc, TransactionOperations transactions, Clock clock) {
+        MasterKeys masterKeys = MasterKeys.of(
+                new TransitKeyEncryptionKeys(new TransitKeys(transit, properties.transitKey(), transitProperties.keyRefreshInterval(), clock)),
+                LocalKeyEncryptionKeys.retired(properties.retiredMasterKeys()));
+        return new ContentEncryption(masterKeys, new DataKeyStore(jdbc), transactions, clock);
     }
 }

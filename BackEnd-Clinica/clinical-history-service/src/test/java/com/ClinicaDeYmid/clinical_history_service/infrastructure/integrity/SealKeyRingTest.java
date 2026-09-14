@@ -4,10 +4,8 @@ import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Base64;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,52 +13,39 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SealKeyRingTest {
 
     @Test
-    void loadsTheActiveKeyAndEveryPublicKeyForVerification() {
-        Path directory = TestSealKeys.newDirectory();
-        TestSealKeys.write(directory, "seal-2025", false);
-        TestSealKeys.write(directory, "seal-2026", true);
+    void signsWithTheActiveKeyAndVerifiesWithRetiredPublicKeys() {
+        LocalSealSigner signer = new LocalSealSigner("clinical-seal-v1");
+        String retired = TestSealKeys.publicPem(TestSealKeys.generate().getPublic());
 
-        SealKeyRing ring = SealKeyRing.load(new SealProperties(directory, "seal-2026"));
+        SealKeyRing ring = SealKeyRing.of(signer, Map.of("seal-2025", retired));
 
-        assertThat(ring.activeKeyId()).isEqualTo("seal-2026");
-        assertThat(ring.publicKeysPem()).containsOnlyKeys("seal-2025", "seal-2026");
-        assertThat(ring.publicKeysPem().get("seal-2026")).startsWith("-----BEGIN PUBLIC KEY-----");
         byte[] data = "entry".getBytes(StandardCharsets.US_ASCII);
-        assertThat(ring.verify("seal-2026", data, ring.sign(data))).contains(true);
-        assertThat(ring.verify("seal-2025", data, ring.sign(data))).contains(false);
-        assertThat(ring.verify("seal-2024", data, ring.sign(data))).isEmpty();
+        byte[] seal = ring.sign(ring.activeKeyId(), data);
+        assertThat(ring.activeKeyId()).isEqualTo("clinical-seal-v1");
+        assertThat(ring.publicKeysPem()).containsOnlyKeys("clinical-seal-v1", "seal-2025");
+        assertThat(ring.publicKeysPem().get("seal-2025")).startsWith("-----BEGIN PUBLIC KEY-----");
+        assertThat(ring.verify("clinical-seal-v1", data, seal)).contains(true);
+        assertThat(ring.verify("seal-2025", data, seal)).contains(false);
+        assertThat(ring.verify("seal-2024", data, seal)).isEmpty();
+        assertThat(ring.knows("seal-2025")).isTrue();
     }
 
     @Test
-    void refusesToStartWithoutAUsableActiveKey() {
-        Path directory = TestSealKeys.newDirectory();
-        TestSealKeys.write(directory, "public-only", false);
+    void refusesRetiredKeysThatCannotVerifySeals() {
+        LocalSealSigner signer = new LocalSealSigner("clinical-seal-v1");
+        String p384 = TestSealKeys.publicPem(TestSealKeys.generate("secp384r1").getPublic());
+        String valid = TestSealKeys.publicPem(TestSealKeys.generate().getPublic());
 
-        assertThatThrownBy(() -> SealKeyRing.load(new SealProperties(directory, null))).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> SealKeyRing.load(new SealProperties(directory, "public-only")))
-                .hasMessageContaining("private and public");
-        assertThatThrownBy(() -> SealKeyRing.load(new SealProperties(directory, "../etc/passwd")))
-                .hasMessageContaining("invalid characters");
-    }
-
-    @Test
-    void refusesMismatchedPairsAndOtherCurves() throws Exception {
-        Path mismatched = TestSealKeys.newDirectory();
-        TestSealKeys.write(mismatched, "a", true);
-        TestSealKeys.write(mismatched, "b", true);
-        Files.copy(mismatched.resolve("b.public.pem"), mismatched.resolve("a.public.pem"), StandardCopyOption.REPLACE_EXISTING);
-        Path otherCurve = TestSealKeys.newDirectory();
-        TestSealKeys.write(otherCurve, "p384", true, "secp384r1");
-
-        assertThatThrownBy(() -> SealKeyRing.load(new SealProperties(mismatched, "a"))).hasMessageContaining("do not match");
-        assertThatThrownBy(() -> SealKeyRing.load(new SealProperties(otherCurve, "p384"))).hasMessageContaining("P-256");
+        assertThatThrownBy(() -> SealKeyRing.of(signer, Map.of("p384", p384))).hasMessageContaining("P-256");
+        assertThatThrownBy(() -> SealKeyRing.of(signer, Map.of("garbage", "-----BEGIN PUBLIC KEY-----\nAAAA\n-----END PUBLIC KEY-----")))
+                .hasMessageContaining("Invalid EC public key");
+        assertThatThrownBy(() -> SealKeyRing.of(signer, Map.of("../etc/passwd", valid))).hasMessageContaining("invalid characters");
+        assertThatThrownBy(() -> SealKeyRing.of(signer, Map.of("clinical-seal-v1", valid))).hasMessageContaining("collides");
     }
 
     @Test
     void treatsMalformedSealsAsInvalid() {
-        Path directory = TestSealKeys.newDirectory();
-        TestSealKeys.write(directory, "k", true);
-        SealKeyRing ring = SealKeyRing.load(new SealProperties(directory, "k"));
+        SealKeyRing ring = SealKeyRing.of(new LocalSealSigner("k"), Map.of());
 
         assertThat(ring.verify("k", new byte[]{1}, Base64.getDecoder().decode("AAAA"))).contains(false);
     }
