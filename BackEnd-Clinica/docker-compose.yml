@@ -26,6 +26,68 @@ services:
          timeout: 5s
          retries: 10
 
+   clinical-db:
+      build: ./clinical-history-service/docker/mysql
+      container_name: clinical-db
+      restart: always
+      environment:
+         MYSQL_ROOT_PASSWORD: ${CLINICAL_DB_ROOT_PASSWORD}
+         MYSQL_DATABASE: ${CLINICAL_DB_NAME}
+         CLINICAL_DB_MIGRATOR_USER: ${CLINICAL_DB_MIGRATOR_USER}
+         CLINICAL_DB_MIGRATOR_PASSWORD: ${CLINICAL_DB_MIGRATOR_PASSWORD}
+         CLINICAL_DB_APP_USER: ${CLINICAL_DB_APP_USER}
+         CLINICAL_DB_APP_PASSWORD: ${CLINICAL_DB_APP_PASSWORD}
+         CLINICAL_DB_DEBEZIUM_USER: ${CLINICAL_DB_DEBEZIUM_USER}
+         CLINICAL_DB_DEBEZIUM_PASSWORD: ${CLINICAL_DB_DEBEZIUM_PASSWORD}
+      volumes:
+         - clinical_data:/var/lib/mysql
+         - clinical_keyring:/var/lib/mysql-keyring
+         - ./clinical-history-service/docker/mysql-init:/docker-entrypoint-initdb.d:ro
+      networks:
+         - clinical-data
+      healthcheck:
+         test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+         interval: 10s
+         timeout: 5s
+         retries: 10
+
+   clinical-storage:
+      image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+      container_name: clinical-storage
+      restart: always
+      command: server /data --console-address ":9001"
+      environment:
+         MINIO_ROOT_USER: ${CLINICAL_STORAGE_ROOT_USER}
+         MINIO_ROOT_PASSWORD: ${CLINICAL_STORAGE_ROOT_PASSWORD}
+      volumes:
+         - clinical_attachments:/data
+      networks:
+         - clinical-data
+      healthcheck:
+         test: ["CMD", "mc", "ready", "local"]
+         interval: 10s
+         timeout: 5s
+         retries: 10
+
+   clinical-storage-init:
+      image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+      container_name: clinical-storage-init
+      restart: "no"
+      depends_on:
+         clinical-storage:
+            condition: service_healthy
+      entrypoint: ["sh", "/init-storage.sh"]
+      environment:
+         MINIO_ROOT_USER: ${CLINICAL_STORAGE_ROOT_USER}
+         MINIO_ROOT_PASSWORD: ${CLINICAL_STORAGE_ROOT_PASSWORD}
+         CLINICAL_ATTACHMENTS_ACCESS_KEY: ${CLINICAL_ATTACHMENTS_ACCESS_KEY}
+         CLINICAL_ATTACHMENTS_SECRET_KEY: ${CLINICAL_ATTACHMENTS_SECRET_KEY}
+      volumes:
+         - ./clinical-history-service/docker/storage-init/init-storage.sh:/init-storage.sh:ro
+         - ./clinical-history-service/docker/storage-init/clinical-app-policy.json:/policies/clinical-app-policy.json:ro
+      networks:
+         - clinical-data
+
    # Base de datos para facturación
    billing-db:
       image: mysql:8.0
@@ -287,9 +349,13 @@ services:
          PATIENT_DB_HOST: patient-db
          PATIENT_DB_DEBEZIUM_USER: ${PATIENT_DB_DEBEZIUM_USER}
          PATIENT_DB_DEBEZIUM_PASSWORD: ${PATIENT_DB_DEBEZIUM_PASSWORD}
+         CLINICAL_DB_HOST: clinical-db
+         CLINICAL_DB_DEBEZIUM_USER: ${CLINICAL_DB_DEBEZIUM_USER}
+         CLINICAL_DB_DEBEZIUM_PASSWORD: ${CLINICAL_DB_DEBEZIUM_PASSWORD}
       networks:
          - kafka-net
          - patient-data
+         - clinical-data
       healthcheck:
          test: ["CMD-SHELL", "curl -fs http://localhost:8083/connectors > /dev/null"]
          interval: 10s
@@ -306,10 +372,13 @@ services:
             condition: service_healthy
          patient-db:
             condition: service_healthy
+         clinical-db:
+            condition: service_healthy
       entrypoint: ["sh", "/register-connectors.sh"]
       volumes:
          - ./platform/kafka-connect/register-connectors.sh:/register-connectors.sh:ro
          - ./patient-service/debezium:/connectors/patient-service:ro
+         - ./clinical-history-service/debezium:/connectors/clinical-history-service:ro
       networks:
          - kafka-net
 
@@ -341,6 +410,49 @@ services:
          timeout: 5s
          retries: 5
          start_period: 60s
+
+   clinical-history-service:
+      build: ./clinical-history-service
+      restart: unless-stopped
+      deploy:
+         replicas: ${CLINICAL_SERVICE_REPLICAS:-2}
+      depends_on:
+         clinical-db:
+            condition: service_healthy
+         clinical-storage-init:
+            condition: service_completed_successfully
+         kafka:
+            condition: service_healthy
+         eureka-service:
+            condition: service_healthy
+      environment:
+         - CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/${CLINICAL_DB_NAME}
+         - CLINICAL_DB_MIGRATOR_USER=${CLINICAL_DB_MIGRATOR_USER}
+         - CLINICAL_DB_MIGRATOR_PASSWORD=${CLINICAL_DB_MIGRATOR_PASSWORD}
+         - CLINICAL_DB_APP_USER=${CLINICAL_DB_APP_USER}
+         - CLINICAL_DB_APP_PASSWORD=${CLINICAL_DB_APP_PASSWORD}
+         - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - CLINICAL_SEAL_KEYS_LOCATION=/run/secrets/clinical/seal
+         - CLINICAL_SEAL_ACTIVE_KEY_ID=${CLINICAL_SEAL_ACTIVE_KEY_ID}
+         - CLINICAL_ENCRYPTION_KEYS_LOCATION=/run/secrets/clinical/encryption
+         - CLINICAL_ENCRYPTION_ACTIVE_KEY_ID=${CLINICAL_ENCRYPTION_ACTIVE_KEY_ID}
+         - CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000
+         - CLINICAL_ATTACHMENTS_ACCESS_KEY=${CLINICAL_ATTACHMENTS_ACCESS_KEY}
+         - CLINICAL_ATTACHMENTS_SECRET_KEY=${CLINICAL_ATTACHMENTS_SECRET_KEY}
+      volumes:
+         - ${CLINICAL_KEYS_DIR:-./.secrets/clinical}:/run/secrets/clinical:ro
+      networks:
+         - clinica-net
+         - clinical-data
+         - kafka-net
+      healthcheck:
+         test: [ "CMD", "curl", "-fs", "http://localhost:8089/actuator/health/readiness" ]
+         interval: 15s
+         timeout: 5s
+         retries: 5
+         start_period: 90s
 
 #   billing-service:
 #      build: ./billing-service
@@ -646,11 +758,17 @@ volumes:
    redis_data:
    redis_insight_data:
    kafka_data:
+   clinical_data:
+   clinical_keyring:
+   clinical_attachments:
 
 networks:
    clinica-net:
       driver: bridge
    patient-data:
+      driver: bridge
+      internal: true
+   clinical-data:
       driver: bridge
       internal: true
    kafka-net:

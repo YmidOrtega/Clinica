@@ -82,7 +82,7 @@ cd BackEnd-Clinica
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/patient-private.pem
 export JWT_PUBLIC_KEY=$(openssl pkey -in /tmp/patient-private.pem -pubout | grep -v '^-----' | tr -d '\n')
 
-docker compose -p patient-load -f docker-compose.yml -f docker-compose.patient-debug.yml \
+docker compose -p patient-load -f docker-compose.yml -f docker-compose.debug.yml \
   up -d --build patient-db eureka-service patient-service
 
 docker exec -i patient-db mysql -uroot -p"$PATIENT_DB_ROOT_PASSWORD" "$PATIENT_DB_NAME" \

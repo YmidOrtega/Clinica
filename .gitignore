@@ -60,3 +60,5 @@ autocommit.md
 
 # Notas locales de preparación (no forman parte del proyecto)
 REPASO-ENTREVISTA.md
+
+.secrets/

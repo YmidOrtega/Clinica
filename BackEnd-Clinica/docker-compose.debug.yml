@@ -18,7 +18,28 @@ services:
       networks:
          - kafka-net
          - patient-data
+         - clinical-data
          - debug-net
+
+   clinical-db:
+      ports:
+         - "127.0.0.1:3315:3306"
+      networks:
+         - clinical-data
+         - debug-net
+
+   clinical-storage:
+      ports:
+         - "127.0.0.1:9001:9001"
+      networks:
+         - clinical-data
+         - debug-net
+
+   clinical-history-service:
+      ports:
+         - "127.0.0.1:8091-8092:8089"
+      environment:
+         - SWAGGER_UI_ENABLED=true
 
    kafka-ui:
       image: ghcr.io/kafbat/kafka-ui:v1.5.0
