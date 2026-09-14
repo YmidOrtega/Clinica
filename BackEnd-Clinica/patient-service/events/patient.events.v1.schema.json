@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clinica:events:patient.events.v1",
+  "title": "Patient event",
+  "description": "Value of every record in the patient.events.v1 topic. The record key is the patient UUID. Every event carries the current shared snapshot of the patient, so the latest record per key is the patient's current state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "type", "schemaVersion", "occurredAt", "patientUuid", "patientVersion", "data"],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid", "description": "Unique per event. Use it to discard redeliveries." },
+    "type": {
+      "enum": [
+        "PatientRegistered",
+        "PatientDocumentChanged",
+        "PatientDemographicsCorrected",
+        "PatientAffiliationUpdated",
+        "PatientDeactivated",
+        "PatientReactivated",
+        "PatientDied"
+      ]
+    },
+    "schemaVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "patientUuid": { "type": "string", "format": "uuid" },
+    "patientVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Increases with every change of the patient. Ignore events whose version is not greater than the one already stored."
+    },
+    "traceId": { "type": "string", "pattern": "^[0-9a-f]{16,32}$" },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["patient"],
+      "properties": {
+        "patient": { "$ref": "#/$defs/patient" },
+        "previousDocument": { "$ref": "#/$defs/document", "description": "Present only in PatientDocumentChanged." }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "PatientDocumentChanged" } } },
+      "then": { "properties": { "data": { "required": ["patient", "previousDocument"] } } },
+      "else": { "properties": { "data": { "not": { "required": ["previousDocument"] } } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "PatientDied" } } },
+      "then": { "properties": { "data": { "properties": { "patient": { "required": ["dateOfDeath"], "properties": { "status": { "const": "DECEASED" } } } } } } }
+    }
+  ],
+  "$defs": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "number"],
+      "properties": {
+        "type": {
+          "enum": [
+            "REGISTRO_CIVIL",
+            "TARJETA_DE_IDENTIDAD",
+            "CEDULA_DE_CIUDADANIA",
+            "CEDULA_DE_EXTRANJERIA",
+            "PASAPORTE",
+            "PERMISO_ESPECIAL_DE_PERMANENCIA",
+            "PERMISO_POR_PROTECCION_TEMPORAL",
+            "DOCUMENTO_EXTRANJERO"
+          ]
+        },
+        "number": { "type": "string", "pattern": "^[A-Z0-9]{3,20}$" }
+      }
+    },
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uuid", "document", "firstNames", "lastNames", "birthDate", "sex", "status", "affiliation"],
+      "properties": {
+        "uuid": { "type": "string", "format": "uuid" },
+        "document": { "$ref": "#/$defs/document" },
+        "firstNames": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "lastNames": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "birthDate": { "type": "string", "format": "date" },
+        "sex": { "enum": ["FEMALE", "MALE", "INDETERMINATE"] },
+        "status": { "enum": ["ACTIVE", "INACTIVE", "DECEASED"] },
+        "dateOfDeath": { "type": "string", "format": "date" },
+        "affiliation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["regime"],
+          "properties": {
+            "regime": { "enum": ["CONTRIBUTORY", "SUBSIDIZED", "SPECIAL", "UNINSURED"] },
+            "healthProviderNit": { "type": "string", "pattern": "^[0-9]{9,10}(-[0-9])?$" }
+          }
+        }
+      }
+    }
+  }
+}
