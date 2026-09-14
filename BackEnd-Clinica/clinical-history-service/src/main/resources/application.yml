@@ -1,13 +1,100 @@
 server:
-  port: 8089
+  port: ${CLINICAL_SERVICE_PORT:8089}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 spring:
   application:
     name: clinical-history-service
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${CLINICAL_DB_URL:jdbc:mysql://localhost:3315/clinical_db}
+    username: ${CLINICAL_DB_APP_USER:clinical_app}
+    password: ${CLINICAL_DB_APP_PASSWORD:}
+    hikari:
+      pool-name: clinical-history-service
+      maximum-pool-size: ${CLINICAL_DB_POOL_SIZE:15}
+      connection-timeout: 5000
   flyway:
     locations: classpath:db/migration/clinical
+    user: ${CLINICAL_DB_MIGRATOR_USER:clinical_migrator}
+    password: ${CLINICAL_DB_MIGRATOR_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: clinical-history-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        allow.auto.create.topics: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  cloud:
+    openfeign:
+      client:
+        config:
+          patient-service:
+            connect-timeout: 1000
+            read-timeout: 2000
+    circuitbreaker:
+      resilience4j:
+        disable-time-limiter: true
+
+clinica:
+  clinical:
+    time-zone: America/Bogota
+    patient-events:
+      enabled: true
+  security:
+    jwt:
+      public-key: ${JWT_PUBLIC_KEY:}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      patient-service:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 1500ms
+        slow-call-rate-threshold: 80
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+
+springdoc:
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
