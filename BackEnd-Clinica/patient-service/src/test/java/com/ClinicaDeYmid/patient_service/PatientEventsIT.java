@@ -54,6 +54,8 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.function.Predicate;
 
+import static com.ClinicaDeYmid.patient_service.support.SecretFiles.withKafkaConnectSecrets;
+import static com.ClinicaDeYmid.patient_service.support.SecretFiles.withSecretFiles;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -75,18 +77,18 @@ class PatientEventsIT {
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final List<ConsumerRecord<String, String>> RECEIVED = new ArrayList<>();
 
-    private static final MySQLContainer<?> MYSQL = new MySQLContainer<>(MySqlTestContainer.IMAGE)
+    private static final MySQLContainer<?> MYSQL = withSecretFiles(new MySQLContainer<>(MySqlTestContainer.IMAGE)
             .withUsername("root")
             .withNetwork(NETWORK)
             .withNetworkAliases("patient-db")
-            .withEnv("PATIENT_DB_MIGRATOR_USER", "patient_migrator")
-            .withEnv("PATIENT_DB_MIGRATOR_PASSWORD", "migrator-test-secret")
-            .withEnv("PATIENT_DB_APP_USER", "patient_app")
-            .withEnv("PATIENT_DB_APP_PASSWORD", "app-test-secret")
-            .withEnv("PATIENT_DB_DEBEZIUM_USER", DEBEZIUM_USER)
-            .withEnv("PATIENT_DB_DEBEZIUM_PASSWORD", DEBEZIUM_PASSWORD)
             .withCopyFileToContainer(MountableFile.forHostPath("docker/mysql-init/01-create-users.sh", 0755),
-                    "/docker-entrypoint-initdb.d/01-create-users.sh");
+                    "/docker-entrypoint-initdb.d/01-create-users.sh"), Map.of(
+            "PATIENT_DB_MIGRATOR_USER", "patient_migrator",
+            "PATIENT_DB_MIGRATOR_PASSWORD", "migrator-test-secret",
+            "PATIENT_DB_APP_USER", "patient_app",
+            "PATIENT_DB_APP_PASSWORD", "app-test-secret",
+            "PATIENT_DB_DEBEZIUM_USER", DEBEZIUM_USER,
+            "PATIENT_DB_DEBEZIUM_PASSWORD", DEBEZIUM_PASSWORD));
 
     private static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.1")
             .withNetwork(NETWORK)
@@ -259,7 +261,7 @@ class PatientEventsIT {
     }
 
     private static GenericContainer<?> startConnect() {
-        GenericContainer<?> container = new GenericContainer<>("quay.io/debezium/connect:3.6.2.Final")
+        GenericContainer<?> container = withKafkaConnectSecrets(new GenericContainer<>("quay.io/debezium/connect:3.6.2.Final")
                 .withNetwork(NETWORK)
                 .withExposedPorts(8083)
                 .withEnv("BOOTSTRAP_SERVERS", "kafka:19092")
@@ -270,13 +272,11 @@ class PatientEventsIT {
                 .withEnv("CONFIG_STORAGE_REPLICATION_FACTOR", "1")
                 .withEnv("OFFSET_STORAGE_REPLICATION_FACTOR", "1")
                 .withEnv("STATUS_STORAGE_REPLICATION_FACTOR", "1")
-                .withEnv("CONNECT_CONFIG_PROVIDERS", "env")
-                .withEnv("CONNECT_CONFIG_PROVIDERS_ENV_CLASS", "org.apache.kafka.common.config.provider.EnvVarConfigProvider")
                 .withEnv("PATIENT_DB_HOST", "patient-db")
-                .withEnv("PATIENT_DB_DEBEZIUM_USER", DEBEZIUM_USER)
-                .withEnv("PATIENT_DB_DEBEZIUM_PASSWORD", DEBEZIUM_PASSWORD)
                 .withEnv("KAFKA_REPLICATION_FACTOR", "1")
-                .waitingFor(Wait.forHttp("/connectors").forStatusCode(200).withStartupTimeout(Duration.ofMinutes(2)));
+                .waitingFor(Wait.forHttp("/connectors").forStatusCode(200).withStartupTimeout(Duration.ofMinutes(2))), Map.of(
+                "patient-db-debezium-user", DEBEZIUM_USER,
+                "patient-db-debezium-password", DEBEZIUM_PASSWORD));
         container.start();
         return container;
     }

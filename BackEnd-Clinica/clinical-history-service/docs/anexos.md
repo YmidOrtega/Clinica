@@ -55,8 +55,9 @@ GET /notes/{id}/attachments/{attachmentId}
   se crean con infraestructura.
 
 Variables: `CLINICAL_ATTACHMENTS_ENDPOINT` (vacío para Amazon S3), `CLINICAL_ATTACHMENTS_REGION`,
-`CLINICAL_ATTACHMENTS_ACCESS_KEY`, `CLINICAL_ATTACHMENTS_SECRET_KEY`,
-`CLINICAL_ATTACHMENTS_STAGING_BUCKET`, `CLINICAL_ATTACHMENTS_ARCHIVE_BUCKET`.
+`CLINICAL_ATTACHMENTS_STAGING_BUCKET`, `CLINICAL_ATTACHMENTS_ARCHIVE_BUCKET`. Las credenciales de
+acceso vienen de OpenBao (`secret/clinical/storage/attachments`) con el perfil `openbao`; fuera de él,
+de `CLINICAL_ATTACHMENTS_ACCESS_KEY` y `CLINICAL_ATTACHMENTS_SECRET_KEY`.
 
 ## Fallos
 

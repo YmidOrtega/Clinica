@@ -67,7 +67,7 @@ Requisitos: Docker y Node.js (solo para firmar tokens locales). El stack se leva
 ```bash
 cd BackEnd-Clinica
 
-docker exec -i clinical-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' \
+docker exec -i clinical-db sh -c 'mysql -uroot -p"$(cat "$MYSQL_ROOT_PASSWORD_FILE")" "$MYSQL_DATABASE"' \
   < clinical-history-service/load-test/seed-patient-references.sql
 
 TOKEN=$(node platform/e2e/generate-token.mjs /tmp/clinica-private.pem DOCTOR "$(cat /proc/sys/kernel/random/uuid)" 7200)

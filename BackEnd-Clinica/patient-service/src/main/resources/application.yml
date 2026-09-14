@@ -9,6 +9,8 @@ server:
 spring:
   application:
     name: patient-service
+  config:
+    import: optional:configtree:/run/secrets/openbao/
   threads:
     virtual:
       enabled: true
@@ -33,6 +35,8 @@ spring:
         jdbc:
           time_zone: UTC
   cloud:
+    vault:
+      enabled: false
     openfeign:
       client:
         config:
@@ -96,3 +100,29 @@ springdoc:
 logging:
   pattern:
     correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+
+---
+spring:
+  config:
+    activate:
+      on-profile: openbao
+    import:
+      - vault://secret/patient/db/migrator?prefix=patient.db.migrator.
+      - vault://secret/patient/db/app?prefix=patient.db.app.
+  cloud:
+    vault:
+      enabled: true
+      uri: ${OPENBAO_ADDR:https://openbao:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${approle.role-id}
+        secret-id: ${approle.secret-id}
+      ssl:
+        trust-store: file:/run/secrets/openbao-tls/ca.crt
+        trust-store-type: PEM
+  datasource:
+    username: ${patient.db.app.username}
+    password: ${patient.db.app.password}
+  flyway:
+    user: ${patient.db.migrator.username}
+    password: ${patient.db.migrator.password}

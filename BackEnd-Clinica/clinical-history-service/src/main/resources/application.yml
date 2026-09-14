@@ -9,6 +9,8 @@ server:
 spring:
   application:
     name: clinical-history-service
+  config:
+    import: optional:configtree:/run/secrets/openbao/
   threads:
     virtual:
       enabled: true
@@ -41,6 +43,8 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
   cloud:
+    vault:
+      enabled: false
     openfeign:
       client:
         config:
@@ -134,3 +138,36 @@ springdoc:
 logging:
   pattern:
     correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+
+---
+spring:
+  config:
+    activate:
+      on-profile: openbao
+    import:
+      - vault://secret/clinical/db/migrator?prefix=clinical.db.migrator.
+      - vault://secret/clinical/db/app?prefix=clinical.db.app.
+      - vault://secret/clinical/storage/attachments?prefix=clinical.storage.attachments.
+  cloud:
+    vault:
+      enabled: true
+      uri: ${OPENBAO_ADDR:https://openbao:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${approle.role-id}
+        secret-id: ${approle.secret-id}
+      ssl:
+        trust-store: file:/run/secrets/openbao-tls/ca.crt
+        trust-store-type: PEM
+  datasource:
+    username: ${clinical.db.app.username}
+    password: ${clinical.db.app.password}
+  flyway:
+    user: ${clinical.db.migrator.username}
+    password: ${clinical.db.migrator.password}
+
+clinica:
+  clinical:
+    attachments:
+      access-key: ${clinical.storage.attachments.access-key}
+      secret-key: ${clinical.storage.attachments.secret-key}

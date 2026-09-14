@@ -42,30 +42,40 @@ This document provides a comprehensive guide to all environment variables used i
 
 ### Examples
 
+#### Secretos en OpenBao
+
+Las contraseñas y claves de `patient-service`, `clinical-history-service` y su infraestructura (MySQL,
+Kafka Connect y almacenamiento S3) **ya no son variables de entorno**: viven en el clúster OpenBao y
+`openbao-init` las genera la primera vez. Los servicios Spring las leen con el perfil `openbao`
+(`SPRING_PROFILES_ACTIVE=openbao`), y MySQL, Kafka Connect y el almacenamiento las reciben como
+archivos que renderiza `openbao-agent`. Rutas, políticas y operación en
+[`BackEnd-Clinica/platform/openbao/README.md`](../BackEnd-Clinica/platform/openbao/README.md).
+
+| Ruta KV (`secret/`)            | Claves                     | Quién la lee                                  |
+| ------------------------------ | -------------------------- | --------------------------------------------- |
+| `patient/db/root`              | `password`                 | `patient-db` (vía agente)                     |
+| `patient/db/migrator`          | `username`, `password`     | `patient-service` (Flyway), `patient-db`      |
+| `patient/db/app`               | `username`, `password`     | `patient-service`, `patient-db`               |
+| `patient/db/debezium`          | `username`, `password`     | `patient-db`, `kafka-connect`                 |
+| `clinical/db/*`                | igual que `patient/db/*`   | `clinical-history-service`, `clinical-db`, `kafka-connect` |
+| `clinical/storage/root`        | `username`, `password`     | `clinical-storage`, `clinical-storage-init`   |
+| `clinical/storage/attachments` | `access-key`, `secret-key` | `clinical-history-service`, `clinical-storage-init` |
+
+`OPENBAO_ADDR` (por defecto `https://openbao:8200`) cambia la dirección del clúster. Fuera de Docker y
+en los tests, sin el perfil `openbao`, los servicios siguen aceptando las variables
+`PATIENT_DB_APP_USER`, `PATIENT_DB_APP_PASSWORD`, `PATIENT_DB_MIGRATOR_*` y sus equivalentes
+`CLINICAL_*`.
+
 #### Patient Service
 ```bash
-PATIENT_DB_ROOT_PASSWORD=SecureRootPass2024!
 PATIENT_DB_NAME=patient_db
-PATIENT_DB_MIGRATOR_USER=patient_migrator
-PATIENT_DB_MIGRATOR_PASSWORD=MigratorSecure123!
-PATIENT_DB_APP_USER=patient_app
-PATIENT_DB_APP_PASSWORD=PatientAppSecure123!
-PATIENT_DB_DEBEZIUM_USER=patient_debezium
-PATIENT_DB_DEBEZIUM_PASSWORD=DebeziumSecure123!
 PATIENT_DB_URL=jdbc:mysql://localhost:3307/patient_db
 JWT_PUBLIC_KEY=MIIBIjANBgkqh...
 ```
 
 #### Clinical History Service
 ```bash
-CLINICAL_DB_ROOT_PASSWORD=ClinicalRootPass2024!
 CLINICAL_DB_NAME=clinical_db
-CLINICAL_DB_MIGRATOR_USER=clinical_migrator
-CLINICAL_DB_MIGRATOR_PASSWORD=MigratorSecure123!
-CLINICAL_DB_APP_USER=clinical_app
-CLINICAL_DB_APP_PASSWORD=ClinicalAppSecure123!
-CLINICAL_DB_DEBEZIUM_USER=clinical_debezium
-CLINICAL_DB_DEBEZIUM_PASSWORD=DebeziumSecure123!
 CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/clinical_db
 
 CLINICAL_SEAL_KEYS_LOCATION=/run/secrets/clinical/seal        # directorio de claves ECDSA P-256
@@ -74,10 +84,6 @@ CLINICAL_ENCRYPTION_KEYS_LOCATION=/run/secrets/clinical/encryption
 CLINICAL_ENCRYPTION_ACTIVE_KEY_ID=master-2026                 # archivo <id>.key en Base64
 
 CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000    # cualquier S3 con Object Lock
-CLINICAL_ATTACHMENTS_ACCESS_KEY=clinical-history-app
-CLINICAL_ATTACHMENTS_SECRET_KEY=ClinicalStorageSecure123!
-CLINICAL_STORAGE_ROOT_USER=storage-admin                      # solo el almacenamiento local de pruebas
-CLINICAL_STORAGE_ROOT_PASSWORD=StorageRootPass2024!
 ```
 
 Las claves de sello y de cifrado **no viven en la base de datos**: son archivos montados de solo
@@ -95,9 +101,9 @@ PATIENT_SERVICE_REPLICAS=2               # opcional; instancias de patient-servi
 CLINICAL_SERVICE_REPLICAS=2              # opcional; instancias de clinical-history-service
 ```
 
-`PATIENT_DB_MIGRATOR_*` solo lo usa Flyway; la aplicación se conecta con `PATIENT_DB_APP_*`, que no
-tiene permisos de `DELETE` ni de DDL sobre el registro. `PATIENT_DB_DEBEZIUM_*` lo usa Kafka Connect
-para leer el outbox. `JWT_PUBLIC_KEY` acepta la clave pública PEM completa o solo su
+El usuario `migrator` solo lo usa Flyway; la aplicación se conecta con el usuario `app`, que no tiene
+permisos de `DELETE` ni de DDL sobre el registro, y Kafka Connect lee el outbox con el usuario
+`debezium`. `JWT_PUBLIC_KEY` acepta la clave pública PEM completa o solo su
 contenido en Base64. Opcionales: `PATIENT_DB_POOL_SIZE`, `EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`,
 `SWAGGER_UI_ENABLED`.
 
