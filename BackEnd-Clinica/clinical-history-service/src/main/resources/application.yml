@@ -52,6 +52,9 @@ clinica:
     time-zone: America/Bogota
     patient-events:
       enabled: true
+    notes:
+      extemporaneous-after: ${CLINICAL_NOTES_EXTEMPORANEOUS_AFTER:24h}
+      clock-skew-tolerance: 2m
   security:
     jwt:
       public-key: ${JWT_PUBLIC_KEY:}
