@@ -169,8 +169,9 @@ admissions-db (PostgreSQL) ──WAL──►  kafka-connect (Debezium) ──�
 
 Para que otro servicio publique eventos basta con: una tabla outbox en su base de datos, un usuario
 Debezium de solo lectura sobre esa tabla, su JSON de conector en `<servicio>/debezium/` y un volumen
-más en `kafka-connect-init`. Los secretos del conector se resuelven con `EnvVarConfigProvider`, nunca
-van en el JSON. Cada conector MySQL necesita un `database.server.id` único.
+más en `kafka-connect-init`. Las credenciales del conector se leen como archivos con
+`DirectoryConfigProvider` (`${dir:/run/secrets/kafka-connect:<nombre>}`), que renderiza `openbao-agent`;
+nunca van en el JSON ni en variables de entorno. Cada conector MySQL necesita un `database.server.id` único.
 
 ### 4.1.2 Librerías compartidas (`libs/`)
 
@@ -181,6 +182,30 @@ van en el JSON. Cada conector MySQL necesita un `database.server.id` único.
 
 Son dependencias de compilación con versión fija (`1.0.0`), no servicios: una falla en una versión solo
 afecta a los servicios que la adopten.
+
+### 4.1.3 Plataforma de secretos (OpenBao)
+
+```
+openbao-bootstrap ─► clave de sello + CA y certificado TLS
+openbao-1 ┐
+openbao-2 ├─ raft (3 votantes, TLS 1.3, sello estático) ◄── openbao-init: políticas, AppRole, secretos iniciales
+openbao-3 ┘        ▲                         ▲
+                   │ AppRole + TLS           │ AppRole + TLS
+   patient-service / clinical-history-service    openbao-agent ─► archivos para MySQL, Kafka Connect y S3
+   (Spring Cloud Vault, perfil openbao)
+```
+
+| Componente          | Rol                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| `openbao-1..3`      | Clúster raft de 3 nodos en la red interna `secrets-net`; tolera la caída de uno        |
+| `openbao-bootstrap` | Genera la clave de sello estático y la CA/certificado TLS de desarrollo (idempotente) |
+| `openbao-init`      | Inicializa, aplica políticas, crea un AppRole por consumidor y siembra los secretos    |
+| `openbao-agent`     | Renderiza en volúmenes dedicados los secretos de los contenedores que no son Spring     |
+
+Los servicios Spring leen sus secretos **una vez al arrancar**: si OpenBao cae después, siguen
+funcionando; solo falla el arranque de instancias nuevas mientras no haya nodo activo. Cada consumidor
+tiene su propia política y solo lee sus rutas. Operación, rotación y recuperación en
+`BackEnd-Clinica/platform/openbao/README.md`.
 
 ### 4.2 Clinical History Service (`:8089`)
 

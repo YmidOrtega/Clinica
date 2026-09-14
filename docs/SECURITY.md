@@ -382,7 +382,8 @@ Gateway → Microservicio: HTTP interno en red Docker (red privada, sin exposici
 Microservicio → BD:      Conexión autenticada por usuario/contraseña de base de datos
 ```
 
-Las credenciales de base de datos y las claves RSA se inyectan vía variables de entorno (`.env`), nunca hardcodeadas en el código fuente.
+Las credenciales de `patient-service`, `clinical-history-service` y su infraestructura viven en OpenBao
+(sección 7.7); los servicios que aún no se refactorizan siguen recibiéndolas por variables de entorno.
 
 ### 7.1 Mínimo privilegio en la base de pacientes
 
@@ -488,6 +489,24 @@ Los roles administrativos no ven contenido clínico y recepción no accede a la 
 atención no exige relación previa —así empieza el cuidado— pero queda auditado.
 
 ---
+
+### 7.7 Gestión de secretos
+
+- **Un gestor aparte, no auth-service.** Los secretos viven en un clúster OpenBao de tres nodos; auth
+  solo se ocupa de identidades. Si OpenBao cae, los servicios que ya arrancaron siguen funcionando.
+- **Mínimo privilegio por consumidor.** Cada servicio se autentica con su propio AppRole y su política
+  solo permite leer sus rutas: `patient-service` no puede leer secretos de la historia clínica ni la
+  contraseña root de su propia base. El agente de infraestructura solo lee.
+- **Nada sensible en la configuración de los contenedores.** Los servicios Spring reciben los secretos
+  en memoria; MySQL, Kafka Connect y el almacenamiento los leen de archivos (`*_FILE`,
+  `DirectoryConfigProvider`) en volúmenes montados solo en ese contenedor. `openbao-e2e.sh` comprueba
+  que ninguna contraseña aparezca en `docker inspect`.
+- **TLS 1.3 y auditoría.** Todo el tráfico con OpenBao va cifrado y cada petición queda en el registro
+  de auditoría de los nodos.
+- **Desarrollo frente a producción.** En desarrollo el sello es una clave estática en un volumen y el
+  token root queda en `openbao_bootstrap`; en producción se usa auto-unseal con KMS/HSM, se revoca el
+  token root, los nodos van en máquinas distintas y el `secret-id` se entrega con la identidad de la
+  plataforma.
 
 ## 8. Decisiones de Diseño
 
