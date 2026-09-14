@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.envers.Audited;
@@ -24,6 +25,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -125,6 +128,9 @@ public class Patient {
     @Column(name = "updated_by", length = 36)
     private String updatedBy;
 
+    @Transient
+    private final List<PatientEvent> events = new ArrayList<>();
+
     protected Patient() {
     }
 
@@ -143,6 +149,7 @@ public class Patient {
         patient.affiliation = registration.affiliation();
         patient.residence = registration.residence();
         patient.applyStatus(new PatientStatus.Active(), Instant.now(clock));
+        patient.events.add(new PatientEvent.Registered());
         return patient;
     }
 
@@ -150,7 +157,10 @@ public class Patient {
         requireActive();
         DomainRules.required(newDocument, "document");
         newDocument.assertValidForAge(demographics().ageOn(LocalDate.now(clock)));
-        document = newDocument;
+        if (!newDocument.equals(document)) {
+            events.add(new PatientEvent.DocumentChanged(document));
+            document = newDocument;
+        }
     }
 
     public void correctDemographics(Demographics corrected, Clock clock) {
@@ -159,7 +169,10 @@ public class Patient {
         int age = corrected.ageOn(LocalDate.now(clock));
         document.assertValidForAge(age);
         requireEmergencyContactForMinor(age, emergencyContact);
-        applyDemographics(corrected);
+        if (!corrected.equals(demographics())) {
+            applyDemographics(corrected);
+            events.add(new PatientEvent.DemographicsCorrected());
+        }
     }
 
     public void updateContact(ContactInfo newContact, EmergencyContact newEmergencyContact, Clock clock) {
@@ -172,7 +185,11 @@ public class Patient {
 
     public void updateAffiliation(Affiliation newAffiliation) {
         requireActive();
-        affiliation = DomainRules.required(newAffiliation, "affiliation");
+        DomainRules.required(newAffiliation, "affiliation");
+        if (!newAffiliation.equals(affiliation)) {
+            affiliation = newAffiliation;
+            events.add(new PatientEvent.AffiliationUpdated());
+        }
     }
 
     public void updateResidence(Residence newResidence) {
@@ -183,10 +200,12 @@ public class Patient {
     public void deactivate(String reason, Clock clock) {
         Instant now = Instant.now(clock);
         applyStatus(status().deactivate(reason, now), now);
+        events.add(new PatientEvent.Deactivated());
     }
 
     public void reactivate(Clock clock) {
         applyStatus(status().reactivate(), Instant.now(clock));
+        events.add(new PatientEvent.Reactivated());
     }
 
     public void recordDeath(LocalDate date, Clock clock) {
@@ -195,6 +214,13 @@ public class Patient {
             throw new PatientException.InvalidData("dateOfDeath", "debe estar entre la fecha de nacimiento y hoy");
         }
         applyStatus(status().die(date), Instant.now(clock));
+        events.add(new PatientEvent.Died(date));
+    }
+
+    public List<PatientEvent> pullEvents() {
+        List<PatientEvent> recorded = List.copyOf(events);
+        events.clear();
+        return recorded;
     }
 
     public PatientStatus status() {
