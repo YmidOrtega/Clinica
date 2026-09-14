@@ -28,7 +28,7 @@ PatientCommands ── misma transacción ──► patients  +  patient_outbox.
 | Propiedad        | Valor                                                                 |
 | ---------------- | --------------------------------------------------------------------- |
 | Nombre           | `patient.events.v1`                                                   |
-| Clave            | UUID del paciente (orden garantizado por paciente)                    |
+| Clave            | UUID del paciente o del paciente sin identificar (orden garantizado por clave) |
 | Particiones      | 3                                                                     |
 | Limpieza         | `compact`: Kafka conserva al menos el último evento de cada paciente  |
 | Cabecera         | `eventType` con el tipo del evento                                    |
@@ -45,8 +45,13 @@ PatientCommands ── misma transacción ──► patients  +  patient_outbox.
 | `PatientDeactivated`           | Desactivación                                 | —                   |
 | `PatientReactivated`           | Reactivación                                  | —                   |
 | `PatientDied`                  | Registro de fallecimiento                     | `dateOfDeath` en el paciente |
+| `UnidentifiedPatientRegistered` | Registro de un paciente sin identificar       | `data.unidentifiedPatient` |
+| `UnidentifiedPatientIdentified` | Vinculación con el paciente real             | `identifiedPatientUuid` |
+| `UnidentifiedPatientIdentificationReverted` | Reversión de una identificación equivocada | `previousPatientUuid` |
+| `UnidentifiedPatientDied`      | Fallecimiento sin identificar                 | `dateOfDeath`        |
 
-Los cambios de contacto y residencia **no** generan eventos: esos datos no salen del servicio.
+Los cambios de contacto y residencia **no** generan eventos: esos datos no salen del servicio. La
+descripción física de un paciente sin identificar y los motivos de identificación tampoco.
 
 ## Ejemplo
 
@@ -86,7 +91,11 @@ Los cambios de contacto y residencia **no** generan eventos: esos datos no salen
    con un grupo nuevo: la compactación deja el último estado de cada paciente.
 4. **Si llega `PatientDocumentChanged`** y indexas por documento, usa `previousDocument` para
    actualizar tu índice.
-5. **No uses los eventos para decidir permisos** ni muestres su contenido a usuarios sin autorización:
+5. **Pacientes sin identificar.** Sus eventos usan su UUID provisional como clave y en `patientUuid`.
+   Al recibir `UnidentifiedPatientIdentified`, asocia todo lo que registraste con el UUID provisional
+   al paciente de `identifiedPatientUuid`. Si llega `UnidentifiedPatientIdentificationReverted`,
+   deshaz esa asociación con `previousPatientUuid`.
+6. **No uses los eventos para decidir permisos** ni muestres su contenido a usuarios sin autorización:
    contienen datos personales.
 
 ## Evolución del contrato

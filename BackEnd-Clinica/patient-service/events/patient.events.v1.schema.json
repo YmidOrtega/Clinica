@@ -2,12 +2,24 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:clinica:events:patient.events.v1",
   "title": "Patient event",
-  "description": "Value of every record in the patient.events.v1 topic. The record key is the patient UUID. Every event carries the current shared snapshot of the patient, so the latest record per key is the patient's current state.",
+  "description": "Value of every record in the patient.events.v1 topic. The record key is the UUID of the subject: a registered patient or an unidentified patient. Every event carries the current shared snapshot of that subject, so the latest record per key is its current state.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["eventId", "type", "schemaVersion", "occurredAt", "patientUuid", "patientVersion", "data"],
+  "required": [
+    "eventId",
+    "type",
+    "schemaVersion",
+    "occurredAt",
+    "patientUuid",
+    "patientVersion",
+    "data"
+  ],
   "properties": {
-    "eventId": { "type": "string", "format": "uuid", "description": "Unique per event. Use it to discard redeliveries." },
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique per event. Use it to discard redeliveries."
+    },
     "type": {
       "enum": [
         "PatientRegistered",
@@ -16,44 +28,271 @@
         "PatientAffiliationUpdated",
         "PatientDeactivated",
         "PatientReactivated",
-        "PatientDied"
+        "PatientDied",
+        "UnidentifiedPatientRegistered",
+        "UnidentifiedPatientIdentified",
+        "UnidentifiedPatientIdentificationReverted",
+        "UnidentifiedPatientDied"
       ]
     },
-    "schemaVersion": { "const": 1 },
-    "occurredAt": { "type": "string", "format": "date-time" },
-    "patientUuid": { "type": "string", "format": "uuid" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "patientUuid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID of the subject of the event. For Unidentified* events it is the provisional UUID of the unidentified patient."
+    },
     "patientVersion": {
       "type": "integer",
       "minimum": 0,
       "description": "Increases with every change of the patient. Ignore events whose version is not greater than the one already stored."
     },
-    "traceId": { "type": "string", "pattern": "^[0-9a-f]{16,32}$" },
+    "traceId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16,32}$"
+    },
     "data": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["patient"],
       "properties": {
-        "patient": { "$ref": "#/$defs/patient" },
-        "previousDocument": { "$ref": "#/$defs/document", "description": "Present only in PatientDocumentChanged." }
+        "patient": {
+          "$ref": "#/$defs/patient"
+        },
+        "previousDocument": {
+          "$ref": "#/$defs/document",
+          "description": "Present only in PatientDocumentChanged."
+        },
+        "unidentifiedPatient": {
+          "$ref": "#/$defs/unidentifiedPatient"
+        },
+        "previousPatientUuid": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Present only in UnidentifiedPatientIdentificationReverted: the patient the provisional record was wrongly linked to."
+        }
       }
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "type": { "const": "PatientDocumentChanged" } } },
-      "then": { "properties": { "data": { "required": ["patient", "previousDocument"] } } },
-      "else": { "properties": { "data": { "not": { "required": ["previousDocument"] } } } }
+      "if": {
+        "properties": {
+          "type": {
+            "pattern": "^Patient"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": [
+              "patient"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "unidentifiedPatient"
+                  ]
+                },
+                {
+                  "required": [
+                    "previousPatientUuid"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "data": {
+            "required": [
+              "unidentifiedPatient"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "patient"
+                  ]
+                },
+                {
+                  "required": [
+                    "previousDocument"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
     },
     {
-      "if": { "properties": { "type": { "const": "PatientDied" } } },
-      "then": { "properties": { "data": { "properties": { "patient": { "required": ["dateOfDeath"], "properties": { "status": { "const": "DECEASED" } } } } } } }
+      "if": {
+        "properties": {
+          "type": {
+            "const": "PatientDocumentChanged"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": [
+              "patient",
+              "previousDocument"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "data": {
+            "not": {
+              "required": [
+                "previousDocument"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "PatientDied"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "patient": {
+                "required": [
+                  "dateOfDeath"
+                ],
+                "properties": {
+                  "status": {
+                    "const": "DECEASED"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "UnidentifiedPatientIdentified"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "unidentifiedPatient": {
+                "required": [
+                  "identifiedPatientUuid"
+                ],
+                "properties": {
+                  "status": {
+                    "const": "IDENTIFIED"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "UnidentifiedPatientIdentificationReverted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": [
+              "unidentifiedPatient",
+              "previousPatientUuid"
+            ],
+            "properties": {
+              "unidentifiedPatient": {
+                "properties": {
+                  "status": {
+                    "const": "UNIDENTIFIED"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "data": {
+            "not": {
+              "required": [
+                "previousPatientUuid"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "UnidentifiedPatientDied"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "unidentifiedPatient": {
+                "required": [
+                  "dateOfDeath"
+                ],
+                "properties": {
+                  "status": {
+                    "const": "DECEASED"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "$defs": {
     "document": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "number"],
+      "required": [
+        "type",
+        "number"
+      ],
       "properties": {
         "type": {
           "enum": [
@@ -67,30 +306,133 @@
             "DOCUMENTO_EXTRANJERO"
           ]
         },
-        "number": { "type": "string", "pattern": "^[A-Z0-9]{3,20}$" }
+        "number": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]{3,20}$"
+        }
       }
     },
     "patient": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["uuid", "document", "firstNames", "lastNames", "birthDate", "sex", "status", "affiliation"],
+      "required": [
+        "uuid",
+        "document",
+        "firstNames",
+        "lastNames",
+        "birthDate",
+        "sex",
+        "status",
+        "affiliation"
+      ],
       "properties": {
-        "uuid": { "type": "string", "format": "uuid" },
-        "document": { "$ref": "#/$defs/document" },
-        "firstNames": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "lastNames": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "birthDate": { "type": "string", "format": "date" },
-        "sex": { "enum": ["FEMALE", "MALE", "INDETERMINATE"] },
-        "status": { "enum": ["ACTIVE", "INACTIVE", "DECEASED"] },
-        "dateOfDeath": { "type": "string", "format": "date" },
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document": {
+          "$ref": "#/$defs/document"
+        },
+        "firstNames": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "lastNames": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "birthDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "sex": {
+          "enum": [
+            "FEMALE",
+            "MALE",
+            "INDETERMINATE"
+          ]
+        },
+        "status": {
+          "enum": [
+            "ACTIVE",
+            "INACTIVE",
+            "DECEASED"
+          ]
+        },
+        "dateOfDeath": {
+          "type": "string",
+          "format": "date"
+        },
         "affiliation": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["regime"],
+          "required": [
+            "regime"
+          ],
           "properties": {
-            "regime": { "enum": ["CONTRIBUTORY", "SUBSIDIZED", "SPECIAL", "UNINSURED"] },
-            "healthProviderNit": { "type": "string", "pattern": "^[0-9]{9,10}(-[0-9])?$" }
+            "regime": {
+              "enum": [
+                "CONTRIBUTORY",
+                "SUBSIDIZED",
+                "SPECIAL",
+                "UNINSURED"
+              ]
+            },
+            "healthProviderNit": {
+              "type": "string",
+              "pattern": "^[0-9]{9,10}(-[0-9])?$"
+            }
           }
+        }
+      }
+    },
+    "unidentifiedPatient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uuid",
+        "code",
+        "sex",
+        "estimatedBirthYear",
+        "status"
+      ],
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^NN-[0-9]{4}-[0-9]{6}$"
+        },
+        "sex": {
+          "enum": [
+            "FEMALE",
+            "MALE",
+            "INDETERMINATE"
+          ]
+        },
+        "estimatedBirthYear": {
+          "type": "integer",
+          "minimum": 1900
+        },
+        "status": {
+          "enum": [
+            "UNIDENTIFIED",
+            "IDENTIFIED",
+            "DECEASED"
+          ]
+        },
+        "identifiedPatientUuid": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Present only while IDENTIFIED. Consumers must move everything recorded under the provisional UUID to this patient."
+        },
+        "dateOfDeath": {
+          "type": "string",
+          "format": "date"
         }
       }
     }

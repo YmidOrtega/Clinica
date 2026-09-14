@@ -6,6 +6,9 @@ import com.ClinicaDeYmid.patient_service.domain.IdentityDocument;
 import com.ClinicaDeYmid.patient_service.domain.Patient;
 import com.ClinicaDeYmid.patient_service.domain.PatientEvent;
 import com.ClinicaDeYmid.patient_service.domain.PatientFixtures;
+import com.ClinicaDeYmid.patient_service.domain.Sex;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatient;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatientEvent;
 import com.ClinicaDeYmid.patient_service.support.PatientEventContract;
 import org.junit.jupiter.api.Test;
 
@@ -75,8 +78,45 @@ class PatientEventContractTest {
         assertThat(PatientEventContract.violations(json.replace("PatientRegistered", "PatientDocumentChanged"))).isNotEmpty();
     }
 
+    @Test
+    void unidentifiedPatientEventsMatchTheSchemaWithoutTheDescription() {
+        UnidentifiedPatient unidentified = UnidentifiedPatient.register("NN-2026-000007", Sex.INDETERMINATE, 1970,
+                "Persona adulta con chaqueta roja encontrada en la vía", PatientFixtures.today());
+        String registered = json(new UnidentifiedPatientEvent.Registered(), unidentified);
+
+        Patient patient = PatientFixtures.registeredAdult();
+        unidentified.identifyAs(patient, "Cédula", PatientFixtures.today());
+        String identified = json(new UnidentifiedPatientEvent.Identified(patient.uuid()), unidentified);
+
+        unidentified.revertIdentification("No era la persona", PatientFixtures.today());
+        String reverted = json(new UnidentifiedPatientEvent.IdentificationReverted(patient.uuid()), unidentified);
+
+        unidentified.recordDeath(PatientFixtures.TODAY, PatientFixtures.today());
+        String died = json(new UnidentifiedPatientEvent.Died(PatientFixtures.TODAY), unidentified);
+
+        assertThat(List.of(registered, identified, reverted, died))
+                .allSatisfy(json -> assertThat(PatientEventContract.violations(json)).isEmpty())
+                .allSatisfy(json -> assertThat(json).doesNotContain("chaqueta", "description", "Cédula", "No era la persona"));
+        assertThat(identified).contains("\"identifiedPatientUuid\":\"" + patient.uuid() + "\"");
+        assertThat(reverted).contains("\"previousPatientUuid\":\"" + patient.uuid() + "\"");
+    }
+
+    @Test
+    void theSchemaKeepsPatientAndUnidentifiedEventsApart() {
+        UnidentifiedPatient unidentified = UnidentifiedPatient.register("NN-2026-000008", Sex.MALE, 1990, "Hombre", PatientFixtures.today());
+        String json = json(new UnidentifiedPatientEvent.Registered(), unidentified);
+
+        assertThat(PatientEventContract.violations(json.replace("UnidentifiedPatientRegistered", "PatientRegistered"))).isNotEmpty();
+        assertThat(PatientEventContract.violations(json.replace("UnidentifiedPatientRegistered", "UnidentifiedPatientIdentified"))).isNotEmpty();
+    }
+
     private static List<String> violationsOf(PatientEvent event, Patient patient) {
         return PatientEventContract.violations(json(event, patient));
+    }
+
+    private static String json(UnidentifiedPatientEvent event, UnidentifiedPatient patient) {
+        return PatientEventJson.write(UnidentifiedPatientEventMessage.of(event, patient, UUID.randomUUID(), OCCURRED_AT,
+                "4bf92f3577b34da6a3ce929d0e0e4736"));
     }
 
     private static String json(PatientEvent event, Patient patient) {
