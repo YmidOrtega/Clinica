@@ -16,6 +16,8 @@ import com.ClinicaDeYmid.patient_service.domain.PatientStatus;
 import com.ClinicaDeYmid.patient_service.domain.Relationship;
 import com.ClinicaDeYmid.patient_service.domain.Residence;
 import com.ClinicaDeYmid.patient_service.domain.Sex;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatient;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatientStatus;
 import com.ClinicaDeYmid.patient_service.domain.Zone;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
@@ -76,6 +78,33 @@ final class PatientResponses {
         static RevisionView from(PatientHistory.Revision revision) {
             return new RevisionView(revision.number(), revision.revisedAt(), revision.revisedBy(), revision.changeType(),
                     PatientView.from(revision.state()));
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record UnidentifiedPatientView(UUID uuid, long version, String code, Sex sex, int estimatedBirthYear, String description,
+                                   UnidentifiedStatusView status, AuditView audit) {
+
+        static UnidentifiedPatientView from(UnidentifiedPatient patient) {
+            return new UnidentifiedPatientView(patient.uuid(), patient.version(), patient.code(), patient.sex(),
+                    patient.estimatedBirthYear(), patient.description(), UnidentifiedStatusView.from(patient),
+                    new AuditView(patient.createdAt(), patient.createdBy(), patient.updatedAt(), patient.updatedBy()));
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record UnidentifiedStatusView(UnidentifiedPatientStatus.Code code, UUID identifiedPatientUuid, String reason,
+                                  Instant changedAt, LocalDate dateOfDeath) {
+
+        static UnidentifiedStatusView from(UnidentifiedPatient patient) {
+            return switch (patient.status()) {
+                case UnidentifiedPatientStatus.Unidentified unidentified ->
+                        new UnidentifiedStatusView(unidentified.code(), null, patient.statusReason(), patient.statusChangedAt(), null);
+                case UnidentifiedPatientStatus.Identified identified ->
+                        new UnidentifiedStatusView(identified.code(), identified.patientUuid(), identified.reason(), identified.since(), null);
+                case UnidentifiedPatientStatus.Deceased deceased ->
+                        new UnidentifiedStatusView(deceased.code(), null, null, patient.statusChangedAt(), deceased.dateOfDeath());
+            };
         }
     }
 

@@ -15,11 +15,11 @@ final class PatientEventJson {
     private PatientEventJson() {
     }
 
-    static String write(PatientEventMessage message) {
+    static String write(Object message) {
         try {
             return MAPPER.writeValueAsString(message);
         } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Cannot serialize patient event " + message.type(), ex);
+            throw new IllegalStateException("Cannot serialize patient event " + message.getClass().getSimpleName(), ex);
         }
     }
 }
