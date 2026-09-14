@@ -58,19 +58,24 @@ public class RecordAccess {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public AccessBasis requireNote(Clinician clinician, UUID patientUuid, SignedNote note) {
+        return requireNote(clinician, patientUuid, note, AccessAction.READ_NOTE, note.id());
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public AccessBasis requireNote(Clinician clinician, UUID patientUuid, SignedNote note, AccessAction action, UUID resourceId) {
         Context context = contextOf(clinician, patientUuid);
         AccessDecision toPatient = policy.toPatient(clinician, context.memberships(), context.emergencyAccesses(), context.now());
         if (!note.isRestricted() || toPatient instanceof AccessDecision.Denied) {
-            return granted(context, clinician, patientUuid, AccessAction.READ_NOTE, note.id(), note.isRestricted(), toPatient);
+            return granted(context, clinician, patientUuid, action, resourceId, note.isRestricted(), toPatient);
         }
         AccessDecision toRestricted = policy.toRestrictedNote(clinician, note.author().uuid(), note.encounterId(), context.memberships(),
                 context.emergencyAccesses(), context.now());
         if (toRestricted instanceof AccessDecision.Granted granted) {
-            audit.record(new AccessEvent(patientUuid, clinician, AccessAction.READ_NOTE, note.id(), AccessEvent.Outcome.GRANTED,
+            audit.record(new AccessEvent(patientUuid, clinician, action, resourceId, AccessEvent.Outcome.GRANTED,
                     granted.basis(), true, emergencyReason(context, granted.basis()), context.now()));
             return granted.basis();
         }
-        throw ClinicalException.AccessDenied.restrictedNote(clinician, patientUuid, note.id());
+        throw ClinicalException.AccessDenied.restrictedNote(clinician, patientUuid, action, resourceId);
     }
 
     public record Visibility(AccessBasis basis, Clinician reader, List<CareTeamMembership> memberships,

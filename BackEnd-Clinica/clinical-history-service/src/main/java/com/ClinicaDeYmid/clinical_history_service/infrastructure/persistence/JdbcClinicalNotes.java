@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.persistence;
 
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.ClinicalNotes;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteType;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
@@ -120,10 +121,12 @@ class JdbcClinicalNotes implements ClinicalNotes {
     }
 
     List<SignedNote> withUpdates(List<SignedNote> loaded) {
-        Map<UUID, List<AppliedUpdate>> updates = chart.updatesOf(loaded.stream().map(SignedNote::id).toList());
-        return loaded.stream().map(note -> !updates.containsKey(note.id()) ? note : new SignedNote(note.id(), note.encounterId(), note.author(),
-                note.signerEmail(), note.content(), note.restriction(), updates.get(note.id()), note.occurredAt(), note.recordedAt(),
-                note.extemporaneous())).toList();
+        List<UUID> ids = loaded.stream().map(SignedNote::id).toList();
+        Map<UUID, List<AppliedUpdate>> updates = chart.updatesOf(ids);
+        Map<UUID, List<Attachment>> attachments = chart.attachmentsOf(ids);
+        return loaded.stream().map(note -> new SignedNote(note.id(), note.encounterId(), note.author(), note.signerEmail(), note.content(),
+                note.restriction(), updates.getOrDefault(note.id(), List.of()), attachments.getOrDefault(note.id(), List.of()), note.occurredAt(),
+                note.recordedAt(), note.extemporaneous())).toList();
     }
 
     SignedNote toNote(ResultSet row, int index) throws SQLException {
@@ -133,7 +136,7 @@ class JdbcClinicalNotes implements ClinicalNotes {
                 Purpose.NOTE_CONTENT, id);
         return new SignedNote(id, Rows.uuid(row, "encounter_id"), Rows.clinician(row, "author_uuid", "author_role"),
                 row.getString("author_email"), NoteContentColumn.read(content, type, id), Rows.restriction(row), List.of(),
-                Rows.instant(row, "occurred_at"),
+                List.of(), Rows.instant(row, "occurred_at"),
                 Rows.instant(row, "recorded_at"), row.getBoolean("extemporaneous"));
     }
 

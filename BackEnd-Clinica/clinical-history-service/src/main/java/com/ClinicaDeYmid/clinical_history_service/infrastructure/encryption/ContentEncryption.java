@@ -29,6 +29,8 @@ public class ContentEncryption {
         DRAFT_CONTENT,
         DRAFT_UPDATES,
         LIST_ITEM_PAYLOAD,
+        ATTACHMENT_NAME,
+        ATTACHMENT_CONTENT,
         VOID_REASON,
         EMERGENCY_ACCESS_REASON
     }

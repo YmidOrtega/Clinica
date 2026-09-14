@@ -124,7 +124,7 @@ class EcdsaClinicalSignatureTest {
 
     private static LedgerEntry triageNote(String reason) {
         return new LedgerEntry.NoteSigned(PATIENT, new SignedNote(NOTE, ENCOUNTER, NURSE, "nurse@clinica.test",
-                new NoteContent.Triage(TriageLevel.II, reason, null), null, List.of(), AT, AT.plusSeconds(300), false));
+                new NoteContent.Triage(TriageLevel.II, reason, null), null, List.of(), List.of(), AT, AT.plusSeconds(300), false));
     }
 
     private static Path keysWith(String keyId) {

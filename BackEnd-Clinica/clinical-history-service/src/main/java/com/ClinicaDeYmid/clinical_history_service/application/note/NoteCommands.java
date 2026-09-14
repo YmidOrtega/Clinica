@@ -1,10 +1,15 @@
 package com.ClinicaDeYmid.clinical_history_service.application.note;
 
 import com.ClinicaDeYmid.clinical_history_service.application.access.RecordAccess;
+import com.ClinicaDeYmid.clinical_history_service.application.attachment.AttachmentRetention;
 import com.ClinicaDeYmid.clinical_history_service.application.integrity.RecordSealing;
 import com.ClinicaDeYmid.clinical_history_service.application.patient.PatientDirectory;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessAction;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.AttachmentVault;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.DraftAttachment;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.DraftAttachments;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Signer;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
@@ -26,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -47,11 +54,15 @@ public class NoteCommands {
     private final ClinicalCoding coding;
     private final PatientDirectory patients;
     private final PatientChart chart;
+    private final DraftAttachments draftAttachments;
+    private final AttachmentVault vault;
+    private final AttachmentRetention retention;
     private final NotePolicy policy;
     private final Clock clock;
 
     public NoteCommands(Encounters encounters, NoteDrafts drafts, ClinicalNotes notes, RecordSealing sealing, RecordAccess access,
-                        ClinicalCoding coding, PatientDirectory patients, PatientChart chart, NotePolicy policy, Clock clock) {
+                        ClinicalCoding coding, PatientDirectory patients, PatientChart chart, DraftAttachments draftAttachments,
+                        AttachmentVault vault, AttachmentRetention retention, NotePolicy policy, Clock clock) {
         this.encounters = encounters;
         this.drafts = drafts;
         this.notes = notes;
@@ -60,6 +71,9 @@ public class NoteCommands {
         this.coding = coding;
         this.patients = patients;
         this.chart = chart;
+        this.draftAttachments = draftAttachments;
+        this.vault = vault;
+        this.retention = retention;
         this.policy = policy;
         this.clock = clock;
     }
@@ -93,7 +107,9 @@ public class NoteCommands {
     @Transactional
     public void discardDraft(UUID draftId, long expectedVersion, Clinician author) {
         lockOwnDraft(draftId, expectedVersion, author);
+        List<Attachment> staged = draftAttachments.ofDraft(draftId).stream().map(DraftAttachment::attachment).toList();
         drafts.remove(draftId);
+        afterCommit(() -> staged.forEach(attachment -> vault.discardStaged(attachment.id())));
     }
 
     @Transactional
@@ -105,11 +121,14 @@ public class NoteCommands {
         sealing.lockRecordOf(encounter.patientUuid());
         Map<UUID, ListItemState> listItems = chart.listItemsOf(patients.samePersonSubjects(encounter.patientUuid())).stream()
                 .collect(Collectors.toMap(ListItemHistory::itemId, ListItemHistory::state));
+        List<Attachment> attachments = draftAttachments.ofDraft(draftId).stream().map(DraftAttachment::attachment).toList();
         SignedNote note = draft.withResolvedContent(coding.resolve(draft.content()), coding.resolve(draft.updates()))
-                .sign(signer, encounter, listItems, policy, clock);
+                .sign(signer, encounter, listItems, attachments, policy, clock);
+        attachments.forEach(attachment -> vault.archive(attachment, retention.retainUntil(note.recordedAt())));
         notes.append(note);
         sealing.record(new LedgerEntry.NoteSigned(encounter.patientUuid(), note));
         drafts.remove(draftId);
+        afterCommit(() -> attachments.forEach(attachment -> vault.discardStaged(attachment.id())));
         log.info("Note {} of type {} signed by {} in encounter {}{}", note.id(), note.type(), signer.clinician().uuid(), note.encounterId(),
                 note.extemporaneous() ? " (extemporaneous)" : "");
         return note;
@@ -127,6 +146,23 @@ public class NoteCommands {
         sealing.record(new LedgerEntry.NoteVoided(encounter.patientUuid(), noteVoid));
         log.info("Note {} voided by {}", noteId, clinician.uuid());
         return noteVoid;
+    }
+
+    private static void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    action.run();
+                } catch (RuntimeException cleanupFailed) {
+                    log.warn("Could not remove staged attachments after commit; the staging purge will retry", cleanupFailed);
+                }
+            }
+        });
     }
 
     private NoteDraft lockOwnDraft(UUID draftId, long expectedVersion, Clinician clinician) {

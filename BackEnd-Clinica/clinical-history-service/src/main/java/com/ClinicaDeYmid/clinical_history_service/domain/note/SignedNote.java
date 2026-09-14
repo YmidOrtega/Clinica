@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.clinical_history_service.domain.note;
 
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalText;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.AppliedUpdate;
@@ -21,6 +22,7 @@ public record SignedNote(
         NoteContent content,
         NoteRestriction restriction,
         List<AppliedUpdate> updates,
+        List<Attachment> attachments,
         Instant occurredAt,
         Instant recordedAt,
         boolean extemporaneous) {
@@ -32,6 +34,7 @@ public record SignedNote(
         Objects.requireNonNull(signerEmail, "signerEmail");
         Objects.requireNonNull(content, "content");
         updates = updates == null ? List.of() : List.copyOf(updates);
+        attachments = attachments == null ? List.of() : List.copyOf(attachments);
         Objects.requireNonNull(occurredAt, "occurredAt");
         Objects.requireNonNull(recordedAt, "recordedAt");
     }

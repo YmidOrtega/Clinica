@@ -247,6 +247,6 @@ class ClinicalRecordPersistenceIT {
 
     private static SignedNote note(Encounter encounter, Clinician author, NoteContent content, int minute) {
         Instant at = encounter.openedAt().plus(Duration.ofMinutes(minute));
-        return new SignedNote(UUID.randomUUID(), encounter.id(), author, "autor@clinica.test", content, minute == 4 ? NoteRestriction.VIOLENCE : null, List.of(), at, at.plusSeconds(30), minute == 7);
+        return new SignedNote(UUID.randomUUID(), encounter.id(), author, "autor@clinica.test", content, minute == 4 ? NoteRestriction.VIOLENCE : null, List.of(), List.of(), at, at.plusSeconds(30), minute == 7);
     }
 }

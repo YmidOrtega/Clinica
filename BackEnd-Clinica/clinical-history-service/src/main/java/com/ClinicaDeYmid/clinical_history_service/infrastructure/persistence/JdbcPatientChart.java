@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.persistence;
 
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.AppliedUpdate;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.ListCategory;
@@ -46,6 +47,15 @@ class JdbcPatientChart implements PatientChart {
     }
 
     void append(UUID patientUuid, SignedNote note) {
+        for (Attachment attachment : note.attachments()) {
+            jdbc.update("""
+                    INSERT INTO clinical_ledger.note_attachments (id, note_id, patient_uuid, media_type, size_bytes, sha256, name_key_id,
+                        name_ciphertext)
+                    VALUES (:id, :noteId, :patientUuid, :mediaType, :sizeBytes, :sha256, :nameKeyId, :nameCiphertext)""",
+                    AttachmentRows.parameters(attachment, patientUuid, encryption)
+                            .addValue("noteId", note.id().toString())
+                            .addValue("patientUuid", patientUuid.toString()));
+        }
         for (AppliedUpdate update : note.updates()) {
             switch (update) {
                 case AppliedUpdate.ListItemAdded added -> insertEvent(added.id(), added.id(), patientUuid, added.details().category(),
@@ -64,6 +74,19 @@ class JdbcPatientChart implements PatientChart {
                                 .addValue("measuredAt", Rows.timestamp(observed.measuredAt())));
             }
         }
+    }
+
+    Map<UUID, List<Attachment>> attachmentsOf(Collection<UUID> noteIds) {
+        Map<UUID, List<Attachment>> attachments = new LinkedHashMap<>();
+        if (noteIds.isEmpty()) {
+            return attachments;
+        }
+        jdbc.query("SELECT note_id, " + AttachmentRows.COLUMNS + " FROM clinical_ledger.note_attachments WHERE note_id IN (:notes) ORDER BY id",
+                new MapSqlParameterSource("notes", noteIds.stream().map(UUID::toString).toList()), (ResultSet row) -> {
+                    attachments.computeIfAbsent(Rows.uuid(row, "note_id"), note -> new ArrayList<>())
+                            .add(AttachmentRows.attachment(row, encryption));
+                });
+        return attachments;
     }
 
     Map<UUID, List<AppliedUpdate>> updatesOf(Collection<UUID> noteIds) {

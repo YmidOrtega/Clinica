@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.clinical_history_service.domain.note;
 
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalText;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Signer;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
@@ -87,14 +88,18 @@ public record NoteDraft(
     }
 
     public SignedNote sign(Signer signer, Encounter encounter, NotePolicy policy, Clock clock) {
-        return sign(signer, encounter, Map.of(), policy, clock);
+        return sign(signer, encounter, Map.of(), List.of(), policy, clock);
     }
 
-    public SignedNote sign(Signer signer, Encounter encounter, Map<UUID, ListItemState> listItems, NotePolicy policy, Clock clock) {
+    public SignedNote sign(Signer signer, Encounter encounter, Map<UUID, ListItemState> listItems, List<Attachment> attachments,
+                           NotePolicy policy, Clock clock) {
         requireAuthor(signer.clinician());
         requireAllowedAuthor(type(), signer.clinician());
         if (type() != NoteType.ADDENDUM) {
             encounter.requireOpen();
+        }
+        if (attachments.size() > Attachment.MAX_PER_NOTE) {
+            throw new ClinicalException.TooManyAttachments(Attachment.MAX_PER_NOTE);
         }
         List<String> missing = content.missingFields();
         if (!missing.isEmpty()) {
@@ -105,7 +110,7 @@ public record NoteDraft(
         policy.requireValidOccurrence(encounter, occurredAt, recordedAt);
         List<AppliedUpdate> applied = RecordUpdatePolicy.apply(updates, listItems,
                 vitals -> policy.requireValidOccurrence(encounter, vitals.measuredAt(), recordedAt));
-        return new SignedNote(id, encounterId, signer.clinician(), signer.email(), content, restriction, applied, occurredAt, recordedAt,
+        return new SignedNote(id, encounterId, signer.clinician(), signer.email(), content, restriction, applied, attachments, occurredAt, recordedAt,
                 policy.isExtemporaneous(occurredAt, recordedAt));
     }
 

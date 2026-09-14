@@ -119,6 +119,18 @@ final class CanonicalPayloads {
         payload.put("occurredAt", instant(note.occurredAt()));
         payload.put("recordedAt", instant(note.recordedAt()));
         payload.put("extemporaneous", note.extemporaneous());
+        payload.put("attachments", note.attachments().stream()
+                .sorted(Comparator.comparing(attachment -> attachment.id().toString()))
+                .map(attachment -> {
+                    Map<String, Object> value = new TreeMap<>();
+                    value.put("id", attachment.id().toString());
+                    value.put("fileName", attachment.fileName());
+                    value.put("mediaType", attachment.mediaType().mimeType());
+                    value.put("size", attachment.size());
+                    value.put("sha256", attachment.sha256());
+                    return value;
+                })
+                .toList());
         payload.put("recordUpdates", note.updates().stream()
                 .sorted(Comparator.comparing(update -> update.id().toString()))
                 .map(CanonicalPayloads::update)
