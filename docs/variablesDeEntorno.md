@@ -56,10 +56,43 @@ PATIENT_DB_URL=jdbc:mysql://localhost:3307/patient_db
 JWT_PUBLIC_KEY=MIIBIjANBgkqh...
 ```
 
+#### Clinical History Service
+```bash
+CLINICAL_DB_ROOT_PASSWORD=ClinicalRootPass2024!
+CLINICAL_DB_NAME=clinical_db
+CLINICAL_DB_MIGRATOR_USER=clinical_migrator
+CLINICAL_DB_MIGRATOR_PASSWORD=MigratorSecure123!
+CLINICAL_DB_APP_USER=clinical_app
+CLINICAL_DB_APP_PASSWORD=ClinicalAppSecure123!
+CLINICAL_DB_DEBEZIUM_USER=clinical_debezium
+CLINICAL_DB_DEBEZIUM_PASSWORD=DebeziumSecure123!
+CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/clinical_db
+
+CLINICAL_SEAL_KEYS_LOCATION=/run/secrets/clinical/seal        # directorio de claves ECDSA P-256
+CLINICAL_SEAL_ACTIVE_KEY_ID=seal-2026                         # <id>.private.pem / <id>.public.pem
+CLINICAL_ENCRYPTION_KEYS_LOCATION=/run/secrets/clinical/encryption
+CLINICAL_ENCRYPTION_ACTIVE_KEY_ID=master-2026                 # archivo <id>.key en Base64
+
+CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000    # cualquier S3 con Object Lock
+CLINICAL_ATTACHMENTS_ACCESS_KEY=clinical-history-app
+CLINICAL_ATTACHMENTS_SECRET_KEY=ClinicalStorageSecure123!
+CLINICAL_STORAGE_ROOT_USER=storage-admin                      # solo el almacenamiento local de pruebas
+CLINICAL_STORAGE_ROOT_PASSWORD=StorageRootPass2024!
+```
+
+Las claves de sello y de cifrado **no viven en la base de datos**: son archivos montados de solo
+lectura, y `CLINICAL_KEYS_DIR` (por defecto `./.secrets/clinical`) indica qué directorio del anfitrión
+se monta en `/run/secrets/clinical`. Para desarrollo se generan con
+`platform/clinical-keys/generate-dev-keys.sh`. Perder la clave maestra vuelve ilegible el contenido
+clínico: la rotación y la recuperación están en `clinical-history-service/docs/claves-y-cifrado.md`.
+Opcionales: `CLINICAL_SERVICE_PORT`, `CLINICAL_SERVICE_REPLICAS`, `CLINICAL_DB_POOL_SIZE`,
+`EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`, `SWAGGER_UI_ENABLED`.
+
 #### Plataforma de eventos
 ```bash
 KAFKA_CLUSTER_ID=Q2xpbmljYUthZmthMDAwMQ   # opcional; identificador KRaft en Base64 de 16 bytes
 PATIENT_SERVICE_REPLICAS=2               # opcional; instancias de patient-service
+CLINICAL_SERVICE_REPLICAS=2              # opcional; instancias de clinical-history-service
 ```
 
 `PATIENT_DB_MIGRATOR_*` solo lo usa Flyway; la aplicación se conecta con `PATIENT_DB_APP_*`, que no

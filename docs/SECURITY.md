@@ -178,20 +178,26 @@ Desbloqueo:
 | `ROLE_NURSE`         | Triage, actualización de estados de atención      |
 | `ROLE_RECEPTIONIST`  | Registro de pacientes, creación de atenciones     |
 | `ROLE_BILLING`       | Acceso al módulo de facturación                   |
+| `ROLE_MEDICAL_RECORDS` | Archivo clínico — copias de la historia para el paciente, sin editarla |
 
 ### 4.2 Matriz de Permisos
 
-| Recurso                      | ADMIN | DOCTOR | NURSE | RECEPTIONIST | BILLING |
-| ---------------------------- | ----- | ------ | ----- | ------------ | ------- |
-| Crear paciente               | ✓     | ✓      | ✗     | ✓            | ✗       |
-| Ver historia clínica         | ✓     | ✓      | ✓     | ✗            | ✗       |
-| Modificar historia clínica   | ✓     | ✓      | ✗     | ✗            | ✗       |
-| Crear atención               | ✓     | ✓      | ✓     | ✓            | ✗       |
-| Cambiar estado atención      | ✓     | ✓      | ✓     | ✗            | ✗       |
-| Acceder facturación          | ✓     | ✗      | ✗     | ✗            | ✓       |
-| Gestionar médicos            | ✓     | ✗      | ✗     | ✗            | ✗       |
-| Gestionar usuarios           | ✓     | ✗      | ✗     | ✗            | ✗       |
-| Chat con IA                  | ✓     | ✓      | ✓     | ✓            | ✗       |
+| Recurso                      | ADMIN | DOCTOR | NURSE | RECEPTIONIST | BILLING | MEDICAL_RECORDS |
+| ---------------------------- | ----- | ------ | ----- | ------------ | ------- | --------------- |
+| Crear paciente               | ✓     | ✓      | ✗     | ✓            | ✗       | ✗               |
+| Ver historia clínica         | ✗     | ✓ ¹    | ✓ ¹   | ✗            | ✗       | ✗               |
+| Escribir en la historia      | ✗     | ✓ ¹    | ✓ ¹   | ✗            | ✗       | ✗               |
+| Copia de la historia al paciente | ✗ | ✗      | ✗     | ✗            | ✗       | ✓               |
+| Verificar integridad y firma | ✓     | ✗      | ✗     | ✗            | ✗       | ✓               |
+| Crear atención               | ✓     | ✓      | ✓     | ✓            | ✗       | ✗               |
+| Cambiar estado atención      | ✓     | ✓      | ✓     | ✗            | ✗       | ✗               |
+| Acceder facturación          | ✓     | ✗      | ✗     | ✗            | ✓       | ✗               |
+| Gestionar médicos            | ✓     | ✗      | ✗     | ✗            | ✗       | ✗               |
+| Gestionar usuarios           | ✓     | ✗      | ✗     | ✗            | ✗       | ✗               |
+| Chat con IA                  | ✓     | ✓      | ✓     | ✓            | ✗       | ✗               |
+
+¹ El rol solo habilita: para ver o escribir hace falta además relación de cuidado con esa atención
+(sección 7.6). Los roles administrativos no ven contenido clínico.
 
 ### 4.3 Implementación
 
@@ -389,7 +395,7 @@ Las credenciales de base de datos y las claves RSA se inyectan vía variables de
 | `patient_debezium` | Debezium (Kafka Connect)    | `SELECT` solo en `patient_outbox`; `REPLICATION SLAVE` y `REPLICATION CLIENT` |
 
 La base solo está en la red interna `patient-data`, compartida únicamente con `patient-service`, y no
-publica puertos (el archivo `docker-compose.patient-debug.yml` los abre en `127.0.0.1` para depurar).
+publica puertos (el archivo `docker-compose.debug.yml` los abre en `127.0.0.1` para depurar).
 `DatabaseAccessIT` verifica con MySQL real que `patient_app` no puede borrar, alterar el esquema,
 crear triggers ni concederse permisos.
 
@@ -415,6 +421,71 @@ rompería la atomicidad de la transacción.
 - Los errores nunca repiten valores recibidos ni detalles de SQL; incluyen `code` y `traceId`.
 - `IdentityDocument` se imprime enmascarado (`CEDULA_DE_CIUDADANIA:******5432`) y los demás valores
   personales se imprimen como `[redacted]`.
+
+### 7.4 Mínimo privilegio en la base de la historia clínica
+
+`clinical-db` reparte el dominio en cuatro esquemas y crea tres usuarios con
+`clinical-history-service/docker/mysql-init/01-create-users.sh`:
+
+| Esquema              | Contenido                                   | `clinical_app`                      |
+| -------------------- | ------------------------------------------- | ----------------------------------- |
+| `clinical_db`        | Atenciones, copia local de pacientes, catálogos | `SELECT`, `INSERT`, `UPDATE`        |
+| `clinical_ledger`    | Notas firmadas y cadena de hashes           | `SELECT`, `INSERT`, `LOCK TABLES`   |
+| `clinical_workspace` | Borradores                                  | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+| `clinical_keys`      | DEK por paciente envueltas                  | `SELECT`, `INSERT`                  |
+| `clinical_outbox`    | Eventos por publicar                        | `SELECT`, `INSERT`, `DELETE`        |
+
+La aplicación no puede borrar ni modificar nada de `clinical_ledger` ni de `clinical_keys`: rotar una
+clave es escribir una envoltura nueva, no actualizar la anterior. `clinical_migrator` tampoco recibe
+`UPDATE` ni `DELETE` sobre el libro, así que una migración mal escrita no puede reescribir la
+historia. `clinical_debezium` solo lee el outbox.
+
+La base vive en la red interna `clinical-data` con su almacenamiento de anexos, sin puertos
+publicados, y está cifrada en reposo: imagen propia con `component_keyring_file`,
+`default_table_encryption` activo y redo, undo y binlog cifrados. Si el archivo del keyring no existe
+con el dueño correcto, la base no arranca.
+
+### 7.5 Firma, cifrado y retención de la historia clínica
+
+- **Inmutable por construcción.** Una nota firmada no se corrige: se aclara o se anula con motivo, y
+  ambas quedan encadenadas. Cada firma calcula el SHA-256 de un JSON canónico, lo sella con una clave
+  ECDSA P-256 guardada fuera de la base y lo encadena por paciente. `GET /patients/{uuid}/integrity`
+  recalcula la cadena; `clinical.encounters.v1` publica la cabeza para que un tercero pueda detectar
+  incluso el truncamiento del final de la cadena.
+- **Cifrado extremo del contenido.** Todo el texto clínico se cifra con AES-GCM y una DEK por
+  paciente, envuelta por una clave maestra en disco (`CLINICAL_ENCRYPTION_KEYS_LOCATION`) que nunca
+  entra en la base. El AAD ata cada bloque a su propósito y a su registro. Perder la clave maestra
+  vuelve ilegible la historia: el runbook de rotación y recuperación está en
+  `clinical-history-service/docs/claves-y-cifrado.md`.
+- **Firmar exige autenticación reciente.** El token debe haberse emitido hace menos de 15 minutos; si
+  no, la firma responde `403 RECENT_AUTHENTICATION_REQUIRED`.
+- **Anexos con retención WORM.** El archivo se cifra antes de subirlo y, al firmar, se copia a un
+  bucket con Object Lock en modo `COMPLIANCE` hasta la firma + 15 años + 1 día; una tarea diaria
+  extiende la retención con cada atención nueva. El servicio se niega a archivar si el bucket no
+  tiene Object Lock activo. No hay URLs firmadas: toda descarga pasa por el servicio, que verifica el
+  acceso, audita y comprueba el SHA-256.
+- **Auditoría de lectura.** Cada decisión de acceso —consultas, escrituras y rechazos— se escribe en
+  el outbox dentro de su propia transacción y se publica en `clinical.access-audit.v1` con retención
+  indefinida. Los rechazos se auditan igual que los accesos concedidos.
+
+### 7.6 Acceso a la historia clínica
+
+El rol no basta: hace falta una **relación de cuidado**, que es pertenecer al equipo de la atención.
+Quien abre la atención entra en el equipo; sumar a alguien más solo se puede con la atención abierta.
+La relación vale mientras la atención esté abierta y 30 días después de cerrada. Escribir, cerrar o
+anular exige ser del equipo de esa atención concreta.
+
+| Situación                                        | Quién entra                                              |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| Contenido clínico de una atención                | Equipo de cuidado de esa atención                        |
+| Notas restringidas (salud mental, salud sexual, VIH, violencia) | Solo el autor y el equipo de su atención   |
+| Urgencia sin relación previa (romper el vidrio)  | Motivo de 10 caracteres o más, dura 4 h, cifrado y auditado |
+| Verificación de integridad y firma               | `ADMIN`, `SUPER_ADMIN` y `MEDICAL_RECORDS`, sin contenido clínico |
+| Copia de la historia para el paciente            | `MEDICAL_RECORDS`, con motivo y auditoría                |
+| Administración del catálogo CIE-10 y rotación de claves | `SUPER_ADMIN`                                     |
+
+Los roles administrativos no ven contenido clínico y recepción no accede a la historia. Abrir una
+atención no exige relación previa —así empieza el cuidado— pero queda auditado.
 
 ---
 
