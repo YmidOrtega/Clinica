@@ -20,7 +20,7 @@ import java.util.UUID;
 class JdbcNoteDrafts implements NoteDrafts {
 
     private static final String SELECT = """
-            SELECT id, encounter_id, type, content_key_id, content_ciphertext, author_uuid, author_role, occurred_at, version, created_at, updated_at
+            SELECT id, encounter_id, type, restriction, content_key_id, content_ciphertext, author_uuid, author_role, occurred_at, version, created_at, updated_at
             FROM clinical_workspace.note_drafts""";
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -35,9 +35,9 @@ class JdbcNoteDrafts implements NoteDrafts {
     public void add(NoteDraft draft) {
         jdbc.update("""
                 INSERT INTO clinical_workspace.note_drafts
-                    (id, encounter_id, type, content_key_id, content_ciphertext, author_uuid, author_role, occurred_at, version, created_at,
+                    (id, encounter_id, type, restriction, content_key_id, content_ciphertext, author_uuid, author_role, occurred_at, version, created_at,
                      updated_at)
-                VALUES (:id, :encounterId, :type, :contentKeyId, :contentCiphertext, :authorUuid, :authorRole, :occurredAt, :version,
+                VALUES (:id, :encounterId, :type, :restriction, :contentKeyId, :contentCiphertext, :authorUuid, :authorRole, :occurredAt, :version,
                         :createdAt, :updatedAt)""",
                 parametersOf(draft));
     }
@@ -58,7 +58,7 @@ class JdbcNoteDrafts implements NoteDrafts {
     public boolean replace(NoteDraft revised, long expectedVersion) {
         return jdbc.update("""
                 UPDATE clinical_workspace.note_drafts
-                SET content_key_id = :contentKeyId, content_ciphertext = :contentCiphertext, occurred_at = :occurredAt,
+                SET restriction = :restriction, content_key_id = :contentKeyId, content_ciphertext = :contentCiphertext, occurred_at = :occurredAt,
                     version = :version, updated_at = :updatedAt
                 WHERE id = :id AND version = :expectedVersion""",
                 parametersOf(revised).addValue("expectedVersion", expectedVersion)) == 1;
@@ -84,6 +84,7 @@ class JdbcNoteDrafts implements NoteDrafts {
                 .addValue("id", draft.id().toString())
                 .addValue("encounterId", draft.encounterId().toString())
                 .addValue("type", draft.type().name())
+                .addValue("restriction", draft.restriction() == null ? null : draft.restriction().name())
                 .addValue("contentKeyId", content.dataKeyId().toString())
                 .addValue("contentCiphertext", content.ciphertext())
                 .addValue("authorUuid", draft.author().uuid().toString())
@@ -99,7 +100,7 @@ class JdbcNoteDrafts implements NoteDrafts {
         byte[] content = encryption.decrypt(new EncryptedField(Rows.uuid(row, "content_key_id"), row.getBytes("content_ciphertext")),
                 Purpose.DRAFT_CONTENT, id);
         return new NoteDraft(id, Rows.uuid(row, "encounter_id"), Rows.clinician(row, "author_uuid", "author_role"),
-                NoteContentColumn.read(content, NoteType.valueOf(row.getString("type")), id), Rows.instant(row, "occurred_at"), row.getLong("version"),
+                NoteContentColumn.read(content, NoteType.valueOf(row.getString("type")), id), Rows.restriction(row), Rows.instant(row, "occurred_at"), row.getLong("version"),
                 Rows.instant(row, "created_at"), Rows.instant(row, "updated_at"));
     }
 }

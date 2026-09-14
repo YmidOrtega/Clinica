@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.web;
 
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
+import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteRestriction;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.constraints.NotNull;
 
@@ -18,7 +19,7 @@ final class ClinicalRequests {
             String admissionId) {
     }
 
-    record Draft(@NotNull(message = "es obligatorio") JsonNode content, Instant occurredAt) {
+    record Draft(@NotNull(message = "es obligatorio") JsonNode content, NoteRestriction restriction, Instant occurredAt) {
     }
 
     record Voiding(String reason) {

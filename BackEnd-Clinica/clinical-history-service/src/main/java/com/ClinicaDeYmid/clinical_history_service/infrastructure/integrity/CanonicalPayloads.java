@@ -108,6 +108,7 @@ final class CanonicalPayloads {
         payload.put("encounterId", note.encounterId().toString());
         payload.put("patientUuid", patientUuid);
         payload.put("type", note.type().name());
+        payload.put("restriction", note.isRestricted() ? note.restriction().name() : null);
         payload.put("content", MAPPER.convertValue(note.content(), TreeMap.class));
         payload.put("author", author);
         payload.put("occurredAt", instant(note.occurredAt()));

@@ -7,6 +7,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterStatus;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteContent;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteDraft;
+import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteRestriction;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -19,6 +20,10 @@ import java.util.UUID;
 final class ClinicalResponses {
 
     private ClinicalResponses() {
+    }
+
+    static String restrictionOf(NoteRestriction restriction) {
+        return restriction == null ? null : restriction.name();
     }
 
     record ClinicianView(UUID uuid, String role) {
@@ -55,11 +60,12 @@ final class ClinicalResponses {
         }
     }
 
-    record NoteSummaryView(UUID id, String type, ClinicianView author, Instant occurredAt, Instant recordedAt, boolean extemporaneous,
-                           UUID amendsNoteId, VoidView voided) {
+    record NoteSummaryView(UUID id, String type, String restriction, ClinicianView author, Instant occurredAt, Instant recordedAt,
+                           boolean extemporaneous, UUID amendsNoteId, VoidView voided) {
         static NoteSummaryView from(NoteEntry entry) {
             SignedNote note = entry.note();
-            return new NoteSummaryView(note.id(), note.type().name(), ClinicianView.from(note.author()), note.occurredAt(),
+            return new NoteSummaryView(note.id(), note.type().name(), restrictionOf(note.restriction()), ClinicianView.from(note.author()),
+                    note.occurredAt(),
                     note.recordedAt(), note.extemporaneous(), note.amends().orElse(null), VoidView.from(entry.voiding()));
         }
     }
@@ -77,11 +83,12 @@ final class ClinicalResponses {
         }
     }
 
-    record NoteView(UUID id, UUID encounterId, String type, NoteContent content, SignerView author, Instant occurredAt,
+    record NoteView(UUID id, UUID encounterId, String type, String restriction, NoteContent content, SignerView author, Instant occurredAt,
                     Instant recordedAt, boolean extemporaneous, VoidView voided) {
         static NoteView from(NoteEntry entry) {
             SignedNote note = entry.note();
-            return new NoteView(note.id(), note.encounterId(), note.type().name(), note.content(), SignerView.from(note),
+            return new NoteView(note.id(), note.encounterId(), note.type().name(), restrictionOf(note.restriction()), note.content(),
+                    SignerView.from(note),
                     note.occurredAt(), note.recordedAt(), note.extemporaneous(), VoidView.from(entry.voiding()));
         }
 
@@ -90,10 +97,11 @@ final class ClinicalResponses {
         }
     }
 
-    record DraftView(UUID id, UUID encounterId, String type, NoteContent content, Instant occurredAt, long version,
+    record DraftView(UUID id, UUID encounterId, String type, String restriction, NoteContent content, Instant occurredAt, long version,
                      Instant createdAt, Instant updatedAt) {
         static DraftView from(NoteDraft draft) {
-            return new DraftView(draft.id(), draft.encounterId(), draft.type().name(), draft.content(), draft.occurredAt(),
+            return new DraftView(draft.id(), draft.encounterId(), draft.type().name(), restrictionOf(draft.restriction()), draft.content(),
+                    draft.occurredAt(),
                     draft.version(), draft.createdAt(), draft.updatedAt());
         }
     }

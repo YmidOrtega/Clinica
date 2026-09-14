@@ -68,7 +68,7 @@ public final class ClinicalFixtures {
     }
 
     public static SignedNote signed(Encounter encounter, Clinician author, NoteContent content) {
-        return new SignedNote(UUID.randomUUID(), encounter.id(), author, author.role().name().toLowerCase() + "@clinica.test", content, OPENED_AT.plusSeconds(600),
-                OPENED_AT.plusSeconds(900), false);
+        return new SignedNote(UUID.randomUUID(), encounter.id(), author, author.role().name().toLowerCase() + "@clinica.test", content,
+                null, OPENED_AT.plusSeconds(600), OPENED_AT.plusSeconds(900), false);
     }
 }

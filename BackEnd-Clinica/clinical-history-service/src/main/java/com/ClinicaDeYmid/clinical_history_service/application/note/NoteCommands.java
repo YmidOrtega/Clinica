@@ -12,6 +12,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteContent;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteDraft;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteDrafts;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NotePolicy;
+import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteRestriction;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
 import org.slf4j.Logger;
@@ -46,19 +47,20 @@ public class NoteCommands {
     }
 
     @Transactional
-    public NoteDraft startDraft(UUID encounterId, NoteContent content, Instant occurredAt, Clinician author) {
+    public NoteDraft startDraft(UUID encounterId, NoteContent content, NoteRestriction restriction, Instant occurredAt, Clinician author) {
         Encounter encounter = encounters.find(encounterId).orElseThrow(ClinicalException.EncounterNotFound::new);
-        NoteDraft draft = NoteDraft.start(encounter, author, content, occurredAt, policy, clock);
+        NoteDraft draft = NoteDraft.start(encounter, author, content, restriction, occurredAt, policy, clock);
         requireAmendable(draft, author);
         drafts.add(draft);
         return draft;
     }
 
     @Transactional
-    public NoteDraft reviseDraft(UUID draftId, long expectedVersion, NoteContent content, Instant occurredAt, Clinician editor) {
+    public NoteDraft reviseDraft(UUID draftId, long expectedVersion, NoteContent content, NoteRestriction restriction, Instant occurredAt,
+                                 Clinician editor) {
         NoteDraft draft = lockOwnDraft(draftId, expectedVersion, editor);
         Encounter encounter = encounters.find(draft.encounterId()).orElseThrow(ClinicalException.EncounterNotFound::new);
-        NoteDraft revised = draft.revise(editor, encounter, content, occurredAt, policy, clock);
+        NoteDraft revised = draft.revise(editor, encounter, content, restriction, occurredAt, policy, clock);
         if (!drafts.replace(revised, expectedVersion)) {
             throw new ClinicalException.DraftVersionMismatch();
         }

@@ -35,7 +35,7 @@ class NoteDraftTest {
     void startsWithTheCurrentTimeAsOccurrenceByDefault() {
         Clinician doctor = doctor();
 
-        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, POLICY, clockAt(NOW));
+        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, null, POLICY, clockAt(NOW));
 
         assertThat(draft.occurredAt()).isEqualTo(NOW);
         assertThat(draft.version()).isZero();
@@ -45,27 +45,27 @@ class NoteDraftTest {
 
     @Test
     void restrictsNoteTypesByClinicalProfile() {
-        assertThatThrownBy(() -> NoteDraft.start(encounter, nurse(), progress(), null, POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> NoteDraft.start(encounter, nurse(), progress(), null, null, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.NoteTypeNotAllowed.class);
-        assertThatThrownBy(() -> NoteDraft.start(encounter, doctor(), nursing(), null, POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> NoteDraft.start(encounter, doctor(), nursing(), null, null, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.NoteTypeNotAllowed.class);
-        assertThat(NoteDraft.start(encounter, nurse(), triage(), null, POLICY, clockAt(NOW))).isNotNull();
-        assertThat(NoteDraft.start(encounter, doctor(), triage(), null, POLICY, clockAt(NOW))).isNotNull();
+        assertThat(NoteDraft.start(encounter, nurse(), triage(), null, null, POLICY, clockAt(NOW))).isNotNull();
+        assertThat(NoteDraft.start(encounter, doctor(), triage(), null, null, POLICY, clockAt(NOW))).isNotNull();
     }
 
     @Test
     void closedEncountersOnlyAcceptAddenda() {
         Encounter closedEncounter = closed(encounter);
 
-        assertThatThrownBy(() -> NoteDraft.start(closedEncounter, doctor(), progress(), null, POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> NoteDraft.start(closedEncounter, doctor(), progress(), null, null, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.EncounterClosed.class);
-        assertThat(NoteDraft.start(closedEncounter, doctor(), new NoteContent.Addendum(UUID.randomUUID(), "Aclaración"), null,
+        assertThat(NoteDraft.start(closedEncounter, doctor(), new NoteContent.Addendum(UUID.randomUUID(), "Aclaración"), null, null,
                 POLICY, clockAt(NOW))).isNotNull();
     }
 
     @Test
     void addendaMustNameTheAmendedNote() {
-        assertThatThrownBy(() -> NoteDraft.start(encounter, doctor(), new NoteContent.Addendum(null, "Aclaración"), null, POLICY,
+        assertThatThrownBy(() -> NoteDraft.start(encounter, doctor(), new NoteContent.Addendum(null, "Aclaración"), null, null, POLICY,
                 clockAt(NOW)))
                 .isInstanceOf(ClinicalException.InvalidData.class)
                 .hasMessageContaining("amendsNoteId");
@@ -75,45 +75,58 @@ class NoteDraftTest {
     void occurrenceCannotBeInTheFutureNorBeforeTheEncounter() {
         Clinician doctor = doctor();
 
-        assertThatThrownBy(() -> NoteDraft.start(encounter, doctor, progress(), NOW.plus(Duration.ofMinutes(5)), POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> NoteDraft.start(encounter, doctor, progress(), null, NOW.plus(Duration.ofMinutes(5)), POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.InvalidOccurrence.class)
                 .hasMessageContaining("futuro");
-        assertThatThrownBy(() -> NoteDraft.start(encounter, doctor, progress(), OPENED_AT.minus(Duration.ofMinutes(5)), POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> NoteDraft.start(encounter, doctor, progress(), null, OPENED_AT.minus(Duration.ofMinutes(5)), POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.InvalidOccurrence.class)
                 .hasMessageContaining("apertura");
-        assertThat(NoteDraft.start(encounter, doctor, progress(), NOW.plus(Duration.ofMinutes(1)), POLICY, clockAt(NOW))).isNotNull();
+        assertThat(NoteDraft.start(encounter, doctor, progress(), null, NOW.plus(Duration.ofMinutes(1)), POLICY, clockAt(NOW))).isNotNull();
     }
 
     @Test
     void revisionKeepsTheTypeAndIncrementsTheVersion() {
         Clinician doctor = doctor();
-        NoteDraft draft = NoteDraft.start(encounter, doctor, new NoteContent.Progress("Dolor", null, null, null), null, POLICY, clockAt(NOW));
+        NoteDraft draft = NoteDraft.start(encounter, doctor, new NoteContent.Progress("Dolor", null, null, null), null, null, POLICY, clockAt(NOW));
 
-        NoteDraft revised = draft.revise(doctor, encounter, progress(), null, POLICY, clockAt(NOW.plusSeconds(60)));
+        NoteDraft revised = draft.revise(doctor, encounter, progress(), null, null, POLICY, clockAt(NOW.plusSeconds(60)));
 
         assertThat(revised.version()).isEqualTo(1);
         assertThat(revised.content()).isEqualTo(progress());
         assertThat(revised.occurredAt()).isEqualTo(draft.occurredAt());
         assertThat(revised.updatedAt()).isEqualTo(NOW.plusSeconds(60));
-        assertThatThrownBy(() -> draft.revise(doctor, encounter, discharge(), null, POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> draft.revise(doctor, encounter, discharge(), null, null, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.DraftTypeChange.class);
+    }
+
+    @Test
+    void revisionCanMarkOrUnmarkTheNoteAsRestricted() {
+        Clinician doctor = doctor();
+        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, null, POLICY, clockAt(NOW));
+
+        NoteDraft restricted = draft.revise(doctor, encounter, progress(), NoteRestriction.MENTAL_HEALTH, null, POLICY, clockAt(NOW));
+        SignedNote signed = restricted.sign(signerAt(doctor, NOW), encounter, POLICY, clockAt(NOW));
+
+        assertThat(draft.restriction()).isNull();
+        assertThat(signed.restriction()).isEqualTo(NoteRestriction.MENTAL_HEALTH);
+        assertThat(signed.isRestricted()).isTrue();
     }
 
     @Test
     void addendaCannotSwitchTheAmendedNote() {
         Clinician doctor = doctor();
-        NoteDraft draft = NoteDraft.start(encounter, doctor, new NoteContent.Addendum(UUID.randomUUID(), "Aclaración"), null, POLICY,
+        NoteDraft draft = NoteDraft.start(encounter, doctor, new NoteContent.Addendum(UUID.randomUUID(), "Aclaración"), null, null, POLICY,
                 clockAt(NOW));
 
-        assertThatThrownBy(() -> draft.revise(doctor, encounter, new NoteContent.Addendum(UUID.randomUUID(), "Otra"), null, POLICY,
+        assertThatThrownBy(() -> draft.revise(doctor, encounter, new NoteContent.Addendum(UUID.randomUUID(), "Otra"), null, null, POLICY,
                 clockAt(NOW))).isInstanceOf(ClinicalException.DraftTypeChange.class);
     }
 
     @Test
     void draftsAreInvisibleToEveryoneButTheirAuthor() {
-        NoteDraft draft = NoteDraft.start(encounter, doctor(), progress(), null, POLICY, clockAt(NOW));
+        NoteDraft draft = NoteDraft.start(encounter, doctor(), progress(), null, null, POLICY, clockAt(NOW));
 
-        assertThatThrownBy(() -> draft.revise(doctor(), encounter, progress(), null, POLICY, clockAt(NOW)))
+        assertThatThrownBy(() -> draft.revise(doctor(), encounter, progress(), null, null, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.DraftNotFound.class);
         assertThatThrownBy(() -> draft.sign(signerAt(doctor(), NOW), encounter, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.DraftNotFound.class);
@@ -122,7 +135,7 @@ class NoteDraftTest {
     @Test
     void signingRequiresEveryMandatoryField() {
         Clinician doctor = doctor();
-        NoteDraft draft = NoteDraft.start(encounter, doctor, new NoteContent.Progress("Dolor", " ", null, "Plan"), null, POLICY,
+        NoteDraft draft = NoteDraft.start(encounter, doctor, new NoteContent.Progress("Dolor", " ", null, "Plan"), null, null, POLICY,
                 clockAt(NOW));
 
         assertThatThrownBy(() -> draft.sign(signerAt(doctor, NOW), encounter, POLICY, clockAt(NOW)))
@@ -133,7 +146,7 @@ class NoteDraftTest {
     @Test
     void signingRecordsWhenTheNoteWasWrittenAndFlagsLateRecords() {
         Clinician doctor = doctor();
-        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), OPENED_AT, POLICY, clockAt(NOW));
+        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, OPENED_AT, POLICY, clockAt(NOW));
         Instant dayLater = OPENED_AT.plus(Duration.ofHours(24));
 
         SignedNote onTime = draft.sign(signerAt(doctor, dayLater), encounter, POLICY, clockAt(dayLater));
@@ -149,7 +162,7 @@ class NoteDraftTest {
     @Test
     void signingRequiresASessionIssuedLessThanFifteenMinutesAgo() {
         Clinician doctor = doctor();
-        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, POLICY, clockAt(NOW));
+        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, null, POLICY, clockAt(NOW));
 
         assertThatThrownBy(() -> draft.sign(signerAt(doctor, NOW.minus(Duration.ofMinutes(16))), encounter, POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.RecentAuthenticationRequired.class);
@@ -160,7 +173,7 @@ class NoteDraftTest {
     @Test
     void cannotSignRegularNotesOnceTheEncounterIsClosed() {
         Clinician doctor = doctor();
-        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, POLICY, clockAt(NOW));
+        NoteDraft draft = NoteDraft.start(encounter, doctor, progress(), null, null, POLICY, clockAt(NOW));
 
         assertThatThrownBy(() -> draft.sign(signerAt(doctor, NOW), closed(encounter), POLICY, clockAt(NOW)))
                 .isInstanceOf(ClinicalException.EncounterClosed.class);
