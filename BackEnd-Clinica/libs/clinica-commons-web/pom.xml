@@ -14,7 +14,7 @@
 
 	<groupId>com.ClinicaDeYmid</groupId>
 	<artifactId>clinica-commons-web</artifactId>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<packaging>jar</packaging>
 	<name>clinica-commons-web</name>
 	<description>Shared RFC 9457 error handling for the clinic servlet services.</description>
