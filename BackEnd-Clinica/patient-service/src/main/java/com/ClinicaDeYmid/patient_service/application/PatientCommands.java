@@ -6,6 +6,7 @@ import com.ClinicaDeYmid.patient_service.domain.Demographics;
 import com.ClinicaDeYmid.patient_service.domain.EmergencyContact;
 import com.ClinicaDeYmid.patient_service.domain.IdentityDocument;
 import com.ClinicaDeYmid.patient_service.domain.Patient;
+import com.ClinicaDeYmid.patient_service.domain.PatientEvent;
 import com.ClinicaDeYmid.patient_service.domain.PatientException;
 import com.ClinicaDeYmid.patient_service.domain.PatientRegistration;
 import com.ClinicaDeYmid.patient_service.domain.Patients;
@@ -17,6 +18,7 @@ import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -27,13 +29,15 @@ public class PatientCommands {
 
     private final Patients patients;
     private final HealthProviderDirectory healthProviders;
+    private final PatientEventOutbox outbox;
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public PatientCommands(Patients patients, HealthProviderDirectory healthProviders,
+    public PatientCommands(Patients patients, HealthProviderDirectory healthProviders, PatientEventOutbox outbox,
                            TransactionOperations transactions, Clock clock) {
         this.patients = patients;
         this.healthProviders = healthProviders;
+        this.outbox = outbox;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -44,7 +48,7 @@ public class PatientCommands {
             if (patients.existsByDocument(registration.document())) {
                 throw new PatientException.DocumentAlreadyRegistered();
             }
-            return patients.save(Patient.register(registration, clock));
+            return saveWithEvents(Patient.register(registration, clock));
         });
         log.info("Patient registered: uuid={}", registered.uuid());
         return registered;
@@ -97,8 +101,17 @@ public class PatientCommands {
                 throw new ApplicationException.StaleVersion();
             }
             change.accept(patient);
-            return patients.save(patient);
+            return saveWithEvents(patient);
         });
+    }
+
+    private Patient saveWithEvents(Patient patient) {
+        List<PatientEvent> events = patient.pullEvents();
+        Patient saved = patients.save(patient);
+        if (!events.isEmpty()) {
+            outbox.append(saved, events);
+        }
+        return saved;
     }
 
     private void verifyHealthProvider(Affiliation affiliation) {

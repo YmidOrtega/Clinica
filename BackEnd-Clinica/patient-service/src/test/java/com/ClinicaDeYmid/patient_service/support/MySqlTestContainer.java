@@ -14,7 +14,7 @@ public class MySqlTestContainer {
     @Bean
     @ServiceConnection
     public MySQLContainer<?> mysqlContainer() {
-        return new MySQLContainer<>(IMAGE);
+        return new MySQLContainer<>(IMAGE).withUsername("root");
     }
 
     @Bean

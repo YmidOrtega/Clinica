@@ -4,6 +4,7 @@ import com.ClinicaDeYmid.patient_service.domain.Affiliation;
 import com.ClinicaDeYmid.patient_service.domain.DocumentType;
 import com.ClinicaDeYmid.patient_service.domain.IdentityDocument;
 import com.ClinicaDeYmid.patient_service.domain.Patient;
+import com.ClinicaDeYmid.patient_service.domain.PatientEvent;
 import com.ClinicaDeYmid.patient_service.domain.PatientException;
 import com.ClinicaDeYmid.patient_service.domain.PatientFixtures;
 import com.ClinicaDeYmid.patient_service.domain.PatientRegistration;
@@ -22,7 +23,8 @@ class PatientCommandsTest {
 
     private final InMemoryPatients patients = new InMemoryPatients();
     private final StubHealthProviders healthProviders = new StubHealthProviders();
-    private final PatientCommands commands = new PatientCommands(patients, healthProviders,
+    private final RecordingOutbox outbox = new RecordingOutbox();
+    private final PatientCommands commands = new PatientCommands(patients, healthProviders, outbox,
             TransactionOperations.withoutTransaction(), PatientFixtures.today());
 
     @Test
@@ -112,9 +114,41 @@ class PatientCommandsTest {
         assertThat(patient.status()).isEqualTo(new PatientStatus.Deceased(PatientFixtures.TODAY));
     }
 
+    @Test
+    void appendsTheEventsOfEachChangeToTheOutboxAfterSaving() {
+        Patient patient = commands.register(PatientFixtures.adultRegistration());
+        commands.updateResidence(patient.uuid(), patient.version(), PatientFixtures.residence());
+        commands.deactivate(patient.uuid(), patient.version(), "Registro duplicado");
+
+        assertThat(outbox.appended).containsExactly(
+                new PatientEvent.Registered(),
+                new PatientEvent.Deactivated());
+        assertThat(outbox.patients).containsOnly(patient);
+    }
+
+    @Test
+    void appendsNothingWhenTheOperationFails() {
+        healthProviders.answer = new HealthProviderLookup.NotFound();
+
+        assertThatThrownBy(() -> commands.register(PatientFixtures.adultRegistration()));
+        assertThat(outbox.appended).isEmpty();
+    }
+
     private static PatientRegistration uninsuredRegistration() {
         return new PatientRegistration(PatientFixtures.cedula(), PatientFixtures.adult(), PatientFixtures.contact(), null,
                 Affiliation.uninsured(), PatientFixtures.residence());
+    }
+
+    static final class RecordingOutbox implements PatientEventOutbox {
+
+        final List<PatientEvent> appended = new ArrayList<>();
+        final List<Patient> patients = new ArrayList<>();
+
+        @Override
+        public void append(Patient patient, List<PatientEvent> events) {
+            patients.add(patient);
+            appended.addAll(events);
+        }
     }
 
     static final class StubHealthProviders implements HealthProviderDirectory {
