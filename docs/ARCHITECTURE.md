@@ -142,6 +142,11 @@ validar.
 **Sin caché de pacientes:** la prueba de carga con 500.000 pacientes a 5 veces el pico de una clínica
 de 5.000 pacientes diarios da p95 de 5 ms en lecturas (`patient-service/load-test/README.md`).
 
+**Pacientes sin identificar:** urgencias registra a personas sin documento como `UnidentifiedPatient`
+(código de manilla `NN-AAAA-NNNNNN`, sexo, año de nacimiento estimado, descripción). La identidad
+tiene un único dueño: cuando se conoce, se vincula con un `Patient` existente o se registra en la
+misma transacción, y los consumidores reasignan lo que tengan con el UUID provisional.
+
 **Réplicas:** `docker-compose.yml` levanta dos instancias (`PATIENT_SERVICE_REPLICAS`) que Eureka
 balancea; no guardan estado en memoria salvo la caché local de aseguradoras.
 
