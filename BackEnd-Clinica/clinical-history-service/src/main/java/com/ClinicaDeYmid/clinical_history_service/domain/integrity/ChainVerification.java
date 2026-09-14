@@ -36,6 +36,8 @@ public record ChainVerification(UUID patientUuid, long entries, ChainLink head, 
             LedgerEntry entry = pending.remove(link.entryKey());
             if (entry == null || !entry.patientUuid().equals(link.patientUuid())) {
                 problems.add(IntegrityProblem.at(IntegrityProblem.Kind.MISSING_ENTRY, link));
+            } else if (entry instanceof LedgerEntry.Unreadable) {
+                problems.add(IntegrityProblem.at(IntegrityProblem.Kind.UNREADABLE_ENTRY, link));
             } else {
                 signature.check(entry, link).stream().sorted()
                         .forEach(kind -> problems.add(IntegrityProblem.at(kind, link)));

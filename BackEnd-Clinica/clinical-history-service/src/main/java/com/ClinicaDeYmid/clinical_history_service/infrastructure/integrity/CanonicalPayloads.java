@@ -50,6 +50,8 @@ final class CanonicalPayloads {
             case LedgerEntry.NoteSigned signed -> note(signed.patientUuid().toString(), signed.note());
             case LedgerEntry.NoteVoided voided -> voiding(voided.noteVoid());
             case LedgerEntry.EncounterClosed closed -> closure(closed.closure());
+            case LedgerEntry.Unreadable unreadable ->
+                    throw new IllegalArgumentException("Unreadable entry " + unreadable.entryId() + " has no canonical form");
         };
         payload.put("entryType", entry.type().name());
         return bytes(payload);

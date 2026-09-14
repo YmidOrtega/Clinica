@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
+import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.TestJwt;
 import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
@@ -44,6 +45,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -94,10 +96,7 @@ class ClinicalRecordApiIT {
         registry.add("spring.cloud.openfeign.client.config.patient-service.url", patientService::baseUrl);
         registry.add("clinica.clinical.patient-events.enabled", () -> false);
         registry.add("spring.kafka.admin.auto-create", () -> false);
-        registry.add("clinica.security.jwt.public-key", TestJwt::publicKeyBase64);
-        registry.add("clinica.clinical.seal.keys-location", TestSealKeys::directory);
-        registry.add("clinica.clinical.seal.active-key-id", () -> TestSealKeys.ACTIVE_KEY_ID);
-        registry.add("eureka.client.enabled", () -> false);
+        ClinicalTestProperties.register(registry);
     }
 
     @Test
@@ -189,18 +188,25 @@ class ClinicalRecordApiIT {
         new Staff("RECEPTIONIST").perform(get(BASE + "/patients/" + patient + "/integrity"))
                 .andExpect(status().isForbidden());
 
-        rootJdbc.update("UPDATE clinical_ledger.notes SET content = JSON_SET(content, '$.level', 'V') WHERE id = ?", triage);
+        byte[] nursingCiphertext = rootJdbc.queryForObject("SELECT content_ciphertext FROM clinical_ledger.notes WHERE id = ?",
+                byte[].class, nursing);
+        rootJdbc.update("UPDATE clinical_ledger.notes SET content_ciphertext = ? WHERE id = ?", nursingCiphertext, triage);
+        rootJdbc.update("UPDATE clinical_ledger.notes SET author_email = 'otra@clinica.test' WHERE id = ?", nursing);
         rootJdbc.update("DELETE FROM clinical_ledger.note_voids WHERE note_id = ?", nursing);
 
         new Staff("ADMIN").perform(get(BASE + "/patients/" + patient + "/integrity"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.verified").value(false))
-                .andExpect(jsonPath("$.chains[0].problems[*].kind", contains("PAYLOAD_MISMATCH", "MISSING_ENTRY")))
+                .andExpect(jsonPath("$.chains[0].problems[*].kind", contains("UNREADABLE_ENTRY", "PAYLOAD_MISMATCH", "MISSING_ENTRY")))
                 .andExpect(jsonPath("$.chains[0].problems[0].entryId").value(triage))
-                .andExpect(jsonPath("$.chains[0].problems[1].entryType").value("NOTE_VOIDED"));
-        doctor.perform(get(BASE + "/notes/" + triage + "/signature"))
+                .andExpect(jsonPath("$.chains[0].problems[2].entryType").value("NOTE_VOIDED"));
+        doctor.perform(get(BASE + "/notes/" + nursing + "/signature"))
                 .andExpect(jsonPath("$.verified").value(false))
                 .andExpect(jsonPath("$.problems", contains("PAYLOAD_MISMATCH")));
+        doctor.perform(get(BASE + "/notes/" + triage))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("CLINICAL_CONTENT_UNREADABLE"))
+                .andExpect(jsonPath("$.detail", not(containsString("Dolor"))));
     }
 
     @Test

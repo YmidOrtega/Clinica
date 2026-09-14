@@ -12,6 +12,7 @@ public record IntegrityProblem(Kind kind, Long sequence, EntryType entryType, UU
         INVALID_SEAL,
         UNKNOWN_KEY,
         MISSING_ENTRY,
+        UNREADABLE_ENTRY,
         UNSEALED_ENTRY
     }
 
