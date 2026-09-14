@@ -34,6 +34,7 @@ class DatabaseAccessIT {
     private static final String ENCOUNTER = "8a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
     private static final String NOTE = "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e";
     private static final String CLINICIAN = "00000000-0000-4000-8000-000000000003";
+    private static final String DATA_KEY = "7c8d9e0f-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
 
     @Container
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>(MySqlTestContainer.IMAGE)
@@ -63,11 +64,16 @@ class DatabaseAccessIT {
         app.update("""
                 INSERT INTO clinical_ledger.encounters (id, patient_uuid, type, opened_at, opened_by, opened_by_role)
                 VALUES (?, ?, 'EMERGENCY', NOW(6), ?, 'DOCTOR')""", ENCOUNTER, PATIENT, CLINICIAN);
+        app.update("INSERT INTO clinical_keys.data_keys (id, patient_uuid, created_at) VALUES (?, ?, NOW(6))", DATA_KEY, PATIENT);
+        app.update("""
+                INSERT INTO clinical_keys.data_key_wrappings (data_key_id, master_key_id, wrapped_key, created_at)
+                VALUES (?, 'master-2026', RANDOM_BYTES(61), NOW(6))""", DATA_KEY);
         app.update("""
                 INSERT INTO clinical_ledger.notes
-                    (id, encounter_id, type, content, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous)
-                VALUES (?, ?, 'TRIAGE', '{"type": "TRIAGE", "level": "II", "reason": "Dolor torácico"}', ?, 'DOCTOR', 'doctor@clinica.test',
-                        NOW(6), NOW(6), FALSE)""", NOTE, ENCOUNTER, CLINICIAN);
+                    (id, encounter_id, type, content_key_id, content_ciphertext, author_uuid, author_role, author_email, occurred_at,
+                     recorded_at, extemporaneous)
+                VALUES (?, ?, 'TRIAGE', ?, RANDOM_BYTES(80), ?, 'DOCTOR', 'doctor@clinica.test', NOW(6), NOW(6), FALSE)""",
+                NOTE, ENCOUNTER, DATA_KEY, CLINICIAN);
         app.update("""
                 INSERT INTO clinical_ledger.chain_links (patient_uuid, sequence, entry_type, entry_id, format_version, payload_hash,
                     previous_hash, entry_hash, key_id, seal, sealed_at)
@@ -87,8 +93,9 @@ class DatabaseAccessIT {
         String draft = UUID.randomUUID().toString();
         app.update("""
                 INSERT INTO clinical_workspace.note_drafts
-                    (id, encounter_id, type, content, author_uuid, author_role, occurred_at, version, created_at, updated_at)
-                VALUES (?, ?, 'NURSING', '{"type": "NURSING"}', ?, 'NURSE', NOW(6), 0, NOW(6), NOW(6))""", draft, ENCOUNTER, CLINICIAN);
+                    (id, encounter_id, type, content_key_id, content_ciphertext, author_uuid, author_role, occurred_at, version, created_at,
+                     updated_at)
+                VALUES (?, ?, 'NURSING', ?, RANDOM_BYTES(40), ?, 'NURSE', NOW(6), 0, NOW(6), NOW(6))""", draft, ENCOUNTER, DATA_KEY, CLINICIAN);
         app.update("UPDATE clinical_workspace.note_drafts SET version = 1 WHERE id = ?", draft);
         app.update("DELETE FROM clinical_workspace.note_drafts WHERE id = ?", draft);
 
@@ -116,11 +123,11 @@ class DatabaseAccessIT {
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "UPDATE clinical_ledger.notes SET content = '{\"type\": \"TRIAGE\", \"level\": \"V\"}'",
+            "UPDATE clinical_ledger.notes SET content_ciphertext = RANDOM_BYTES(80)",
             "DELETE FROM clinical_ledger.notes",
             "UPDATE clinical_ledger.encounters SET type = 'OUTPATIENT'",
             "DELETE FROM clinical_ledger.encounter_closures",
-            "UPDATE clinical_ledger.note_voids SET reason = 'otra'",
+            "UPDATE clinical_ledger.note_voids SET reason_ciphertext = RANDOM_BYTES(40)",
             "DELETE FROM clinical_ledger.note_voids",
             "DROP TABLE clinical_ledger.notes",
             "ALTER TABLE clinical_ledger.notes DROP CHECK chk_notes_type",
@@ -131,6 +138,28 @@ class DatabaseAccessIT {
     })
     void applicationUserCannotRewriteTheClinicalRecord(String statement) {
         assertDenied(() -> app.execute(statement));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "UPDATE clinical_keys.data_key_wrappings SET wrapped_key = RANDOM_BYTES(61)",
+            "DELETE FROM clinical_keys.data_key_wrappings",
+            "UPDATE clinical_keys.data_keys SET patient_uuid = UUID()",
+            "DELETE FROM clinical_keys.data_keys",
+            "DROP TABLE clinical_keys.data_keys"
+    })
+    void applicationUserCannotReplaceOrDestroyDataKeys(String statement) {
+        assertDenied(() -> app.execute(statement));
+    }
+
+    @Test
+    void applicationUserAddsWrappingsWhenMasterKeysRotate() {
+        app.update("""
+                INSERT INTO clinical_keys.data_key_wrappings (data_key_id, master_key_id, wrapped_key, created_at)
+                VALUES (?, 'master-2027', RANDOM_BYTES(61), NOW(6))""", DATA_KEY);
+
+        assertThat(app.queryForObject("SELECT COUNT(*) FROM clinical_keys.data_key_wrappings WHERE data_key_id = ?", Long.class, DATA_KEY))
+                .isEqualTo(2);
     }
 
     @ParameterizedTest

@@ -1,13 +1,18 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.persistence;
 
 import com.ClinicaDeYmid.clinical_history_service.domain.note.ClinicalNotes;
+import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteType;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption.EncryptedField;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption.Purpose;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -18,30 +23,39 @@ import java.util.UUID;
 class JdbcClinicalNotes implements ClinicalNotes {
 
     static final String SELECT_NOTE = """
-            SELECT id, encounter_id, content, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous
+            SELECT id, encounter_id, type, content_key_id, content_ciphertext, author_uuid, author_role, author_email, occurred_at,
+                   recorded_at, extemporaneous
             FROM clinical_ledger.notes""";
 
     static final String SELECT_VOID = """
-            SELECT v.note_id, v.reason, v.voided_by, v.voided_by_role, v.voided_at
+            SELECT v.note_id, v.reason_key_id, v.reason_ciphertext, v.voided_by, v.voided_by_role, v.voided_at
             FROM clinical_ledger.note_voids v""";
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final ContentEncryption encryption;
 
-    JdbcClinicalNotes(NamedParameterJdbcTemplate jdbc) {
+    JdbcClinicalNotes(NamedParameterJdbcTemplate jdbc, ContentEncryption encryption) {
         this.jdbc = jdbc;
+        this.encryption = encryption;
     }
 
     @Override
     public void append(SignedNote note) {
+        UUID patientUuid = jdbc.queryForObject("SELECT patient_uuid FROM clinical_ledger.encounters WHERE id = :encounterId",
+                new MapSqlParameterSource("encounterId", note.encounterId().toString()), (row, index) -> Rows.uuid(row, "patient_uuid"));
+        EncryptedField content = encryption.encrypt(patientUuid, Purpose.NOTE_CONTENT, note.id(), NoteContentColumn.write(note.content()));
         jdbc.update("""
                 INSERT INTO clinical_ledger.notes
-                    (id, encounter_id, type, content, amends_note_id, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous)
-                VALUES (:id, :encounterId, :type, :content, :amendsNoteId, :authorUuid, :authorRole, :authorEmail, :occurredAt, :recordedAt, :extemporaneous)""",
+                    (id, encounter_id, type, content_key_id, content_ciphertext, amends_note_id, author_uuid, author_role, author_email,
+                     occurred_at, recorded_at, extemporaneous)
+                VALUES (:id, :encounterId, :type, :contentKeyId, :contentCiphertext, :amendsNoteId, :authorUuid, :authorRole, :authorEmail,
+                        :occurredAt, :recordedAt, :extemporaneous)""",
                 new MapSqlParameterSource()
                         .addValue("id", note.id().toString())
                         .addValue("encounterId", note.encounterId().toString())
                         .addValue("type", note.type().name())
-                        .addValue("content", NoteContentColumn.write(note.content()))
+                        .addValue("contentKeyId", content.dataKeyId().toString())
+                        .addValue("contentCiphertext", content.ciphertext())
                         .addValue("amendsNoteId", note.amends().map(UUID::toString).orElse(null))
                         .addValue("authorUuid", note.author().uuid().toString())
                         .addValue("authorRole", note.author().role().name())
@@ -53,25 +67,32 @@ class JdbcClinicalNotes implements ClinicalNotes {
 
     @Override
     public Optional<SignedNote> find(UUID id) {
-        return jdbc.query(SELECT_NOTE + " WHERE id = :id", new MapSqlParameterSource("id", id.toString()), JdbcClinicalNotes::toNote)
+        return jdbc.query(SELECT_NOTE + " WHERE id = :id", new MapSqlParameterSource("id", id.toString()), this::toNote)
                 .stream().findFirst();
     }
 
     @Override
     public List<SignedNote> ofEncounter(UUID encounterId) {
         return jdbc.query(SELECT_NOTE + " WHERE encounter_id = :encounterId ORDER BY recorded_at, id",
-                new MapSqlParameterSource("encounterId", encounterId.toString()), JdbcClinicalNotes::toNote);
+                new MapSqlParameterSource("encounterId", encounterId.toString()), this::toNote);
     }
 
     @Override
     public boolean addVoid(NoteVoid noteVoid) {
+        UUID patientUuid = jdbc.queryForObject("""
+                SELECT e.patient_uuid FROM clinical_ledger.notes n JOIN clinical_ledger.encounters e ON e.id = n.encounter_id
+                WHERE n.id = :noteId""", new MapSqlParameterSource("noteId", noteVoid.noteId().toString()),
+                (row, index) -> Rows.uuid(row, "patient_uuid"));
+        EncryptedField reason = encryption.encrypt(patientUuid, Purpose.VOID_REASON, noteVoid.noteId(),
+                noteVoid.reason().getBytes(StandardCharsets.UTF_8));
         try {
             return jdbc.update("""
-                    INSERT INTO clinical_ledger.note_voids (note_id, reason, voided_by, voided_by_role, voided_at)
-                    VALUES (:noteId, :reason, :voidedBy, :voidedByRole, :voidedAt)""",
+                    INSERT INTO clinical_ledger.note_voids (note_id, reason_key_id, reason_ciphertext, voided_by, voided_by_role, voided_at)
+                    VALUES (:noteId, :reasonKeyId, :reasonCiphertext, :voidedBy, :voidedByRole, :voidedAt)""",
                     new MapSqlParameterSource()
                             .addValue("noteId", noteVoid.noteId().toString())
-                            .addValue("reason", noteVoid.reason())
+                            .addValue("reasonKeyId", reason.dataKeyId().toString())
+                            .addValue("reasonCiphertext", reason.ciphertext())
                             .addValue("voidedBy", noteVoid.voidedBy().uuid().toString())
                             .addValue("voidedByRole", noteVoid.voidedBy().role().name())
                             .addValue("voidedAt", Rows.timestamp(noteVoid.voidedAt()))) == 1;
@@ -83,23 +104,30 @@ class JdbcClinicalNotes implements ClinicalNotes {
     @Override
     public Optional<NoteVoid> voidOf(UUID noteId) {
         return jdbc.query(SELECT_VOID + " WHERE v.note_id = :noteId", new MapSqlParameterSource("noteId", noteId.toString()),
-                JdbcClinicalNotes::toVoid).stream().findFirst();
+                this::toVoid).stream().findFirst();
     }
 
     @Override
     public List<NoteVoid> voidsInEncounter(UUID encounterId) {
         return jdbc.query(SELECT_VOID + " JOIN clinical_ledger.notes n ON n.id = v.note_id WHERE n.encounter_id = :encounterId",
-                new MapSqlParameterSource("encounterId", encounterId.toString()), JdbcClinicalNotes::toVoid);
+                new MapSqlParameterSource("encounterId", encounterId.toString()), this::toVoid);
     }
 
-    static SignedNote toNote(ResultSet row, int index) throws SQLException {
-        return new SignedNote(Rows.uuid(row, "id"), Rows.uuid(row, "encounter_id"), Rows.clinician(row, "author_uuid", "author_role"),
-                row.getString("author_email"), NoteContentColumn.read(row.getString("content")), Rows.instant(row, "occurred_at"), Rows.instant(row, "recorded_at"),
-                row.getBoolean("extemporaneous"));
+    SignedNote toNote(ResultSet row, int index) throws SQLException {
+        UUID id = Rows.uuid(row, "id");
+        NoteType type = NoteType.valueOf(row.getString("type"));
+        byte[] content = encryption.decrypt(new EncryptedField(Rows.uuid(row, "content_key_id"), row.getBytes("content_ciphertext")),
+                Purpose.NOTE_CONTENT, id);
+        return new SignedNote(id, Rows.uuid(row, "encounter_id"), Rows.clinician(row, "author_uuid", "author_role"),
+                row.getString("author_email"), NoteContentColumn.read(content, type, id), Rows.instant(row, "occurred_at"),
+                Rows.instant(row, "recorded_at"), row.getBoolean("extemporaneous"));
     }
 
-    static NoteVoid toVoid(ResultSet row, int index) throws SQLException {
-        return new NoteVoid(Rows.uuid(row, "note_id"), row.getString("reason"), Rows.clinician(row, "voided_by", "voided_by_role"),
+    NoteVoid toVoid(ResultSet row, int index) throws SQLException {
+        UUID noteId = Rows.uuid(row, "note_id");
+        byte[] reason = encryption.decrypt(new EncryptedField(Rows.uuid(row, "reason_key_id"), row.getBytes("reason_ciphertext")),
+                Purpose.VOID_REASON, noteId);
+        return new NoteVoid(noteId, new String(reason, StandardCharsets.UTF_8), Rows.clinician(row, "voided_by", "voided_by_role"),
                 Rows.instant(row, "voided_at"));
     }
 }

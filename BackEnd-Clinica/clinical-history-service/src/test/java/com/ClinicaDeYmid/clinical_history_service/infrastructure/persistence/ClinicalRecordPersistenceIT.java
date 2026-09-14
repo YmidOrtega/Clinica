@@ -15,6 +15,8 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.TriageLevel;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.config.ClockConfiguration;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.EncryptionConfiguration;
+import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,10 +25,13 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -43,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({JdbcPatientReferences.class, JdbcEncounters.class, JdbcClinicalNotes.class, JdbcNoteDrafts.class, JdbcChainLinks.class,
-        JdbcLedgerEntries.class, ClockConfiguration.class, MySqlTestContainer.class})
+        JdbcLedgerEntries.class, ClockConfiguration.class, EncryptionConfiguration.class, MySqlTestContainer.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ClinicalRecordPersistenceIT {
 
@@ -75,6 +80,11 @@ class ClinicalRecordPersistenceIT {
 
     private UUID patient;
 
+    @DynamicPropertySource
+    static void encryptionKeys(DynamicPropertyRegistry registry) {
+        ClinicalTestProperties.encryption(registry);
+    }
+
     @BeforeEach
     void clean() {
         jdbc.update("DELETE FROM clinical_ledger.chain_links");
@@ -84,6 +94,8 @@ class ClinicalRecordPersistenceIT {
         jdbc.update("DELETE FROM clinical_ledger.notes");
         jdbc.update("DELETE FROM clinical_ledger.encounter_closures");
         jdbc.update("DELETE FROM clinical_ledger.encounters");
+        jdbc.update("DELETE FROM clinical_keys.data_key_wrappings");
+        jdbc.update("DELETE FROM clinical_keys.data_keys");
         patient = UUID.randomUUID();
         patients.saveIfNewer(PatientReferencesPersistenceIT.registered(patient, 0, PatientReference.Registered.Status.ACTIVE));
     }
@@ -136,6 +148,11 @@ class ClinicalRecordPersistenceIT {
         assertThat(notes.addVoid(voiding)).isTrue();
         assertThat(notes.addVoid(voiding)).isFalse();
         assertThat(notes.ofEncounter(encounter.id())).containsExactlyElementsOf(all);
+        assertThat(jdbc.queryForList("SELECT content_ciphertext FROM clinical_ledger.notes", byte[].class))
+                .hasSize(7)
+                .allSatisfy(ciphertext -> assertThat(new String(ciphertext, StandardCharsets.ISO_8859_1))
+                        .doesNotContain("Neumotórax").doesNotContain("Paro respiratorio").doesNotContain("\"type\""));
+        assertThat(jdbc.queryForObject("SELECT COUNT(DISTINCT content_key_id) FROM clinical_ledger.notes", Long.class)).isEqualTo(1);
         assertThat(notes.find(addendum.id())).hasValueSatisfying(stored -> assertThat(stored.amends()).contains(evolution.id()));
         assertThat(notes.voidOf(consultation.id())).contains(voiding);
         assertThat(notes.voidsInEncounter(encounter.id())).containsExactly(voiding);
@@ -207,15 +224,7 @@ class ClinicalRecordPersistenceIT {
     }
 
     @Test
-    void databaseRejectsContentThatContradictsTheNoteType() {
-        Encounter encounter = encounter(EncounterType.EMERGENCY, OPENED_AT);
-        encounters.add(encounter);
-
-        assertThatThrownBy(() -> jdbc.update("""
-                INSERT INTO clinical_ledger.notes
-                    (id, encounter_id, type, content, author_uuid, author_role, author_email, occurred_at, recorded_at, extemporaneous)
-                VALUES (UUID(), ?, 'DISCHARGE', '{"type": "PROGRESS"}', UUID(), 'DOCTOR', 'doctor@clinica.test', NOW(6), NOW(6), FALSE)""",
-                encounter.id().toString())).hasMessageContaining("chk_notes_content_type");
+    void databaseRejectsEncountersOfUnknownPatients() {
         assertThatThrownBy(() -> jdbc.update("""
                 INSERT INTO clinical_ledger.encounters (id, patient_uuid, type, opened_at, opened_by, opened_by_role)
                 VALUES (?, ?, 'EMERGENCY', NOW(6), UUID(), 'DOCTOR')""", UUID.randomUUID().toString(), UUID.randomUUID().toString()))

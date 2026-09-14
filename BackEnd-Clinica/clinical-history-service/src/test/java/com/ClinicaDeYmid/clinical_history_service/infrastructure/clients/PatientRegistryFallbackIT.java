@@ -4,9 +4,8 @@ import com.ClinicaDeYmid.clinical_history_service.application.patient.PatientDir
 import com.ClinicaDeYmid.clinical_history_service.application.patient.PatientLookup;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
+import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
-import com.ClinicaDeYmid.clinical_history_service.support.TestJwt;
-import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -43,10 +42,7 @@ class PatientRegistryFallbackIT {
         registry.add("spring.cloud.openfeign.client.config.patient-service.url", patientService::baseUrl);
         registry.add("clinica.clinical.patient-events.enabled", () -> false);
         registry.add("spring.kafka.admin.auto-create", () -> false);
-        registry.add("clinica.security.jwt.public-key", TestJwt::publicKeyBase64);
-        registry.add("clinica.clinical.seal.keys-location", TestSealKeys::directory);
-        registry.add("clinica.clinical.seal.active-key-id", () -> TestSealKeys.ACTIVE_KEY_ID);
-        registry.add("eureka.client.enabled", () -> false);
+        ClinicalTestProperties.register(registry);
     }
 
     @Test

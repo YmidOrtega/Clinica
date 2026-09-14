@@ -98,4 +98,13 @@ public sealed interface LedgerEntry {
             return closure.encounterId();
         }
     }
+
+    record Unreadable(UUID patientUuid, EntryType type, UUID entryId) implements LedgerEntry {
+
+        public Unreadable {
+            Objects.requireNonNull(patientUuid, "patientUuid");
+            Objects.requireNonNull(type, "type");
+            Objects.requireNonNull(entryId, "entryId");
+        }
+    }
 }
