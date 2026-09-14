@@ -34,11 +34,22 @@ el código ni en la configuración de los contenedores.
 | `clinical/db/migrator`, `app`   |                   | lectura                    | lectura       |
 | `clinical/storage/root`         |                   |                            | lectura       |
 | `clinical/storage/attachments`  |                   | lectura                    | lectura       |
+| `clinical/retired-master-keys`  |                   | lectura                    |               |
+| `clinical/retired-seal-keys`    |                   | lectura                    |               |
+
+| Clave transit (`transit/`) | Tipo           | `clinical-history-service`                        |
+| -------------------------- | -------------- | ------------------------------------------------- |
+| `clinical-kek`             | `aes256-gcm96` | cifrar, descifrar y leer versiones                |
+| `clinical-seal`            | `ecdsa-p256`   | firmar y leer versiones y claves públicas         |
+
+Las claves de transit se crean no exportables y ningún consumidor puede rotarlas ni borrarlas. Su uso
+y rotación están en `clinical-history-service/docs/claves-y-cifrado.md`.
 
 Los servicios Spring usan Spring Cloud Vault con el perfil `openbao`: leen `role-id` y `secret-id` de
 `/run/secrets/openbao/approle`, confían en `/run/secrets/openbao-tls/ca.crt` e importan cada ruta con un
 prefijo (`vault://secret/patient/db/app?prefix=patient.db.app.`). Leen los secretos **al arrancar**; si
-el clúster cae después, siguen funcionando.
+el clúster cae después, siguen funcionando. `clinical-history-service` además llama a transit en cada
+firma y al abrir la clave de un paciente que no tiene en caché.
 
 Justo después de que el clúster entero se reinicia hay unos segundos en que un nodo en espera todavía
 no conoce al activo y responde `500 active cluster node not found`. Un servicio que arranque en esa

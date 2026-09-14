@@ -449,14 +449,15 @@ con el dueño correcto, la base no arranca.
 ### 7.5 Firma, cifrado y retención de la historia clínica
 
 - **Inmutable por construcción.** Una nota firmada no se corrige: se aclara o se anula con motivo, y
-  ambas quedan encadenadas. Cada firma calcula el SHA-256 de un JSON canónico, lo sella con una clave
-  ECDSA P-256 guardada fuera de la base y lo encadena por paciente. `GET /patients/{uuid}/integrity`
+  ambas quedan encadenadas. Cada firma calcula el SHA-256 de un JSON canónico, lo sella con la clave
+  ECDSA P-256 del motor transit de OpenBao, que nunca sale de él, y lo encadena por paciente. Los
+  sellos se verifican localmente con las claves públicas de cada versión. `GET /patients/{uuid}/integrity`
   recalcula la cadena; `clinical.encounters.v1` publica la cabeza para que un tercero pueda detectar
   incluso el truncamiento del final de la cadena.
 - **Cifrado extremo del contenido.** Todo el texto clínico se cifra con AES-GCM y una DEK por
-  paciente, envuelta por una clave maestra en disco (`CLINICAL_ENCRYPTION_KEYS_LOCATION`) que nunca
-  entra en la base. El AAD ata cada bloque a su propósito y a su registro. Perder la clave maestra
-  vuelve ilegible la historia: el runbook de rotación y recuperación está en
+  paciente, envuelta en transit por la clave maestra `clinical-kek`, que nunca entra en la base ni en el
+  servicio. El AAD ata cada bloque a su propósito y a su registro, y cada envoltura a su paciente.
+  Perder el almacenamiento de OpenBao sin respaldo vuelve ilegible la historia: el runbook de rotación y recuperación está en
   `clinical-history-service/docs/claves-y-cifrado.md`.
 - **Firmar exige autenticación reciente.** El token debe haberse emitido hace menos de 15 minutos; si
   no, la firma responde `403 RECENT_AUTHENTICATION_REQUIRED`.
@@ -493,7 +494,8 @@ atención no exige relación previa —así empieza el cuidado— pero queda aud
 ### 7.7 Gestión de secretos
 
 - **Un gestor aparte, no auth-service.** Los secretos viven en un clúster OpenBao de tres nodos; auth
-  solo se ocupa de identidades. Si OpenBao cae, los servicios que ya arrancaron siguen funcionando.
+  solo se ocupa de identidades. Si OpenBao cae, los servicios que ya arrancaron siguen funcionando;
+  en la historia clínica solo se detienen la firma y la lectura de pacientes cuya clave no está en caché.
 - **Mínimo privilegio por consumidor.** Cada servicio se autentica con su propio AppRole y su política
   solo permite leer sus rutas: `patient-service` no puede leer secretos de la historia clínica ni la
   contraseña root de su propia base. El agente de infraestructura solo lee.
