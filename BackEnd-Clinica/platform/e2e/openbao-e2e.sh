@@ -123,6 +123,12 @@ status=0
 bao_as openbao_approle_auth "bao write totp/keys/other generate=true issuer=Clinica account_name=e2e > /dev/null 2>&1" || status=$?
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "auth-service creó una clave TOTP fuera de staff-*"
 ok "auth-service administra solo las claves TOTP staff-* y no puede listarlas"
+bao_as openbao_approle_gateway "bao kv get -mount=secret gateway/redis > /dev/null && bao write -field=signature transit/sign/api-gateway-client input=aGVsbG8= hash_algorithm=sha2-256 > /dev/null" \
+  || fail "api-gateway no lee su secreto de Redis o no firma sus aserciones"
+status=0
+bao_as openbao_approle_gateway "bao kv get -mount=secret auth/db/app > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "api-gateway leyó un secreto de auth-service"
+ok "api-gateway lee solo su Redis y firma solo con api-gateway-client"
 status=0
 bao_as openbao_approle_agent "bao kv put -mount=secret patient/db/app password=tampered > /dev/null 2>&1" || status=$?
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "el agente pudo escribir un secreto"
@@ -139,7 +145,7 @@ bao_as openbao_approle_clinical "bao write transit/sign/clinical-seal input=aGVs
 ok "clinical-history-service firma con transit pero no rota sus claves"
 
 step "Ningún secreto en la configuración de los contenedores"
-secrets=$(bao_root "for path in patient/db/root patient/db/app patient/db/migrator patient/db/debezium clinical/db/root clinical/db/app clinical/db/migrator clinical/db/debezium clinical/storage/root auth/db/root auth/db/app auth/db/migrator auth/db/debezium; do bao kv get -mount=secret -field=password \$path; echo; done; bao kv get -mount=secret -field=secret-key clinical/storage/attachments")
+secrets=$(bao_root "for path in patient/db/root patient/db/app patient/db/migrator patient/db/debezium clinical/db/root clinical/db/app clinical/db/migrator clinical/db/debezium clinical/storage/root auth/db/root auth/db/app auth/db/migrator auth/db/debezium gateway/redis; do bao kv get -mount=secret -field=password \$path; echo; done; bao kv get -mount=secret -field=secret-key clinical/storage/attachments")
 containers=$(docker compose -p "$PROJECT" ps -a -q)
 inspected=$(docker inspect $containers)
 for secret in $secrets; do
