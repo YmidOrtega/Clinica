@@ -1,65 +1,71 @@
 package com.ClinicaDeYmid.commons.security;
 
-import org.springframework.core.io.Resource;
-import org.springframework.security.converter.RsaKeyConverters;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
+import com.nimbusds.jose.proc.JWSVerificationKeySelector;
+import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
-import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.security.interfaces.RSAPublicKey;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public final class ClinicaJwtDecoders {
-
-    private static final String PEM_HEADER = "-----BEGIN PUBLIC KEY-----";
-    private static final String PEM_FOOTER = "-----END PUBLIC KEY-----";
 
     private ClinicaJwtDecoders() {
     }
 
-    public static JwtDecoder fromProperties(ClinicaSecurityProperties.Jwt properties) {
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKeyOf(properties))
-                .signatureAlgorithm(SignatureAlgorithm.RS256)
-                .build();
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+    public static JwtDecoder fromProperties(ClinicaSecurityProperties.Jwt properties, List<OAuth2TokenValidator<Jwt>> extraValidators) {
+        if (properties.issuer() == null || properties.issuer().isBlank()) {
+            throw new IllegalStateException("Configure clinica.security.jwt.issuer with the public issuer of auth-service");
+        }
+        DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+        processor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.ES256, jwkSource(properties)));
+        processor.setJWTClaimsSetVerifier((claims, context) -> {
+        });
+        NimbusJwtDecoder decoder = new NimbusJwtDecoder(processor);
+        List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>(List.of(
                 JwtValidators.createDefaultWithIssuer(properties.issuer()),
                 new JwtClaimValidator<String>(JwtClaimNames.SUB, subject -> subject != null && !subject.isBlank()),
-                new JwtClaimValidator<String>(ClinicaJwtClaims.TYPE, ClinicaJwtClaims.ACCESS_TOKEN_TYPE::equals)));
+                new JwtClaimValidator<Collection<String>>(JwtClaimNames.AUD,
+                        audience -> audience != null && audience.stream().anyMatch(properties.audiences()::contains))));
+        validators.addAll(extraValidators);
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
         return decoder;
     }
 
-    static RSAPublicKey publicKeyOf(ClinicaSecurityProperties.Jwt properties) {
-        if (properties.publicKey() != null && !properties.publicKey().isBlank()) {
-            return parse(new ByteArrayInputStream(normalizePem(properties.publicKey()).getBytes(StandardCharsets.US_ASCII)));
-        }
-        Resource location = properties.publicKeyLocation();
-        if (location != null && location.exists()) {
-            try (InputStream input = location.getInputStream()) {
-                return parse(input);
-            } catch (IOException ex) {
-                throw new UncheckedIOException("Cannot read JWT public key from " + location.getDescription(), ex);
+    static JWKSource<SecurityContext> jwkSource(ClinicaSecurityProperties.Jwt properties) {
+        if (properties.jwkSet() != null && !properties.jwkSet().isBlank()) {
+            try {
+                return new ImmutableJWKSet<>(JWKSet.parse(properties.jwkSet()));
+            } catch (ParseException ex) {
+                throw new IllegalStateException("clinica.security.jwt.jwk-set is not a valid JWK set", ex);
             }
         }
-        throw new IllegalStateException("Configure clinica.security.jwt.public-key or clinica.security.jwt.public-key-location");
-    }
-
-    private static RSAPublicKey parse(InputStream pem) {
-        return RsaKeyConverters.x509().convert(pem);
-    }
-
-    private static String normalizePem(String value) {
-        String pem = value.replace("\\n", "\n").trim();
-        if (pem.startsWith(PEM_HEADER)) {
-            return pem;
+        if (properties.jwkSetUri() == null || properties.jwkSetUri().isBlank()) {
+            throw new IllegalStateException("Configure clinica.security.jwt.jwk-set-uri with the JWKS endpoint of auth-service");
         }
-        return PEM_HEADER + "\n" + pem.replaceAll("\\s", "") + "\n" + PEM_FOOTER;
+        try {
+            return JWKSourceBuilder.<SecurityContext>create(URI.create(properties.jwkSetUri()).toURL())
+                    .retrying(true)
+                    .outageTolerant(properties.jwkSetOutageTolerance().toMillis())
+                    .build();
+        } catch (MalformedURLException ex) {
+            throw new IllegalStateException("clinica.security.jwt.jwk-set-uri is not a valid URL", ex);
+        }
     }
 }
