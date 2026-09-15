@@ -13,6 +13,8 @@ final class ProblemDetailResponses {
 
     static final String UNAUTHENTICATED_CODE = "UNAUTHENTICATED";
     static final String UNAUTHENTICATED_DETAIL = "Se requiere una autenticación válida";
+    static final String STEP_UP_REQUIRED_CODE = "STEP_UP_REQUIRED";
+    static final String STEP_UP_REQUIRED_DETAIL = "Confirma tu segundo factor para continuar con esta operación";
     static final String ACCESS_DENIED_CODE = "ACCESS_DENIED";
     static final String ACCESS_DENIED_DETAIL = "No tienes permisos para realizar esta operación";
 
@@ -21,6 +23,17 @@ final class ProblemDetailResponses {
 
     static ProblemDetail unauthenticated() {
         return ProblemDetails.of(HttpStatus.UNAUTHORIZED, UNAUTHENTICATED_CODE, UNAUTHENTICATED_DETAIL);
+    }
+
+    static ProblemDetail stepUpRequired(long maxAgeSeconds) {
+        ProblemDetail problem = ProblemDetails.of(HttpStatus.UNAUTHORIZED, STEP_UP_REQUIRED_CODE, STEP_UP_REQUIRED_DETAIL);
+        problem.setProperty("maxAge", maxAgeSeconds);
+        return problem;
+    }
+
+    static String stepUpChallenge(long maxAgeSeconds) {
+        return "Bearer error=\"insufficient_user_authentication\", error_description=\"A second factor verified in the last "
+                + maxAgeSeconds + " seconds is required\", max_age=" + maxAgeSeconds;
     }
 
     static ProblemDetail accessDenied() {

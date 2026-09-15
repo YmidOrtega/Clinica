@@ -18,10 +18,14 @@ public class ClinicaJwtAuthenticationConverter implements Converter<Jwt, Abstrac
     }
 
     private static List<GrantedAuthority> authoritiesOf(Jwt jwt) {
-        String role = jwt.getClaimAsString(ClinicaJwtClaims.ROLE);
-        if (role == null || role.isBlank()) {
-            return List.of();
+        if (TokenSubjects.isService(jwt)) {
+            return TokenSubjects.scopesOf(jwt).stream()
+                    .<GrantedAuthority>map(scope -> new SimpleGrantedAuthority(ClinicaJwtClaims.SCOPE_PREFIX + scope))
+                    .toList();
         }
-        return List.of(new SimpleGrantedAuthority(ClinicaJwtClaims.ROLE_PREFIX + role.trim().toUpperCase(Locale.ROOT)));
+        return TokenSubjects.user(jwt)
+                .<List<GrantedAuthority>>map(user -> List.of(new SimpleGrantedAuthority(
+                        ClinicaJwtClaims.ROLE_PREFIX + user.role().trim().toUpperCase(Locale.ROOT))))
+                .orElse(List.of());
     }
 }

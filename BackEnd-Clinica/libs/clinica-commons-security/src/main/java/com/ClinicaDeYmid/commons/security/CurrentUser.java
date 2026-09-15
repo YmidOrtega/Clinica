@@ -10,7 +10,11 @@ import java.util.Optional;
 public class CurrentUser {
 
     public Optional<AuthenticatedUser> get() {
-        return currentJwt().map(CurrentUser::toUser);
+        return currentJwt().flatMap(TokenSubjects::user);
+    }
+
+    public Optional<AuthenticatedService> service() {
+        return currentJwt().flatMap(TokenSubjects::service);
     }
 
     public Optional<String> bearerToken() {
@@ -22,14 +26,5 @@ public class CurrentUser {
         return authentication instanceof JwtAuthenticationToken token && token.isAuthenticated()
                 ? Optional.of(token.getToken())
                 : Optional.empty();
-    }
-
-    private static AuthenticatedUser toUser(Jwt jwt) {
-        Object userId = jwt.getClaims().get(ClinicaJwtClaims.USER_ID);
-        return new AuthenticatedUser(
-                jwt.getSubject(),
-                userId instanceof Number number ? number.longValue() : null,
-                jwt.getClaimAsString(ClinicaJwtClaims.EMAIL),
-                jwt.getClaimAsString(ClinicaJwtClaims.ROLE));
     }
 }
