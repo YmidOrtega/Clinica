@@ -124,7 +124,7 @@ services:
       networks:
          - secrets-net
       healthcheck:
-         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password; do test -s /rendered/$$f || exit 1; done"]
+         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password; do test -s /rendered/$$f || exit 1; done"]
          interval: 5s
          timeout: 3s
          retries: 24
@@ -365,6 +365,8 @@ services:
          AUTH_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/auth-db/migrator-password
          AUTH_DB_APP_USER_FILE: /run/secrets/auth-db/app-user
          AUTH_DB_APP_PASSWORD_FILE: /run/secrets/auth-db/app-password
+         AUTH_DB_DEBEZIUM_USER_FILE: /run/secrets/auth-db/debezium-user
+         AUTH_DB_DEBEZIUM_PASSWORD_FILE: /run/secrets/auth-db/debezium-password
       volumes:
          - auth_data:/var/lib/mysql
          - ./auth-service/docker/mysql-init:/docker-entrypoint-initdb.d:ro
@@ -509,12 +511,14 @@ services:
          KAFKA_REPLICATION_FACTOR: 1
          PATIENT_DB_HOST: patient-db
          CLINICAL_DB_HOST: clinical-db
+         AUTH_DB_HOST: auth-db
       volumes:
          - kafka_connect_secrets:/run/secrets/kafka-connect:ro
       networks:
          - kafka-net
          - patient-data
          - clinical-data
+         - auth-data
       healthcheck:
          test: ["CMD-SHELL", "curl -fs http://localhost:8083/connectors > /dev/null"]
          interval: 10s
@@ -533,11 +537,14 @@ services:
             condition: service_healthy
          clinical-db:
             condition: service_healthy
+         auth-db:
+            condition: service_healthy
       entrypoint: ["sh", "/register-connectors.sh"]
       volumes:
          - ./platform/kafka-connect/register-connectors.sh:/register-connectors.sh:ro
          - ./patient-service/debezium:/connectors/patient-service:ro
          - ./clinical-history-service/debezium:/connectors/clinical-history-service:ro
+         - ./auth-service/debezium:/connectors/auth-service:ro
       networks:
          - kafka-net
 
