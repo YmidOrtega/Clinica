@@ -74,6 +74,11 @@ class DatabaseAccessIT {
         app.update("INSERT INTO auth_history.revisions (revised_at) VALUES (NOW(6))");
 
         assertThat(app.update("DELETE FROM auth_sessions.login_throttles")).isEqualTo(1);
+        app.update("""
+                INSERT INTO auth_sessions.one_time_tokens (id, user_uuid, purpose, token_hash, created_at, expires_at)
+                VALUES (UUID(), UUID(), 'PASSWORD_RESET', REPEAT('b', 64), NOW(6), NOW(6) + INTERVAL 30 MINUTE)""");
+        assertThat(app.update("DELETE FROM auth_sessions.one_time_tokens")).isEqualTo(1);
+        assertDenied(() -> app.update("DELETE FROM auth_history.users_aud"));
         assertDenied(() -> app.update("DELETE FROM users"));
     }
 
@@ -84,6 +89,8 @@ class DatabaseAccessIT {
             "DROP TABLE users",
             "ALTER TABLE users DROP CHECK chk_users_password_hash",
             "CREATE TABLE auth_sessions.shadow (id INT)",
+            "DROP TABLE auth_sessions.authorizations",
+            "ALTER TABLE auth_sessions.one_time_tokens DROP CHECK chk_one_time_tokens_hash",
             "CREATE TRIGGER tr_bypass BEFORE UPDATE ON users FOR EACH ROW SET NEW.role = 'SUPER_ADMIN'"
     })
     void applicationUserCannotRewriteHistoryOrTheSchema(String statement) {

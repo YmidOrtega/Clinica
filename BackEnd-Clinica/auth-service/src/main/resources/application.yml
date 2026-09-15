@@ -1,6 +1,15 @@
 server:
   port: ${AUTH_SERVICE_PORT:8086}
   shutdown: graceful
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 15m
+      cookie:
+        name: CLINICA_AUTH_SESSION
+        http-only: true
+        same-site: lax
+        secure: ${AUTH_SESSION_COOKIE_SECURE:false}
   error:
     include-message: never
     include-stacktrace: never
@@ -38,9 +47,37 @@ spring:
   cloud:
     vault:
       enabled: false
+  session:
+    timeout: 15m
+    jdbc:
+      table-name: auth_sessions.SPRING_SESSION
+      initialize-schema: never
 
 clinica:
+  openbao:
+    transit:
+      mount: ${AUTH_TRANSIT_MOUNT:transit}
+      key-refresh-interval: 5m
   auth:
+    server:
+      issuer: ${AUTH_ISSUER:http://localhost:8086}
+      login-url: ${AUTH_LOGIN_URL:http://localhost:4321/login}
+      home-url: ${AUTH_HOME_URL:http://localhost:4321/}
+      session-absolute-lifetime: 12h
+      tokens:
+        access-token-ttl: 5m
+        refresh-token-ttl: 12h
+        authorization-code-ttl: 1m
+        audience: clinica-api
+        signing-key: ${AUTH_SIGNING_TRANSIT_KEY:auth-jwt}
+        published-signing-key-versions: 2
+      clients:
+        api-gateway:
+          grant-types: authorization_code, refresh_token
+          redirect-uris: ${AUTH_GATEWAY_REDIRECT_URI:http://localhost:8080/login/oauth2/code/clinica}
+          post-logout-redirect-uris: ${AUTH_GATEWAY_POST_LOGOUT_URI:http://localhost:8080/}
+          scopes: openid, profile
+          assertion-key: api-gateway-client
     time-zone: America/Bogota
     password-deny-lists: classpath:passwords/ncsc-100k-common.txt
     password-service-words: clinica, clinicadeymid, ymid

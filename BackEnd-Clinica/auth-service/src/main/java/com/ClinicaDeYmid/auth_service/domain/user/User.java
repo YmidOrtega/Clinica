@@ -131,6 +131,12 @@ public class User {
         applyCredential(new CredentialState.Current(now(clock)), hash);
     }
 
+    public void rehashPassword(PasswordHash hash) {
+        DomainRules.required(hash, "passwordHash");
+        requireActive();
+        passwordHash = hash.value();
+    }
+
     public void resetPassword(PasswordHash hash, Clock clock) {
         changePassword(hash, clock);
         tokensNotBefore = now(clock);

@@ -14,7 +14,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "revisions", catalog = "auth_history")
-@RevisionEntity
+@RevisionEntity(AuditRevisionListener.class)
 public class AuditRevision {
 
     @Id
@@ -26,6 +26,9 @@ public class AuditRevision {
     @Column(name = "revised_at", nullable = false)
     private Instant revisedAt;
 
+    @Column(name = "revised_by", length = 36)
+    private String revisedBy;
+
     protected AuditRevision() {
     }
 
@@ -35,5 +38,13 @@ public class AuditRevision {
 
     public Instant revisedAt() {
         return revisedAt;
+    }
+
+    public String revisedBy() {
+        return revisedBy;
+    }
+
+    void revisedBy(String userUuid) {
+        this.revisedBy = userUuid;
     }
 }
