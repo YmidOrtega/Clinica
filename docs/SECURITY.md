@@ -145,25 +145,34 @@ acotada a la vida del access token (15 min).
 
 ---
 
-## 3. Bloqueo de Cuenta
+## 3. Credenciales y frenado de intentos
 
-El sistema registra intentos de login fallidos y bloquea automáticamente la cuenta para prevenir ataques de fuerza bruta.
+**Contraseñas (NIST SP 800-63B-4).** Sin reglas de composición ni expiración periódica. La contraseña
+se normaliza a Unicode NFKC y se exige:
 
-```
-Intento de login fallido:
-  1. Incrementa failed_attempts en tabla users
-  2. Si failed_attempts >= MAX_ATTEMPTS (configurable):
-     · Establece account_locked_until = NOW() + LOCKOUT_DURATION
-     · Registra evento ACCOUNT_LOCKED en AuditLog
+- Entre 8 y 128 caracteres (el segundo factor es obligatorio, así que el mínimo es 8).
+- No estar en la lista de contraseñas comunes (46 mil de SecLists/NCSC) ni ser una repetición o secuencia.
+- No contener el correo, el nombre del usuario ni el nombre de la institución.
 
-Login con cuenta bloqueada:
-  → HTTP 423 Locked
-  → Mensaje: "Cuenta bloqueada. Intente nuevamente después de las HH:MM."
+Se guarda con **Argon2id** (19 MiB, 2 iteraciones, 1 hilo, el mínimo de OWASP); el historial de Envers
+nunca incluye el hash. Para que un correo inexistente cueste lo mismo que uno real, el login verifica
+contra un hash señuelo.
 
-Desbloqueo:
-  · Automático: cuando account_locked_until < NOW()
-  · Manual: administrador puede resetear failed_attempts
-```
+**Frenado por capas en lugar de bloqueo.** Bloquear la cuenta tras pocos fallos permitiría a cualquiera
+dejar a un médico sin acceso en plena urgencia. Los fallos se cuentan por separado, sin guardar el correo
+ni la IP (solo su SHA-256):
+
+| Clave            | Sin espera | Espera                               | Límite duro |
+| ---------------- | ---------- | ------------------------------------ | ----------- |
+| Cuenta + IP      | 5 fallos   | se duplica desde 1 s, máximo 15 min  | —           |
+| Cuenta           | 10 fallos  | se duplica desde 1 s, máximo 1 min   | 100 fallos consecutivos |
+| IP               | —          | limitador del gateway (sección 5)    | —           |
+
+Tras 100 fallos consecutivos la cuenta queda bloqueada hasta un reseteo de contraseña o hasta que un
+`ADMIN` la desbloquee. El bloqueo por intentos es independiente del estado administrativo del usuario.
+
+> Estado en la rama `refactor/auth-service`: la política, el hash y los contadores ya existen y están
+> probados; el flujo de login que los aplica llega con el servidor de autorización.
 
 ---
 
@@ -171,14 +180,26 @@ Desbloqueo:
 
 ### 4.1 Roles del Sistema
 
+Los roles son fijos en el código de `auth-service` y cada usuario tiene uno solo; los de servicios
+futuros (facturación, laboratorio, farmacia) se agregan en su turno.
+
 | Rol                  | Descripción                                       |
 | -------------------- | ------------------------------------------------- |
-| `ROLE_ADMIN`         | Acceso total — gestión de usuarios y configuración |
+| `ROLE_SUPER_ADMIN`   | Administra a los administradores y las claves     |
+| `ROLE_ADMIN`         | Gestión de usuarios operativos y configuración    |
 | `ROLE_DOCTOR`        | Gestión de atenciones, acceso a historias clínicas |
 | `ROLE_NURSE`         | Triage, actualización de estados de atención      |
 | `ROLE_RECEPTIONIST`  | Registro de pacientes, creación de atenciones     |
-| `ROLE_BILLING`       | Acceso al módulo de facturación                   |
 | `ROLE_MEDICAL_RECORDS` | Archivo clínico — copias de la historia para el paciente, sin editarla |
+
+Reglas de administración, aplicadas en el dominio de `auth-service`:
+
+- Solo `SUPER_ADMIN` crea o modifica usuarios `ADMIN` y `SUPER_ADMIN`; `ADMIN` gestiona los roles operativos.
+- Nadie cambia su propio rol ni su propio estado.
+- Estados: `PENDING_ACTIVATION` → `ACTIVE` ⇄ `SUSPENDED`, y `DEACTIVATED` reversible; suspender y
+  desactivar exigen motivo y registran quién y cuándo. Ningún usuario se borra.
+- Suspender, desactivar, cambiar el rol, forzar el cambio de contraseña o resetearla fija
+  `tokensNotBefore`: los tokens emitidos antes dejan de valer.
 
 ### 4.2 Matriz de Permisos
 
