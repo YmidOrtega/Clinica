@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
 
-: "${JWT_PRIVATE_KEY:?JWT_PRIVATE_KEY must point to the RSA private key matching JWT_PUBLIC_KEY}"
 PROJECT="${COMPOSE_PROJECT:-clinica}"
 TOOLS_IMAGE=clinica/openbao-tools:2.6.2
 NODES="openbao-1 openbao-2 openbao-3"
@@ -66,7 +65,7 @@ wait_until() {
   done
 }
 
-token() { node "$DIR/generate-token.mjs" "$JWT_PRIVATE_KEY" "$1" "${2:-$(cat /proc/sys/kernel/random/uuid)}"; }
+token() { sh "$DIR/staff-token.sh" "$@"; }
 
 clinical() {
   method=$1; path=$2; role=$3; body=${4:-}
@@ -172,6 +171,7 @@ PATIENT=$(jq -r .uuid "$WORK/patient")
 wait_until "clinical-history-service no recibió el paciente" known_by_clinical "$PATIENT"
 [ "$(clinical POST /encounters NURSE "{\"patientUuid\": \"$PATIENT\", \"type\": \"EMERGENCY\"}")" = "201" ] \
   || fail "no se abrió la atención sellada con transit"
+for role in RECEPTIONIST NURSE ADMIN; do E2E_TOKEN_REFRESH=1 token "$role" > /dev/null; done
 docker stop $NODES > /dev/null
 [ "$(register_patient)" = "201" ] || fail "patient-service dejó de registrar pacientes sin OpenBao"
 ok "patient-service sigue registrando pacientes con OpenBao caído"

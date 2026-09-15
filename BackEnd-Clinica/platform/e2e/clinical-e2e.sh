@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
 
-: "${JWT_PRIVATE_KEY:?JWT_PRIVATE_KEY must point to the RSA private key matching JWT_PUBLIC_KEY}"
 PROJECT="${COMPOSE_PROJECT:-clinica}"
 published() { echo "http://$(docker compose -p "$PROJECT" port --index 1 "$1" "$2" 2>/dev/null)"; }
 PATIENT_URL="${PATIENT_URL:-$(published patient-service 8081)}"
@@ -13,7 +12,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 DOCTOR_ID=$(cat /proc/sys/kernel/random/uuid)
 NURSE_ID=$(cat /proc/sys/kernel/random/uuid)
-token() { node "$DIR/generate-token.mjs" "$JWT_PRIVATE_KEY" "$1" "${2:-$(cat /proc/sys/kernel/random/uuid)}"; }
+token() { sh "$DIR/staff-token.sh" "$@"; }
 step() { printf '\n== %s\n' "$1"; }
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
