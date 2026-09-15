@@ -207,3 +207,9 @@ template {
   destination = "/rendered/kafka-connect/auth-db-debezium-password"
   perms       = "0444"
 }
+
+template {
+  contents    = "{{ with secret \"secret/data/gateway/redis\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/gateway-redis/password"
+  perms       = "0444"
+}
