@@ -22,26 +22,27 @@ CIE-10, se cierra la atención, se emite la copia en PDF y se comprueba la audit
 
 ## Cómo ejecutarla
 
-Requisitos: Docker, Node.js (para firmar tokens), `jq` y `curl`.
+Requisitos: Docker, Node.js, `jq`, `curl` y `openssl`.
 
 ```bash
 cd BackEnd-Clinica
 
-# 1. Clave RSA para firmar los tokens de prueba
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/clinica-private.pem
-export JWT_PUBLIC_KEY=$(openssl pkey -in /tmp/clinica-private.pem -pubout | grep -v '^-----' | tr -d '\n')
-
-# 2. Stack: OpenBao genera las credenciales y las claves de transit; solo hacen falta los nombres de las bases
+# 1. Stack: OpenBao genera las credenciales y las claves de transit; solo hacen falta los nombres de las bases
 export PATIENT_DB_NAME=patient_db CLINICAL_DB_NAME=clinical_db
 docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml \
-  up -d --build patient-service clinical-history-service kafka-connect-init
+  up -d --build auth-service patient-service clinical-history-service kafka-connect-init
 
-# 3. Pruebas
-COMPOSE_PROJECT=clinical-e2e JWT_PRIVATE_KEY=/tmp/clinica-private.pem \
-  sh platform/e2e/clinical-e2e.sh
-COMPOSE_PROJECT=clinical-e2e JWT_PRIVATE_KEY=/tmp/clinica-private.pem \
-  sh platform/e2e/openbao-e2e.sh
+# 2. Pruebas
+COMPOSE_PROJECT=clinical-e2e sh platform/e2e/clinical-e2e.sh
+COMPOSE_PROJECT=clinical-e2e sh platform/e2e/openbao-e2e.sh
 ```
+
+Estas dos pruebas no pasan por el login: `staff-token.sh ROL [UUID]` firma con el token root de
+OpenBao, en `transit/auth-jwt`, un access token con los mismos claims que emite `auth-service`
+(`aud: clinica-api`, `auth_time` actual y `amr` con `mfa`). Los servicios lo validan con el JWKS real.
+Guarda cada token 4 minutos en `$E2E_TOKEN_CACHE`; `E2E_TOKEN_REFRESH=1` fuerza uno nuevo y
+`E2E_TOKEN_TTL` cambia su vigencia (300 s). Un token así no existe en `auth-service`, así que no sirve
+para el intercambio: el flujo real con tokens de auth lo recorre `auth-e2e.sh`.
 
 ## Prueba de OpenBao
 
@@ -88,6 +89,7 @@ de las siguientes con `totp-code.mjs`. Si ese archivo se pierde, recrear el volu
 | Step-up | Una autorización con `max_age` vencido redirige a `?step=step-up`; tras el código TOTP el token trae un `auth_time` nuevo |
 | API de usuarios | Con el access token real: `/api/v1/me`, invitación con correo en Mailpit, `428` sin `If-Match`, desactivación con la versión consultada e historial con el autor |
 | Eventos | `auth.users.v1` trae el estado completo de la enfermera desactivada y se compacta; `auth.security-audit.v1` registra logins, fallos y reutilización de refresh tokens y no expira |
+| Tokens de auth en patient y clinical | Si `patient-service` y `clinical-history-service` están publicados: una médica invitada activa su cuenta y enrola TOTP; `patient-service` acepta el token del `SUPER_ADMIN`; con Kafka Connect en pausa, clinical intercambia el token de la médica para consultar `patient-service` y abre la atención; al suspenderla, `patient-service` rechaza su token vigente en segundos |
 | Refresh | Rota en cada uso y reutilizar uno rotado revoca toda la familia |
 | Frenado | Tras 5 fallos desde la misma dirección responde `429` y, pasada la espera, vuelve a entrar |
 

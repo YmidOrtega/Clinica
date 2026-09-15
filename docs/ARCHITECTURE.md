@@ -178,7 +178,7 @@ nunca van en el JSON ni en variables de entorno. Cada conector MySQL necesita un
 | Librería                    | Contenido                                                                 |
 | --------------------------- | ------------------------------------------------------------------------- |
 | `clinica-commons-web`       | `DomainException` + `ErrorCategory`, manejador RFC 9457 con `code` y `traceId`, sin datos de entrada en las respuestas |
-| `clinica-commons-security`  | Resource Server JWT RS256 (issuer y tipo `access`), roles, `CurrentUser`, propagación del token en Feign, `AuditorAware`, 401/403 en RFC 9457 |
+| `clinica-commons-security`  | Resource Server de los tokens ES256 de `auth-service` (JWKS, emisor, audiencias), personas con `ROLE_*` y servicios con `SCOPE_*`, revocación desde `auth.users.v1`, step-up, intercambio de tokens para Feign, `AuditorAware`, 401/403 en RFC 9457; `SecurityTestTokens` en su jar de pruebas |
 | `clinica-commons-openbao`   | Cliente del motor transit de OpenBao (cifrar, descifrar, firmar en DER o JWS, versiones y claves públicas) con autoconfiguración, y un `OpenBaoTestContainer` en su jar de pruebas |
 
 Son dependencias de compilación con versión fija (`1.0.0`), no servicios: una falla en una versión solo
@@ -249,8 +249,10 @@ borradores.
 nulos, `formatVersion 1`), se sella con la clave ECDSA P-256 `clinical-seal` del motor transit de
 OpenBao, que nunca sale de él, y se encadena en `clinical_ledger.chain_links`: apertura de atención, nota, anulación y cierre entran en
 una cadena por paciente. `GET /patients/{uuid}/integrity` recalcula la cadena completa sin exponer
-contenido clínico. Firmar exige un token emitido hace menos de 15 minutos (`403
-RECENT_AUTHENTICATION_REQUIRED`).
+contenido clínico. Firmar exige un segundo factor verificado hace 5 minutos o menos (`401
+STEP_UP_REQUIRED`). Para consultar `patient-service` intercambia el token de la persona por uno con
+audiencia `patient-service`; si `auth-service` no responde, el paciente se trata como no disponible
+(`503`), igual que si `patient-service` estuviera caído.
 
 **Cifrado.** Todo el contenido narrativo se cifra con AES-GCM usando una DEK por paciente que transit
 envuelve con la clave `clinical-kek`; el AAD incluye el propósito y el identificador del registro, de

@@ -193,7 +193,7 @@ token CSRF ausente o vencido: volver a pedir `GET /api/v1/session`.
 |---|---|
 | `/.well-known/openid-configuration` | Descubrimiento |
 | `/oauth2/authorize` | Authorization code con PKCE obligatorio |
-| `/oauth2/token` | `authorization_code` y `refresh_token`; el cliente se autentica con `private_key_jwt` (ES256) |
+| `/oauth2/token` | `authorization_code` y `refresh_token` para el gateway; `client_credentials` y `urn:ietf:params:oauth:grant-type:token-exchange` para `patient-service` y `clinical-history-service`. Todos los clientes se autentican con `private_key_jwt` (ES256) |
 | `/oauth2/jwks` | Claves públicas ES256 (versión activa y anterior de `auth-jwt`) |
 | `/oauth2/revoke`, `/oauth2/introspect`, `/userinfo`, `/connect/logout` | Estándar de Spring Authorization Server |
 

@@ -53,6 +53,8 @@ una vez, en el QR del enrolamiento. El motor rechaza un código ya usado dentro 
 | `clinical-seal`            | `ecdsa-p256`   | `clinical-history-service` firma y lee versiones y claves públicas |
 | `auth-jwt`                 | `ecdsa-p256`   | `auth-service` firma los tokens ES256; rota cada 30 días |
 | `api-gateway-client`       | `ecdsa-p256`   | el gateway firma sus aserciones `private_key_jwt`; `auth-service` solo lee la pública |
+| `patient-service-client`   | `ecdsa-p256`   | `patient-service` firma sus aserciones ante `auth-service`, que solo lee la pública |
+| `clinical-history-service-client` | `ecdsa-p256` | ídem para `clinical-history-service` (intercambio de tokens hacia `patient-service`) |
 
 Las claves de transit se crean no exportables y ningún consumidor puede rotarlas ni borrarlas. Su uso
 y rotación están en `clinical-history-service/docs/claves-y-cifrado.md`.
