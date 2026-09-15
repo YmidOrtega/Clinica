@@ -10,6 +10,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,10 @@ public final class OpenBaoTestContainer {
         return name;
     }
 
+    public static String currentTotpCode(String otpauthUrl) {
+        return TotpCodes.at(otpauthUrl, Instant.now());
+    }
+
     public static void rotate(String key) {
         bao("write", "-f", "transit/keys/" + key + "/rotate");
     }
@@ -71,9 +76,11 @@ public final class OpenBaoTestContainer {
                 .withExposedPorts(8200)
                 .waitingFor(Wait.forHttp("/v1/sys/health").forStatusCode(200));
         container.start();
-        Container.ExecResult enabled = run(container, "secrets", "enable", "transit");
-        if (enabled.getExitCode() != 0) {
-            throw new IllegalStateException("Could not enable transit: " + enabled.getStderr());
+        for (String engine : new String[]{"transit", "totp"}) {
+            Container.ExecResult enabled = run(container, "secrets", "enable", engine);
+            if (enabled.getExitCode() != 0) {
+                throw new IllegalStateException("Could not enable " + engine + ": " + enabled.getStderr());
+            }
         }
         return container;
     }

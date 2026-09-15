@@ -1,13 +1,8 @@
 package com.ClinicaDeYmid.commons.openbao.transit;
 
-import org.springframework.http.HttpEntity;
+import com.ClinicaDeYmid.commons.openbao.OpenBaoHttp;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.vault.VaultException;
 import org.springframework.vault.core.VaultOperations;
-import org.springframework.vault.support.VaultResponse;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestClientException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -18,7 +13,6 @@ import java.util.regex.Pattern;
 
 public class TransitClient {
 
-    private static final Pattern STATUS = Pattern.compile("^Status (\\d{3})\\b");
     private static final Pattern CIPHERTEXT_OR_SIGNATURE = Pattern.compile("^vault:v([1-9][0-9]*):(.+)$");
 
     private final VaultOperations vault;
@@ -77,32 +71,7 @@ public class TransitClient {
     }
 
     private Map<String, Object> call(HttpMethod method, String operation, Map<String, Object> body) {
-        String path = mount + "/" + operation;
-        try {
-            VaultResponse response = vault.doWithSession(rest -> rest.exchange(path, method,
-                    body == null ? HttpEntity.EMPTY : new HttpEntity<>(body), VaultResponse.class).getBody());
-            if (response == null || response.getData() == null) {
-                throw new OpenBaoUnavailableException("OpenBao returned no data for " + path, null);
-            }
-            return response.getData();
-        } catch (VaultException failed) {
-            if (statusOf(failed) == HttpStatus.BAD_REQUEST.value()) {
-                throw new TransitRejectedException("OpenBao rejected " + path + ": " + failed.getMessage(), failed);
-            }
-            throw new OpenBaoUnavailableException("OpenBao failed for " + path + ": " + failed.getMessage(), failed);
-        } catch (RestClientException unreachable) {
-            throw new OpenBaoUnavailableException("OpenBao is not reachable for " + path, unreachable);
-        }
-    }
-
-    private static int statusOf(VaultException failed) {
-        for (Throwable cause = failed; cause != null; cause = cause.getCause()) {
-            if (cause instanceof HttpStatusCodeException http) {
-                return http.getStatusCode().value();
-            }
-        }
-        Matcher status = STATUS.matcher(String.valueOf(failed.getMessage()));
-        return status.lookingAt() ? Integer.parseInt(status.group(1)) : -1;
+        return OpenBaoHttp.exchange(vault, method, mount + "/" + operation, body, TransitRejectedException::new);
     }
 
     private static String requireVersion(String value, KeyVersion key) {

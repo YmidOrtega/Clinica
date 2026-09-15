@@ -1,1 +1,2 @@
 com.ClinicaDeYmid.commons.openbao.transit.TransitAutoConfiguration
+com.ClinicaDeYmid.commons.openbao.totp.TotpAutoConfiguration
