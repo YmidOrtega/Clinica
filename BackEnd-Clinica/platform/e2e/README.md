@@ -106,5 +106,28 @@ publicado). Comparte con `auth-e2e.sh` los pasos de login de `staff-login.sh` y 
 | Sesión anónima | `GET /bff/session` da el token CSRF; la API responde `401` con `loginUrl`; CORS con credenciales solo para el frontend |
 | Login a través del gateway | `/bff/login` inicia authorization code con PKCE; auth manda al login del frontend; tras la contraseña y el TOTP el gateway canjea el código y vuelve a `returnTo`; el navegador solo guarda cookies |
 | API con el token relevado | `/api/v1/me` y el registro de un paciente reciben el access token; sin CSRF el gateway rechaza la escritura |
-| Step-up | `/bff/step-up` pide `max_age=300` y vuelve a la página que lo pidió |
+| Step-up | `/bff/step-up` pide `max_age` (300 s por defecto) y vuelve a la página que lo pidió; con él reciente, el `SUPER_ADMIN` invita a una médica |
 | Cierre de sesión | `POST /bff/logout` cierra la sesión del gateway, `endSessionUrl` la de auth y la API vuelve a `401` |
+| Firma clínica con step-up | La médica activa su cuenta, enrola TOTP y entra por el gateway; abre una atención y firma una evolución recién autenticada; pasado `max_age` la firma responde `401` con `WWW-Authenticate: ... insufficient_user_authentication`, el step-up pide el TOTP y la misma firma se acepta |
+
+La parte de la firma vencida espera `max_age` completo, así que solo corre si el stack y la prueba usan
+`STEP_UP_MAX_AGE_SECONDS` de 60 o menos (el CI usa 20 solo en este paso, porque `clinical-e2e.sh` y `openbao-e2e.sh` reutilizan tokens de hasta 4 minutos). La variable ajusta a la vez el step-up de
+`clinical-history-service` y el `max_age` que pide el gateway:
+
+```bash
+export STEP_UP_MAX_AGE_SECONDS=20
+docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml up -d api-gateway clinical-history-service
+COMPOSE_PROJECT=clinical-e2e sh platform/e2e/gateway-e2e.sh
+```
+
+## Variables
+
+| Variable | Por defecto | Uso |
+|---|---|---|
+| `COMPOSE_PROJECT` | `clinica` | proyecto de Docker Compose del que se descubren puertos y contenedores |
+| `E2E_STATE_DIR` | `~/.local/state/clinica-e2e` | URL `otpauth` del TOTP del `SUPER_ADMIN` entre corridas |
+| `E2E_TOKEN_CACHE`, `E2E_TOKEN_REFRESH`, `E2E_TOKEN_TTL` | `$TMPDIR/clinica-e2e-tokens-<proyecto>`, vacío, 300 | caché y vigencia de los tokens de `staff-token.sh` |
+| `STEP_UP_MAX_AGE_SECONDS` | 300 | `max_age` del step-up en el stack de depuración y en `gateway-e2e.sh` |
+| `GATEWAY_URL`, `GATEWAY_FRONTEND_ORIGIN` | `http://localhost:8080`, `http://localhost:4321` | gateway y origen del frontend simulado |
+| `PATIENT_URL`, `CLINICAL_URL`, `AUTH_URL`, `MAILPIT_URL` | puertos publicados | servicios fuera de Docker Compose |
+| `AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL` | `superadmin@clinica.local` | correo del primer `SUPER_ADMIN` |
