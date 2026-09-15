@@ -80,7 +80,7 @@ clinica:
         api-gateway:
           grant-types: authorization_code, refresh_token
           redirect-uris: ${AUTH_GATEWAY_REDIRECT_URI:http://localhost:8080/login/oauth2/code/clinica}
-          post-logout-redirect-uris: ${AUTH_GATEWAY_POST_LOGOUT_URI:http://localhost:8080/}
+          post-logout-redirect-uris: ${AUTH_GATEWAY_POST_LOGOUT_URI:http://localhost:4321/}
           scopes: openid, profile
           assertion-key: api-gateway-client
         patient-service:
