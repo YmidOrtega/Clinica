@@ -71,6 +71,7 @@ public class AuthorizationServerConfiguration {
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()))
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint(properties.loginUrl())))
+                .addFilterBefore(new OpenBaoOutageFilter(), SecurityContextHolderFilter.class)
                 .addFilterAfter(sessionLifetime, SecurityContextHolderFilter.class)
                 .addFilterAfter(new StepUpFilter(requestCache, properties.loginUrl(), clock), SessionLifetimeFilter.class);
         return http.build();
