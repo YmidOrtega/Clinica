@@ -51,6 +51,9 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   30 días (`auto_rotate_period`) y el JWKS publica también la versión anterior mientras sus tokens viven.
 - La clave usada antes de este cambio (RS256) se había publicado en el historial del repositorio; no se
   importó y ningún token firmado con ella es aceptado por `auth-service`.
+- Si OpenBao no responde, `auth-service` no emite tokens ni verifica códigos TOTP: responde
+  `503 {"error": "temporarily_unavailable"}` con `Retry-After: 5`, y los tokens ya emitidos siguen
+  validando en los servicios con el JWKS en caché.
 
 ### 2.2 Authorization code con PKCE y cliente confidencial
 
@@ -105,21 +108,30 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
 - **Familias de refresh:** cada refresh rotado queda registrado; si alguien reutiliza uno ya rotado
   (señal de robo), se revoca la autorización completa con todos sus tokens.
 - **Máximo 5 sesiones vivas por usuario:** la sexta cierra la más antigua.
+- **Sesiones visibles:** cada persona lista sus sesiones (`GET /api/v1/me/sessions`, marcando la actual)
+  y cierra una concreta (`DELETE /api/v1/me/sessions/{id}`, auditado como `SessionClosed`); cerrar una
+  borra su refresh token y la sesión no se puede renovar. Un `ADMIN` cierra todas las de un usuario que
+  administra con step-up (`POST /api/v1/users/{uuid}/session-revocation`). Cambiar la propia contraseña
+  también exige step-up.
 - **API de usuarios:** `/api/v1/users` y `/api/v1/me` validan el access token (firma, emisor y
   `aud: clinica-api`) y además releen al usuario en cada petición: un token de alguien suspendido o con
   sesiones revocadas se rechaza sin esperar a que venza, y se aplica el rol actual.
 - **`tokensNotBefore`:** suspender, desactivar, cambiar el rol, forzar cambio, reiniciar el segundo factor, cerrar todas las sesiones o resetear la contraseña lo
   mueve; desde ese instante `auth-service` rechaza refrescar las sesiones anteriores. El reseteo borra
   además todas las sesiones y autorizaciones del usuario.
+- **Resolución de un segundo:** `iat` de un JWT va en segundos, así que un token vale solo si su `iat`
+  es posterior al segundo de `tokensNotBefore` truncado. Un token emitido en el mismo segundo que la
+  revocación se rechaza: quien vuelve a entrar justo después de un reseteo o de cerrar todas sus
+  sesiones puede recibir un `401` y debe repetir el login un segundo después.
 
-### 2.6 Validación en los servicios (`clinica-commons-security` 2.0.0)
+### 2.6 Validación en los servicios (`clinica-commons-security` 2.1.0)
 
 - **Firma y destino:** cada servicio valida ES256 contra el JWKS de `auth-service` (en caché; si auth
   cae, las claves conocidas siguen sirviendo 24 h), el emisor, la vigencia y que `aud` incluya
   `clinica-api` o su propio nombre.
 - **Revocación en segundos:** cada réplica lee `auth.users.v1` completo al arrancar y lo sigue en
-  memoria. Rechaza con `401` el token de un usuario que no esté `ACTIVE` o cuyo `iat` sea anterior a
-  su `tokensNotBefore`, sin esperar a que venza. Si Kafka no está disponible sigue validando con lo que
+  memoria. Rechaza con `401` el token de un usuario que no esté `ACTIVE` o cuyo `iat` no sea posterior
+  al segundo de su `tokensNotBefore` (la misma regla de 2.5), sin esperar a que venza. Si Kafka no está disponible sigue validando con lo que
   ya conoce; un usuario del que aún no llegó ningún evento se acepta.
 - **Personas y servicios separados:** un token de persona da `ROLE_<ROL>`; un token de servicio
   (`client_credentials`, `sub = client_id`) solo da `SCOPE_<scope>` y nunca pasa un `hasRole`, aunque
@@ -166,9 +178,6 @@ ni la IP (solo su SHA-256):
 
 Tras 100 fallos consecutivos la cuenta queda bloqueada hasta un reseteo de contraseña o hasta que un
 `ADMIN` la desbloquee. El bloqueo por intentos es independiente del estado administrativo del usuario.
-
-> Estado en la rama `refactor/auth-service`: la política, el hash y los contadores ya existen y están
-> probados; el flujo de login que los aplica llega con el servidor de autorización.
 
 ---
 
