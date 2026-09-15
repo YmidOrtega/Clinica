@@ -124,6 +124,7 @@ done
 seed auth/db/root password="$(random_secret)"
 seed auth/db/migrator username="auth_migrator" password="$(random_secret)"
 seed auth/db/app username="auth_app" password="$(random_secret)"
+seed auth/db/debezium username="auth_debezium" password="$(random_secret)"
 seed auth/bootstrap super-admin-email="superadmin@clinica.local" super-admin-name="Administración Inicial"
 seed clinical/storage/root username="clinical-storage-admin" password="$(random_secret)"
 seed clinical/storage/attachments access-key="clinical-history-app" secret-key="$(random_secret)"

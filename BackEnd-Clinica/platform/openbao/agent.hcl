@@ -183,3 +183,27 @@ template {
   destination = "/rendered/auth-db/app-password"
   perms       = "0444"
 }
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/auth-db/debezium-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/auth-db/debezium-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/kafka-connect/auth-db-debezium-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/kafka-connect/auth-db-debezium-password"
+  perms       = "0444"
+}
