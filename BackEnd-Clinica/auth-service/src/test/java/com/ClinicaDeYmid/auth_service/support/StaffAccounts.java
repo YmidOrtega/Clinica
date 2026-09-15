@@ -1,0 +1,49 @@
+package com.ClinicaDeYmid.auth_service.support;
+
+import com.ClinicaDeYmid.auth_service.domain.password.NormalizedPassword;
+import com.ClinicaDeYmid.auth_service.domain.password.PasswordHasher;
+import com.ClinicaDeYmid.auth_service.domain.user.Actor;
+import com.ClinicaDeYmid.auth_service.domain.user.EmailAddress;
+import com.ClinicaDeYmid.auth_service.domain.user.FullName;
+import com.ClinicaDeYmid.auth_service.domain.user.Role;
+import com.ClinicaDeYmid.auth_service.domain.user.User;
+import com.ClinicaDeYmid.auth_service.domain.user.Users;
+import org.springframework.stereotype.Component;
+
+import java.time.Clock;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+@Component
+public class StaffAccounts {
+
+    public static final String PASSWORD = "un caballo verde toma café";
+    private static final Actor PROVISIONER = new Actor(UUID.randomUUID(), Role.SUPER_ADMIN);
+
+    private final Users users;
+    private final PasswordHasher hasher;
+    private final Clock clock;
+
+    public StaffAccounts(Users users, PasswordHasher hasher, Clock clock) {
+        this.users = users;
+        this.hasher = hasher;
+        this.clock = clock;
+    }
+
+    public User active(Role role) {
+        User user = User.invite(new EmailAddress(UUID.randomUUID().toString().substring(0, 12) + "@clinica.test"),
+                new FullName("Laura Gómez"), role, PROVISIONER, clock);
+        user.activate(hasher.hash(new NormalizedPassword(PASSWORD)), clock);
+        return users.save(user);
+    }
+
+    public User update(User user, Consumer<User> change) {
+        User current = users.findByUuid(user.uuid()).orElseThrow();
+        change.accept(current);
+        return users.save(current);
+    }
+
+    public static Actor provisioner() {
+        return PROVISIONER;
+    }
+}
