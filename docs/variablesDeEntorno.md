@@ -143,12 +143,15 @@ SUPPLIERS_DB_HOST=jdbc:mysql://localhost:3311/suppliers_db?useSSL=false&serverTi
 
 #### Auth Service
 ```bash
-AUTH_DB_ROOT_PASSWORD=AuthRootPass2024!
-AUTH_DB_NAME=auth_db
-AUTH_DB_USER=auth_user
-AUTH_DB_PASSWORD=AuthSecure123!
-AUTH_DB_HOST=jdbc:mysql://localhost:3312/auth_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+AUTH_DB_NAME=auth_db                                        # opcional
+AUTH_DB_URL=jdbc:mysql://auth-db:3306/auth_db
+AUTH_SERVICE_REPLICAS=2                                     # opcional
 ```
+
+Las credenciales (`secret/auth/db/root`, `migrator`, `app`) están en OpenBao. Fuera del perfil
+`openbao` se aceptan `AUTH_DB_APP_USER`, `AUTH_DB_APP_PASSWORD`, `AUTH_DB_MIGRATOR_USER` y
+`AUTH_DB_MIGRATOR_PASSWORD`. Opcionales: `AUTH_SERVICE_PORT`, `AUTH_DB_POOL_SIZE`, `EUREKA_URL`,
+`TRACING_SAMPLING_PROBABILITY`.
 
 #### Clients Service
 ```bash
@@ -230,36 +233,18 @@ GEMINI_MODEL_NAME=gemini-1.5-pro
 
 ## Security Configuration
 
-### Pattern
-```
-AUTH_{FEATURE}_{PROPERTY}
-```
+La política de contraseñas y el frenado de intentos de `auth-service` se configuran con propiedades
+(`clinica.auth.*` en `application.yml`); sus valores por defecto son los acordados y rara vez cambian:
 
-### Account Lockout
-
-```bash
-AUTH_MAX_LOGIN_ATTEMPTS=5
-AUTH_LOCKOUT_DURATION_MINUTES=30
-```
-
-### Password Policy
-
-```bash
-AUTH_PASSWORD_MIN_LENGTH=8
-AUTH_PASSWORD_REQUIRE_UPPERCASE=true
-AUTH_PASSWORD_REQUIRE_LOWERCASE=true
-AUTH_PASSWORD_REQUIRE_DIGIT=true
-AUTH_PASSWORD_REQUIRE_SPECIAL_CHAR=true
-AUTH_PASSWORD_HISTORY_COUNT=5
-AUTH_PASSWORD_EXPIRATION_DAYS=90
-```
-
-### Cleanup Jobs
-
-```bash
-AUTH_CLEANUP_ENABLED=true
-AUTH_CLEANUP_CRON=0 0 2 * * *
-```
+| Propiedad                                         | Defecto        |
+| ------------------------------------------------- | -------------- |
+| `clinica.auth.password-deny-lists`                | `classpath:passwords/ncsc-100k-common.txt` |
+| `clinica.auth.password-service-words`             | `clinica, clinicadeymid, ymid` |
+| `clinica.auth.argon2.memory-kib` / `iterations` / `parallelism` | `19456` / `2` / `1` |
+| `clinica.auth.login-throttle.address-free-attempts` / `address-max-delay` | `5` / `15m` |
+| `clinica.auth.login-throttle.account-free-attempts` / `account-max-delay` | `10` / `1m` |
+| `clinica.auth.login-throttle.account-lock-threshold` | `100`       |
+| `clinica.auth.login-throttle.retention`           | `30d`          |
 
 ---
 

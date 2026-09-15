@@ -337,15 +337,25 @@ AttentionController
 
 ### 4.4 Auth Service (`:8086`)
 
-Autenticación centralizada. Emite tokens JWT firmados con RSA-256.
+Identidad del personal y de los servicios. Se está reconstruyendo por incrementos (rama
+`refactor/auth-service`) como servidor OAuth 2.1/OIDC; hoy tiene el dominio y la persistencia:
 
 ```
-AuthController
-    ├── AuthenticationService  → Login, logout, refresh token
-    ├── UserService            → Registro, cambio de contraseña, bloqueo
-    ├── PasswordResetService   → Flujo de reset por token
-    └── AuditService           → Registro de todos los eventos de acceso
+domain/user        User (agregado JPA + Envers), Role, UserStatus y CredentialState sellados,
+                   EmailAddress, FullName, Actor
+domain/password    PasswordPolicy (NIST 800-63B-4), PasswordHasher y PasswordDenyList como puertos
+domain/throttle    LoginThrottlePolicy, ThrottleKey sellada, LoginAttemptDecision sellada
+infrastructure     JpaUsers, JdbcLoginThrottle y su purga, Argon2id, lista de contraseñas comunes
 ```
+
+| Esquema          | Contenido                         | Usuario `app`                 |
+| ---------------- | --------------------------------- | ----------------------------- |
+| `auth_db`        | `users`                           | `SELECT`, `INSERT`, `UPDATE`  |
+| `auth_history`   | `revisions`, `users_aud` (Envers) | `SELECT`, `INSERT`            |
+| `auth_sessions`  | `login_throttles`                 | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+
+Las credenciales de la base vienen de OpenBao (`secret/auth/db/*`), la base vive en la red interna
+`auth-data` y el servicio corre con 2 réplicas.
 
 ### 4.5 Suppliers Service (`:8085`)
 
