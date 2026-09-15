@@ -9,7 +9,7 @@ Ejecuta en push o PR a `main`/`develop` cuando hay cambios en `BackEnd-Clinica/`
 - `libraries`: prueba e instala `clinica-commons-web`, `clinica-commons-openbao` y `clinica-commons-security`, en ese orden, y las comparte como artefacto con los demás jobs
 - `services`: `mvn verify` (unitarias e integración con Testcontainers) de `auth-service`, `patient-service`, `clinical-history-service` y `api-gateway`; un fallo rompe el build
 - `legacy`: solo compila los servicios pendientes de rehacer; su fallo no rompe el build, salvo `eureka-service`
-- `e2e`: cada noche y a mano (`workflow_dispatch`) levanta el stack de Docker Compose con una réplica por servicio y corre `auth-e2e.sh`, `clinical-e2e.sh`, `gateway-e2e.sh` y `openbao-e2e.sh`; si falla sube los logs del stack
+- `e2e`: cada noche y a mano (`workflow_dispatch`) levanta el stack de Docker Compose con una réplica por servicio y corre `auth-e2e.sh`, `clinical-e2e.sh`, `openbao-e2e.sh` y, con un step-up de 20 s, `gateway-e2e.sh`; si falla sube los logs del stack
 - SonarCloud, imágenes Docker y Trivy siguen deshabilitados hasta configurar sus secretos
 
 ### 2. Frontend CI/CD (`frontend-ci.yml`)
