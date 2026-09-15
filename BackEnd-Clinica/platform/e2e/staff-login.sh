@@ -47,6 +47,7 @@ prepare_super_admin() {
   [ "$(api /api/v1/password-reset/requests "{\"email\": \"$SUPER_ADMIN\"}")" = "202" ] || fail "no se aceptó la solicitud de reseteo"
   reset=$(latest_token_mailed_to "Restablezca su contraseña de la Clínica" "$SUPER_ADMIN") || fail "no llegó el correo de reseteo"
   [ "$(api /api/v1/password-reset "{\"token\": \"$reset\", \"password\": \"$PASSWORD\"}")" = "204" ] || fail "no se restableció la contraseña"
+  sleep 1
   ok "ya estaba activo: contraseña restablecida con el enlace del correo"
 }
 
