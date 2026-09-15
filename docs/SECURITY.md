@@ -105,9 +105,32 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   mueve; desde ese instante `auth-service` rechaza refrescar las sesiones anteriores. El reseteo borra
   además todas las sesiones y autorizaciones del usuario.
 
-> Estado en la rama `refactor/auth-service`: patient y clinical todavía validan tokens RS256 con una
-> clave pública fija; pasan al JWKS ES256, a exigir `aud` y a la revocación por eventos cuando se migre
-> `clinica-commons-security`.
+### 2.6 Validación en los servicios (`clinica-commons-security` 2.0.0)
+
+- **Firma y destino:** cada servicio valida ES256 contra el JWKS de `auth-service` (en caché; si auth
+  cae, las claves conocidas siguen sirviendo 24 h), el emisor, la vigencia y que `aud` incluya
+  `clinica-api` o su propio nombre.
+- **Revocación en segundos:** cada réplica lee `auth.users.v1` completo al arrancar y lo sigue en
+  memoria. Rechaza con `401` el token de un usuario que no esté `ACTIVE` o cuyo `iat` sea anterior a
+  su `tokensNotBefore`, sin esperar a que venza. Si Kafka no está disponible sigue validando con lo que
+  ya conoce; un usuario del que aún no llegó ningún evento se acepta.
+- **Personas y servicios separados:** un token de persona da `ROLE_<ROL>`; un token de servicio
+  (`client_credentials`, `sub = client_id`) solo da `SCOPE_<scope>` y nunca pasa un `hasRole`, aunque
+  traiga un claim `role`.
+- **Llamadas en nombre de una persona:** el token del usuario no se reenvía. El servicio que llama lo
+  intercambia en `auth-service` (RFC 8693, con su propio token como `actor_token`) por uno con `aud`
+  exacta del destino, el mismo `sub`, rol, `auth_time` y `amr`, y el claim `act` con la cadena de
+  servicios. `auth-service` solo permite las audiencias configuradas por cliente (hoy
+  `clinical-history-service → patient-service`) y rechaza el intercambio si la persona fue suspendida.
+  El token intercambiado vence a los 5 minutos o con el original, lo que ocurra antes; se guarda en
+  caché por token original y destino.
+- **Step-up:** `RecentAuthentication` exige segundo factor verificado hace 5 minutos o menos y responde
+  `401` con `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age=300`. En clinical
+  lo exigen firmar y anular notas, el acceso de emergencia, emitir la copia de la historia y el rewrap de
+  claves.
+- **Clientes de servicio:** `patient-service` y `clinical-history-service` se autentican con
+  `private_key_jwt` firmando la aserción en OpenBao transit (`patient-service-client`,
+  `clinical-history-service-client`); sus tokens propios duran 30 minutos y se renuevan antes de vencer.
 
 ---
 
@@ -191,9 +214,8 @@ Reglas de administración, aplicadas en el dominio de `auth-service`:
 ### 4.3 Implementación
 
 El rol viaja dentro del JWT en el claim `role`. La librería `clinica-commons-security` valida el token
-como OAuth2 Resource Server (firma RS256, issuer `ClinicaDeYmid`, expiración, `sub` presente y
-`type = access`), convierte el rol en la autoridad `ROLE_<ROL>` y cada controlador aplica
-`@PreAuthorize`:
+como OAuth2 Resource Server (sección 2.6), convierte el rol en la autoridad `ROLE_<ROL>` y cada
+controlador aplica `@PreAuthorize`:
 
 ```java
 @GetMapping("/{uuid}")
@@ -205,7 +227,9 @@ ResponseEntity<PatientDetailsView> get(@PathVariable UUID uuid) { ... }
 ResponseEntity<PatientView> deactivate(@PathVariable UUID uuid, ...) { ... }
 ```
 
-No se realiza ninguna llamada al Auth Service en tiempo de request — los roles están en el token, la validación es local.
+No se realiza ninguna llamada al Auth Service en tiempo de request: los roles están en el token y la
+validación es local. El rol que aplica es el del token vigente; un cambio de rol mueve
+`tokensNotBefore` y los tokens anteriores dejan de valer en cuanto llega `auth.users.v1`.
 
 ---
 
@@ -451,8 +475,9 @@ con el dueño correcto, la base no arranca.
   servicio. El AAD ata cada bloque a su propósito y a su registro, y cada envoltura a su paciente.
   Perder el almacenamiento de OpenBao sin respaldo vuelve ilegible la historia: el runbook de rotación y recuperación está en
   `clinical-history-service/docs/claves-y-cifrado.md`.
-- **Firmar exige autenticación reciente.** El token debe haberse emitido hace menos de 15 minutos; si
-  no, la firma responde `403 RECENT_AUTHENTICATION_REQUIRED`.
+- **Firmar exige step-up.** Firmar o anular una nota, romper el vidrio y emitir la copia exigen un
+  segundo factor verificado hace 5 minutos o menos (`auth_time` y `amr: mfa`); si no, `401
+  STEP_UP_REQUIRED` y el gateway pide el código TOTP.
 - **Anexos con retención WORM.** El archivo se cifra antes de subirlo y, al firmar, se copia a un
   bucket con Object Lock en modo `COMPLIANCE` hasta la firma + 15 años + 1 día; una tarea diaria
   extiende la retención con cada atención nueva. El servicio se niega a archivar si el bucket no

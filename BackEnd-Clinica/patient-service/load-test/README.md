@@ -79,16 +79,13 @@ Exporta antes `PATIENT_DB_NAME`; las credenciales de la base las genera OpenBao 
 ```bash
 cd BackEnd-Clinica
 
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/patient-private.pem
-export JWT_PUBLIC_KEY=$(openssl pkey -in /tmp/patient-private.pem -pubout | grep -v '^-----' | tr -d '\n')
-
 docker compose -p patient-load -f docker-compose.yml -f docker-compose.debug.yml \
-  up -d --build patient-db eureka-service patient-service
+  up -d --build patient-db eureka-service auth-service patient-service
 
 docker exec -i patient-db sh -c 'mysql -uroot -p"$(cat "$MYSQL_ROOT_PASSWORD_FILE")" "$MYSQL_DATABASE"' \
   < patient-service/load-test/seed-patients.sql
 
-TOKEN=$(node patient-service/load-test/generate-token.mjs /tmp/patient-private.pem ADMIN 7200)
+TOKEN=$(COMPOSE_PROJECT=patient-load E2E_TOKEN_REFRESH=1 E2E_TOKEN_TTL=7200 sh platform/e2e/staff-token.sh ADMIN)
 
 docker run --rm --network host -v "$PWD/patient-service/load-test:/scripts:ro" \
   -e TOKEN="$TOKEN" -e MULTIPLIER=1 -e DURATION=2m \

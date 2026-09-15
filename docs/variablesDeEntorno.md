@@ -70,13 +70,19 @@ en los tests, sin el perfil `openbao`, los servicios siguen aceptando las variab
 ```bash
 PATIENT_DB_NAME=patient_db
 PATIENT_DB_URL=jdbc:mysql://localhost:3307/patient_db
-JWT_PUBLIC_KEY=MIIBIjANBgkqh...
+AUTH_ISSUER=http://localhost:8080/auth                  # emisor público de los tokens
+AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks      # claves públicas ES256
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092                      # vacío desactiva la revocación por auth.users.v1
 ```
 
 #### Clinical History Service
 ```bash
 CLINICAL_DB_NAME=clinical_db
 CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/clinical_db
+AUTH_ISSUER=http://localhost:8080/auth
+AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
+AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token          # intercambio de tokens para llamar a patient-service
+CLINICAL_CLIENT_TRANSIT_KEY=clinical-history-service-client   # opcional; firma de su aserción private_key_jwt
 
 CLINICAL_TRANSIT_MOUNT=transit                                # opcional; motor transit de OpenBao
 CLINICAL_ENCRYPTION_TRANSIT_KEY=clinical-kek                  # opcional; clave maestra aes256-gcm96
@@ -101,8 +107,8 @@ CLINICAL_SERVICE_REPLICAS=2              # opcional; instancias de clinical-hist
 
 El usuario `migrator` solo lo usa Flyway; la aplicación se conecta con el usuario `app`, que no tiene
 permisos de `DELETE` ni de DDL sobre el registro, y Kafka Connect lee el outbox con el usuario
-`debezium`. `JWT_PUBLIC_KEY` acepta la clave pública PEM completa o solo su
-contenido en Base64. Opcionales: `PATIENT_DB_POOL_SIZE`, `EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`,
+`debezium`. Los tokens se validan con el JWKS de `auth-service`; no hay claves de firma en variables de
+entorno. Opcionales: `PATIENT_DB_POOL_SIZE`, `EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`,
 `SWAGGER_UI_ENABLED`.
 
 #### Billing Service

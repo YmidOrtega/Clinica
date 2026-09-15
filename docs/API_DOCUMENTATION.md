@@ -319,7 +319,9 @@ eventos; aquí el paciente siempre se referencia por `patientUuid`.
   **libro** (`clinical_ledger`, inmutable). Corregir una nota firmada es escribir una adenda; dejarla
   sin efecto es anularla con motivo.
 - Los borradores usan `If-Match` con la versión del `ETag` (`428` sin cabecera, `412` desactualizado).
-- Firmar exige un token emitido hace menos de 15 minutos: si no, `403 RECENT_AUTHENTICATION_REQUIRED`.
+- Firmar y anular notas, el acceso de emergencia y emitir la copia exigen un segundo factor verificado
+  hace 5 minutos o menos: si no, `401 STEP_UP_REQUIRED` con `WWW-Authenticate: Bearer
+  error="insufficient_user_authentication", max_age=300`.
 - Ver o escribir exige **relación de cuidado**: pertenecer al equipo de esa atención (vigente mientras
   esté abierta y 30 días después de cerrada). Sin ella, `403` — y el rechazo queda auditado.
 - Los errores siguen RFC 9457 con `code` estable y `traceId`.

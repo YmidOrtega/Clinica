@@ -70,7 +70,7 @@ cd BackEnd-Clinica
 docker exec -i clinical-db sh -c 'mysql -uroot -p"$(cat "$MYSQL_ROOT_PASSWORD_FILE")" "$MYSQL_DATABASE"' \
   < clinical-history-service/load-test/seed-patient-references.sql
 
-TOKEN=$(node platform/e2e/generate-token.mjs /tmp/clinica-private.pem DOCTOR "$(cat /proc/sys/kernel/random/uuid)" 7200)
+TOKEN=$(COMPOSE_PROJECT=clinical-e2e E2E_TOKEN_REFRESH=1 E2E_TOKEN_TTL=7200 sh platform/e2e/staff-token.sh DOCTOR)
 
 docker run --rm --network host -v "$PWD/clinical-history-service/load-test:/scripts:ro" \
   -e TOKEN="$TOKEN" -e BASE_URL=http://127.0.0.1:8091 -e MULTIPLIER=1 -e DURATION=2m \
@@ -79,7 +79,7 @@ docker run --rm --network host -v "$PWD/clinical-history-service/load-test:/scri
 
 Variables del script: `BASE_URL`, `MULTIPLIER`, `DURATION`, `SEEDED_PATIENTS`, `ENCOUNTER_POOL` y
 `SUMMARY_FILE` para exportar el resumen completo en JSON. El token debe ser reciente: firmar exige un
-`iat` de menos de 15 minutos, así que una corrida larga necesita renovarlo.
+`auth_time` de menos de 5 minutos, así que una corrida más larga necesita renovarlo.
 
 La siembra escribe directamente como `root` en la base de pruebas; en un entorno real nadie fuera de
 `clinical_migrator` y `clinical_app` tiene acceso, y la copia local solo se llena con eventos de
