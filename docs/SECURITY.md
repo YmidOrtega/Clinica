@@ -69,13 +69,17 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
 - El primer login después de activar la cuenta obliga a enrolarse; al confirmar se entregan una sola vez
   **10 códigos de recuperación** de un solo uso, guardados como SHA-256.
 - El segundo factor tiene su propio frenado: 5 fallos seguidos → `429` con espera creciente.
-- Un administrador podrá reiniciar el segundo factor de otra persona con un motivo (el propio no; el
-  endpoint llega con la API de administración): mueve `tokensNotBefore` y el siguiente login vuelve al
-  enrolamiento.
+- Un administrador puede reiniciar el segundo factor de otra persona con un motivo (el propio no): se
+  borra su clave TOTP de OpenBao, se revocan sus códigos de recuperación y sus sesiones, y el siguiente
+  login vuelve al enrolamiento. Cada persona puede regenerar sus propios códigos de recuperación.
 - **Step-up (RFC 9470):** si el cliente pide `max_age` y el último factor verificado es más antiguo, la
   autorización redirige a reautenticarse con el segundo factor antes de emitir el código. El token lleva
   `auth_time` de esa verificación, `amr` (`pwd`, `otp` o `rec`, `mfa`) y `acr: urn:clinica:acr:mfa`, para
   que los servicios exijan una autenticación reciente en operaciones sensibles.
+- En `auth-service` exigen un segundo factor de hace 5 minutos o menos: invitar usuarios, cambiar el rol,
+  suspender, desactivar o reactivar, reiniciar el segundo factor de otra persona y regenerar los propios
+  códigos de recuperación. Sin él responden `401` con
+  `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age=300`.
 
 ### 2.4 Tokens y tiempos de vida
 
@@ -94,7 +98,10 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
 - **Familias de refresh:** cada refresh rotado queda registrado; si alguien reutiliza uno ya rotado
   (señal de robo), se revoca la autorización completa con todos sus tokens.
 - **Máximo 5 sesiones vivas por usuario:** la sexta cierra la más antigua.
-- **`tokensNotBefore`:** suspender, desactivar, cambiar el rol, forzar cambio, reiniciar el segundo factor o resetear la contraseña lo
+- **API de usuarios:** `/api/v1/users` y `/api/v1/me` validan el access token (firma, emisor y
+  `aud: clinica-api`) y además releen al usuario en cada petición: un token de alguien suspendido o con
+  sesiones revocadas se rechaza sin esperar a que venza, y se aplica el rol actual.
+- **`tokensNotBefore`:** suspender, desactivar, cambiar el rol, forzar cambio, reiniciar el segundo factor, cerrar todas las sesiones o resetear la contraseña lo
   mueve; desde ese instante `auth-service` rechaza refrescar las sesiones anteriores. El reseteo borra
   además todas las sesiones y autorizaciones del usuario.
 
@@ -155,6 +162,8 @@ Reglas de administración, aplicadas en el dominio de `auth-service`:
 
 - Solo `SUPER_ADMIN` crea o modifica usuarios `ADMIN` y `SUPER_ADMIN`; `ADMIN` gestiona los roles operativos.
 - Nadie cambia su propio rol ni su propio estado.
+- Siempre queda al menos un `SUPER_ADMIN` activo: suspender, desactivar o cambiar el rol del último se
+  rechaza, también cuando dos administradores lo intentan a la vez (se bloquean sus filas en la base).
 - Estados: `PENDING_ACTIVATION` → `ACTIVE` ⇄ `SUSPENDED`, y `DEACTIVATED` reversible; suspender y
   desactivar exigen motivo y registran quién y cuándo. Ningún usuario se borra.
 - Suspender, desactivar, cambiar el rol, forzar el cambio de contraseña o resetearla fija
