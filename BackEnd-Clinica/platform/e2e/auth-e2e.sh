@@ -78,6 +78,16 @@ bearer() {
 
 etag() { tr -d '\r' < "$WORK/headers" | sed -n 's/^[Ee][Tt][Aa][Gg]: //p'; }
 
+topic_events() {
+  docker exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic "$1" \
+    --from-beginning --timeout-ms 15000 --property print.key=true 2>/dev/null | grep "^$2" || true
+}
+
+topic_config() {
+  docker exec kafka /opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka:9092 --entity-type topics --entity-name "$1" --describe --all 2>/dev/null \
+    | tr ' ' '\n' | sed -n "s/^$2=//p" | head -1
+}
+
 token_request() {
   curl -s -o "$WORK/tokens" -w '%{http_code}' -X POST "$AUTH_URL/oauth2/token" \
     --data-urlencode "client_id=api-gateway" \
@@ -221,5 +231,19 @@ sleep 2
 [ "$(api /api/v1/login "{\"email\": \"$SUPER_ADMIN\", \"password\": \"$PASSWORD\"}")" = "200" ] \
   && [ "$(jq -r .outcome "$WORK/body")" = "SECOND_FACTOR_REQUIRED" ] || fail "no se recuperó tras la espera: $(cat "$WORK/body")"
 ok "tras la espera vuelve a entrar y el contador se limpia"
+
+step "Eventos en Kafka"
+SUPER_ADMIN_UUID=$(echo "$stepped" | jq -r .sub)
+topic_events auth.users.v1 "$NURSE_UUID" | grep -q '"type":"UserDeactivated"' || fail "UserDeactivated no llegó a auth.users.v1"
+topic_events auth.users.v1 "$NURSE_UUID" | grep -q '"status":"DEACTIVATED"' || fail "auth.users.v1 no trae el estado completo"
+ok "auth.users.v1 publica el estado completo de la enfermera desactivada"
+audit=$(topic_events auth.security-audit.v1 "$SUPER_ADMIN_UUID")
+for type in SignInCompleted SignInFailed RefreshTokenReuseDetected; do
+  echo "$audit" | grep -q "\"type\":\"$type\"" || fail "$type no llegó a auth.security-audit.v1"
+done
+ok "auth.security-audit.v1 registra logins, fallos y reutilización de refresh tokens"
+[ "$(topic_config auth.users.v1 cleanup.policy)" = "compact" ] && [ "$(topic_config auth.security-audit.v1 cleanup.policy)" = "delete" ] \
+  && [ "$(topic_config auth.security-audit.v1 retention.ms)" = "-1" ] || fail "configuración de topics inesperada"
+ok "auth.users.v1 se compacta y auth.security-audit.v1 se conserva sin límite"
 
 printf '\nE2E de auth-service completo\n'

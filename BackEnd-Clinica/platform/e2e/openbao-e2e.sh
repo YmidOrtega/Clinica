@@ -140,7 +140,7 @@ bao_as openbao_approle_clinical "bao write transit/sign/clinical-seal input=aGVs
 ok "clinical-history-service firma con transit pero no rota sus claves"
 
 step "Ningún secreto en la configuración de los contenedores"
-secrets=$(bao_root "for path in patient/db/root patient/db/app patient/db/migrator patient/db/debezium clinical/db/root clinical/db/app clinical/db/migrator clinical/db/debezium clinical/storage/root auth/db/root auth/db/app auth/db/migrator; do bao kv get -mount=secret -field=password \$path; echo; done; bao kv get -mount=secret -field=secret-key clinical/storage/attachments")
+secrets=$(bao_root "for path in patient/db/root patient/db/app patient/db/migrator patient/db/debezium clinical/db/root clinical/db/app clinical/db/migrator clinical/db/debezium clinical/storage/root auth/db/root auth/db/app auth/db/migrator auth/db/debezium; do bao kv get -mount=secret -field=password \$path; echo; done; bao kv get -mount=secret -field=secret-key clinical/storage/attachments")
 containers=$(docker compose -p "$PROJECT" ps -a -q)
 inspected=$(docker inspect $containers)
 for secret in $secrets; do
