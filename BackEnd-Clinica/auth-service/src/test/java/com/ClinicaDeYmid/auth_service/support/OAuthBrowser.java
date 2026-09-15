@@ -72,6 +72,18 @@ public final class OAuthBrowser {
                 "code_challenge_method", "S256"));
     }
 
+    public String signIn(StaffAccounts.StaffAccount account) {
+        Response login = login(account.email(), StaffAccounts.PASSWORD);
+        if (login.status() != 200 || !"SECOND_FACTOR_REQUIRED".equals(login.json().get("outcome").asText())) {
+            throw new IllegalStateException("Expected the second factor step but got " + login.status() + " " + login.body());
+        }
+        Response verified = postJson("/api/v1/login/second-factor", Map.of("code", account.totpCode()), true);
+        if (verified.status() != 200) {
+            throw new IllegalStateException("The second factor was rejected: " + verified.body());
+        }
+        return verified.json().get("continueUrl").asText();
+    }
+
     public Response login(String email, String password) {
         return postJson("/api/v1/login", Map.of("email", email, "password", password), true);
     }

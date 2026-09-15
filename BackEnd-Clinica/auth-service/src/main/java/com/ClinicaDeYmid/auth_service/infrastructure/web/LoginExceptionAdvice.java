@@ -22,6 +22,8 @@ class LoginExceptionAdvice {
             case LoginException.TooManyAttempts tooMany -> HttpStatus.TOO_MANY_REQUESTS;
             case LoginException.AccountLocked locked -> HttpStatus.LOCKED;
             case LoginException.PasswordChangeNotPending notPending -> HttpStatus.CONFLICT;
+            case LoginException.InvalidSecondFactor invalidSecondFactor -> HttpStatus.UNAUTHORIZED;
+            case LoginException.SecondFactorNotPending notPending -> HttpStatus.CONFLICT;
             case LoginException.PasswordReused reused -> HttpStatus.BAD_REQUEST;
             case LoginException.InvalidLink invalidLink -> HttpStatus.BAD_REQUEST;
         };

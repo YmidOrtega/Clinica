@@ -55,6 +55,18 @@ public sealed abstract class UserException extends DomainException {
         }
     }
 
+    public static final class SecondFactorAlreadyEnrolled extends UserException {
+        public SecondFactorAlreadyEnrolled() {
+            super(ErrorCategory.CONFLICT, "SECOND_FACTOR_ALREADY_ENROLLED", "El usuario ya tiene un segundo factor configurado");
+        }
+    }
+
+    public static final class SecondFactorNotEnrolled extends UserException {
+        public SecondFactorNotEnrolled() {
+            super(ErrorCategory.RULE_VIOLATION, "SECOND_FACTOR_NOT_ENROLLED", "El usuario no tiene un segundo factor configurado");
+        }
+    }
+
     public static final class NotActive extends UserException {
         public NotActive() {
             super(ErrorCategory.RULE_VIOLATION, "USER_NOT_ACTIVE", "La operación solo aplica a usuarios activos");

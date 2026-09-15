@@ -46,6 +46,9 @@ final class StaffTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingCon
             claims.put("role", user.role().name());
             claims.put("auth_time", principal.authenticatedAt().truncatedTo(ChronoUnit.SECONDS));
             claims.put("amr", new ArrayList<>(principal.methods()));
+            if (principal.multiFactor()) {
+                claims.put("acr", StaffPrincipal.ACR_MULTI_FACTOR);
+            }
         });
         if (accessToken) {
             context.getClaims().audience(new ArrayList<>(List.of(audience)));

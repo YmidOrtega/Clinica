@@ -18,7 +18,7 @@
 	<properties>
 		<java.version>21</java.version>
 		<clinica-commons-web.version>1.1.0</clinica-commons-web.version>
-		<clinica-commons-openbao.version>1.0.0</clinica-commons-openbao.version>
+		<clinica-commons-openbao.version>1.1.0</clinica-commons-openbao.version>
 		<bouncycastle.version>1.80</bouncycastle.version>
 		<archunit.version>1.4.1</archunit.version>
 	</properties>

@@ -35,8 +35,8 @@ class DatabaseAccessIT {
     private static final String INSERT_USER = """
             INSERT INTO users (uuid, version, email, full_name, role, status, status_reason, status_changed_by, status_changed_by_role,
                                status_changed_at, password_hash, credential_state, credential_reason, password_changed_at,
-                               tokens_not_before, created_at, updated_at)
-            VALUES (?, 0, ?, 'Ana María Rojas', ?, ?, ?, ?, ?, NOW(6), ?, ?, NULL, ?, NOW(6), NOW(6), NOW(6))""";
+                               tokens_not_before, created_at, updated_at, second_factor_state)
+            VALUES (?, 0, ?, 'Ana María Rojas', ?, ?, ?, ?, ?, NOW(6), ?, ?, NULL, ?, NOW(6), NOW(6), NOW(6), 'NOT_ENROLLED')""";
 
     @Container
     static final MySQLContainer<?> MYSQL = withSecretFiles(new MySQLContainer<>(MySqlTestContainer.IMAGE)
@@ -61,8 +61,9 @@ class DatabaseAccessIT {
 
     @BeforeEach
     void seedAnActiveUser() {
-        new JdbcTemplate(new DriverManagerDataSource(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword()))
-                .update("DELETE FROM users WHERE email = 'activa@clinica.test'");
+        JdbcTemplate root = new JdbcTemplate(new DriverManagerDataSource(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword()));
+        root.update("DELETE FROM recovery_codes");
+        root.update("DELETE FROM users WHERE email = 'activa@clinica.test'");
         app.update(INSERT_USER, UUID.randomUUID().toString(), "activa@clinica.test", "NURSE", "ACTIVE", null, null, null, HASH, "CURRENT",
                 Timestamp.valueOf("2026-09-14 10:00:00"));
     }
@@ -79,6 +80,12 @@ class DatabaseAccessIT {
                 VALUES (UUID(), UUID(), 'PASSWORD_RESET', REPEAT('b', 64), NOW(6), NOW(6) + INTERVAL 30 MINUTE)""");
         assertThat(app.update("DELETE FROM auth_sessions.one_time_tokens")).isEqualTo(1);
         assertDenied(() -> app.update("DELETE FROM auth_history.users_aud"));
+        String user = app.queryForObject("SELECT uuid FROM users WHERE email = 'activa@clinica.test'", String.class);
+        app.update("INSERT INTO recovery_codes (id, user_uuid, code_hash, created_at) VALUES (UUID(), ?, REPEAT('c', 64), NOW(6))", user);
+        assertThat(app.update("UPDATE recovery_codes SET used_at = NOW(6) WHERE user_uuid = ?", user)).isEqualTo(1);
+        assertDenied(() -> app.update("DELETE FROM recovery_codes"));
+        assertThatThrownBy(() -> app.update("UPDATE recovery_codes SET revoked_at = NOW(6) WHERE user_uuid = ?", user))
+                .hasMessageContaining("chk_recovery_codes_single_use");
         assertDenied(() -> app.update("DELETE FROM users"));
     }
 
@@ -110,6 +117,8 @@ class DatabaseAccessIT {
                 HASH, "CURRENT", true);
         assertRejected("chk_users_active_with_credential", "sinclave@clinica.test", "NURSE", "ACTIVE", null, null, null, null, "NOT_SET",
                 false);
+        assertThatThrownBy(() -> app.update("UPDATE users SET second_factor_state = 'TOTP_ENROLLED' WHERE email = 'activa@clinica.test'"))
+                .hasMessageContaining("chk_users_second_factor_enrollment");
     }
 
     private static void assertRejected(String constraint, String email, String role, String status, String reason, String changedBy,

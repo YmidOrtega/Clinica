@@ -10,6 +10,7 @@ import com.ClinicaDeYmid.auth_service.support.AuthTestSupport;
 import com.ClinicaDeYmid.auth_service.support.MySqlTestContainer;
 import com.ClinicaDeYmid.auth_service.support.OAuthBrowser;
 import com.ClinicaDeYmid.auth_service.support.StaffAccounts;
+import com.ClinicaDeYmid.commons.openbao.testing.TotpCodes;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
+import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,16 +74,26 @@ class AccountRecoveryIT {
                 .isEqualTo(204);
         assertThat(browser.postJson("/api/v1/activation", Map.of("token", token, "password", StaffAccounts.PASSWORD), true).status())
                 .isEqualTo(400);
-        assertThat(browser.login(FIRST_ADMIN, StaffAccounts.PASSWORD).json().get("outcome").asText()).isEqualTo("AUTHENTICATED");
+        assertThat(browser.login(FIRST_ADMIN, StaffAccounts.PASSWORD).json().get("outcome").asText())
+                .isEqualTo("SECOND_FACTOR_ENROLLMENT_REQUIRED");
+        OAuthBrowser.Response enrollment = browser.postJson("/api/v1/login/second-factor/enrollment", Map.of(), true);
+        String otpauthUrl = enrollment.json().get("otpauthUrl").asText();
+        assertThat(otpauthUrl).startsWith("otpauth://totp/").contains("secret=");
+        OAuthBrowser.Response confirmed = browser.postJson("/api/v1/login/second-factor/enrollment/confirmation",
+                Map.of("code", TotpCodes.at(otpauthUrl, Instant.now())), true);
+        assertThat(confirmed.json().get("outcome").asText()).isEqualTo("AUTHENTICATED");
+        assertThat(confirmed.json().get("recoveryCodes")).hasSize(10);
+        assertThat(browser.get("/api/v1/session").json().get("user").get("role").asText()).isEqualTo("SUPER_ADMIN");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_sessions.one_time_tokens WHERE token_hash = ?", Long.class, token)).isZero();
     }
 
     @Test
     void resettingThePasswordRevokesEverySessionAndUnknownEmailsLookTheSame() {
-        User doctor = staff.active(Role.DOCTOR);
+        StaffAccounts.StaffAccount account = staff.active(Role.DOCTOR);
+        User doctor = account.user();
         OAuthBrowser browser = new OAuthBrowser(port);
         browser.authorize();
-        String continueUrl = browser.login(doctor.email().value(), StaffAccounts.PASSWORD).json().get("continueUrl").asText();
+        String continueUrl = browser.signIn(account);
         String refresh = browser.exchangeCode(browser.authorizationCode(continueUrl)).json().get("refresh_token").asText();
 
         OAuthBrowser anonymous = new OAuthBrowser(port);
@@ -98,6 +110,6 @@ class AccountRecoveryIT {
         assertThat(browser.get("/api/v1/session").json().get("authenticated").asBoolean()).isFalse();
         assertThat(new OAuthBrowser(port).login(doctor.email().value(), StaffAccounts.PASSWORD).status()).isEqualTo(401);
         assertThat(new OAuthBrowser(port).login(doctor.email().value(), "otra frase para el turno de noche").json().get("outcome").asText())
-                .isEqualTo("AUTHENTICATED");
+                .isEqualTo("SECOND_FACTOR_REQUIRED");
     }
 }

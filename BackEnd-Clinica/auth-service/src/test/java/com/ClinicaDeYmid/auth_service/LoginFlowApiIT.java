@@ -39,7 +39,7 @@ class LoginFlowApiIT {
 
     @Test
     void theLoginApiRequiresTheSessionCsrfToken() {
-        User nurse = staff.active(Role.NURSE);
+        User nurse = staff.active(Role.NURSE).user();
 
         OAuthBrowser.Response withoutCsrf = new OAuthBrowser(port)
                 .postJson("/api/v1/login", Map.of("email", nurse.email().value(), "password", StaffAccounts.PASSWORD), false);
@@ -49,9 +49,9 @@ class LoginFlowApiIT {
 
     @Test
     void unknownEmailsWrongPasswordsAndSuspendedUsersGetTheSameAnswer() {
-        User suspended = staff.active(Role.DOCTOR);
+        User suspended = staff.active(Role.DOCTOR).user();
         staff.update(suspended, user -> user.suspend("Suspensión preventiva por auditoría", StaffAccounts.provisioner(), clock));
-        User doctor = staff.active(Role.DOCTOR);
+        User doctor = staff.active(Role.DOCTOR).user();
         OAuthBrowser browser = new OAuthBrowser(port);
 
         OAuthBrowser.Response unknown = browser.login("nadie@clinica.test", StaffAccounts.PASSWORD);
@@ -68,7 +68,7 @@ class LoginFlowApiIT {
 
     @Test
     void repeatedFailuresFromTheSameAddressAreDelayed() {
-        User receptionist = staff.active(Role.RECEPTIONIST);
+        User receptionist = staff.active(Role.RECEPTIONIST).user();
         OAuthBrowser browser = new OAuthBrowser(port);
         for (int attempt = 0; attempt < 5; attempt++) {
             assertThat(browser.login(receptionist.email().value(), "intento equivocado número " + attempt).status()).isEqualTo(401);
@@ -82,7 +82,8 @@ class LoginFlowApiIT {
 
     @Test
     void aCompromisedPasswordMustBeReplacedBeforeTheSessionStarts() {
-        User doctor = staff.active(Role.DOCTOR);
+        StaffAccounts.StaffAccount account = staff.active(Role.DOCTOR);
+        User doctor = account.user();
         staff.update(doctor, user -> user.requirePasswordChange("Contraseña expuesta en un correo", StaffAccounts.provisioner(), clock));
         OAuthBrowser browser = new OAuthBrowser(port);
         browser.authorize();
@@ -98,15 +99,19 @@ class LoginFlowApiIT {
         OAuthBrowser.Response changed = browser.postJson("/api/v1/login/password-change",
                 Map.of("newPassword", "una nueva frase secreta para hoy"), true);
         assertThat(changed.status()).isEqualTo(200);
-        assertThat(changed.json().get("continueUrl").asText()).contains("/oauth2/authorize");
+        assertThat(changed.json().get("outcome").asText()).isEqualTo("SECOND_FACTOR_REQUIRED");
+        assertThat(browser.get("/api/v1/session").json().get("pendingStep").asText()).isEqualTo("SECOND_FACTOR");
+
+        OAuthBrowser.Response verified = browser.postJson("/api/v1/login/second-factor", Map.of("code", account.totpCode()), true);
+        assertThat(verified.json().get("continueUrl").asText()).contains("/oauth2/authorize");
         assertThat(browser.get("/api/v1/session").json().get("user").get("role").asText()).isEqualTo("DOCTOR");
     }
 
     @Test
     void loggingOutEndsTheSession() {
-        User nurse = staff.active(Role.NURSE);
+        StaffAccounts.StaffAccount nurse = staff.active(Role.NURSE);
         OAuthBrowser browser = new OAuthBrowser(port);
-        browser.login(nurse.email().value(), StaffAccounts.PASSWORD);
+        browser.signIn(nurse);
         assertThat(browser.get("/api/v1/session").json().get("authenticated").asBoolean()).isTrue();
 
         assertThat(browser.postJson("/api/v1/logout", Map.of(), true).status()).isEqualTo(204);

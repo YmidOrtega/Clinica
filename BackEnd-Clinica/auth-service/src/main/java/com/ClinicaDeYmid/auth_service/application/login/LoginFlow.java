@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.auth_service.application.login;
 
-import com.ClinicaDeYmid.auth_service.application.StaffIdentity;
 import com.ClinicaDeYmid.auth_service.domain.password.NormalizedPassword;
 import com.ClinicaDeYmid.auth_service.domain.password.PasswordHash;
 import com.ClinicaDeYmid.auth_service.domain.password.PasswordHasher;
@@ -11,6 +10,7 @@ import com.ClinicaDeYmid.auth_service.domain.throttle.LoginThrottlePolicy;
 import com.ClinicaDeYmid.auth_service.domain.throttle.ThrottleKey;
 import com.ClinicaDeYmid.auth_service.domain.user.CredentialState;
 import com.ClinicaDeYmid.auth_service.domain.user.EmailAddress;
+import com.ClinicaDeYmid.auth_service.domain.user.SecondFactorState;
 import com.ClinicaDeYmid.auth_service.domain.user.User;
 import com.ClinicaDeYmid.auth_service.domain.user.UserException;
 import com.ClinicaDeYmid.auth_service.domain.user.Users;
@@ -21,7 +21,6 @@ import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -82,7 +81,7 @@ public class LoginFlow {
         return transactions.execute(status -> succeed(authenticated.get(), normalized, account, fromAddress, now));
     }
 
-    public StaffIdentity changeRequiredPassword(UUID userUuid, String newPassword) {
+    public LoginOutcome changeRequiredPassword(UUID userUuid, String newPassword) {
         return transactions.execute(status -> {
             User user = users.findByUuid(userUuid).filter(User::mayAuthenticate).orElseThrow(LoginException.PasswordChangeNotPending::new);
             if (!(user.credentialState() instanceof CredentialState.ChangeRequired)) {
@@ -95,7 +94,7 @@ public class LoginFlow {
             user.changePassword(hasher.hash(accepted), clock);
             User saved = users.save(user);
             log.info("Staff user {} replaced a compromised password", saved.uuid());
-            return StaffIdentity.of(saved, Instant.now(clock).truncatedTo(ChronoUnit.MICROS));
+            return nextFactor(saved);
         });
     }
 
@@ -110,7 +109,14 @@ public class LoginFlow {
         if (user.credentialState() instanceof CredentialState.ChangeRequired) {
             return new LoginOutcome.PasswordChangeRequired(user.uuid());
         }
-        return new LoginOutcome.Authenticated(StaffIdentity.of(user, now.truncatedTo(ChronoUnit.MICROS)));
+        return nextFactor(user);
+    }
+
+    private static LoginOutcome nextFactor(User user) {
+        return switch (user.secondFactorState()) {
+            case SecondFactorState.TotpEnrolled enrolled -> new LoginOutcome.SecondFactorRequired(user.uuid());
+            case SecondFactorState.NotEnrolled notEnrolled -> new LoginOutcome.SecondFactorEnrollmentRequired(user.uuid());
+        };
     }
 
     private boolean verify(User user, NormalizedPassword password) {

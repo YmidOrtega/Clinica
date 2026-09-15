@@ -44,6 +44,18 @@ public sealed abstract class LoginException extends DomainException {
         }
     }
 
+    public static final class InvalidSecondFactor extends LoginException {
+        public InvalidSecondFactor() {
+            super(ErrorCategory.INVALID_INPUT, "INVALID_SECOND_FACTOR", "El código no es válido o ya se usó");
+        }
+    }
+
+    public static final class SecondFactorNotPending extends LoginException {
+        public SecondFactorNotPending() {
+            super(ErrorCategory.RULE_VIOLATION, "SECOND_FACTOR_NOT_PENDING", "No hay un segundo factor pendiente en esta sesión");
+        }
+    }
+
     public static final class PasswordReused extends LoginException {
         public PasswordReused() {
             super(ErrorCategory.INVALID_INPUT, "PASSWORD_REUSED", "La nueva contraseña debe ser distinta de la actual");

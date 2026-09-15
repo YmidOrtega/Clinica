@@ -137,6 +137,6 @@ class JdbcAuthorizationStoreIT {
 
     private static StaffPrincipal principal() {
         return new StaffPrincipal(UUID.randomUUID(), "ana@clinica.test", "Ana Rojas", Role.NURSE,
-                Instant.parse("2026-09-14T15:00:00.123456Z"), List.of(StaffPrincipal.PASSWORD));
+                Instant.parse("2026-09-14T15:00:00.123456Z"), List.of("pwd", "otp", "mfa"), Instant.parse("2026-09-14T14:00:00.123456Z"));
     }
 }

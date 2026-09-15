@@ -52,7 +52,8 @@ class AuthorizationCodeFlowIT {
 
     @Test
     void aClinicianSignsInWithPkceAndGetsEs256TokensSignedInsideOpenBao() throws Exception {
-        User doctor = staff.active(Role.DOCTOR);
+        StaffAccounts.StaffAccount account = staff.active(Role.DOCTOR);
+        User doctor = account.user();
         OAuthBrowser browser = new OAuthBrowser(port);
 
         OAuthBrowser.Response unauthenticated = browser.authorize();
@@ -61,8 +62,11 @@ class AuthorizationCodeFlowIT {
 
         OAuthBrowser.Response login = browser.login(doctor.email().value(), StaffAccounts.PASSWORD);
         assertThat(login.status()).isEqualTo(200);
-        assertThat(login.json().get("outcome").asText()).isEqualTo("AUTHENTICATED");
-        String continueUrl = login.json().get("continueUrl").asText();
+        assertThat(login.json().get("outcome").asText()).isEqualTo("SECOND_FACTOR_REQUIRED");
+        assertThat(browser.authorize().location()).startsWith(AuthTestSupport.LOGIN_URL);
+        OAuthBrowser.Response verified = browser.postJson("/api/v1/login/second-factor", Map.of("code", account.totpCode()), true);
+        assertThat(verified.json().get("outcome").asText()).isEqualTo("AUTHENTICATED");
+        String continueUrl = verified.json().get("continueUrl").asText();
         assertThat(continueUrl).contains("/oauth2/authorize");
 
         OAuthBrowser.Response tokens = browser.exchangeCode(browser.authorizationCode(continueUrl));
@@ -81,7 +85,8 @@ class AuthorizationCodeFlowIT {
         assertThat(claims.getAudience()).containsExactly("clinica-api");
         assertThat(claims.getStringClaim("role")).isEqualTo("DOCTOR");
         assertThat(claims.getStringClaim("email")).isEqualTo(doctor.email().value());
-        assertThat(claims.getStringListClaim("amr")).containsExactly("pwd");
+        assertThat(claims.getStringListClaim("amr")).containsExactly("pwd", "otp", "mfa");
+        assertThat(claims.getStringClaim("acr")).isEqualTo("urn:clinica:acr:mfa");
         assertThat(claims.getLongClaim("auth_time")).isLessThanOrEqualTo(claims.getIssueTime().getTime() / 1000);
         assertThat(Duration.between(claims.getIssueTime().toInstant(), claims.getExpirationTime().toInstant())).isEqualTo(Duration.ofMinutes(5));
         assertThat(SignedJWT.parse(body.get("id_token").asText()).getJWTClaimsSet().getStringClaim("name")).isEqualTo("Laura Gómez");
@@ -96,10 +101,10 @@ class AuthorizationCodeFlowIT {
 
     @Test
     void refreshTokensRotateAndReusingARotatedOneRevokesTheWholeFamily() {
-        User nurse = staff.active(Role.NURSE);
+        StaffAccounts.StaffAccount nurse = staff.active(Role.NURSE);
         OAuthBrowser browser = new OAuthBrowser(port);
         browser.authorize();
-        String continueUrl = browser.login(nurse.email().value(), StaffAccounts.PASSWORD).json().get("continueUrl").asText();
+        String continueUrl = browser.signIn(nurse);
         JsonNode first = browser.exchangeCode(browser.authorizationCode(continueUrl)).json();
 
         OAuthBrowser.Response rotated = browser.refresh(first.get("refresh_token").asText());
@@ -115,13 +120,13 @@ class AuthorizationCodeFlowIT {
 
     @Test
     void suspendingAUserStopsItsRefreshTokens() {
-        User receptionist = staff.active(Role.RECEPTIONIST);
+        StaffAccounts.StaffAccount receptionist = staff.active(Role.RECEPTIONIST);
         OAuthBrowser browser = new OAuthBrowser(port);
         browser.authorize();
-        String continueUrl = browser.login(receptionist.email().value(), StaffAccounts.PASSWORD).json().get("continueUrl").asText();
+        String continueUrl = browser.signIn(receptionist);
         String refresh = browser.exchangeCode(browser.authorizationCode(continueUrl)).json().get("refresh_token").asText();
 
-        staff.update(receptionist, user -> user.suspend("Suspensión preventiva por auditoría", StaffAccounts.provisioner(), clock));
+        staff.update(receptionist.user(), user -> user.suspend("Suspensión preventiva por auditoría", StaffAccounts.provisioner(), clock));
 
         OAuthBrowser.Response refused = browser.refresh(refresh);
         assertThat(refused.status()).isEqualTo(400);

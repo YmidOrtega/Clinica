@@ -27,7 +27,7 @@ final class SessionLifetimeFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         if (SecurityContextHolder.getContext().getAuthentication() instanceof StaffAuthentication staff
-                && Instant.now(clock).isAfter(staff.getPrincipal().authenticatedAt().plus(absoluteLifetime))) {
+                && Instant.now(clock).isAfter(staff.getPrincipal().sessionStartedAt().plus(absoluteLifetime))) {
             HttpSession session = request.getSession(false);
             if (session != null) {
                 session.invalidate();

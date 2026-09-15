@@ -86,6 +86,23 @@ public class User {
     @Column(name = "password_changed_at")
     private Instant passwordChangedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "second_factor_state", nullable = false, length = 20)
+    private SecondFactorState.Code secondFactorCode;
+
+    @Column(name = "second_factor_enrolled_at")
+    private Instant secondFactorEnrolledAt;
+
+    @Column(name = "second_factor_reset_reason", length = UserStatus.MAX_REASON_LENGTH)
+    private String secondFactorResetReason;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "second_factor_reset_by", length = 36)
+    private UUID secondFactorResetBy;
+
+    @Column(name = "second_factor_reset_at")
+    private Instant secondFactorResetAt;
+
     @Column(name = "tokens_not_before", nullable = false)
     private Instant tokensNotBefore;
 
@@ -114,6 +131,7 @@ public class User {
         user.role = role;
         user.applyStatus(new UserStatus.PendingActivation(), now);
         user.applyCredential(new CredentialState.NotSet(), null);
+        user.secondFactorCode = SecondFactorState.Code.NOT_ENROLLED;
         user.tokensNotBefore = now;
         return user;
     }
@@ -129,6 +147,7 @@ public class User {
         user.role = Role.SUPER_ADMIN;
         user.applyStatus(new UserStatus.PendingActivation(), now);
         user.applyCredential(new CredentialState.NotSet(), null);
+        user.secondFactorCode = SecondFactorState.Code.NOT_ENROLLED;
         user.tokensNotBefore = now;
         return user;
     }
@@ -202,6 +221,29 @@ public class User {
         applyStatus(status().reactivate(passwordHash != null), now(clock));
     }
 
+    public void enrollTotp(Clock clock) {
+        requireActive();
+        if (!(secondFactorState() instanceof SecondFactorState.NotEnrolled)) {
+            throw new UserException.SecondFactorAlreadyEnrolled();
+        }
+        secondFactorCode = SecondFactorState.Code.TOTP_ENROLLED;
+        secondFactorEnrolledAt = now(clock);
+    }
+
+    public void resetSecondFactor(String reason, Actor actor, Clock clock) {
+        requireManageableBy(actor);
+        if (!(secondFactorState() instanceof SecondFactorState.TotpEnrolled)) {
+            throw new UserException.SecondFactorNotEnrolled();
+        }
+        Instant now = now(clock);
+        secondFactorCode = SecondFactorState.Code.NOT_ENROLLED;
+        secondFactorEnrolledAt = null;
+        secondFactorResetReason = DomainRules.requiredText(reason, "reason", UserStatus.MIN_REASON_LENGTH, UserStatus.MAX_REASON_LENGTH);
+        secondFactorResetBy = actor.uuid();
+        secondFactorResetAt = now;
+        tokensNotBefore = now;
+    }
+
     public void revokeSessions(Clock clock) {
         tokensNotBefore = now(clock);
     }
@@ -224,6 +266,13 @@ public class User {
             case NOT_SET -> new CredentialState.NotSet();
             case CURRENT -> new CredentialState.Current(passwordChangedAt);
             case CHANGE_REQUIRED -> new CredentialState.ChangeRequired(passwordChangedAt, credentialReason);
+        };
+    }
+
+    public SecondFactorState secondFactorState() {
+        return switch (secondFactorCode) {
+            case NOT_ENROLLED -> new SecondFactorState.NotEnrolled();
+            case TOTP_ENROLLED -> new SecondFactorState.TotpEnrolled(secondFactorEnrolledAt);
         };
     }
 
