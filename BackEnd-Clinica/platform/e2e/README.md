@@ -87,6 +87,7 @@ de las siguientes con `totp-code.mjs`. Si ese archivo se pierde, recrear el volu
 | Tokens | La firma ES256 verifica con el JWKS, que solo expone claves públicas; `amr` y `acr` reflejan el segundo factor; el refresh token solo existe como SHA-256 |
 | Step-up | Una autorización con `max_age` vencido redirige a `?step=step-up`; tras el código TOTP el token trae un `auth_time` nuevo |
 | API de usuarios | Con el access token real: `/api/v1/me`, invitación con correo en Mailpit, `428` sin `If-Match`, desactivación con la versión consultada e historial con el autor |
+| Eventos | `auth.users.v1` trae el estado completo de la enfermera desactivada y se compacta; `auth.security-audit.v1` registra logins, fallos y reutilización de refresh tokens y no expira |
 | Refresh | Rota en cada uso y reutilizar uno rotado revoca toda la familia |
 | Frenado | Tras 5 fallos desde la misma dirección responde `429` y, pasada la espera, vuelve a entrar |
 

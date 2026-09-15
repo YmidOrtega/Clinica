@@ -361,12 +361,14 @@ infrastructure      Authorization Server: TransitJwtEncoder (ES256 en OpenBao), 
 | `auth_db`        | `users`, `recovery_codes` (SHA-256, un solo uso)               | `SELECT`, `INSERT`, `UPDATE`  |
 | `auth_history`   | `revisions` (con autor), `users_aud` (Envers)                  | `SELECT`, `INSERT`            |
 | `auth_sessions`  | autorizaciones y tokens hasheados, sesiones HTTP, frenado, enlaces, outbox de correo | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+| `auth_outbox`    | `outbox_events` hacia `auth.users.v1` (compactado) y `auth.security-audit.v1` (sin expiración) | `SELECT`, `INSERT`, `DELETE` |
 
 Depende de OpenBao para firmar tokens, verificar clientes y validar los códigos TOTP del segundo factor
 obligatorio: sin OpenBao no hay login ni refresh, pero
 los tokens emitidos siguen validándose con el JWKS. Envía correos por SMTP desde un outbox con
 reintentos (Mailpit en desarrollo) y, al arrancar sin ningún `SUPER_ADMIN`, invita al configurado en
-`secret/auth/bootstrap`. Corre con 2 réplicas; sesiones y autorizaciones viven en MySQL.
+`secret/auth/bootstrap`. Corre con 2 réplicas; sesiones y autorizaciones viven en MySQL. Publica sus
+eventos con el conector `auth-service/debezium/auth-outbox.json` (ver `auth-service/events/README.md`).
 
 ### 4.5 Suppliers Service (`:8085`)
 

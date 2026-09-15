@@ -328,19 +328,22 @@ En un entorno con requisitos regulatorios de revocación inmediata, la blacklist
 
 ## 6. Auditoría
 
-Cada evento de seguridad queda registrado en la tabla `audit_logs` del Auth Service.
+### 6.1 Identidad del personal
 
-### 6.1 Eventos Registrados
+`auth-service` guarda dos registros complementarios:
 
-| Evento                | Campos guardados                                     |
-| --------------------- | ---------------------------------------------------- |
-| `LOGIN_SUCCESS`       | userId, username, IP, timestamp                      |
-| `LOGIN_FAILED`        | username, IP, timestamp, intento número N            |
-| `ACCOUNT_LOCKED`      | userId, IP, timestamp                                |
-| `LOGOUT`              | userId, IP, timestamp                                |
-| `TOKEN_REFRESHED`     | userId, timestamp                                    |
-| `PASSWORD_CHANGED`    | userId, IP, timestamp                                |
-| `PASSWORD_RESET`      | userId, email, IP, timestamp                         |
+- **Historial de cada usuario** (Envers, `auth_history`): cada versión con quién la cambió y cuándo.
+  El usuario de la aplicación solo puede insertar. Se consulta en `GET /api/v1/users/{uuid}/history`.
+- **Eventos de seguridad** en `auth.security-audit.v1`, publicados por outbox en la misma transacción
+  que el cambio o el contador de frenado: cambios de cuentas con su actor y motivo, logins completados
+  (con `amr` y si fue step-up), fallos de contraseña y segundo factor con el correo intentado, IP y
+  navegador, solicitudes de reseteo, desbloqueos, códigos de recuperación regenerados y reutilización
+  de refresh tokens. El topic no se compacta ni expira.
+
+Además `auth.users.v1` publica el estado completo de cada usuario (compactado) para que los servicios
+corten el acceso de un usuario suspendido sin esperar a que venza su token. Tipos, contratos y ejemplos
+en `BackEnd-Clinica/auth-service/events/README.md`. Ningún evento lleva contraseñas, secretos TOTP,
+códigos de recuperación ni tokens.
 
 ### 6.2 Soft Delete y Auditoría de Datos
 
