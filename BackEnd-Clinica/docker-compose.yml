@@ -564,7 +564,9 @@ services:
       environment:
          - SPRING_PROFILES_ACTIVE=openbao
          - PATIENT_DB_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
-         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+         - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
+         - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
+         - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
          - EUREKA_URL=http://eureka-service:8761/eureka/
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
@@ -572,6 +574,7 @@ services:
       networks:
          - clinica-net
          - patient-data
+         - kafka-net
          - secrets-net
       healthcheck:
          test: [ "CMD", "curl", "-fs", "http://localhost:8081/actuator/health/readiness" ]
@@ -600,7 +603,9 @@ services:
          - SPRING_PROFILES_ACTIVE=openbao
          - CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/${CLINICAL_DB_NAME}
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+         - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
+         - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
+         - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - EUREKA_URL=http://eureka-service:8761/eureka/
          - CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000
       volumes:
