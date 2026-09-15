@@ -9,6 +9,8 @@ SUPER_ADMIN="${AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL:-superadmin@clinica.local}"
 published() { echo "http://$(docker compose -p "$PROJECT" port --index 1 "$1" "$2" 2>/dev/null)"; }
 AUTH_URL="${AUTH_URL:-$(published auth-service 8086)}"
 MAILPIT_URL="${MAILPIT_URL:-$(published mailpit 8025)}"
+PATIENT_URL="${PATIENT_URL:-$(published patient-service 8081)}"
+CLINICAL_URL="${CLINICAL_URL:-$(published clinical-history-service 8089)}"
 [ "$AUTH_URL" != "http://" ] && [ "$MAILPIT_URL" != "http://" ] || { echo "Publica los puertos con docker-compose.debug.yml o define AUTH_URL y MAILPIT_URL" >&2; exit 1; }
 DIR=$(cd "$(dirname "$0")" && pwd)
 WORK=$(mktemp -d)
@@ -209,6 +211,67 @@ ok "desactivar exige If-Match con la versión consultada"
 [ "$(bearer GET "/api/v1/users/$NURSE_UUID/history")" = "200" ] \
   && [ "$(jq -r 'last.revisedBy' "$WORK/body")" = "$(echo "$stepped" | jq -r .sub)" ] || fail "historial: $(cat "$WORK/body")"
 ok "el historial registra quién hizo el cambio"
+
+if [ "$PATIENT_URL" = "http://" ] || [ "$CLINICAL_URL" = "http://" ]; then
+  printf '\n== Tokens de auth en patient y clinical\nomitido: publica patient-service y clinical-history-service para probarlo\n'
+else
+  step "Tokens de auth en patient y clinical"
+  DOCTOR_EMAIL="medica.e2e.$(date +%s)@clinica.local"
+  DOCTOR_PASSWORD="frase de la medica $(date +%s) en consulta"
+  [ "$(bearer POST /api/v1/users --data "{\"email\": \"$DOCTOR_EMAIL\", \"fullName\": \"Médica de Prueba\", \"role\": \"DOCTOR\"}")" = "201" ] \
+    || fail "invitación de la médica: $(cat "$WORK/body")"
+  DOCTOR_UUID=$(jq -r .uuid "$WORK/body")
+  ADMIN_JAR="$JAR"
+  JAR="$WORK/doctor"
+  activation=$(latest_token_mailed_to "Active su cuenta de la Clínica" "$DOCTOR_EMAIL") || fail "no llegó la invitación de la médica"
+  [ "$(api /api/v1/activation "{\"token\": \"$activation\", \"password\": \"$DOCTOR_PASSWORD\"}")" = "204" ] || fail "activación de la médica"
+  DOCTOR_VERIFIER=$(openssl rand 32 | b64url)
+  DOCTOR_STATE=$(openssl rand 12 | b64url)
+  curl -s -o /dev/null -b "$JAR" -c "$JAR" "$AUTH_URL/oauth2/authorize?response_type=code&client_id=api-gateway&scope=openid%20profile&state=$DOCTOR_STATE&code_challenge=$(printf '%s' "$DOCTOR_VERIFIER" | openssl dgst -sha256 -binary | b64url)&code_challenge_method=S256&redirect_uri=$(printf '%s' "$REDIRECT_URI" | jq -sRr @uri)"
+  api /api/v1/login "{\"email\": \"$DOCTOR_EMAIL\", \"password\": \"$DOCTOR_PASSWORD\"}" > /dev/null
+  [ "$(api /api/v1/login/second-factor/enrollment '{}')" = "200" ] || fail "enrolamiento de la médica: $(cat "$WORK/body")"
+  doctor_code=$(node "$DIR/totp-code.mjs" "$(jq -r .otpauthUrl "$WORK/body")" | cut -d' ' -f1)
+  [ "$(api /api/v1/login/second-factor/enrollment/confirmation "{\"code\": \"$doctor_code\"}")" = "200" ] || fail "confirmación de la médica"
+  callback=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" "$(jq -r .continueUrl "$WORK/body")")
+  [ "$(token_request --data-urlencode grant_type=authorization_code --data-urlencode "code=$(printf '%s' "$callback" | sed -n 's/.*[?&]code=\([^&]*\).*/\1/p')" \
+        --data-urlencode "redirect_uri=$REDIRECT_URI" --data-urlencode "code_verifier=$DOCTOR_VERIFIER")" = "200" ] || fail "token de la médica: $(cat "$WORK/tokens")"
+  DOCTOR_ACCESS=$(jq -r .access_token "$WORK/tokens")
+  JAR="$ADMIN_JAR"
+  ok "una médica invitada activa su cuenta, enrola TOTP y obtiene su token"
+
+  docker pause kafka-connect > /dev/null
+  document=$(date +%s%N | cut -c6-15)
+  status=$(curl -s -o "$WORK/patient" -w '%{http_code}' -X POST "$PATIENT_URL/api/v1/patients" -H "Authorization: Bearer $STAFF_ACCESS" \
+    -H 'Content-Type: application/json' --data "{
+      \"document\": {\"type\": \"CEDULA_DE_CIUDADANIA\", \"number\": \"$document\"},
+      \"demographics\": {\"firstNames\": \"Ana\", \"lastNames\": \"Rojas Díaz\", \"birthDate\": \"1990-02-01\", \"sex\": \"FEMALE\",
+                         \"countryOfOrigin\": \"CO\", \"disability\": \"NONE\"},
+      \"contact\": {\"mobile\": \"3001234567\"}, \"affiliation\": {\"regime\": \"UNINSURED\"},
+      \"residence\": {\"department\": \"Santander\", \"municipality\": \"Girón\", \"zone\": \"URBAN\", \"address\": \"Calle 1 # 2-3\"}}")
+  [ "$status" = "201" ] || { docker unpause kafka-connect > /dev/null; fail "patient-service rechazó el token del SUPER_ADMIN ($status): $(cat "$WORK/patient")"; }
+  PATIENT_UUID=$(jq -r .uuid "$WORK/patient")
+  ok "patient-service acepta el access token ES256 emitido por auth-service"
+
+  status=$(curl -s -o "$WORK/encounter" -w '%{http_code}' -X POST "$CLINICAL_URL/api/v1/clinical/encounters" -H "Authorization: Bearer $DOCTOR_ACCESS" \
+    -H 'Content-Type: application/json' --data "{\"patientUuid\": \"$PATIENT_UUID\", \"type\": \"OUTPATIENT\"}")
+  docker unpause kafka-connect > /dev/null
+  [ "$status" = "201" ] || fail "clinical no abrió la atención ($status): $(cat "$WORK/encounter")"
+  exchanged=$(docker exec auth-db sh -c "mysql -N -uroot -p\"\$(cat \$MYSQL_ROOT_PASSWORD_FILE)\" -e \"SELECT COUNT(*) FROM auth_sessions.authorizations
+    WHERE principal_name = '$DOCTOR_UUID' AND grant_type = 'urn:ietf:params:oauth:grant-type:token-exchange' AND registered_client_id = 'clinical-history-service'\" 2>/dev/null")
+  [ "$exchanged" -ge 1 ] || fail "clinical no intercambió el token de la médica"
+  ok "clinical intercambia el token de la médica por uno para patient-service y abre la atención"
+
+  [ "$(curl -s -o /dev/null -w '%{http_code}' "$PATIENT_URL/api/v1/patients/$PATIENT_UUID" -H "Authorization: Bearer $DOCTOR_ACCESS")" = "200" ] \
+    || fail "patient-service rechazó a la médica activa"
+  [ "$(bearer GET "/api/v1/users/$DOCTOR_UUID")" = "200" ] || fail "consulta de la médica"
+  [ "$(bearer POST "/api/v1/users/$DOCTOR_UUID/suspension" -H "If-Match: $(etag)" --data '{"reason": "Prueba E2E de revocación"}')" = "200" ] \
+    || fail "suspensión de la médica: $(cat "$WORK/body")"
+  attempt=0
+  until [ "$(curl -s -o /dev/null -w '%{http_code}' "$PATIENT_URL/api/v1/patients/$PATIENT_UUID" -H "Authorization: Bearer $DOCTOR_ACCESS")" = "401" ]; do
+    attempt=$((attempt + 1)); [ "$attempt" -lt 30 ] || fail "patient-service siguió aceptando el token de la médica suspendida"; sleep 1
+  done
+  ok "tras suspenderla, patient-service rechaza su token vigente en ${attempt}s vía auth.users.v1"
+fi
 
 step "Rotación y reutilización"
 [ "$(token_request --data-urlencode grant_type=refresh_token --data-urlencode "refresh_token=$REFRESH")" = "200" ] || fail "refresh: $(cat "$WORK/tokens")"
