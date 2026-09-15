@@ -70,6 +70,14 @@ session_field() {
   curl -s -b "$JAR" -c "$JAR" "$AUTH_URL/api/v1/session" | jq -r "$1"
 }
 
+bearer() {
+  method=$1; target=$2; shift 2
+  curl -s -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' -X "$method" "$AUTH_URL$target" \
+    -H "Authorization: Bearer $STAFF_ACCESS" -H 'Content-Type: application/json' "$@"
+}
+
+etag() { tr -d '\r' < "$WORK/headers" | sed -n 's/^[Ee][Tt][Aa][Gg]: //p'; }
+
 token_request() {
   curl -s -o "$WORK/tokens" -w '%{http_code}' -X POST "$AUTH_URL/oauth2/token" \
     --data-urlencode "client_id=api-gateway" \
@@ -168,9 +176,29 @@ code=$(printf '%s' "$callback" | sed -n 's/.*[?&]code=\([^&]*\).*/\1/p')
 [ -n "$code" ] || fail "el step-up no devolvió al cliente con código: $callback"
 [ "$(token_request --data-urlencode grant_type=authorization_code --data-urlencode "code=$code" \
       --data-urlencode "redirect_uri=$REDIRECT_URI" --data-urlencode "code_verifier=$VERIFIER")" = "200" ] || fail "token tras step-up: $(cat "$WORK/tokens")"
-stepped=$(node "$DIR/verify-jwt.mjs" "$(jq -r .access_token "$WORK/tokens")" "$(curl -s "$AUTH_URL/oauth2/jwks")")
+STAFF_ACCESS=$(jq -r .access_token "$WORK/tokens")
+stepped=$(node "$DIR/verify-jwt.mjs" "$STAFF_ACCESS" "$(curl -s "$AUTH_URL/oauth2/jwks")")
 [ "$(echo "$stepped" | jq -r .auth_time)" -gt "$(echo "$claims" | jq -r .auth_time)" ] || fail "auth_time no avanzó: $stepped"
 ok "tras el step-up el token trae un auth_time nuevo"
+
+step "API de usuarios con Bearer"
+[ "$(bearer GET /api/v1/me)" = "200" ] && [ "$(jq -r .user.role "$WORK/body")" = "SUPER_ADMIN" ] || fail "/api/v1/me: $(cat "$WORK/body")"
+ok "/api/v1/me responde con el access token"
+NURSE_EMAIL="enfermera.e2e.$(date +%s)@clinica.local"
+[ "$(bearer POST /api/v1/users --data "{\"email\": \"$NURSE_EMAIL\", \"fullName\": \"Enfermera de Prueba\", \"role\": \"NURSE\"}")" = "201" ] \
+  || fail "invitación: $(cat "$WORK/body")"
+NURSE_UUID=$(jq -r .uuid "$WORK/body")
+latest_token_mailed_to "Active su cuenta de la Clínica" "$NURSE_EMAIL" > /dev/null || fail "no llegó la invitación a Mailpit"
+ok "SUPER_ADMIN invita a una enfermera y el correo de activación llega"
+[ "$(bearer POST "/api/v1/users/$NURSE_UUID/deactivation" --data '{"reason": "Prueba E2E de desactivación"}')" = "428" ] \
+  || fail "desactivar sin If-Match no respondió 428"
+[ "$(bearer GET "/api/v1/users/$NURSE_UUID")" = "200" ] || fail "consulta del usuario: $(cat "$WORK/body")"
+[ "$(bearer POST "/api/v1/users/$NURSE_UUID/deactivation" -H "If-Match: $(etag)" --data '{"reason": "Prueba E2E de desactivación"}')" = "200" ] \
+  && [ "$(jq -r .status.code "$WORK/body")" = "DEACTIVATED" ] || fail "desactivación: $(cat "$WORK/body")"
+ok "desactivar exige If-Match con la versión consultada"
+[ "$(bearer GET "/api/v1/users/$NURSE_UUID/history")" = "200" ] \
+  && [ "$(jq -r 'last.revisedBy' "$WORK/body")" = "$(echo "$stepped" | jq -r .sub)" ] || fail "historial: $(cat "$WORK/body")"
+ok "el historial registra quién hizo el cambio"
 
 step "Rotación y reutilización"
 [ "$(token_request --data-urlencode grant_type=refresh_token --data-urlencode "refresh_token=$REFRESH")" = "200" ] || fail "refresh: $(cat "$WORK/tokens")"
