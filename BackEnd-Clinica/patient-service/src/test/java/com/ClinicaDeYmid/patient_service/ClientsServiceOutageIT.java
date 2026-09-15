@@ -51,7 +51,7 @@ class ClientsServiceOutageIT {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("clinica.security.jwt.public-key", JwtTestTokens::publicKeyBase64);
+        JwtTestTokens.register(registry);
         registry.add("spring.cloud.openfeign.client.config.clients-service.url", clientsService::baseUrl);
         registry.add("eureka.client.enabled", () -> false);
         registry.add("clinica.patient.health-providers.fresh-ttl", () -> "0s");

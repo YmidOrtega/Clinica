@@ -56,7 +56,11 @@ clinica:
       maximum-size: 1000
   security:
     jwt:
-      public-key: ${JWT_PUBLIC_KEY:}
+      jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
+      issuer: ${AUTH_ISSUER:http://localhost:8080/auth}
+      audiences: clinica-api, patient-service
+    revocation:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
 
 resilience4j:
   circuitbreaker:

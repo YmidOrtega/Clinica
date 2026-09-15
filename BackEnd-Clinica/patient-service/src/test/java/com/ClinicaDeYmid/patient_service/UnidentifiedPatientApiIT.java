@@ -41,7 +41,7 @@ class UnidentifiedPatientApiIT {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("clinica.security.jwt.public-key", JwtTestTokens::publicKeyBase64);
+        JwtTestTokens.register(registry);
         registry.add("eureka.client.enabled", () -> false);
     }
 
