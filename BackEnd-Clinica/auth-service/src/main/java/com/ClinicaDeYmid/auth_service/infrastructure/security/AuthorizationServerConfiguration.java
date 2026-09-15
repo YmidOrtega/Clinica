@@ -45,7 +45,8 @@ public class AuthorizationServerConfiguration {
     SecurityFilterChain authorizationServerFilterChain(HttpSecurity http, RegisteredClientRepository clients,
                                                        OAuth2AuthorizationService authorizations, TransitClient transit,
                                                        TransitProperties transitProperties, AuthorizationServerProperties properties,
-                                                       SessionLifetimeFilter sessionLifetime, Clock clock) throws Exception {
+                                                       SessionLifetimeFilter sessionLifetime, RequestCache requestCache, Clock clock)
+            throws Exception {
         OAuth2AuthorizationServerConfigurer authorizationServer = OAuth2AuthorizationServerConfigurer.authorizationServer();
         TransitClientAssertionDecoderFactory assertions = new TransitClientAssertionDecoderFactory(transit,
                 RegisteredClients.assertionKeys(properties), transitProperties.keyRefreshInterval(), clock);
@@ -62,7 +63,8 @@ public class AuthorizationServerConfiguration {
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()))
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint(properties.loginUrl())))
-                .addFilterAfter(sessionLifetime, SecurityContextHolderFilter.class);
+                .addFilterAfter(sessionLifetime, SecurityContextHolderFilter.class)
+                .addFilterAfter(new StepUpFilter(requestCache, properties.loginUrl(), clock), SessionLifetimeFilter.class);
         return http.build();
     }
 
@@ -73,8 +75,10 @@ public class AuthorizationServerConfiguration {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/session").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/login", "/api/v1/login/password-change", "/api/v1/logout",
-                                "/api/v1/activation", "/api/v1/password-reset", "/api/v1/password-reset/requests").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/login", "/api/v1/login/password-change", "/api/v1/login/second-factor",
+                                "/api/v1/login/second-factor/enrollment", "/api/v1/login/second-factor/enrollment/confirmation",
+                                "/api/v1/logout", "/api/v1/activation", "/api/v1/password-reset", "/api/v1/password-reset/requests").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/login/step-up").authenticated()
                         .anyRequest().denyAll())
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)

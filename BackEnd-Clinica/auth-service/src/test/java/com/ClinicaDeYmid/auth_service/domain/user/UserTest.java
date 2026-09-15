@@ -171,6 +171,27 @@ class UserTest {
     }
 
     @Test
+    void aSecondFactorIsEnrolledOnceAndOnlyAnAdministratorCanResetIt() {
+        User user = active(Role.DOCTOR);
+        assertThat(user.secondFactorState()).isEqualTo(new SecondFactorState.NotEnrolled());
+        assertThatThrownBy(() -> invited(Role.NURSE).enrollTotp(CLOCK)).isInstanceOf(UserException.NotActive.class);
+
+        user.enrollTotp(at(LATER));
+
+        assertThat(user.secondFactorState()).isEqualTo(new SecondFactorState.TotpEnrolled(LATER));
+        assertThatThrownBy(() -> user.enrollTotp(CLOCK)).isInstanceOf(UserException.SecondFactorAlreadyEnrolled.class);
+        assertThatThrownBy(() -> user.resetSecondFactor("Pérdida del teléfono", new Actor(user.uuid(), Role.SUPER_ADMIN), CLOCK))
+                .isInstanceOf(UserException.SelfManagement.class);
+
+        user.resetSecondFactor("Pérdida del teléfono", ADMIN, at(LATER.plusSeconds(60)));
+
+        assertThat(user.secondFactorState()).isEqualTo(new SecondFactorState.NotEnrolled());
+        assertThat(user.tokensNotBefore()).isEqualTo(LATER.plusSeconds(60));
+        assertThatThrownBy(() -> user.resetSecondFactor("Pérdida del teléfono", ADMIN, CLOCK))
+                .isInstanceOf(UserException.SecondFactorNotEnrolled.class);
+    }
+
+    @Test
     void statusReasonsMustExplainTheDecision() {
         User user = active(Role.NURSE);
 

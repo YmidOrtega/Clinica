@@ -1,14 +1,17 @@
 package com.ClinicaDeYmid.auth_service.application.login;
 
-import com.ClinicaDeYmid.auth_service.application.StaffIdentity;
-
 import java.util.UUID;
 
 public sealed interface LoginOutcome {
 
-    record Authenticated(StaffIdentity identity) implements LoginOutcome {
-    }
+    UUID userUuid();
 
     record PasswordChangeRequired(UUID userUuid) implements LoginOutcome {
+    }
+
+    record SecondFactorRequired(UUID userUuid) implements LoginOutcome {
+    }
+
+    record SecondFactorEnrollmentRequired(UUID userUuid) implements LoginOutcome {
     }
 }

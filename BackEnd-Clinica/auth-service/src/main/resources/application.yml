@@ -61,6 +61,8 @@ clinica:
     transit:
       mount: ${AUTH_TRANSIT_MOUNT:transit}
       key-refresh-interval: 5m
+    totp:
+      mount: ${AUTH_TOTP_MOUNT:totp}
   auth:
     server:
       issuer: ${AUTH_ISSUER:http://localhost:8086}
@@ -88,6 +90,8 @@ clinica:
       from: ${AUTH_MAIL_FROM:no-responder@clinica.local}
     bootstrap:
       super-admin-email: ${AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL:}
+    second-factor:
+      issuer: ${AUTH_TOTP_ISSUER:Clinica}
     time-zone: America/Bogota
     password-deny-lists: classpath:passwords/ncsc-100k-common.txt
     password-service-words: clinica, clinicadeymid, ymid
