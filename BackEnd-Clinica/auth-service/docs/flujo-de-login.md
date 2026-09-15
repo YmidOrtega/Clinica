@@ -187,7 +187,9 @@ Errores: `400 PASSWORD_REJECTED`, `400 INVALID_OR_EXPIRED_LINK`.
 ## Errores
 
 Todos siguen RFC 9457 (`application/problem+json`) con `code` y `traceId`. Un `403` sin `code` significa
-token CSRF ausente o vencido: volver a pedir `GET /api/v1/session`.
+token CSRF ausente o vencido: volver a pedir `GET /api/v1/session`. `503 AUTH_KEYS_UNAVAILABLE` con
+`Retry-After` indica que OpenBao no responde: el segundo factor no se puede verificar y conviene
+reintentar en unos segundos sin descartar lo que la persona escribió.
 
 ## Endpoints OAuth / OIDC (para el gateway)
 
