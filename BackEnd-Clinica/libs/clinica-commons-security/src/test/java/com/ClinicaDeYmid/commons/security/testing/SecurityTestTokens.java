@@ -10,6 +10,7 @@ import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.jwt.SignedJWT;
 import org.springframework.test.context.DynamicPropertyRegistry;
 
@@ -69,6 +70,7 @@ public final class SecurityTestTokens {
 
         private final JWTClaimsSet.Builder claims;
         private ECKey key = TRUSTED;
+        private String keyId = TRUSTED.getKeyID();
 
         private Token(JWTClaimsSet.Builder claims, Instant now) {
             this.claims = claims
@@ -125,9 +127,18 @@ public final class SecurityTestTokens {
             return this;
         }
 
+        public Token keyId(String keyId) {
+            this.keyId = keyId;
+            return this;
+        }
+
+        public String unsigned() {
+            return new PlainJWT(claims.build()).serialize();
+        }
+
         public String value() {
             try {
-                SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.ES256).type(JOSEObjectType.JWT).keyID(key.getKeyID()).build(),
+                SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.ES256).type(JOSEObjectType.JWT).keyID(keyId).build(),
                         claims.build());
                 jwt.sign(new ECDSASigner(key));
                 return jwt.serialize();
