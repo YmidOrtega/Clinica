@@ -1,7 +1,7 @@
 # Seguridad — Clínica
 
 **Versión:** 1.0  
-**Stack:** Spring Security 6 · JWT RSA-256 · Redis · Resilience4j
+**Stack:** Spring Authorization Server · JWT ES256 firmado en OpenBao transit · Gateway BFF con Redis
 
 ---
 
@@ -58,6 +58,13 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   `/oauth2/token` con `private_key_jwt`: firma una aserción con su propia clave de transit
   (`api-gateway-client`) y `auth-service` la verifica con la clave pública que lee de OpenBao.
 - PKCE es obligatorio y no hay pantalla de consentimiento (clientes propios).
+- El gateway guarda los tokens en su Redis, nunca en el navegador, y los agrega a cada llamada a la API.
+  Serializa la renovación por sesión con un candado en Redis: dos peticiones en paralelo nunca usan el
+  mismo refresh token, que `auth-service` trataría como robo. Contrato para el frontend en
+  `BackEnd-Clinica/api-gateway/docs/bff.md`.
+- El frontend está en otro origen: el gateway permite CORS con credenciales solo para
+  `GATEWAY_FRONTEND_ORIGINS`, entrega el token CSRF en `GET /bff/session` y quita hacia los servicios
+  las cookies, las cabeceras CSRF y cualquier `Authorization` o `X-Forwarded-*` que mande el navegador.
 - El login lo hacen las pantallas del frontend contra una API JSON con sesión en Spring Session JDBC y
   CSRF de sesión. Al autenticarse se cambia el identificador de sesión.
 
@@ -235,109 +242,23 @@ validación es local. El rol que aplica es el del token vigente; un cambio de ro
 
 ## 5. Rate Limiting
 
-El API Gateway aplica dos límites independientes —por usuario y por IP— con contadores de
-ventana fija en Redis.
+`api-gateway` aplica dos límites independientes con contadores de ventana fija en su Redis:
 
-### 5.1 Algoritmo — Contador de Ventana Fija
+| Clave | Límite | Momento | Motivo |
+|---|---|---|---|
+| Dirección IP (`clinica:gateway:rate-limit:address:<sha256>`) | 1000 por minuto | Antes de autenticar | Cubre el login y cualquier ruta pública, donde ataca quien no tiene credenciales; umbral alto porque tras un NAT hay muchos usuarios legítimos |
+| Usuario de la sesión (`…:user:<sha256 del uuid>`) | 300 por minuto | Después de autenticar | La identidad sale de la sesión del gateway, no de una cabecera; frena la extracción masiva desde una cuenta comprometida |
 
-Implementado con operaciones atómicas de Redis (`INCR` + `EXPIRE`), no con token bucket.
-
-```
-Por cada request:
-  count = INCR(clave)
-  IF count == 1:
-    EXPIRE(clave, 60s)          # arranca la ventana en el primer hit
-  IF count <= LIMITE:
-    ALLOW
-  ELSE:
-    RETURN 429 Too Many Requests
-
-Al expirar la clave, el contador desaparece y la ventana se reinicia.
-```
-
-`INCR` es atómico en Redis, así que el conteo es correcto aunque haya varias instancias del
-gateway compartiendo la misma instancia de Redis.
-
-**Limitación conocida:** en una ventana fija, 100 peticiones en el segundo 59 y otras 100 en
-el 61 suman 200 en dos segundos reales. Un token bucket con recarga continua suaviza ese
-efecto de borde, a costa de un script Lua para mantener la atomicidad de leer-recargar-decrementar.
-
-### 5.2 Límites Aplicados
-
-| Clave Redis            | Límite        | Motivo                                                        |
-| ---------------------- | ------------- | ------------------------------------------------------------- |
-| `rate_limit:user:<id>` | 100 req/min   | Impide extracción masiva desde una cuenta comprometida        |
-| `rate_limit:ip:<ip>`   | 1000 req/min  | Cubre endpoints sin usuario autenticado (login); umbral alto porque tras un NAT hay muchos usuarios legítimos |
-
-La IP se resuelve leyendo `X-Forwarded-For`, luego `X-Real-IP`, y por último la dirección
-remota de la conexión.
-
-### 5.3 Cada Límite en su Punto de la Cadena
-
-Los dos límites no son intercambiables: protegen de ataques distintos y por eso se evalúan en
-momentos distintos del pipeline del gateway.
-
-```
-Request
-   │
-   ▼
-IpRateLimitFilter        orden 0    ← antes de autenticar
-   │                                  cubre el login y cualquier endpoint público,
-   │                                  que es donde ataca quien no tiene credenciales
-   ▼
-AuthenticationFilter     orden 1    ← filtro de ruta; valida la firma RSA,
-   │                                  consulta la blacklist y publica la identidad
-   │                                  en el atributo AUTHENTICATED_USER_ID
-   ▼
-UserRateLimitFilter      orden 10   ← después de autenticar
-   │                                  la identidad ya es de fiar; frena la extracción
-   │                                  masiva desde una cuenta comprometida
-   ▼
-Servicio destino
-```
-
-Spring Cloud Gateway combina filtros globales y de ruta en una sola cadena ordenada, y asigna
-a cada filtro de ruta el orden `índice + 1`. Como `AuthenticationFilter` es `filters[0]` en
-todas las rutas, su orden efectivo es **1**; de ahí los valores 0 y 10 elegidos para los dos
-filtros de rate limiting.
-
-**La identidad se lee de un atributo del intercambio, no de la cabecera `X-User-ID`.** Un
-cliente puede fabricar cabeceras: si el contador se llevara por cabecera, bastaría con rotar
-un identificador falso en cada petición para tener siempre un contador nuevo y anular el
-límite. Un atributo del `ServerWebExchange` solo lo escribe un filtro de este proceso, después
-de haber verificado la firma del token. La cabecera se sigue enviando al servicio destino, y
-`AuthenticationFilter` la reescribe siempre, de modo que un `X-User-ID` entrante nunca
-atraviesa el gateway.
-
-En rutas públicas no hay identidad y `UserRateLimitFilter` no interviene; ahí la única
-protección es el límite por IP, que es exactamente el reparto buscado.
-
-> **Nota histórica.** Ambos límites vivían en un único filtro global de orden 0 que leía
-> `X-User-ID` antes de que `AuthenticationFilter` la inyectara, así que la rama por usuario
-> nunca llegaba a activarse y en la práctica solo operaba el límite por IP. Separarlos en dos
-> filtros con órdenes explícitos corrige el fallo y hace visible en el código por qué cada
-> límite va donde va.
-
-### 5.4 Cabeceras de Respuesta
-
-Cuando se supera el límite, la respuesta `429` incluye:
-
-```
-X-RateLimit-Remaining: 0
-Retry-After: 60
-```
-
-Las respuestas permitidas no llevan cabeceras de rate limiting.
-
-### 5.5 Comportamiento ante Fallo de Redis
-
-Si Redis no responde, el rate limiting **falla en abierto**: se permite el request y se
-registra el error. Es una decisión consciente — una caída de la cache no debe tumbar un
-sistema hospitalario, y el rate limiting es una capa de protección, no de autenticación:
-la validación de la firma del JWT sigue operando con normalidad.
-
-En un entorno con requisitos regulatorios de revocación inmediata, la blacklist de tokens
-(§2.5) debería pasar a fallar en cerrado, manteniendo el fail-open solo aquí.
+- El conteo es un script Lua atómico (`INCR` y, en el primer golpe, `PEXPIRE`), correcto con varias
+  réplicas del gateway. En el borde de dos ventanas pueden pasar hasta el doble de peticiones en poco
+  tiempo; es una limitación aceptada.
+- Las respuestas llevan `RateLimit-Limit`, `RateLimit-Remaining` y `RateLimit-Reset`; al superar el límite,
+  `429 TOO_MANY_REQUESTS` con `Retry-After`.
+- **Si Redis no responde, falla en abierto:** deja pasar y registra el fallo. Una caída de la caché no debe
+  tumbar un sistema hospitalario; el frenado de intentos de login de `auth-service` (sección 3) sigue
+  activo y vive en MySQL.
+- La IP es la dirección de la conexión que llega al gateway. Detrás de un balanceador habría que
+  configurar sus direcciones como proxies de confianza.
 
 ### 5.6 Escenarios de Protección
 
@@ -529,11 +450,11 @@ atención no exige relación previa —así empieza el cuidado— pero queda aud
 
 ## 8. Decisiones de Diseño
 
-### 8.1 RSA-256 en lugar de HMAC-SHA256
+### 8.1 ES256 firmado en transit en lugar de HMAC o de una clave privada en archivo
 
-**Problema:** con HMAC, todos los microservicios necesitan la misma clave secreta para verificar tokens. Un secreto compartido entre N servicios multiplica la superficie de ataque por N.
+**Problema:** con HMAC todos los servicios necesitan el secreto que también sirve para emitir tokens; con una clave privada en archivo, comprometer `auth-service` la expone.
 
-**Solución:** clave privada RSA solo en el Auth Service (firma). Clave pública en cada microservicio (verificación). Comprometer un microservicio no expone la capacidad de emitir tokens.
+**Solución:** la clave ECDSA P-256 vive en OpenBao transit y no se exporta; `auth-service` pide cada firma y los servicios verifican con el JWKS (sección 2).
 
 ### 8.2 Refresh Token Hasheado en Base de Datos
 

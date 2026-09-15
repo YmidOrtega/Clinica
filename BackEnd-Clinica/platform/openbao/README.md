@@ -40,6 +40,10 @@ el código ni en la configuración de los contenedores.
 | `auth/db/migrator`, `app`       |                   |                            | lectura       |
 | `auth/db/debezium`              |                   |                            | lectura       |
 | `auth/bootstrap`                |                   |                            |               |
+| `gateway/redis`                |                   |                            | lectura       |
+
+`api-gateway` tiene su propio AppRole: lee `gateway/redis` y firma sus aserciones `private_key_jwt` con
+`transit/api-gateway-client`.
 
 `auth-service` tiene su propio AppRole: lee `auth/db/migrator`, `auth/db/app` y `auth/bootstrap`, firma con
 `transit/auth-jwt`, lee la clave pública de `transit/api-gateway-client` y administra el segundo factor del

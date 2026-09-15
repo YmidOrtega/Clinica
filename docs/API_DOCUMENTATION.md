@@ -8,11 +8,29 @@
 
 ## Convenciones
 
-- Todos los endpoints requieren `Authorization: Bearer <token>` salvo los de autenticación.
+- El navegador llama siempre a `api-gateway` con `credentials: 'include'`: la sesión es una cookie del
+  gateway, que agrega el access token hacia cada servicio (`BackEnd-Clinica/api-gateway/docs/bff.md`).
+  Los servicios, detrás del gateway, exigen `Authorization: Bearer <token>`.
+- Toda escritura desde el navegador lleva el token CSRF de `GET /bff/session`.
 - Las respuestas exitosas devuelven `2xx`; los errores siguen el formato estándar de Spring.
 - Los UUIDs se expresan como strings en formato `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 - Los timestamps usan ISO 8601: `2025-05-19T14:30:00`.
 - Soft delete: los registros eliminados tienen `deletedAt` no nulo y no aparecen en listados normales.
+
+---
+
+## 0. Gateway BFF — `/bff`
+
+| Método y ruta | Uso |
+|---|---|
+| `GET /bff/session` | ¿Hay sesión?, usuario (`uuid`, `email`, `name`, `role`, `authenticatedAt`, `methods`) y token CSRF |
+| `GET /bff/login?returnTo=` | Navegación: inicia el login en `auth-service` y vuelve a `returnTo` (solo orígenes del frontend) |
+| `GET /bff/step-up?returnTo=` | Navegación: igual, pidiendo segundo factor de hace 5 minutos o menos |
+| `POST /bff/logout` | Revoca el refresh token y devuelve `{ endSessionUrl }` para cerrar también la sesión de auth |
+
+Errores comunes a toda la API a través del gateway: `401 UNAUTHENTICATED` o `SESSION_EXPIRED` (ir a
+login), `401 STEP_UP_REQUIRED` (ir a step-up), `403 CSRF_TOKEN_INVALID`, `429 TOO_MANY_REQUESTS` con
+`Retry-After`, `503 AUTH_UNAVAILABLE` y `503 SERVICE_UNAVAILABLE`.
 
 ---
 
