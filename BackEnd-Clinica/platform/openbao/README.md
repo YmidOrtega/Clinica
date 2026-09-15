@@ -38,6 +38,7 @@ el código ni en la configuración de los contenedores.
 | `clinical/retired-seal-keys`    |                   | lectura                    |               |
 | `auth/db/root`                  |                   |                            | lectura       |
 | `auth/db/migrator`, `app`       |                   |                            | lectura       |
+| `auth/db/debezium`              |                   |                            | lectura       |
 | `auth/bootstrap`                |                   |                            |               |
 
 `auth-service` tiene su propio AppRole: lee `auth/db/migrator`, `auth/db/app` y `auth/bootstrap`, firma con
