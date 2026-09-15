@@ -38,13 +38,17 @@ el código ni en la configuración de los contenedores.
 | `clinical/retired-seal-keys`    |                   | lectura                    |               |
 | `auth/db/root`                  |                   |                            | lectura       |
 | `auth/db/migrator`, `app`       |                   |                            | lectura       |
+| `auth/bootstrap`                |                   |                            |               |
 
-`auth-service` tiene su propio AppRole y solo lee `auth/db/migrator` y `auth/db/app`.
+`auth-service` tiene su propio AppRole: lee `auth/db/migrator`, `auth/db/app` y `auth/bootstrap`, firma con
+`transit/auth-jwt` y lee la clave pública de `transit/api-gateway-client`.
 
-| Clave transit (`transit/`) | Tipo           | `clinical-history-service`                        |
+| Clave transit (`transit/`) | Tipo           | Uso                                               |
 | -------------------------- | -------------- | ------------------------------------------------- |
-| `clinical-kek`             | `aes256-gcm96` | cifrar, descifrar y leer versiones                |
-| `clinical-seal`            | `ecdsa-p256`   | firmar y leer versiones y claves públicas         |
+| `clinical-kek`             | `aes256-gcm96` | `clinical-history-service` cifra, descifra y lee versiones |
+| `clinical-seal`            | `ecdsa-p256`   | `clinical-history-service` firma y lee versiones y claves públicas |
+| `auth-jwt`                 | `ecdsa-p256`   | `auth-service` firma los tokens ES256; rota cada 30 días |
+| `api-gateway-client`       | `ecdsa-p256`   | el gateway firma sus aserciones `private_key_jwt`; `auth-service` solo lee la pública |
 
 Las claves de transit se crean no exportables y ningún consumidor puede rotarlas ni borrarlas. Su uso
 y rotación están en `clinical-history-service/docs/claves-y-cifrado.md`.

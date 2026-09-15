@@ -33,115 +33,57 @@ Microservicio
 
 ---
 
-## 2. Autenticación — JWT RSA-256
+## 2. Autenticación — OAuth 2.1 / OIDC con tokens ES256
 
-### 2.1 Arquitectura Asimétrica
+`auth-service` es un servidor de autorización (Spring Authorization Server 1.5). Contrato de la API de
+login en `BackEnd-Clinica/auth-service/docs/flujo-de-login.md`.
 
-```
-Auth Service                    Microservicios
-     │                               │
-     │  Tiene:                       │  Tienen:
-     │  ┌─────────────────┐          │  ┌─────────────────┐
-     │  │ Clave privada   │          │  │ Clave pública   │
-     │  │ (firma tokens)  │          │  │ (verifica firma)│
-     │  └─────────────────┘          │  └─────────────────┘
-     │                               │
-     │  JWT firmado                  │
-     │ ──────────────────────────►   │
-     │                               │  ¿Firma válida? → permitir
-```
-
-**Ventaja de seguridad:** si un microservicio es comprometido, el atacante solo obtiene la clave pública — no puede emitir tokens nuevos. Solo el Auth Service puede firmar.
-
-### 2.2 Estructura del Token
+### 2.1 Firma sin clave privada en el servicio
 
 ```
-Header:
-{
-  "alg": "RS256",
-  "typ": "JWT"
-}
-
-Payload:
-{
-  "sub": "a1b2c3d4-...",          // userId (UUID)
-  "username": "dr.martinez",
-  "roles": ["ROLE_DOCTOR"],
-  "iat": 1716134400,              // issued at
-  "exp": 1716135300               // expires at (15 min)
-}
-
-Signature:
-  RSA-SHA256(base64(header) + "." + base64(payload), privateKey)
+auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p256, no exportable)
+     │◄──────── firma ES256 ──────────┘
+     │
+     └── /oauth2/jwks: claves públicas de la versión activa y la anterior (kid = auth-jwt-vN)
 ```
 
-### 2.3 Tiempos de Vida
+- La clave privada nunca sale de OpenBao: ni auth-service ni los demás servicios la tienen. Rota sola cada
+  30 días (`auto_rotate_period`) y el JWKS publica también la versión anterior mientras sus tokens viven.
+- La clave usada antes de este cambio (RS256) se había publicado en el historial del repositorio; no se
+  importó y ningún token firmado con ella es aceptado por `auth-service`.
 
-| Token         | Duración | Renovable |
-| ------------- | -------- | --------- |
-| Access token  | 15 min   | Sí, con refresh token |
-| Refresh token | 7 días   | No — requiere login nuevo al expirar |
+### 2.2 Authorization code con PKCE y cliente confidencial
 
-Los access tokens de corta vida limitan la ventana de exposición si un token es interceptado.
+- El navegador no recibe tokens. El gateway es el cliente OAuth (patrón BFF) y se autentica en
+  `/oauth2/token` con `private_key_jwt`: firma una aserción con su propia clave de transit
+  (`api-gateway-client`) y `auth-service` la verifica con la clave pública que lee de OpenBao.
+- PKCE es obligatorio y no hay pantalla de consentimiento (clientes propios).
+- El login lo hacen las pantallas del frontend contra una API JSON con sesión en Spring Session JDBC y
+  CSRF de sesión. Al autenticarse se cambia el identificador de sesión.
 
-### 2.4 Flujo de Autenticación
+### 2.3 Tokens y tiempos de vida
 
-```
-[1] Cliente → POST /api/v1/auth/login
-      {username, password}
+| Elemento | Duración | Notas |
+|---|---|---|
+| Access token (JWT ES256) | 5 min | `aud: clinica-api`, `role`, `email`, `name`, `auth_time`, `amr` |
+| Refresh token (opaco) | 12 h absolutas | Rota en cada uso |
+| Sesión de `auth-service` | 15 min sin actividad, 12 h absolutas | Cookie `HttpOnly`, `SameSite=Lax` |
+| Código de autorización | 1 min | Un solo uso |
 
-[2] Auth Service:
-      · Busca usuario por username
-      · Verifica BCrypt(password, hash_almacenado)
-      · Si OK: genera access token (RSA-256) + refresh token UUID
-      · Guarda refresh token en base de datos (hasheado)
-      · Registra evento en AuditLog
+### 2.4 Almacenamiento y revocación
 
-[3] Respuesta:
-      {accessToken, refreshToken, expiresIn: 900}
+- Códigos, access, refresh e id tokens se guardan **solo como SHA-256** en `auth_sessions`; un volcado
+  de la base no entrega credenciales utilizables.
+- **Familias de refresh:** cada refresh rotado queda registrado; si alguien reutiliza uno ya rotado
+  (señal de robo), se revoca la autorización completa con todos sus tokens.
+- **Máximo 5 sesiones vivas por usuario:** la sexta cierra la más antigua.
+- **`tokensNotBefore`:** suspender, desactivar, cambiar el rol, forzar cambio o resetear la contraseña lo
+  mueve; desde ese instante `auth-service` rechaza refrescar las sesiones anteriores. El reseteo borra
+  además todas las sesiones y autorizaciones del usuario.
 
-[4] Cliente guarda tokens (seguro, no en localStorage)
-
-[5] Requests subsecuentes:
-      Authorization: Bearer <accessToken>
-
-[6] Al expirar (401):
-      POST /api/v1/auth/refresh
-      {refreshToken} → nuevo accessToken
-```
-
-### 2.5 Logout y Revocación
-
-```
-POST /api/v1/auth/logout
-  Authorization: Bearer <accessToken>
-
-Auth Service:
-  · Marca el refresh token como REVOKED en base de datos
-  · Añade el access token a una blacklist en Redis:
-        SHA-256(token) → "revoked", con TTL = vida restante del token
-  · Registra evento de logout en AuditLog
-
-API Gateway, en cada request:
-  · Valida la firma RSA del token
-  · Consulta la blacklist antes de enrutar → si está, 401
-```
-
-Existe además `POST /api/v1/auth/logout-all` para cerrar todas las sesiones del usuario:
-revoca en lote todos sus refresh tokens y añade el access token actual a la blacklist.
-
-**Dos decisiones de diseño en la blacklist:**
-
-- **Se almacena el hash SHA-256 del token, nunca el token.** Un volcado de Redis no entrega
-  credenciales utilizables.
-- **El TTL es la vida restante del propio token.** Pasado ese punto el token expira por sí
-  mismo y la entrada sobra, así que Redis la elimina solo: la blacklist no crece sin límite
-  y no necesita proceso de limpieza.
-
-**Degradación si Redis no está disponible:** la comprobación de blacklist falla *en abierto*
-(ver §5.5). La firma del token se sigue validando siempre, así que no se aceptan tokens
-falsos; lo que se pierde es la revocación anticipada durante la caída, con una exposición
-acotada a la vida del access token (15 min).
+> Estado en la rama `refactor/auth-service`: patient y clinical todavía validan tokens RS256 con una
+> clave pública fija; pasan al JWKS ES256, a exigir `aud` y a la revocación por eventos cuando se migre
+> `clinica-commons-security`.
 
 ---
 
