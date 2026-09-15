@@ -118,6 +118,21 @@ public class User {
         return user;
     }
 
+    public static User bootstrapSuperAdmin(EmailAddress email, FullName fullName, Clock clock) {
+        DomainRules.required(email, "email");
+        DomainRules.required(fullName, "fullName");
+        Instant now = now(clock);
+        User user = new User();
+        user.uuid = UUID.randomUUID();
+        user.email = email;
+        user.fullName = fullName;
+        user.role = Role.SUPER_ADMIN;
+        user.applyStatus(new UserStatus.PendingActivation(), now);
+        user.applyCredential(new CredentialState.NotSet(), null);
+        user.tokensNotBefore = now;
+        return user;
+    }
+
     public void activate(PasswordHash hash, Clock clock) {
         DomainRules.required(hash, "passwordHash");
         Instant now = now(clock);

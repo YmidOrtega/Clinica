@@ -54,4 +54,9 @@ class JpaUsers implements Users {
     public long countActiveWithRole(Role role) {
         return repository.countByRoleAndStatus(role, UserStatus.Code.ACTIVE);
     }
+
+    @Override
+    public boolean anyNotDeactivatedWithRole(Role role) {
+        return repository.existsByRoleAndStatusNot(role, UserStatus.Code.DEACTIVATED);
+    }
 }
