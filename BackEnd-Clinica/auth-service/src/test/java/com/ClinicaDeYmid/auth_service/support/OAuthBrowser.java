@@ -125,10 +125,14 @@ public final class OAuthBrowser {
     }
 
     public Response token(Map<String, String> grant) {
+        return tokenAs(AuthTestSupport.CLIENT_ID, AuthTestSupport.CLIENT_ASSERTION_KEY, grant);
+    }
+
+    public Response tokenAs(String clientId, String assertionKey, Map<String, String> grant) {
         Map<String, String> parameters = new LinkedHashMap<>(grant);
-        parameters.put("client_id", AuthTestSupport.CLIENT_ID);
+        parameters.put("client_id", clientId);
         parameters.putIfAbsent("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
-        parameters.putIfAbsent("client_assertion", clientAssertion());
+        parameters.putIfAbsent("client_assertion", clientAssertion(clientId, assertionKey));
         return send(HttpRequest.newBuilder(URI.create(baseUrl + "/oauth2/token"))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(form(parameters)))
@@ -136,13 +140,17 @@ public final class OAuthBrowser {
     }
 
     public static String clientAssertion() {
+        return clientAssertion(AuthTestSupport.CLIENT_ID, AuthTestSupport.CLIENT_ASSERTION_KEY);
+    }
+
+    public static String clientAssertion(String clientId, String assertionKey) {
         TransitClient transit = new TransitClient(OpenBaoTestContainer.template(), "transit");
-        KeyVersion version = transit.key(AuthTestSupport.CLIENT_ASSERTION_KEY).latest();
+        KeyVersion version = transit.key(assertionKey).latest();
         long now = Instant.now().getEpochSecond();
         String header = BASE64URL.encodeToString(write(Map.of("alg", "ES256", "typ", "JWT")).getBytes(StandardCharsets.UTF_8));
         String payload = BASE64URL.encodeToString(write(Map.of(
-                "iss", AuthTestSupport.CLIENT_ID,
-                "sub", AuthTestSupport.CLIENT_ID,
+                "iss", clientId,
+                "sub", clientId,
                 "aud", AuthTestSupport.ISSUER,
                 "iat", now,
                 "exp", now + 60,

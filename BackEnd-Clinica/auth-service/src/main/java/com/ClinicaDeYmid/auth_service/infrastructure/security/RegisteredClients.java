@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.server.authorization.settings.TokenSe
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 final class RegisteredClients {
@@ -27,6 +28,11 @@ final class RegisteredClients {
         return new InMemoryRegisteredClientRepository(clients);
     }
 
+    static Map<String, Set<String>> exchangeAudiences(AuthorizationServerProperties properties) {
+        return properties.clients().entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> Set.copyOf(entry.getValue().exchangeAudiences())));
+    }
+
     static Map<String, String> assertionKeys(AuthorizationServerProperties properties) {
         return properties.clients().entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().assertionKey()));
     }
@@ -39,16 +45,16 @@ final class RegisteredClients {
                 .clientId(clientId)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
                 .authorizationGrantTypes(grants -> client.grantTypes().forEach(grant -> grants.add(new AuthorizationGrantType(grant))))
-                .redirectUris(uris -> uris.addAll(client.redirectUris() == null ? List.of() : client.redirectUris()))
+                .redirectUris(uris -> uris.addAll(client.redirectUris()))
                 .postLogoutRedirectUris(uris -> uris.addAll(client.postLogoutRedirectUris()))
-                .scopes(scopes -> scopes.addAll(client.scopes() == null ? List.of() : client.scopes()))
+                .scopes(scopes -> scopes.addAll(client.scopes()))
                 .clientSettings(ClientSettings.builder()
-                        .requireProofKey(true)
+                        .requireProofKey(client.grantTypes().contains(AuthorizationGrantType.AUTHORIZATION_CODE.getValue()))
                         .requireAuthorizationConsent(false)
                         .tokenEndpointAuthenticationSigningAlgorithm(SignatureAlgorithm.ES256)
                         .build())
                 .tokenSettings(TokenSettings.builder()
-                        .accessTokenTimeToLive(tokens.accessTokenTtl())
+                        .accessTokenTimeToLive(client.accessTokenTtl() == null ? tokens.accessTokenTtl() : client.accessTokenTtl())
                         .refreshTokenTimeToLive(tokens.refreshTokenTtl())
                         .authorizationCodeTimeToLive(tokens.authorizationCodeTtl())
                         .reuseRefreshTokens(false)

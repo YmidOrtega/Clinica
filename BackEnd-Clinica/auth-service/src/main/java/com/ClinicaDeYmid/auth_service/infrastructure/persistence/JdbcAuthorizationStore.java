@@ -24,9 +24,12 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2TokenExchangeActor;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2TokenExchangeCompositeAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.jackson2.OAuth2AuthorizationServerJackson2Module;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenClaimNames;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.util.StringUtils;
@@ -57,6 +60,8 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Sessi
     private static final String STATE = OAuth2ParameterNames.STATE;
     private static final String ACCESS_TOKEN_SCOPES = "clinica.access_token.scopes";
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
+    };
+    private static final TypeReference<List<Map<String, Object>>> STORED_ACTORS = new TypeReference<>() {
     };
 
     private final JdbcTemplate jdbc;
@@ -90,15 +95,16 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Sessi
             Object[] values = {authorization.getRegisteredClientId(), authorization.getPrincipalName(),
                     authorization.getAuthorizationGrantType().getValue(),
                     StringUtils.collectionToCommaDelimitedString(authorization.getAuthorizedScopes()), principal(authorization),
-                    attributes(authorization), state == null ? null : TokenHashes.of(state), Timestamp.from(now), authorization.getId()};
+                    actors(authorization), attributes(authorization), state == null ? null : TokenHashes.of(state), Timestamp.from(now),
+                    authorization.getId()};
             if (exists) {
                 jdbc.update("""
                         UPDATE auth_sessions.authorizations SET registered_client_id = ?, principal_name = ?, grant_type = ?,
-                            authorized_scopes = ?, principal = ?, attributes = ?, state_hash = ?, updated_at = ? WHERE id = ?""", values);
+                            authorized_scopes = ?, principal = ?, actors = ?, attributes = ?, state_hash = ?, updated_at = ? WHERE id = ?""", values);
             } else {
                 jdbc.update("""
                         INSERT INTO auth_sessions.authorizations (registered_client_id, principal_name, grant_type, authorized_scopes,
-                            principal, attributes, state_hash, updated_at, id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            principal, actors, attributes, state_hash, updated_at, id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         append(values, Timestamp.from(now)));
             }
             replaceTokens(authorization, now);
@@ -225,7 +231,12 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Sessi
         }
         String principal = row.getString("principal");
         if (principal != null) {
-            builder.attribute(Principal.class.getName(), new StaffAuthentication(read(principalJson, principal, StaffPrincipal.class)));
+            StaffAuthentication staff = new StaffAuthentication(read(principalJson, principal, StaffPrincipal.class));
+            String actors = row.getString("actors");
+            builder.attribute(Principal.class.getName(), actors == null
+                    ? staff
+                    : new OAuth2TokenExchangeCompositeAuthenticationToken(staff, read(principalJson, actors, STORED_ACTORS).stream()
+                    .map(OAuth2TokenExchangeActor::new).toList()));
         }
         String stateHash = row.getString("state_hash");
         if (stateHash != null) {
@@ -242,8 +253,21 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Sessi
     }
 
     private String principal(OAuth2Authorization authorization) {
-        Object principal = authorization.getAttribute(Principal.class.getName());
-        return principal instanceof StaffAuthentication staff ? write(principalJson, staff.getPrincipal()) : null;
+        return switch (authorization.<Object>getAttribute(Principal.class.getName())) {
+            case StaffAuthentication staff -> write(principalJson, staff.getPrincipal());
+            case OAuth2TokenExchangeCompositeAuthenticationToken composite when composite.getSubject() instanceof StaffAuthentication staff ->
+                    write(principalJson, staff.getPrincipal());
+            case null, default -> null;
+        };
+    }
+
+    private String actors(OAuth2Authorization authorization) {
+        if (!(authorization.<Object>getAttribute(Principal.class.getName()) instanceof OAuth2TokenExchangeCompositeAuthenticationToken composite)) {
+            return null;
+        }
+        return write(principalJson, composite.getActors().stream()
+                .map(actor -> Map.<String, Object>of(OAuth2TokenClaimNames.ISS, actor.getIssuer(), OAuth2TokenClaimNames.SUB, actor.getSubject()))
+                .toList());
     }
 
     private String attributes(OAuth2Authorization authorization) {
@@ -280,6 +304,14 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Sessi
             return json == null ? Map.of() : mapper.readValue(json, MAP);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Could not read a stored authorization", ex);
+        }
+    }
+
+    private static <T> T read(ObjectMapper mapper, String json, TypeReference<T> type) {
+        try {
+            return mapper.readValue(json, type);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Could not read a stored principal", ex);
         }
     }
 
