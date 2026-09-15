@@ -5,3 +5,11 @@ path "secret/data/patient/db/migrator" {
 path "secret/data/patient/db/app" {
   capabilities = ["read"]
 }
+
+path "transit/keys/patient-service-client" {
+  capabilities = ["read"]
+}
+
+path "transit/sign/patient-service-client" {
+  capabilities = ["update"]
+}

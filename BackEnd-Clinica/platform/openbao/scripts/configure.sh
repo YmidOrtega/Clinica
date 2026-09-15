@@ -84,6 +84,8 @@ transit_key clinical-seal ecdsa-p256
 transit_key auth-jwt ecdsa-p256
 bao write "transit/keys/auth-jwt/config" auto_rotate_period=720h > /dev/null
 transit_key api-gateway-client ecdsa-p256
+transit_key patient-service-client ecdsa-p256
+transit_key clinical-history-service-client ecdsa-p256
 
 if ! bao auth list -format=json | jq -e 'has("approle/")' > /dev/null; then
   bao auth enable approle

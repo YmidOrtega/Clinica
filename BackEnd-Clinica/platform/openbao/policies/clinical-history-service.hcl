@@ -37,3 +37,11 @@ path "transit/keys/clinical-seal" {
 path "transit/sign/clinical-seal" {
   capabilities = ["update"]
 }
+
+path "transit/keys/clinical-history-service-client" {
+  capabilities = ["read"]
+}
+
+path "transit/sign/clinical-history-service-client" {
+  capabilities = ["update"]
+}
