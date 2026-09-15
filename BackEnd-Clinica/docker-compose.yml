@@ -875,7 +875,7 @@ services:
       depends_on:
          openbao-agent:
             condition: service_healthy
-      command: [ "sh", "-c", "exec redis-server --requirepass \"$$(cat /run/secrets/gateway-redis/password)\" --appendonly no --maxmemory 256mb --maxmemory-policy volatile-lru" ]
+      command: [ "sh", "-c", "password=$$(cat /run/secrets/gateway-redis/password) && [ -n \"$$password\" ] && exec redis-server --requirepass \"$$password\" --appendonly no --maxmemory 256mb --maxmemory-policy volatile-lru" ]
       volumes:
          - gateway_redis_secrets:/run/secrets/gateway-redis:ro
       networks:

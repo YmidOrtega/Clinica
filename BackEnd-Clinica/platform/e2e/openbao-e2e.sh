@@ -154,6 +154,12 @@ for secret in $secrets; do
   fi
 done
 ok "docker inspect no expone contraseñas ni claves"
+if docker ps --format '{{.Names}}' | grep -qx gateway-redis; then
+  docker exec gateway-redis redis-cli ping 2>&1 | grep -q NOAUTH || fail "gateway-redis acepta comandos sin contraseña"
+  [ "$(docker exec gateway-redis sh -c 'REDISCLI_AUTH="$(cat /run/secrets/gateway-redis/password)" redis-cli ping')" = "PONG" ] \
+    || fail "gateway-redis no acepta la contraseña renderizada por el agente"
+  ok "gateway-redis exige la contraseña que renderiza el agente"
+fi
 
 step "Conmutación: cae el nodo activo"
 leader=$(active_node)
