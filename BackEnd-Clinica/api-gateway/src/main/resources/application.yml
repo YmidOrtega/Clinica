@@ -1,200 +1,116 @@
 server:
-   port: 8080
+  port: ${GATEWAY_PORT:8080}
+  shutdown: graceful
+  servlet:
+    session:
+      timeout: 15m
+      cookie:
+        name: CLINICA_SESSION
+        http-only: true
+        same-site: ${GATEWAY_SESSION_SAME_SITE:lax}
+        secure: ${GATEWAY_SESSION_COOKIE_SECURE:false}
+  error:
+    include-message: never
+    include-stacktrace: never
 
 spring:
-   application:
-      name: api-gateway
-   flyway:
+  application:
+    name: api-gateway
+  config:
+    import: optional:configtree:/run/secrets/openbao/
+  threads:
+    virtual:
       enabled: true
-      locations: classpath:db/migration/api
+  data:
+    redis:
+      host: ${GATEWAY_REDIS_HOST:localhost}
+      port: ${GATEWAY_REDIS_PORT:6379}
+      password: ${GATEWAY_REDIS_PASSWORD:}
+      timeout: 1s
+      connect-timeout: 1s
+  session:
+    timeout: 15m
+    redis:
+      namespace: clinica:gateway:session
+      flush-mode: on-save
+  cloud:
+    vault:
+      enabled: false
+    gateway:
+      server:
+        webmvc:
+          trusted-proxies: ${GATEWAY_TRUSTED_PROXIES:.*}
+  http:
+    client:
+      connect-timeout: 2s
+      read-timeout: 30s
 
-   # Configuración de Base de Datos para Request Logging
-   datasource:
-      url: jdbc:postgresql://localhost:3314/${GATEWAY_DB_NAME}
-      username: ${GATEWAY_DB_USER}
-      password: ${GATEWAY_DB_PASSWORD}
-      driver-class-name: org.postgresql.Driver
-
-   jpa:
-      hibernate:
-         ddl-auto: update
-      show-sql: false
-      properties:
-         hibernate:
-            dialect: org.hibernate.dialect.PostgreSQLDialect
-            format_sql: true
-
-   # Configuración de Redis para Rate Limiting
-   data:
-      redis:
-         host: ${REDIS_HOST:localhost}
-         port: ${REDIS_PORT:6379}
-         password: ${REDIS_PASSWORD:}
-         timeout: 2000ms
-         lettuce:
-            pool:
-               max-active: 8
-               max-idle: 8
-               min-idle: 0
+clinica:
+  openbao:
+    transit:
+      mount: ${GATEWAY_TRANSIT_MOUNT:transit}
+      key-refresh-interval: 5m
+  gateway:
+    frontend:
+      origins: ${GATEWAY_FRONTEND_ORIGINS:http://localhost:4321}
+      home-url: ${GATEWAY_FRONTEND_HOME_URL:http://localhost:4321/}
+    session:
+      absolute-lifetime: 12h
+    auth:
+      public-url: ${AUTH_PUBLIC_URL:http://localhost:8080/auth}
+      internal-url: ${AUTH_INTERNAL_URL:http://localhost:8086}
+      client-id: api-gateway
+      assertion-key: ${GATEWAY_CLIENT_TRANSIT_KEY:api-gateway-client}
+      step-up-max-age: 5m
+      refresh-before-expiry: 30s
+    rate-limit:
+      per-address: 1000
+      per-user: 300
+      window: 1m
+    routes:
+      auth-service: ${GATEWAY_AUTH_SERVICE_URI:lb://auth-service}
+      patient-service: ${GATEWAY_PATIENT_SERVICE_URI:lb://patient-service}
+      clinical-history-service: ${GATEWAY_CLINICAL_SERVICE_URI:lb://clinical-history-service}
 
 eureka:
-   client:
-      service-url:
-         defaultZone: http://localhost:8761/eureka/
-   instance:
-      instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-      prefer-ip-address: true
-      lease-renewal-interval-in-seconds: 5
-      lease-expiration-duration-in-seconds: 10
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
 
-# Configuración de Resilience4j - Circuit Breaker y Retry
-resilience4j:
-   circuitbreaker:
-      configs:
-         default:
-            slidingWindowSize: 10
-            minimumNumberOfCalls: 3
-            failureRateThreshold: 50
-            waitDurationInOpenState: 30s
-            permittedNumberOfCallsInHalfOpenState: 3
-            automaticTransitionFromOpenToHalfOpenEnabled: true
-            slowCallRateThreshold: 50
-            slowCallDurationThreshold: 3s
-      instances:
-         auth-service:
-            baseConfig: default
-            failureRateThreshold: 60
-            waitDurationInOpenState: 45s
-            minimumNumberOfCalls: 5
-         patient-service:
-            baseConfig: default
-         billing-service:
-            baseConfig: default
-         ai-assistant-service:
-            baseConfig: default
-            slowCallDurationThreshold: 10s
-            waitDurationInOpenState: 60s
-
-   retry:
-      configs:
-         default:
-            maxAttempts: 3
-            waitDuration: 1s
-            retryExceptions:
-               - org.springframework.web.reactive.function.client.WebClientRequestException
-               - java.net.ConnectException
-               - java.io.IOException
-            # Backoff exponencial
-            enableExponentialBackoff: true
-            exponentialBackoffMultiplier: 2
-      instances:
-         public-key-retry:
-            maxAttempts: 5
-            waitDuration: 2s
-            enableExponentialBackoff: true
-            exponentialBackoffMultiplier: 2
-            retryExceptions:
-               - org.springframework.web.reactive.function.client.WebClientRequestException
-         service-call-retry:
-            maxAttempts: 3
-            waitDuration: 1s
-            enableExponentialBackoff: true
-            exponentialBackoffMultiplier: 2
-
-   timelimiter:
-      configs:
-         default:
-            timeoutDuration: 5s
-      instances:
-         auth-service:
-            timeoutDuration: 8s
-         ai-assistant-service:
-            timeoutDuration: 60s
-
-# Configuración de CORS
-cors:
-   allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:4321,http://localhost:4200}
-   allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
-   max-age: 3600
-
-# Configuración de Actuator y Métricas
 management:
-   endpoints:
-      web:
-         exposure:
-            include: health,info,metrics,prometheus,circuitbreakers,circuitbreakerevents
-   endpoint:
-      health:
-         show-details: always
-   prometheus:
-      metrics:
-         export:
-            enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
 
-# Configuración de Swagger/OpenAPI
-springdoc:
-   api-docs:
-      path: /api-docs
+---
+spring:
+  config:
+    activate:
+      on-profile: openbao
+    import:
+      - vault://secret/gateway/redis?prefix=gateway.redis.
+  cloud:
+    vault:
       enabled: true
-   swagger-ui:
-      path: /swagger-ui.html
-      enabled: true
-      try-it-out-enabled: true
-      operations-sorter: method
-      tags-sorter: alpha
-      filter: true
-      doc-expansion: none
-      urls:
-         - name: "API Gateway"
-           url: "/api-docs"
-         - name: "Auth Service"
-           url: "/v3/api-docs/auth-service"
-         - name: "Patient Service"
-           url: "/v3/api-docs/patient-service"
-         - name: "Billing Service"
-           url: "/v3/api-docs/billing-service"
-         - name: "Admissions Service"
-           url: "/v3/api-docs/admissions-service"
-         - name: "AI Assistant Service"
-           url: "/v3/api-docs/ai-assistant-service"
-         - name: "Suppliers Service"
-           url: "/v3/api-docs/suppliers-service"
-         - name: "Clients Service"
-           url: "/v3/api-docs/clients-service"
-   show-actuator: true
-   cache:
-      disabled: false
-   group-configs:
-      - group: auth-service
-        display-name: "Auth Service"
-        paths-to-match: /api/v1/auth/**
-      - group: patient-service
-        display-name: "Patient Service"
-        paths-to-match: /api/v1/patients/**
-      - group: billing-service
-        display-name: "Billing Service"
-        paths-to-match: /api/v1/billing/**
-      - group: admissions-service
-        display-name: "Admissions Service"
-        paths-to-match: /api/v1/attentions/**
-      - group: ai-assistant-service
-        display-name: "AI Assistant Service"
-        paths-to-match: /api/v1/ai-assistant/**
-      - group: suppliers-service
-        display-name: "Suppliers Service"
-        paths-to-match: /api/v1/suppliers/**
-      - group: clients-service
-        display-name: "Clients Service"
-        paths-to-match: /api/v1/billing-service/health-providers/**
-
-# Para personalizar la documentación
-api:
-   version: 1.0.0
-   name: API-GATEWAY
-   description: Microservicio para la gestión de peticiones a otros microservicios del sistema de clínica médica
-   contact:
-      name: Development Team
-      email: dev@example.com
-   license:
-      name: Apache 2.0
-      url: https://www.apache.org/licenses/LICENSE-2.0.html
+      uri: ${OPENBAO_ADDR:https://openbao:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${approle.role-id}
+        secret-id: ${approle.secret-id}
+      ssl:
+        trust-store: file:/run/secrets/openbao-tls/ca.crt
+        trust-store-type: PEM
+  data:
+    redis:
+      password: ${gateway.redis.password}
