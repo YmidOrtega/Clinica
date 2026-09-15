@@ -62,3 +62,6 @@ autocommit.md
 REPASO-ENTREVISTA.md
 
 .secrets/
+
+# Personal sintético de la prueba de carga de auth: incluye secretos TOTP
+BackEnd-Clinica/auth-service/load-test/staff.csv
