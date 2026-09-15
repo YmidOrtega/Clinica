@@ -1,6 +1,6 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.transit;
+package com.ClinicaDeYmid.commons.openbao.transit;
 
-import com.ClinicaDeYmid.clinical_history_service.support.OpenBaoTestContainer;
+import com.ClinicaDeYmid.commons.openbao.testing.OpenBaoTestContainer;
 import org.junit.jupiter.api.Test;
 import org.springframework.vault.authentication.TokenAuthentication;
 import org.springframework.vault.client.VaultEndpoint;
@@ -8,6 +8,11 @@ import org.springframework.vault.core.VaultTemplate;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,6 +39,28 @@ class TransitClientIT {
     }
 
     @Test
+    void signsInDerOrJwsFormatWithAChosenKeyVersion() throws Exception {
+        String key = OpenBaoTestContainer.createKey("signer", "ecdsa-p256");
+        OpenBaoTestContainer.rotate(key);
+        TransitKey described = transit.key(key);
+        PublicKey v1 = publicKey(described.publicKeysPem().get(1));
+        byte[] input = "clinica".getBytes(StandardCharsets.US_ASCII);
+
+        byte[] der = transit.sign(new KeyVersion(key, 1), input, SignatureFormat.DER);
+        byte[] jws = transit.sign(new KeyVersion(key, 1), input, SignatureFormat.JWS);
+
+        Signature derVerifier = Signature.getInstance("SHA256withECDSA");
+        derVerifier.initVerify(v1);
+        derVerifier.update(input);
+        Signature jwsVerifier = Signature.getInstance("SHA256withECDSAinP1363Format");
+        jwsVerifier.initVerify(v1);
+        jwsVerifier.update(input);
+        assertThat(derVerifier.verify(der)).isTrue();
+        assertThat(jws).hasSize(64);
+        assertThat(jwsVerifier.verify(jws)).isTrue();
+    }
+
+    @Test
     void describesTheVersionsAndPublicKeysOfAKey() {
         String key = OpenBaoTestContainer.createKey("seal", "ecdsa-p256");
         OpenBaoTestContainer.rotate(key);
@@ -51,15 +78,20 @@ class TransitClientIT {
         TransitClient unreachable = new TransitClient(new VaultTemplate(VaultEndpoint.from(URI.create("http://127.0.0.1:1")),
                 new TokenAuthentication("root")), "transit");
 
-        assertThatThrownBy(() -> unreachable.key("clinical-kek")).isInstanceOf(ClinicalKeysUnavailableException.class);
-        assertThatThrownBy(() -> transit.key("does-not-exist")).isInstanceOf(ClinicalKeysUnavailableException.class);
+        assertThatThrownBy(() -> unreachable.key("any-key")).isInstanceOf(OpenBaoUnavailableException.class);
+        assertThatThrownBy(() -> transit.key("does-not-exist")).isInstanceOf(OpenBaoUnavailableException.class);
+    }
+
+    private static PublicKey publicKey(String pem) throws Exception {
+        byte[] der = Base64.getMimeDecoder().decode(pem.replaceAll("-----(BEGIN|END) PUBLIC KEY-----", ""));
+        return KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(der));
     }
 
     @Test
     void parsesOnlyVersionedTransitKeyIds() {
-        assertThat(KeyVersion.parse("clinical-seal-v12")).contains(new KeyVersion("clinical-seal", 12));
+        assertThat(KeyVersion.parse("auth-jwt-v12")).contains(new KeyVersion("auth-jwt", 12));
         assertThat(KeyVersion.parse("seal-dev")).isEmpty();
-        assertThat(KeyVersion.parse("clinical-seal-v0")).isEmpty();
+        assertThat(KeyVersion.parse("auth-jwt-v0")).isEmpty();
         assertThat(KeyVersion.parse("../x-v1")).isEmpty();
     }
 }

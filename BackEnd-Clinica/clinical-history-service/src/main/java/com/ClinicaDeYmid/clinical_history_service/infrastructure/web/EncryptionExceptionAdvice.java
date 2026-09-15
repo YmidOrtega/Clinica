@@ -1,7 +1,7 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.web;
 
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.EncryptedContentUnreadableException;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.ClinicalKeysUnavailableException;
+import com.ClinicaDeYmid.commons.openbao.transit.OpenBaoUnavailableException;
 import com.ClinicaDeYmid.commons.web.ProblemDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +26,8 @@ class EncryptionExceptionAdvice {
                 "El contenido clínico no se puede leer; el incidente quedó registrado para el equipo de seguridad"));
     }
 
-    @ExceptionHandler(ClinicalKeysUnavailableException.class)
-    ResponseEntity<ProblemDetail> keysUnavailable(ClinicalKeysUnavailableException ex) {
+    @ExceptionHandler(OpenBaoUnavailableException.class)
+    ResponseEntity<ProblemDetail> keysUnavailable(OpenBaoUnavailableException ex) {
         log.error("Clinical keys are unavailable: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ProblemDetails.of(HttpStatus.SERVICE_UNAVAILABLE,
                 "CLINICAL_KEYS_UNAVAILABLE", "Las claves clínicas no están disponibles en este momento; intente de nuevo en unos minutos"));

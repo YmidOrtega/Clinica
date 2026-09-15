@@ -2,27 +2,27 @@ package com.ClinicaDeYmid.clinical_history_service;
 
 import com.ClinicaDeYmid.clinical_history_service.application.encounter.EncounterCommands;
 import com.ClinicaDeYmid.clinical_history_service.application.integrity.IntegrityQueries;
+import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.ClinicalRole;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterType;
-import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.attachment.AttachmentMaintenance;
-import com.ClinicaDeYmid.clinical_history_service.domain.terminology.TerminologyRelease;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.terminology.Cie10Importer;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
+import com.ClinicaDeYmid.clinical_history_service.domain.terminology.TerminologyRelease;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.attachment.AttachmentMaintenance;
+import com.ClinicaDeYmid.clinical_history_service.infrastructure.terminology.Cie10Importer;
 import com.ClinicaDeYmid.clinical_history_service.support.AccessAuditContract;
 import com.ClinicaDeYmid.clinical_history_service.support.Cie10WorkbookFixture;
-import com.ClinicaDeYmid.clinical_history_service.support.MinioTestContainer;
-import com.ClinicaDeYmid.clinical_history_service.support.OpenBaoTestContainer;
-import com.ClinicaDeYmid.clinical_history_service.support.SampleFiles;
 import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTestProperties;
+import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTransitKeys;
+import com.ClinicaDeYmid.clinical_history_service.support.MinioTestContainer;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
+import com.ClinicaDeYmid.clinical_history_service.support.SampleFiles;
 import com.ClinicaDeYmid.clinical_history_service.support.TestJwt;
-import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.jayway.jsonpath.JsonPath;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -204,10 +204,10 @@ class ClinicalRecordApiIT {
                 .andExpect(jsonPath("$.signer.uuid").value(nurse.uuid.toString()))
                 .andExpect(jsonPath("$.chain.sequence").value(2))
                 .andExpect(jsonPath("$.chain.seal.algorithm").value("SHA256withECDSA"))
-                .andExpect(jsonPath("$.chain.seal.keyId").value(OpenBaoTestContainer.SEAL_KEY_ID));
+                .andExpect(jsonPath("$.chain.seal.keyId").value(ClinicalTransitKeys.SEAL_KEY_ID));
         mockMvc.perform(get(BASE + "/seal-keys"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].keyId").value(OpenBaoTestContainer.SEAL_KEY_ID))
+                .andExpect(jsonPath("$[0].keyId").value(ClinicalTransitKeys.SEAL_KEY_ID))
                 .andExpect(jsonPath("$[0].active").value(true));
     }
 
@@ -604,7 +604,7 @@ class ClinicalRecordApiIT {
         new Staff("ADMIN").perform(post(BASE + "/admin/encryption/rewrap")).andExpect(status().isForbidden());
         new Staff("SUPER_ADMIN").perform(get(BASE + "/admin/encryption"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.activeMasterKeyId").value(OpenBaoTestContainer.ENCRYPTION_KEY_ID))
+                .andExpect(jsonPath("$.activeMasterKeyId").value(ClinicalTransitKeys.ENCRYPTION_KEY_ID))
                 .andExpect(jsonPath("$.pendingRewrap").value(0))
                 .andExpect(jsonPath("$.retiredKeysCanBeRemoved").value(true));
         new Staff("SUPER_ADMIN").perform(post(BASE + "/admin/encryption/rewrap"))

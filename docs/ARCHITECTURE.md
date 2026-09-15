@@ -179,6 +179,7 @@ nunca van en el JSON ni en variables de entorno. Cada conector MySQL necesita un
 | --------------------------- | ------------------------------------------------------------------------- |
 | `clinica-commons-web`       | `DomainException` + `ErrorCategory`, manejador RFC 9457 con `code` y `traceId`, sin datos de entrada en las respuestas |
 | `clinica-commons-security`  | Resource Server JWT RS256 (issuer y tipo `access`), roles, `CurrentUser`, propagación del token en Feign, `AuditorAware`, 401/403 en RFC 9457 |
+| `clinica-commons-openbao`   | Cliente del motor transit de OpenBao (cifrar, descifrar, firmar en DER o JWS, versiones y claves públicas) con autoconfiguración, y un `OpenBaoTestContainer` en su jar de pruebas |
 
 Son dependencias de compilación con versión fija (`1.0.0`), no servicios: una falla en una versión solo
 afecta a los servicios que la adopten.

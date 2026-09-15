@@ -109,6 +109,6 @@ Los entornos creados antes de transit tienen DEK envueltas con claves maestras e
 | Se perdió el keyring de MySQL | MySQL no abre los tablespaces | Restaurar el volumen del keyring del mismo respaldo que los datos |
 | Contenido alterado fuera de la aplicación | `UNREADABLE_ENTRY` o `PAYLOAD_MISMATCH` | Tratar como incidente de seguridad; los datos originales salen del respaldo |
 
-Las pruebas `TransitClientIT`, `TransitSealSignerIT`, `ContentEncryptionIT` (migración desde claves en
+Las pruebas `TransitClientIT` (en `libs/clinica-commons-openbao`), `TransitSealSignerIT`, `ContentEncryptionIT` (migración desde claves en
 archivos y rotación de transit), `SealKeyRingTest`, `EcdsaClinicalSignatureTest` e `InnoDbEncryptionIT`
 ejercitan el cifrado, la rotación y la migración contra un OpenBao real.

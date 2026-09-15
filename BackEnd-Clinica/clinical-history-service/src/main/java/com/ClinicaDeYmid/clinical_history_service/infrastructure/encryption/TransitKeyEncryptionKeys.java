@@ -1,8 +1,8 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption;
 
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.KeyVersion;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitKeys;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitRejectedException;
+import com.ClinicaDeYmid.commons.openbao.transit.KeyVersion;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitKeys;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitRejectedException;
 
 import java.util.Optional;
 import java.util.Set;

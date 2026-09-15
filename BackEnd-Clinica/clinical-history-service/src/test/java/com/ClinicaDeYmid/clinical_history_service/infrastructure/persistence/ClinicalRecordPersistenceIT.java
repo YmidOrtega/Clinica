@@ -17,12 +17,13 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.TriageLevel;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.config.ClockConfiguration;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.EncryptionConfiguration;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitConfiguration;
+import com.ClinicaDeYmid.clinical_history_service.support.ClinicalTransitKeys;
 import com.ClinicaDeYmid.clinical_history_service.support.MySqlTestContainer;
-import com.ClinicaDeYmid.clinical_history_service.support.OpenBaoTestContainer;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitAutoConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
@@ -47,8 +48,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@ImportAutoConfiguration(TransitAutoConfiguration.class)
 @Import({JdbcPatientReferences.class, JdbcEncounters.class, JdbcClinicalNotes.class, JdbcNoteDrafts.class, JdbcChainLinks.class,
-        JdbcLedgerEntries.class, JdbcPatientChart.class, ClockConfiguration.class, EncryptionConfiguration.class, TransitConfiguration.class, OpenBaoTestContainer.class, MySqlTestContainer.class})
+        JdbcLedgerEntries.class, JdbcPatientChart.class, ClockConfiguration.class, EncryptionConfiguration.class, ClinicalTransitKeys.class, MySqlTestContainer.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ClinicalRecordPersistenceIT {
 

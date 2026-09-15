@@ -59,6 +59,7 @@ jobs:
         run: |
           mvn -B install -f libs/clinica-commons-web/pom.xml
           mvn -B install -f libs/clinica-commons-security/pom.xml
+          mvn -B install -f libs/clinica-commons-openbao/pom.xml
 
       - name: Build ${{ matrix.service }}
         working-directory: BackEnd-Clinica/${{ matrix.service }}

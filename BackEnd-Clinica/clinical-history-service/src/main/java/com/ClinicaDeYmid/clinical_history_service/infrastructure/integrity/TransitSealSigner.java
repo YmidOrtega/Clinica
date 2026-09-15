@@ -1,8 +1,9 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
 
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.KeyVersion;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitKey;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitKeys;
+import com.ClinicaDeYmid.commons.openbao.transit.KeyVersion;
+import com.ClinicaDeYmid.commons.openbao.transit.SignatureFormat;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitKey;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitKeys;
 
 import java.security.PublicKey;
 import java.util.Map;
@@ -31,7 +32,7 @@ final class TransitSealSigner implements SealSigner {
     @Override
     public byte[] sign(String keyId, byte[] data) {
         KeyVersion version = KeyVersion.parse(keyId).orElseThrow(() -> new IllegalArgumentException("Not a transit key id: " + keyId));
-        return keys.client().sign(version, data);
+        return keys.client().sign(version, data, SignatureFormat.DER);
     }
 
     @Override

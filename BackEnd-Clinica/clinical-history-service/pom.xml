@@ -19,6 +19,7 @@
 		<java.version>21</java.version>
 		<clinica-commons-web.version>1.1.0</clinica-commons-web.version>
 		<clinica-commons-security.version>1.0.1</clinica-commons-security.version>
+		<clinica-commons-openbao.version>1.0.0</clinica-commons-openbao.version>
 		<wiremock.version>3.13.1</wiremock.version>
 		<archunit.version>1.4.1</archunit.version>
 		<json-schema-validator.version>1.5.9</json-schema-validator.version>
@@ -155,6 +156,12 @@
 		</dependency>
 
 		<dependency>
+			<groupId>com.ClinicaDeYmid</groupId>
+			<artifactId>clinica-commons-openbao</artifactId>
+			<version>${clinica-commons-openbao.version}</version>
+		</dependency>
+
+		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
 		</dependency>
@@ -210,6 +217,14 @@
 			<groupId>org.wiremock</groupId>
 			<artifactId>wiremock-standalone</artifactId>
 			<version>${wiremock.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.ClinicaDeYmid</groupId>
+			<artifactId>clinica-commons-openbao</artifactId>
+			<version>${clinica-commons-openbao.version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
