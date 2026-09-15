@@ -35,6 +35,66 @@ en [`BackEnd-Clinica/auth-service/docs/flujo-de-login.md`](../BackEnd-Clinica/au
 | `POST /api/v1/password-reset/requests` · `POST /api/v1/password-reset` | Solicita y aplica el reseteo |
 | `/oauth2/authorize`, `/oauth2/token`, `/oauth2/jwks`, `/.well-known/openid-configuration` | OAuth 2.1 / OIDC para el gateway |
 
+### 1.1 Usuarios — `/api/v1/users` y `/api/v1/me`
+
+Estas rutas se llaman con el **access token** (`Authorization: Bearer`) que el gateway reenvía, no con
+la cookie de sesión. En cada petición `auth-service` vuelve a leer al usuario: si fue suspendido,
+desactivado o sus sesiones se revocaron después de emitir el token, responde `401` aunque el token no
+haya vencido, y el rol que aplica es el actual, no el del token.
+
+**Convenciones:** usuarios por `uuid`; toda modificación exige `If-Match` con el `ETag` (`428` sin
+cabecera, `412` con versión vieja); errores RFC 9457 con `code`.
+
+**Step-up:** las operaciones marcadas exigen un segundo factor verificado hace 5 minutos o menos. Si no,
+responden:
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="insufficient_user_authentication", error_description="…", max_age=300
+Content-Type: application/problem+json
+
+{ "code": "STEP_UP_REQUIRED", "maxAge": 300, "detail": "Confirma tu segundo factor para continuar con esta operación" }
+```
+
+El gateway reinicia la autorización con `max_age=300`; `auth-service` pide el código TOTP y el token
+nuevo trae `auth_time` actualizado (ver `flujo-de-login.md`).
+
+| Método y ruta (`/api/v1/users`) | Uso | Step-up |
+|---|---|:---:|
+| `POST /` | Invita `{ email, fullName, role }` → `201` y correo de activación | ✓ |
+| `POST /search?page=0&size=20` | `{ text, role, status }` todos opcionales; `text` es prefijo de nombre o correo. Tamaño máximo 50 | |
+| `GET /{uuid}` | Usuario con estado, credencial, segundo factor y `locked` (bloqueado por 100 fallos) | |
+| `GET /{uuid}/history` | Revisiones (Envers) con quién y cuándo | |
+| `PUT /{uuid}/name` | `{ fullName }` | |
+| `PUT /{uuid}/role` | `{ role }`; cierra las sesiones del usuario | ✓ |
+| `POST /{uuid}/suspension` · `/deactivation` | `{ reason }` (10 a 500 caracteres); cierra sus sesiones | ✓ |
+| `POST /{uuid}/reactivation` | Sin cuerpo | ✓ |
+| `POST /{uuid}/password-change-requirement` | `{ reason }`: en el siguiente login debe cambiar la contraseña; cierra sus sesiones | |
+| `POST /{uuid}/second-factor-reset` | `{ reason }`: borra su TOTP de OpenBao, revoca sus códigos de recuperación y cierra sus sesiones | ✓ |
+| `POST /{uuid}/invitation` | Reenvía el correo de activación de un usuario pendiente → `202` | |
+| `POST /{uuid}/unlock` | Levanta el bloqueo por intentos fallidos | |
+
+Roles: `SUPER_ADMIN` administra a todos; `ADMIN` solo a los roles operativos (`403 USER_ROLE_NOT_MANAGEABLE`).
+Nadie se administra a sí mismo (`403 USER_SELF_MANAGEMENT`) y nunca puede quedar la clínica sin un
+`SUPER_ADMIN` activo (`422 LAST_SUPER_ADMIN`).
+
+```json
+{
+  "uuid": "57a7fc78-…", "version": 3, "email": "ana@clinica.local", "fullName": "Ana Rojas", "role": "DOCTOR",
+  "status": { "code": "SUSPENDED", "reason": "Revisión de accesos", "changedBy": "0b9e…", "changedAt": "2026-09-14T15:04:05Z" },
+  "credential": { "state": "CURRENT", "changedAt": "2026-09-01T12:00:00Z", "reason": null },
+  "secondFactor": { "state": "TOTP_ENROLLED", "enrolledAt": "2026-09-01T12:01:00Z" },
+  "locked": false, "createdAt": "2026-09-01T11:58:00Z", "updatedAt": "2026-09-14T15:04:05Z"
+}
+```
+
+| Método y ruta (`/api/v1/me`) | Uso | Step-up |
+|---|---|:---:|
+| `GET /` | Mi usuario, `authenticatedAt`, `methods` (`amr`) y `remainingRecoveryCodes` | |
+| `PUT /password` | `{ currentPassword, newPassword }` → `204`; `400 CURRENT_PASSWORD_INVALID` (con frenado), `400 PASSWORD_REJECTED`, `400 PASSWORD_REUSED` | |
+| `POST /recovery-codes` | Genera 10 códigos nuevos e invalida los anteriores → `{ recoveryCodes }` | ✓ |
+| `POST /session-revocation` | Cierra todas mis sesiones y refresh tokens → `204` | |
+
 ---
 
 ## 2. Patient Service — `/api/v1/patients`

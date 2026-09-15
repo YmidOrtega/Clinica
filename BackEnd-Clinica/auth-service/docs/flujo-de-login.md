@@ -17,7 +17,7 @@ Navegador            Gateway (cliente OAuth)          auth-service              
     │◄──────────────────────│   ?code_challenge=…&state=…   │                              │
     │  GET /auth/oauth2/authorize ─────────────────────────►│ sin sesión: guarda la        │
     │◄──────────────────────────────── 302 /login ──────────│ petición y redirige          │
-    │  GET /login ─────────────────────────────────────────────────────────────────────────►│
+    │  GET /login ────────────────────────────────────────────────────────────────────────►│
     │  GET /auth/api/v1/session ───────────────────────────►│ { csrf }                     │
     │  POST /auth/api/v1/login (X-CSRF-TOKEN) ─────────────►│ { SECOND_FACTOR_REQUIRED }   │
     │  POST /auth/api/v1/login/second-factor ──────────────►│ código TOTP verificado en    │
@@ -137,6 +137,10 @@ hace más tiempo que ese valor no emite código: `auth-service` guarda la petici
 
 Mismo cuerpo y errores que `POST /api/v1/login/second-factor`; exige una sesión autenticada (`401` si no).
 Devuelve `continueUrl` con la autorización original y el token nuevo trae `auth_time` actualizado.
+
+Cuando una API responde `401` con `code: STEP_UP_REQUIRED` (por ejemplo, al suspender un usuario), el
+gateway repite la autorización con `max_age=300` y el usuario ve esta misma pantalla. La API de usuarios
+(`/api/v1/users`, `/api/v1/me`) está en `docs/API_DOCUMENTATION.md`.
 
 ### `POST /api/v1/logout`
 

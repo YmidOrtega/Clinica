@@ -347,11 +347,13 @@ domain/secondfactor TotpAuthenticator y RecoveryCodes como puertos, SecondFactor
 domain/password     PasswordPolicy (NIST 800-63B-4), PasswordHasher y PasswordDenyList como puertos
 domain/throttle     LoginThrottlePolicy, ThrottleKey y LoginAttemptDecision sellados
 domain/onetime      enlaces de un solo uso (activación 72 h, reseteo 30 min)
-application         LoginFlow, SecondFactorFlow, AccountActivation, PasswordRecovery, AccountMailing, SuperAdminBootstrap
+application         LoginFlow, SecondFactorFlow, AccountActivation, PasswordRecovery, AccountMailing, SuperAdminBootstrap,
+                    OwnAccount (/me), UserAdministration y UserDirectory (/users), Caller con la regla de step-up
 infrastructure      Authorization Server: TransitJwtEncoder (ES256 en OpenBao), TransitJwkSource,
                     aserciones de cliente verificadas contra transit, JdbcAuthorizationStore (tokens
                     hasheados, familias de refresh, 5 sesiones), StepUpFilter (max_age), API JSON del
-                    login, TOTP en OpenBao, códigos de recuperación, SMTP, Argon2id
+                    login, TOTP en OpenBao, códigos de recuperación, SMTP, Argon2id; API de usuarios como
+                    resource server de sus propios tokens (relee al usuario en cada petición)
 ```
 
 | Esquema          | Contenido                                                      | Usuario `app`                 |
