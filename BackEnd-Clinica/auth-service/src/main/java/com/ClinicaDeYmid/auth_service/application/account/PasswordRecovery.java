@@ -6,7 +6,7 @@ import com.ClinicaDeYmid.auth_service.application.login.LoginException;
 import com.ClinicaDeYmid.auth_service.application.login.PasswordContexts;
 import com.ClinicaDeYmid.auth_service.application.mail.MailKind;
 import com.ClinicaDeYmid.auth_service.application.mail.MailOutbox;
-import com.ClinicaDeYmid.auth_service.application.session.SessionRevocation;
+import com.ClinicaDeYmid.auth_service.application.session.StaffSessions;
 import com.ClinicaDeYmid.auth_service.domain.onetime.OneTimeTokenPurpose;
 import com.ClinicaDeYmid.auth_service.domain.onetime.OneTimeTokens;
 import com.ClinicaDeYmid.auth_service.domain.password.PasswordHasher;
@@ -37,13 +37,13 @@ public class PasswordRecovery {
     private final PasswordPolicy passwordPolicy;
     private final PasswordHasher hasher;
     private final LoginThrottle throttle;
-    private final SessionRevocation sessions;
+    private final StaffSessions sessions;
     private final SecurityAuditLog audit;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public PasswordRecovery(Users users, MailOutbox outbox, OneTimeTokens tokens, PasswordPolicy passwordPolicy, PasswordHasher hasher,
-                            LoginThrottle throttle, SessionRevocation sessions, SecurityAuditLog audit, TransactionOperations transactions,
+                            LoginThrottle throttle, StaffSessions sessions, SecurityAuditLog audit, TransactionOperations transactions,
                             Clock clock) {
         this.users = users;
         this.outbox = outbox;

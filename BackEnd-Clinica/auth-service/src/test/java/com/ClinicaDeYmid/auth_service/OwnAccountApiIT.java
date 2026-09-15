@@ -66,6 +66,8 @@ class OwnAccountApiIT {
     void changingThePasswordNeedsTheCurrentOne() {
         User doctor = staff.active(Role.DOCTOR).user();
         String token = tokens.fresh(doctor);
+        assertThat(api.put("/api/v1/me/password", tokens.authenticatedAgo(doctor, Duration.ofMinutes(6)), null,
+                Map.of("currentPassword", StaffAccounts.PASSWORD, "newPassword", "una frase nueva para el turno")).status()).isEqualTo(401);
 
         OAuthBrowser.Response wrong = api.put("/api/v1/me/password", token, null,
                 Map.of("currentPassword", "no es la contraseña", "newPassword", "una frase nueva para el turno"));
@@ -99,6 +101,32 @@ class OwnAccountApiIT {
                 .isEqualTo(401);
         assertThat(browser.postJson("/api/v1/login/second-factor", Map.of("recoveryCode", regenerated.json().get("recoveryCodes").get(0).asText()),
                 true).status()).isEqualTo(200);
+    }
+
+    @Test
+    void staffSeeTheirSessionsAndCloseOneThatIsNotTheirs() {
+        StaffAccounts.StaffAccount nurse = staff.active(Role.NURSE);
+        OAuthBrowser laptop = new OAuthBrowser(port);
+        laptop.authorize();
+        JsonNode laptopTokens = laptop.exchangeCode(laptop.authorizationCode(laptop.signIn(nurse))).json();
+        OAuthBrowser phone = new OAuthBrowser(port);
+        phone.authorize();
+        phone.login(nurse.email(), StaffAccounts.PASSWORD);
+        String phoneContinue = phone.postJson("/api/v1/login/second-factor", Map.of("recoveryCode", nurse.recoveryCodes().getFirst()), true)
+                .json().get("continueUrl").asText();
+        JsonNode phoneTokens = phone.exchangeCode(phone.authorizationCode(phoneContinue)).json();
+        String laptopAccess = laptopTokens.get("access_token").asText();
+
+        JsonNode sessions = api.get("/api/v1/me/sessions", laptopAccess).json();
+
+        assertThat(sessions).hasSize(2);
+        assertThat(sessions).extracting(session -> session.get("current").asBoolean()).containsExactlyInAnyOrder(true, false);
+        assertThat(sessions.get(0).get("clientId").asText()).isEqualTo("api-gateway");
+        String phoneSession = sessions.get(0).get("current").asBoolean() ? sessions.get(1).get("id").asText() : sessions.get(0).get("id").asText();
+        assertThat(api.delete("/api/v1/me/sessions/" + phoneSession, laptopAccess).status()).isEqualTo(204);
+        assertThat(phone.refresh(phoneTokens.get("refresh_token").asText()).status()).isEqualTo(400);
+        assertThat(laptop.refresh(laptopTokens.get("refresh_token").asText()).status()).isEqualTo(200);
+        assertThat(api.delete("/api/v1/me/sessions/" + phoneSession, laptopAccess).status()).isEqualTo(404);
     }
 
     @Test

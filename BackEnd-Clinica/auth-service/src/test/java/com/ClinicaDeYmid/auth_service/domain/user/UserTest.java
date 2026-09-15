@@ -192,6 +192,18 @@ class UserTest {
     }
 
     @Test
+    void sessionsAreClosedByTheirOwnerOrByWhoeverManagesTheirRole() {
+        User nurse = active(Role.NURSE);
+
+        nurse.revokeSessions(new Actor(nurse.uuid(), Role.NURSE), at(LATER));
+        assertThat(nurse.tokensNotBefore()).isEqualTo(LATER);
+        nurse.revokeSessions(ADMIN, at(LATER.plusSeconds(1)));
+        assertThat(nurse.tokensNotBefore()).isEqualTo(LATER.plusSeconds(1));
+        assertThatThrownBy(() -> active(Role.ADMIN).revokeSessions(ADMIN, CLOCK)).isInstanceOf(UserException.RoleNotManageable.class);
+        assertThatThrownBy(() -> nurse.revokeSessions(new Actor(UUID.randomUUID(), Role.DOCTOR), CLOCK)).isInstanceOf(UserException.RoleNotManageable.class);
+    }
+
+    @Test
     void statusReasonsMustExplainTheDecision() {
         User user = active(Role.NURSE);
 

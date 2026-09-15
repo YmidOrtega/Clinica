@@ -265,9 +265,13 @@ public class User {
         events.add(new UserEvent.SecondFactorReset(secondFactorResetReason, actor));
     }
 
-    public void revokeSessions(Clock clock) {
+    public void revokeSessions(Actor actor, Clock clock) {
+        DomainRules.required(actor, "actor");
+        if (!actor.uuid().equals(uuid)) {
+            requireManageableBy(actor);
+        }
         tokensNotBefore = now(clock);
-        events.add(new UserEvent.SessionsRevoked());
+        events.add(new UserEvent.SessionsRevoked(actor));
     }
 
     public List<UserEvent> pullEvents() {

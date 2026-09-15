@@ -2,14 +2,19 @@ package com.ClinicaDeYmid.auth_service.infrastructure.web;
 
 import com.ClinicaDeYmid.auth_service.application.account.OwnAccount;
 import com.ClinicaDeYmid.auth_service.application.admin.UserDirectory;
+import com.ClinicaDeYmid.auth_service.application.session.StaffSessions;
 import com.ClinicaDeYmid.auth_service.infrastructure.security.StaffPrincipal;
 import com.ClinicaDeYmid.auth_service.infrastructure.web.UserViews.UserView;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,6 +42,14 @@ class OwnAccountController {
     record RecoveryCodesView(List<String> recoveryCodes) {
     }
 
+    record SessionView(String id, String clientId, Instant startedAt, Instant lastRefreshedAt, Instant expiresAt, boolean current) {
+
+        static SessionView from(OwnAccount.OwnSession own) {
+            StaffSessions.StaffSession session = own.session();
+            return new SessionView(session.id(), session.clientId(), session.startedAt(), session.lastRefreshedAt(), session.expiresAt(), own.current());
+        }
+    }
+
     @GetMapping
     ProfileView profile(@AuthenticationPrincipal StaffPrincipal principal) {
         OwnAccount.Profile profile = account.profile(principal.caller());
@@ -53,6 +66,17 @@ class OwnAccountController {
     @PostMapping("/recovery-codes")
     RecoveryCodesView regenerateRecoveryCodes(@AuthenticationPrincipal StaffPrincipal principal) {
         return new RecoveryCodesView(account.regenerateRecoveryCodes(principal.caller()));
+    }
+
+    @GetMapping("/sessions")
+    List<SessionView> sessions(@AuthenticationPrincipal StaffPrincipal principal, @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+        return account.sessions(principal.caller(), authorization.substring("Bearer ".length())).stream().map(SessionView::from).toList();
+    }
+
+    @DeleteMapping("/sessions/{id}")
+    ResponseEntity<Void> closeSession(@AuthenticationPrincipal StaffPrincipal principal, @PathVariable String id) {
+        account.closeSession(principal.caller(), id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/session-revocation")

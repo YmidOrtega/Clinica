@@ -44,4 +44,7 @@ public sealed interface SecurityEvent {
 
     record RefreshTokenReuseDetected(UUID userUuid, String authorizationId) implements SecurityEvent {
     }
+
+    record SessionClosed(UUID userUuid, String authorizationId) implements SecurityEvent {
+    }
 }

@@ -7,7 +7,7 @@ import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent.FailureRea
 import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent.Stage;
 import com.ClinicaDeYmid.auth_service.application.login.LoginException;
 import com.ClinicaDeYmid.auth_service.application.login.PasswordContexts;
-import com.ClinicaDeYmid.auth_service.application.session.SessionRevocation;
+import com.ClinicaDeYmid.auth_service.application.session.StaffSessions;
 import com.ClinicaDeYmid.auth_service.domain.password.NormalizedPassword;
 import com.ClinicaDeYmid.auth_service.domain.password.PasswordHasher;
 import com.ClinicaDeYmid.auth_service.domain.password.PasswordPolicy;
@@ -29,6 +29,8 @@ import org.springframework.transaction.support.TransactionOperations;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class OwnAccount {
@@ -38,19 +40,22 @@ public class OwnAccount {
     public record Profile(User user, int remainingRecoveryCodes) {
     }
 
+    public record OwnSession(StaffSessions.StaffSession session, boolean current) {
+    }
+
     private final Users users;
     private final PasswordPolicy passwordPolicy;
     private final PasswordHasher hasher;
     private final LoginThrottle throttle;
     private final LoginThrottlePolicy throttlePolicy;
     private final RecoveryCodes recoveryCodes;
-    private final SessionRevocation sessions;
+    private final StaffSessions sessions;
     private final SecurityAuditLog audit;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public OwnAccount(Users users, PasswordPolicy passwordPolicy, PasswordHasher hasher, LoginThrottle throttle, LoginThrottlePolicy throttlePolicy,
-                      RecoveryCodes recoveryCodes, SessionRevocation sessions, SecurityAuditLog audit, TransactionOperations transactions,
+                      RecoveryCodes recoveryCodes, StaffSessions sessions, SecurityAuditLog audit, TransactionOperations transactions,
                       Clock clock) {
         this.users = users;
         this.passwordPolicy = passwordPolicy;
@@ -69,6 +74,7 @@ public class OwnAccount {
     }
 
     public void changePassword(Caller caller, String currentPassword, String newPassword) {
+        caller.requireRecentAuthentication(clock);
         User user = self(caller);
         ThrottleKey key = new ThrottleKey.Account(user.email());
         FailureCount failures = throttle.failuresOf(key);
@@ -119,10 +125,26 @@ public class OwnAccount {
         return codes;
     }
 
+    public List<OwnSession> sessions(Caller caller, String currentAccessToken) {
+        Optional<String> current = sessions.sessionOfAccessToken(currentAccessToken);
+        return sessions.of(self(caller).uuid()).stream()
+                .map(session -> new OwnSession(session, current.filter(session.id()::equals).isPresent()))
+                .toList();
+    }
+
+    public void closeSession(Caller caller, String sessionId) {
+        UUID user = self(caller).uuid();
+        if (!sessions.revoke(user, sessionId)) {
+            throw new UserException.NotFound();
+        }
+        audit.record(new SecurityEvent.SessionClosed(user, sessionId));
+        log.info("Staff user {} closed session {}", user, sessionId);
+    }
+
     public void signOutEverywhere(Caller caller) {
         transactions.executeWithoutResult(status -> {
             User user = self(caller);
-            user.revokeSessions(clock);
+            user.revokeSessions(caller.actor(), clock);
             users.save(user);
         });
         int revoked = sessions.revokeAll(caller.uuid());
