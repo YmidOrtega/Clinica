@@ -21,3 +21,11 @@ path "transit/sign/auth-jwt" {
 path "transit/keys/api-gateway-client" {
   capabilities = ["read"]
 }
+
+path "totp/keys/staff-*" {
+  capabilities = ["create", "update", "delete"]
+}
+
+path "totp/code/staff-*" {
+  capabilities = ["update"]
+}

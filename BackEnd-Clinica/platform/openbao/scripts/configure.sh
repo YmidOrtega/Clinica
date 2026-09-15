@@ -68,6 +68,10 @@ if ! bao secrets list -format=json | jq -e 'has("transit/")' > /dev/null; then
   bao secrets enable transit
 fi
 
+if ! bao secrets list -format=json | jq -e 'has("totp/")' > /dev/null; then
+  bao secrets enable totp
+fi
+
 transit_key() {
   if ! bao read "transit/keys/$1" > /dev/null 2>&1; then
     bao write -f "transit/keys/$1" type="$2" exportable=false allow_plaintext_backup=false > /dev/null
