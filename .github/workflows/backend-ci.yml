@@ -188,11 +188,16 @@ jobs:
       - name: Patients and clinical history
         run: sh platform/e2e/clinical-e2e.sh
 
-      - name: API gateway
-        run: sh platform/e2e/gateway-e2e.sh
-
       - name: OpenBao failover and isolation
         run: sh platform/e2e/openbao-e2e.sh
+
+      - name: API gateway and clinical signing with step-up
+        env:
+          STEP_UP_MAX_AGE_SECONDS: 20
+        run: |
+          docker compose -p "$COMPOSE_PROJECT" -f docker-compose.yml -f docker-compose.debug.yml \
+            up -d --no-deps --wait api-gateway clinical-history-service
+          sh platform/e2e/gateway-e2e.sh
 
       - name: Collect logs
         if: failure()
