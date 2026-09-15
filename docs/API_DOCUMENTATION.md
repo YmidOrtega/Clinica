@@ -16,119 +16,21 @@
 
 ---
 
-## 1. Auth Service — `/api/v1/auth`
+## 1. Auth Service
 
-### POST `/login`
+`auth-service` es un servidor OAuth 2.1 / OIDC. El frontend no maneja tokens: habla con la API JSON del
+flujo de login y el gateway obtiene los tokens como cliente OAuth. Contrato completo, secuencia y errores
+en [`BackEnd-Clinica/auth-service/docs/flujo-de-login.md`](../BackEnd-Clinica/auth-service/docs/flujo-de-login.md).
 
-Autentica un usuario y devuelve access token + refresh token.
-
-**Request:**
-```json
-{
-  "username": "dr.martinez",
-  "password": "SecurePass123!"
-}
-```
-
-**Response `200 OK`:**
-```json
-{
-  "accessToken": "eyJhbGciOiJSUzI1NiJ9...",
-  "refreshToken": "d4f8a2b1-...",
-  "tokenType": "Bearer",
-  "expiresIn": 900,
-  "user": {
-    "id": "a1b2c3d4-...",
-    "username": "dr.martinez",
-    "email": "martinez@clinica.com",
-    "roles": ["ROLE_DOCTOR"]
-  }
-}
-```
-
-**Errores:**
-
-| Código | Causa                                      |
-| ------ | ------------------------------------------ |
-| `401`  | Credenciales inválidas                     |
-| `423`  | Cuenta bloqueada por intentos fallidos     |
-
----
-
-### POST `/refresh`
-
-Renueva el access token usando el refresh token.
-
-**Request:**
-```json
-{
-  "refreshToken": "d4f8a2b1-..."
-}
-```
-
-**Response `200 OK`:**
-```json
-{
-  "accessToken": "eyJhbGciOiJSUzI1NiJ9...",
-  "expiresIn": 900
-}
-```
-
----
-
-### POST `/logout`
-
-Invalida el refresh token actual.
-
-**Request:**
-```json
-{
-  "refreshToken": "d4f8a2b1-..."
-}
-```
-
-**Response `204 No Content`**
-
----
-
-### POST `/password-reset/request`
-
-Inicia el flujo de restablecimiento de contraseña.
-
-**Request:**
-```json
-{
-  "email": "martinez@clinica.com"
-}
-```
-
-**Response `200 OK`:**
-```json
-{
-  "message": "Si el correo existe, recibirá instrucciones de restablecimiento."
-}
-```
-
----
-
-### POST `/password-reset/confirm`
-
-Establece la nueva contraseña usando el token recibido.
-
-**Request:**
-```json
-{
-  "token": "abc123-reset-token",
-  "newPassword": "NuevaContraseña456!"
-}
-```
-
-**Response `200 OK`:**
-```json
-{
-  "message": "Contraseña actualizada correctamente."
-}
-```
+| Método y ruta | Uso |
+|---|---|
+| `GET /api/v1/session` | Estado de la sesión y token CSRF |
+| `POST /api/v1/login` | Correo y contraseña → `AUTHENTICATED` con `continueUrl` o `PASSWORD_CHANGE_REQUIRED` |
+| `POST /api/v1/login/password-change` | Nueva contraseña cuando se exige cambio |
+| `POST /api/v1/logout` | Cierra la sesión |
+| `POST /api/v1/activation` | Activa la cuenta con el enlace del correo |
+| `POST /api/v1/password-reset/requests` · `POST /api/v1/password-reset` | Solicita y aplica el reseteo |
+| `/oauth2/authorize`, `/oauth2/token`, `/oauth2/jwks`, `/.well-known/openid-configuration` | OAuth 2.1 / OIDC para el gateway |
 
 ---
 

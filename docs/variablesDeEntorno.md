@@ -146,7 +146,21 @@ SUPPLIERS_DB_HOST=jdbc:mysql://localhost:3311/suppliers_db?useSSL=false&serverTi
 AUTH_DB_NAME=auth_db                                        # opcional
 AUTH_DB_URL=jdbc:mysql://auth-db:3306/auth_db
 AUTH_SERVICE_REPLICAS=2                                     # opcional
+AUTH_ISSUER=http://localhost:8080/auth                      # URL pública del emisor (a través del gateway)
+AUTH_LOGIN_URL=http://localhost:8080/login                  # pantalla de login del frontend
+AUTH_HOME_URL=http://localhost:8080/
+AUTH_ACTIVATION_URL=http://localhost:8080/activar-cuenta    # el correo agrega ?token=
+AUTH_PASSWORD_RESET_URL=http://localhost:8080/restablecer-contrasena
+AUTH_GATEWAY_REDIRECT_URI=http://localhost:8080/login/oauth2/code/clinica
+AUTH_SESSION_COOKIE_SECURE=true                             # false solo en desarrollo sin HTTPS
+AUTH_MAIL_HOST=mailpit
+AUTH_MAIL_PORT=1025
+AUTH_MAIL_FROM=no-responder@clinica.local                   # opcional
+AUTH_SIGNING_TRANSIT_KEY=auth-jwt                           # opcional
 ```
+
+El correo del primer `SUPER_ADMIN` sale de OpenBao (`secret/auth/bootstrap`: `super-admin-email`,
+`super-admin-name`) o de `AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL`.
 
 Las credenciales (`secret/auth/db/root`, `migrator`, `app`) están en OpenBao. Fuera del perfil
 `openbao` se aceptan `AUTH_DB_APP_USER`, `AUTH_DB_APP_PASSWORD`, `AUTH_DB_MIGRATOR_USER` y

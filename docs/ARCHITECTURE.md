@@ -338,25 +338,30 @@ AttentionController
 
 ### 4.4 Auth Service (`:8086`)
 
-Identidad del personal y de los servicios. Se está reconstruyendo por incrementos (rama
-`refactor/auth-service`) como servidor OAuth 2.1/OIDC; hoy tiene el dominio y la persistencia:
+Identidad del personal y de los servicios, reconstruida por incrementos (rama `refactor/auth-service`)
+como servidor OAuth 2.1 / OIDC con Spring Authorization Server.
 
 ```
-domain/user        User (agregado JPA + Envers), Role, UserStatus y CredentialState sellados,
-                   EmailAddress, FullName, Actor
-domain/password    PasswordPolicy (NIST 800-63B-4), PasswordHasher y PasswordDenyList como puertos
-domain/throttle    LoginThrottlePolicy, ThrottleKey sellada, LoginAttemptDecision sellada
-infrastructure     JpaUsers, JdbcLoginThrottle y su purga, Argon2id, lista de contraseñas comunes
+domain/user         User (agregado JPA + Envers), Role, UserStatus y CredentialState sellados
+domain/password     PasswordPolicy (NIST 800-63B-4), PasswordHasher y PasswordDenyList como puertos
+domain/throttle     LoginThrottlePolicy, ThrottleKey y LoginAttemptDecision sellados
+domain/onetime      enlaces de un solo uso (activación 72 h, reseteo 30 min)
+application         LoginFlow, AccountActivation, PasswordRecovery, AccountMailing, SuperAdminBootstrap
+infrastructure      Authorization Server: TransitJwtEncoder (ES256 en OpenBao), TransitJwkSource,
+                    aserciones de cliente verificadas contra transit, JdbcAuthorizationStore (tokens
+                    hasheados, familias de refresh, 5 sesiones), API JSON del login, SMTP, Argon2id
 ```
 
-| Esquema          | Contenido                         | Usuario `app`                 |
-| ---------------- | --------------------------------- | ----------------------------- |
-| `auth_db`        | `users`                           | `SELECT`, `INSERT`, `UPDATE`  |
-| `auth_history`   | `revisions`, `users_aud` (Envers) | `SELECT`, `INSERT`            |
-| `auth_sessions`  | `login_throttles`                 | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+| Esquema          | Contenido                                                      | Usuario `app`                 |
+| ---------------- | -------------------------------------------------------------- | ----------------------------- |
+| `auth_db`        | `users`                                                        | `SELECT`, `INSERT`, `UPDATE`  |
+| `auth_history`   | `revisions` (con autor), `users_aud` (Envers)                  | `SELECT`, `INSERT`            |
+| `auth_sessions`  | autorizaciones y tokens hasheados, sesiones HTTP, frenado, enlaces, outbox de correo | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
 
-Las credenciales de la base vienen de OpenBao (`secret/auth/db/*`), la base vive en la red interna
-`auth-data` y el servicio corre con 2 réplicas.
+Depende de OpenBao para firmar tokens y verificar clientes: sin OpenBao no hay login ni refresh, pero
+los tokens emitidos siguen validándose con el JWKS. Envía correos por SMTP desde un outbox con
+reintentos (Mailpit en desarrollo) y, al arrancar sin ningún `SUPER_ADMIN`, invita al configurado en
+`secret/auth/bootstrap`. Corre con 2 réplicas; sesiones y autorizaciones viven en MySQL.
 
 ### 4.5 Suppliers Service (`:8085`)
 
