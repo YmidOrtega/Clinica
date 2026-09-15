@@ -14,4 +14,6 @@ public interface Users {
     boolean existsByEmail(EmailAddress email);
 
     long countActiveWithRole(Role role);
+
+    boolean anyNotDeactivatedWithRole(Role role);
 }

@@ -52,6 +52,9 @@ spring:
     jdbc:
       table-name: auth_sessions.SPRING_SESSION
       initialize-schema: never
+  mail:
+    host: ${AUTH_MAIL_HOST:localhost}
+    port: ${AUTH_MAIL_PORT:1025}
 
 clinica:
   openbao:
@@ -78,6 +81,13 @@ clinica:
           post-logout-redirect-uris: ${AUTH_GATEWAY_POST_LOGOUT_URI:http://localhost:8080/}
           scopes: openid, profile
           assertion-key: api-gateway-client
+    frontend:
+      activation-url: ${AUTH_ACTIVATION_URL:http://localhost:4321/activar-cuenta}
+      password-reset-url: ${AUTH_PASSWORD_RESET_URL:http://localhost:4321/restablecer-contrasena}
+    mail:
+      from: ${AUTH_MAIL_FROM:no-responder@clinica.local}
+    bootstrap:
+      super-admin-email: ${AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL:}
     time-zone: America/Bogota
     password-deny-lists: classpath:passwords/ncsc-100k-common.txt
     password-service-words: clinica, clinicadeymid, ymid
@@ -126,6 +136,7 @@ spring:
     import:
       - vault://secret/auth/db/migrator?prefix=auth.db.migrator.
       - vault://secret/auth/db/app?prefix=auth.db.app.
+      - optional:vault://secret/auth/bootstrap?prefix=clinica.auth.bootstrap.
   cloud:
     vault:
       enabled: true
