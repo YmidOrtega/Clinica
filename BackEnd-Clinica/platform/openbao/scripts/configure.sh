@@ -77,6 +77,9 @@ transit_key() {
 
 transit_key clinical-kek aes256-gcm96
 transit_key clinical-seal ecdsa-p256
+transit_key auth-jwt ecdsa-p256
+bao write "transit/keys/auth-jwt/config" auto_rotate_period=720h > /dev/null
+transit_key api-gateway-client ecdsa-p256
 
 if ! bao auth list -format=json | jq -e 'has("approle/")' > /dev/null; then
   bao auth enable approle
@@ -117,6 +120,7 @@ done
 seed auth/db/root password="$(random_secret)"
 seed auth/db/migrator username="auth_migrator" password="$(random_secret)"
 seed auth/db/app username="auth_app" password="$(random_secret)"
+seed auth/bootstrap super-admin-email="superadmin@clinica.local" super-admin-name="Administración Inicial"
 seed clinical/storage/root username="clinical-storage-admin" password="$(random_secret)"
 seed clinical/storage/attachments access-key="clinical-history-app" secret-key="$(random_secret)"
 
