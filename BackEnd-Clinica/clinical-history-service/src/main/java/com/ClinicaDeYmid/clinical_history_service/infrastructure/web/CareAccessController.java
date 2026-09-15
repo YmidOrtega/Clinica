@@ -55,6 +55,6 @@ class CareAccessController {
             description = "Exige un motivo, dura 4 horas y queda registrado para auditoría")
     ResponseEntity<EmergencyAccessView> emergencyAccess(@PathVariable UUID patientUuid, @RequestBody ClinicalRequests.EmergencyAccessRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(EmergencyAccessView.from(commands.grantEmergencyAccess(patientUuid, request.reason(), clinician.require())));
+                .body(EmergencyAccessView.from(commands.grantEmergencyAccess(patientUuid, request.reason(), clinician.requireRecentlyAuthenticated())));
     }
 }

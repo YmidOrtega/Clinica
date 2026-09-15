@@ -60,6 +60,11 @@ import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -131,9 +136,20 @@ class ClinicalRecordApiIT {
         }
     }
 
+    @BeforeEach
+    void authServiceExchangesTokens() {
+        patientService.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathMatching("/oauth2/token"))
+                .withRequestBody(containing("grant_type=client_credentials"))
+                .willReturn(okJson("{\"access_token\": \"clinical-service-token\", \"expires_in\": 1800}")));
+        patientService.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathMatching("/oauth2/token"))
+                .withRequestBody(containing("audience=patient-service"))
+                .willReturn(okJson("{\"access_token\": \"token-for-patient-service\", \"expires_in\": 300}")));
+    }
+
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("spring.cloud.openfeign.client.config.patient-service.url", patientService::baseUrl);
+        registry.add("clinica.security.client.token-uri", () -> patientService.baseUrl() + "/oauth2/token");
         registry.add("clinica.clinical.patient-events.enabled", () -> false);
         registry.add("spring.kafka.admin.auto-create", () -> false);
         ClinicalTestProperties.register(registry);
@@ -190,10 +206,11 @@ class ClinicalRecordApiIT {
         String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
         String draft = startDraft(nurse, encounter, TRIAGE);
 
-        nurse.performWithSessionFrom(Instant.now().minus(Duration.ofMinutes(20)),
+        nurse.performWithSessionFrom(Instant.now().minus(Duration.ofMinutes(6)),
                         post(BASE + "/drafts/" + draft + "/signature").header(HttpHeaders.IF_MATCH, "\"0\""))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("RECENT_AUTHENTICATION_REQUIRED"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, containsString("insufficient_user_authentication")))
+                .andExpect(jsonPath("$.code").value("STEP_UP_REQUIRED"));
         nurse.perform(post(BASE + "/drafts/" + draft + "/signature").header(HttpHeaders.IF_MATCH, "\"0\""))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.author.email").value("nurse@clinica.test"));
@@ -740,6 +757,9 @@ class ClinicalRecordApiIT {
         doctor.perform(post(BASE + "/encounters").content(openRequest(unknown, "OUTPATIENT")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("CLINICAL_PATIENT_NOT_FOUND"));
+        patientService.verify(getRequestedFor(urlPathMatching(".*/" + unknown)).withHeader(HttpHeaders.AUTHORIZATION, equalTo("Bearer token-for-patient-service")));
+        patientService.verify(postRequestedFor(urlPathMatching("/oauth2/token")).withRequestBody(containing("actor_token=clinical-service-token"))
+                .withRequestBody(containing("client_assertion=")));
         doctor.perform(post(BASE + "/encounters").content(openRequest(unreachable, "OUTPATIENT")))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("PATIENT_REGISTRY_UNAVAILABLE"));

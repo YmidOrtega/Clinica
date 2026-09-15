@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.web;
 
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption;
+import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,9 +20,11 @@ import java.util.Map;
 class EncryptionAdminController {
 
     private final ContentEncryption encryption;
+    private final RecentAuthentication recentAuthentication;
 
-    EncryptionAdminController(ContentEncryption encryption) {
+    EncryptionAdminController(ContentEncryption encryption, RecentAuthentication recentAuthentication) {
         this.encryption = encryption;
+        this.recentAuthentication = recentAuthentication;
     }
 
     record StatusView(String activeMasterKeyId, List<String> availableMasterKeyIds, long dataKeys, long pendingRewrap,
@@ -45,6 +48,7 @@ class EncryptionAdminController {
     @Operation(summary = "Envolver todas las claves de datos con la clave maestra activa",
             description = "Paso de la rotación: al terminar con pendingRewrap = 0 se pueden retirar las claves maestras anteriores")
     RewrapView rewrap() {
+        recentAuthentication.require();
         long rewrapped = encryption.rewrapWithActiveMasterKey();
         return new RewrapView(rewrapped, StatusView.from(encryption.status()));
     }

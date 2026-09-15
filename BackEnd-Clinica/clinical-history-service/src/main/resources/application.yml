@@ -54,6 +54,8 @@ spring:
     circuitbreaker:
       resilience4j:
         disable-time-limiter: true
+        enable-semaphore-default-bulkhead: true
+        disable-thread-pool: true
 
 clinica:
   openbao:
@@ -67,7 +69,7 @@ clinica:
     notes:
       extemporaneous-after: ${CLINICAL_NOTES_EXTEMPORANEOUS_AFTER:24h}
       clock-skew-tolerance: 2m
-      max-authentication-age-to-sign: 15m
+      max-authentication-age-to-sign: 5m
     access:
       relationship-after-closure: 30d
       emergency-access-duration: 4h
@@ -88,7 +90,15 @@ clinica:
       transit-key: ${CLINICAL_SEAL_TRANSIT_KEY:clinical-seal}
   security:
     jwt:
-      public-key: ${JWT_PUBLIC_KEY:}
+      jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
+      issuer: ${AUTH_ISSUER:http://localhost:8080/auth}
+      audiences: clinica-api, clinical-history-service
+    client:
+      id: clinical-history-service
+      token-uri: ${AUTH_TOKEN_URI:http://localhost:8086/oauth2/token}
+      assertion-key: ${CLINICAL_CLIENT_TRANSIT_KEY:clinical-history-service-client}
+      audiences:
+        patient-service: patient-service
     public-paths:
       - /actuator/health
       - /actuator/health/**

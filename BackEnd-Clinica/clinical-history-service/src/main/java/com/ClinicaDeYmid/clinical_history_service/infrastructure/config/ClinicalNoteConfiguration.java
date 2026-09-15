@@ -17,7 +17,7 @@ public class ClinicalNoteConfiguration {
     public record NoteProperties(
             @DefaultValue("24h") Duration extemporaneousAfter,
             @DefaultValue("2m") Duration clockSkewTolerance,
-            @DefaultValue("15m") Duration maxAuthenticationAgeToSign) {
+            @DefaultValue("5m") Duration maxAuthenticationAgeToSign) {
     }
 
     @Bean
