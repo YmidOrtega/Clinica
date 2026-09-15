@@ -5,14 +5,15 @@ cliente OAuth (patrón BFF) y el navegador solo guarda la cookie de sesión de `
 (`CLINICA_AUTH_SESSION`, `HttpOnly`, `SameSite=Lax`). Las pantallas de login, activación y reseteo viven
 en el frontend y hablan con esta API JSON.
 
-El frontend y `auth-service` deben servirse **desde el mismo origen** a través del gateway (`/auth/**`),
-para que la cookie y el token CSRF viajen sin CORS.
+El frontend vive en otro origen y llama a `auth-service` a través del gateway (`{GATEWAY}/auth/...`) con
+`fetch(..., { credentials: 'include' })`; el gateway permite CORS con credenciales para los orígenes del
+frontend. El login lo inicia el gateway: ver `api-gateway/docs/bff.md`.
 
 ## Secuencia
 
 ```
 Navegador            Gateway (cliente OAuth)          auth-service                  Frontend (Astro)
-    │  GET /algo protegido  │                               │                              │
+    │  GET /bff/login?returnTo=…                            │                              │
     │──────────────────────►│ 302 /auth/oauth2/authorize    │                              │
     │◄──────────────────────│   ?code_challenge=…&state=…   │                              │
     │  GET /auth/oauth2/authorize ─────────────────────────►│ sin sesión: guarda la        │
@@ -26,6 +27,7 @@ Navegador            Gateway (cliente OAuth)          auth-service              
     │  location = continueUrl ─────────────────────────────►│ 302 redirect_uri?code=…      │
     │  GET /login/oauth2/code/clinica?code=… ─►│ POST /oauth2/token (private_key_jwt)      │
     │                       │◄──────────────────────────────│ access (5 min), refresh, id  │
+    │◄── 302 returnTo ──────│ guarda los tokens en Redis    │                              │
 ```
 
 ## Endpoints

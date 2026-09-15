@@ -93,3 +93,18 @@ de las siguientes con `totp-code.mjs`. Si ese archivo se pierde, recrear el volu
 | Refresh | Rota en cada uso y reutilizar uno rotado revoca toda la familia |
 | Frenado | Tras 5 fallos desde la misma dirección responde `429` y, pasada la espera, vuelve a entrar |
 
+
+## Prueba del gateway
+
+`gateway-e2e.sh` recorre el BFF con el navegador simulado por `curl`, contra `api-gateway`,
+`auth-service` y `patient-service` reales (necesita el gateway en `http://localhost:8080` y Mailpit
+publicado). Comparte con `auth-e2e.sh` los pasos de login de `staff-login.sh` y el archivo del TOTP del
+`SUPER_ADMIN`.
+
+| Paso | Qué demuestra |
+|---|---|
+| Sesión anónima | `GET /bff/session` da el token CSRF; la API responde `401` con `loginUrl`; CORS con credenciales solo para el frontend |
+| Login a través del gateway | `/bff/login` inicia authorization code con PKCE; auth manda al login del frontend; tras la contraseña y el TOTP el gateway canjea el código y vuelve a `returnTo`; el navegador solo guarda cookies |
+| API con el token relevado | `/api/v1/me` y el registro de un paciente reciben el access token; sin CSRF el gateway rechaza la escritura |
+| Step-up | `/bff/step-up` pide `max_age=300` y vuelve a la página que lo pidió |
+| Cierre de sesión | `POST /bff/logout` cierra la sesión del gateway, `endSessionUrl` la de auth y la API vuelve a `401` |

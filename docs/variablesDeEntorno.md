@@ -153,11 +153,12 @@ AUTH_DB_NAME=auth_db                                        # opcional
 AUTH_DB_URL=jdbc:mysql://auth-db:3306/auth_db
 AUTH_SERVICE_REPLICAS=2                                     # opcional
 AUTH_ISSUER=http://localhost:8080/auth                      # URL pública del emisor (a través del gateway)
-AUTH_LOGIN_URL=http://localhost:8080/login                  # pantalla de login del frontend
-AUTH_HOME_URL=http://localhost:8080/
-AUTH_ACTIVATION_URL=http://localhost:8080/activar-cuenta    # el correo agrega ?token=
-AUTH_PASSWORD_RESET_URL=http://localhost:8080/restablecer-contrasena
+AUTH_LOGIN_URL=http://localhost:4321/login                  # pantalla de login del frontend
+AUTH_HOME_URL=http://localhost:4321/
+AUTH_ACTIVATION_URL=http://localhost:4321/activar-cuenta    # el correo agrega ?token=
+AUTH_PASSWORD_RESET_URL=http://localhost:4321/restablecer-contrasena
 AUTH_GATEWAY_REDIRECT_URI=http://localhost:8080/login/oauth2/code/clinica
+AUTH_GATEWAY_POST_LOGOUT_URI=http://localhost:4321/          # adónde vuelve el navegador tras cerrar sesión
 AUTH_SESSION_COOKIE_SECURE=true                             # false solo en desarrollo sin HTTPS
 AUTH_MAIL_HOST=mailpit
 AUTH_MAIL_PORT=1025
@@ -275,15 +276,24 @@ La política de contraseñas y el frenado de intentos de `auth-service` se confi
 GATEWAY_{COMPONENT}_{PROPERTY}
 ```
 
-### Examples
+### Variables
 
 ```bash
-GATEWAY_DB_HOST=localhost:5432
-GATEWAY_DB_NAME=clinica_gateway
-GATEWAY_RATE_LIMIT_REQUESTS=100
-GATEWAY_RATE_LIMIT_DURATION=60
-GATEWAY_CORS_ORIGINS=http://localhost:3000,http://localhost:4321
+GATEWAY_FRONTEND_ORIGINS=http://localhost:4321               # orígenes con CORS y returnTo permitidos, separados por coma
+GATEWAY_FRONTEND_HOME_URL=http://localhost:4321/
+GATEWAY_SESSION_SAME_SITE=lax                                # none si frontend y gateway están en dominios distintos
+GATEWAY_SESSION_COOKIE_SECURE=true                           # false solo en desarrollo sin HTTPS
+AUTH_PUBLIC_URL=http://localhost:8080/auth                   # emisor público; el navegador va aquí a autorizar
+AUTH_INTERNAL_URL=http://auth-service:8086                   # token, JWKS y revocación desde el gateway
+GATEWAY_REDIS_HOST=gateway-redis
+GATEWAY_AUTH_SERVICE_URI=http://auth-service:8086             # destino de /auth/** y /api/v1/users; lb://auth-service con Eureka
+GATEWAY_PATIENT_SERVICE_URI=http://patient-service:8081
+GATEWAY_CLINICAL_SERVICE_URI=http://clinical-history-service:8089
+GATEWAY_CLIENT_TRANSIT_KEY=api-gateway-client                # opcional
 ```
+
+La contraseña de `gateway-redis` está en OpenBao (`secret/gateway/redis`); el gateway la lee con su
+AppRole y el agente la renderiza para el contenedor de Redis. No hay base de datos del gateway.
 
 ---
 

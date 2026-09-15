@@ -63,9 +63,9 @@ Adicionalmente, un sistema de salud tiene requisitos no negociables:
 | ----------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
 | Runtime           | Java 21                             | Soporte LTS, records, sealed classes, pattern matching                           |
 | Framework         | Spring Boot 3.5 + Spring Cloud 2025 | Ecosistema maduro para microservicios; auto-configuración, actuator, seguridad   |
-| API Gateway       | Spring Cloud Gateway 4.3            | Reactivo (WebFlux); rate limiting, logging y circuit breaker sin código custom   |
+| API Gateway       | Spring Cloud Gateway Server WebMVC 4.3 | BFF servlet con hilos virtuales: oauth2Login, sesión en Redis, relevo de tokens y rate limit |
 | Service Discovery | Netflix Eureka                      | Registro dinámico; los servicios se localizan por nombre, no por IP              |
-| Seguridad         | Spring Security 6 + JWT RSA-256     | Tokens asimétricos: Auth emite con clave privada, cada servicio valida con pública|
+| Seguridad         | Spring Authorization Server + JWT ES256 | Auth firma en OpenBao transit sin tener la clave; los servicios validan con el JWKS |
 | Bases de datos    | MySQL 8 · PostgreSQL 16             | MySQL para dominios relacionales simples; PostgreSQL para datos transaccionales  |
 | Migraciones       | Flyway                              | Historial versionado de esquema; obligatorio en sistemas de salud (auditoría)    |
 | ORM               | Hibernate + MapStruct 1.6           | JPA estándar; MapStruct genera el código de mapping en compile time (zero reflect)|
@@ -412,40 +412,33 @@ El asistente detecta intención en la conversación: si el médico describe sín
 
 ### 4.8 API Gateway (`:8080`)
 
-Punto de entrada único para todo el tráfico externo.
+Punto de entrada único del navegador, reconstruido como *backend for frontend* sobre Spring Cloud
+Gateway Server WebMVC con hilos virtuales. Contrato para el frontend en `api-gateway/docs/bff.md`.
 
 ```
-Cadena de filtros, en orden de ejecución:
+Navegador (frontend en otro origen, CORS con credenciales)
+   │ cookie CLINICA_SESSION + cabecera CSRF
+   ▼
+api-gateway ─ Spring Security: CORS → rate limit por IP → sesión (Spring Session Redis) → CSRF
+   │          → oauth2Login con auth-service (authorization code + PKCE, private_key_jwt en transit)
+   │          → rate limit por usuario
+   ├─ /bff/session, /bff/login, /bff/step-up, /bff/logout
+   ├─ /auth/**                         → auth-service (su cookie; X-Forwarded-Prefix /auth)
+   └─ /api/v1/users, /api/v1/me,       → auth-service, patient-service, clinical-history-service
+      /api/v1/patients, /api/v1/clinical   con Authorization: Bearer (renovado con candado en Redis)
 
-  IpRateLimitFilter    → Global, orden 0.  1000 req/min por IP.
-                         Va antes de autenticar porque tiene que cubrir el login y el
-                         resto de rutas públicas, que es donde ataca quien no tiene
-                         credenciales.
-
-  AuthenticationFilter → Por ruta, orden 1. Valida la firma RSA-256 con la clave pública
-                         del auth-service, consulta la blacklist en Redis, publica la
-                         identidad en un atributo del exchange e inyecta
-                         X-User-ID / X-User-Email hacia el servicio destino.
-
-  UserRateLimitFilter  → Global, orden 10. 100 req/min por usuario.
-                         Va después de autenticar: la identidad ya está verificada, así
-                         que el contador no se puede falsear rotando cabeceras.
-
-  RequestLoggingFilter → Global. Registra método, path, status y tiempo en PostgreSQL
-                         (escritura asíncrona en un executor dedicado).
-
-  RouteValidator       → Lista blanca de rutas públicas consultada por
-                         AuthenticationFilter (login, public-key, health, swagger).
-
-Los dos límites de tráfico están deliberadamente en filtros distintos porque protegen de
-ataques distintos y deben evaluarse en momentos distintos de la cadena. Ver SECURITY.md §5.3.
-
-Por cada ruta configurada:
-  Resilience4j:
-    CircuitBreaker → Abre después de X fallos consecutivos
-    Retry          → Backoff exponencial, máx 3 intentos
-    TimeLimiter    → Timeout por request
+gateway-redis (red interna gateway-data, contraseña en OpenBao): sesiones, tokens, candados y contadores
 ```
+
+- No tiene base de datos: el registro de peticiones y la analítica anteriores se eliminaron; quedan
+  métricas de Micrometer, trazas y los logs de acceso. La auditoría de accesos clínicos vive en
+  `clinical.access-audit.v1` y la de identidad en `auth.security-audit.v1`.
+- Sin Redis no hay sesiones: el gateway no puede autenticar a nadie, pero el rate limit falla en abierto.
+- Si `auth-service` no responde, las sesiones abiertas siguen con su access token hasta que vence y
+  luego reciben `503 AUTH_UNAVAILABLE`; los servicios caídos responden `503 SERVICE_UNAVAILABLE` sin
+  cerrar la sesión.
+- En Compose las rutas usan los nombres DNS de Docker (`http://auth-service:8086`), que reparten entre
+  réplicas; fuera de Docker pueden ser `lb://` con Eureka.
 
 ---
 
@@ -568,10 +561,10 @@ Spring AI actúa como capa de abstracción: cambiando la configuración se puede
 
 ## 9. Decisiones de Diseño Clave
 
-### 9.1 JWT con RSA-256 en lugar de HMAC-SHA
+### 9.1 JWT ES256 firmado en OpenBao en lugar de HMAC o de una clave en archivo
 
-**Decisión:** Auth Service firma tokens con una clave privada RSA. Cada microservicio solo tiene la clave pública para verificar.  
-**Por qué:** en arquitectura de microservicios con HMAC, todos los servicios necesitarían la misma clave secreta — un secreto compartido entre N servicios es una superficie de ataque N veces mayor. Con RSA asimétrico, comprometer un microservicio no expone la capacidad de emitir tokens.
+**Decisión:** `auth-service` firma los tokens con ECDSA P-256 en el motor transit de OpenBao; los servicios validan con las claves públicas del JWKS.  
+**Por qué:** con HMAC todos los servicios compartirían el secreto que permite emitir tokens. Con una clave privada en archivo, quien comprometa `auth-service` se la lleva (la clave RS256 anterior llegó a publicarse en el repositorio). En transit la clave nunca sale de OpenBao, rota sola cada 30 días y cada firma queda auditada.
 
 ### 9.2 Flyway sobre scripts manuales
 
