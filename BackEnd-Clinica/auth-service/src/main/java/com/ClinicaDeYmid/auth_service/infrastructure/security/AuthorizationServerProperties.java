@@ -16,11 +16,13 @@ public record AuthorizationServerProperties(String issuer, String loginUrl, Stri
     }
 
     public record Tokens(@DefaultValue("5m") Duration accessTokenTtl, @DefaultValue("12h") Duration refreshTokenTtl,
-                         @DefaultValue("1m") Duration authorizationCodeTtl, @DefaultValue("clinica-api") String audience,
+                         @DefaultValue("1m") Duration authorizationCodeTtl, @DefaultValue("5m") Duration exchangedTokenTtl,
+                         @DefaultValue("clinica-api") String audience,
                          @DefaultValue("auth-jwt") String signingKey, @DefaultValue("2") int publishedSigningKeyVersions) {
     }
 
-    public record Client(List<String> grantTypes, List<String> redirectUris, @DefaultValue List<String> postLogoutRedirectUris,
-                         List<String> scopes, String assertionKey) {
+    public record Client(List<String> grantTypes, @DefaultValue List<String> redirectUris, @DefaultValue List<String> postLogoutRedirectUris,
+                         @DefaultValue List<String> scopes, String assertionKey, Duration accessTokenTtl,
+                         @DefaultValue List<String> exchangeAudiences) {
     }
 }

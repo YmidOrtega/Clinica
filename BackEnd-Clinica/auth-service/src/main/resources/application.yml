@@ -83,6 +83,17 @@ clinica:
           post-logout-redirect-uris: ${AUTH_GATEWAY_POST_LOGOUT_URI:http://localhost:8080/}
           scopes: openid, profile
           assertion-key: api-gateway-client
+        patient-service:
+          grant-types: client_credentials, urn:ietf:params:oauth:grant-type:token-exchange
+          scopes: openid, profile
+          assertion-key: ${AUTH_PATIENT_SERVICE_CLIENT_KEY:patient-service-client}
+          access-token-ttl: 30m
+        clinical-history-service:
+          grant-types: client_credentials, urn:ietf:params:oauth:grant-type:token-exchange
+          scopes: openid, profile
+          assertion-key: ${AUTH_CLINICAL_SERVICE_CLIENT_KEY:clinical-history-service-client}
+          access-token-ttl: 30m
+          exchange-audiences: patient-service
     frontend:
       activation-url: ${AUTH_ACTIVATION_URL:http://localhost:4321/activar-cuenta}
       password-reset-url: ${AUTH_PASSWORD_RESET_URL:http://localhost:4321/restablecer-contrasena}

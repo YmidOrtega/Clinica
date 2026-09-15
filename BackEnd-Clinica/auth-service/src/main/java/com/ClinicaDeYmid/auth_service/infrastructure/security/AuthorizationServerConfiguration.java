@@ -148,7 +148,8 @@ public class AuthorizationServerConfiguration {
 
     @Bean
     OAuth2TokenCustomizer<JwtEncodingContext> staffTokenCustomizer(Users users, AuthorizationServerProperties properties) {
-        return new StaffTokenCustomizer(users, properties.tokens().audience());
+        return new StaffTokenCustomizer(users, properties.tokens().audience(), properties.tokens().exchangedTokenTtl(),
+                RegisteredClients.exchangeAudiences(properties));
     }
 
     @Bean
