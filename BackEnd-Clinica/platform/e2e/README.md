@@ -50,7 +50,7 @@ COMPOSE_PROJECT=clinical-e2e JWT_PRIVATE_KEY=/tmp/clinica-private.pem \
 | Paso                         | Qué demuestra                                                            |
 | ---------------------------- | ------------------------------------------------------------------------ |
 | Clúster                      | Tres nodos desellados, raft con tres votantes y un nodo activo           |
-| Políticas                    | Cada AppRole lee solo sus rutas; el agente no escribe; solo `clinical-history-service` firma con `transit/clinical-seal` y no puede rotar sus claves |
+| Políticas                    | Cada AppRole (patient, clinical, auth) lee solo sus rutas; el agente no escribe; solo `clinical-history-service` firma con `transit/clinical-seal` y no puede rotar sus claves |
 | Configuración de contenedores | Ninguna contraseña ni clave aparece en `docker inspect`                 |
 | Conmutación                  | Cae el nodo activo, otro asume, los logins siguen y una réplica de `patient-service` arranca; el nodo vuelve desellado solo |
 | Aislamiento                  | Con los tres nodos caídos `patient-service` sigue registrando pacientes, `clinical-history-service` verifica una cadena ya sellada y responde `503 CLINICAL_KEYS_UNAVAILABLE` al sellar, y el clúster se recupera sin intervención |

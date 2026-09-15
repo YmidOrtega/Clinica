@@ -153,3 +153,33 @@ template {
   destination = "/rendered/kafka-connect/clinical-db-debezium-password"
   perms       = "0444"
 }
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/root\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/auth-db/root-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/migrator\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/auth-db/migrator-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/migrator\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/auth-db/migrator-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/app\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/auth-db/app-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/auth/db/app\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/auth-db/app-password"
+  perms       = "0444"
+}
