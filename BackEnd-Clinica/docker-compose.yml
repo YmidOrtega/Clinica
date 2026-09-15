@@ -377,6 +377,17 @@ services:
          timeout: 5s
          retries: 10
 
+   mailpit:
+      image: axllent/mailpit:v1.31.1
+      container_name: mailpit
+      restart: always
+      environment:
+         MP_SMTP_AUTH_ACCEPT_ANY: "true"
+         MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+         MP_MAX_MESSAGES: 5000
+      networks:
+         - mail-net
+
    # Base de datos para clientes
    clients-db:
       image: mysql:8.0
@@ -749,6 +760,8 @@ services:
       depends_on:
          auth-db:
             condition: service_healthy
+         mailpit:
+            condition: service_started
          openbao-init:
             condition: service_completed_successfully
          eureka-service:
@@ -757,6 +770,15 @@ services:
          - SPRING_PROFILES_ACTIVE=openbao
          - AUTH_DB_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME:-auth_db}
          - EUREKA_URL=http://eureka-service:8761/eureka/
+         - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
+         - AUTH_LOGIN_URL=${AUTH_LOGIN_URL:-http://localhost:8080/login}
+         - AUTH_HOME_URL=${AUTH_HOME_URL:-http://localhost:8080/}
+         - AUTH_ACTIVATION_URL=${AUTH_ACTIVATION_URL:-http://localhost:8080/activar-cuenta}
+         - AUTH_PASSWORD_RESET_URL=${AUTH_PASSWORD_RESET_URL:-http://localhost:8080/restablecer-contrasena}
+         - AUTH_GATEWAY_REDIRECT_URI=${AUTH_GATEWAY_REDIRECT_URI:-http://localhost:8080/login/oauth2/code/clinica}
+         - AUTH_SESSION_COOKIE_SECURE=${AUTH_SESSION_COOKIE_SECURE:-false}
+         - AUTH_MAIL_HOST=mailpit
+         - AUTH_MAIL_PORT=1025
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
          - openbao_approle_auth:/run/secrets/openbao/approle:ro
@@ -764,6 +786,7 @@ services:
          - clinica-net
          - auth-data
          - secrets-net
+         - mail-net
       healthcheck:
          test: [ "CMD", "curl", "-fs", "http://localhost:8086/actuator/health/readiness" ]
          interval: 15s
@@ -934,5 +957,8 @@ networks:
       driver: bridge
       internal: true
    auth-data:
+      driver: bridge
+      internal: true
+   mail-net:
       driver: bridge
       internal: true

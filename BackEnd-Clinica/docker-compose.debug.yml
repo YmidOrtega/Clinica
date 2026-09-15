@@ -77,6 +77,13 @@ services:
       ports:
          - "127.0.0.1:8093-8094:8086"
 
+   mailpit:
+      ports:
+         - "127.0.0.1:8025:8025"
+      networks:
+         - mail-net
+         - debug-net
+
 networks:
    debug-net:
       driver: bridge
