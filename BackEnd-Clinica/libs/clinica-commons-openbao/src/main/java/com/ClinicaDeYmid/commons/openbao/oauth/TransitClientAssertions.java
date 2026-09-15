@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.commons.security;
+package com.ClinicaDeYmid.commons.openbao.oauth;
 
 import com.ClinicaDeYmid.commons.openbao.transit.KeyVersion;
 import com.ClinicaDeYmid.commons.openbao.transit.SignatureFormat;
@@ -14,7 +14,7 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
-public class TransitClientAssertionSigner implements ClientAssertionSigner {
+public class TransitClientAssertions {
 
     private static final Duration LIFETIME = Duration.ofMinutes(1);
     private static final Base64.Encoder BASE64URL = Base64.getUrlEncoder().withoutPadding();
@@ -23,12 +23,11 @@ public class TransitClientAssertionSigner implements ClientAssertionSigner {
     private final TransitKeys keys;
     private final Clock clock;
 
-    public TransitClientAssertionSigner(TransitKeys keys, Clock clock) {
+    public TransitClientAssertions(TransitKeys keys, Clock clock) {
         this.keys = keys;
         this.clock = clock;
     }
 
-    @Override
     public String assertion(String clientId, String audience) {
         long now = Instant.now(clock).getEpochSecond();
         String header = encode(Map.of("alg", "ES256", "typ", "JWT"));

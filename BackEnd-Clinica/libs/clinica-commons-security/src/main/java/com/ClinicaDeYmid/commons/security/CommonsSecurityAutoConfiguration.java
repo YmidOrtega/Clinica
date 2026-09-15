@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.commons.security;
 
+import com.ClinicaDeYmid.commons.openbao.oauth.TransitClientAssertions;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitClient;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitKeys;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitProperties;
@@ -137,8 +138,9 @@ public class CommonsSecurityAutoConfiguration {
         ClientAssertionSigner transitClientAssertionSigner(TransitClient transit, TransitProperties transitProperties, ClinicaSecurityProperties properties,
                                                           ObjectProvider<Clock> clock) {
             Clock resolved = clock.getIfAvailable(Clock::systemUTC);
-            return new TransitClientAssertionSigner(
+            TransitClientAssertions assertions = new TransitClientAssertions(
                     new TransitKeys(transit, properties.client().assertionKey(), transitProperties.keyRefreshInterval(), resolved), resolved);
+            return assertions::assertion;
         }
     }
 
