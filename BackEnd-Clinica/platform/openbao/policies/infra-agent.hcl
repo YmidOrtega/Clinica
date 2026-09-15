@@ -13,3 +13,7 @@ path "secret/data/auth/db/*" {
 path "secret/data/clinical/storage/*" {
   capabilities = ["read"]
 }
+
+path "secret/data/gateway/redis" {
+  capabilities = ["read"]
+}

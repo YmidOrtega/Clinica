@@ -7,7 +7,7 @@ BOOTSTRAP_DIR=/openbao/bootstrap
 POLICIES_DIR=/openbao/policies
 CREDENTIALS_DIR=/openbao/approle
 NODES="openbao-1 openbao-2 openbao-3"
-APPROLES="patient-service clinical-history-service auth-service infra-agent"
+APPROLES="patient-service clinical-history-service auth-service api-gateway infra-agent"
 
 random_secret() {
   openssl rand -base64 36 | tr -d '/+=\n' | cut -c1-40
@@ -128,6 +128,7 @@ seed auth/db/migrator username="auth_migrator" password="$(random_secret)"
 seed auth/db/app username="auth_app" password="$(random_secret)"
 seed auth/db/debezium username="auth_debezium" password="$(random_secret)"
 seed auth/bootstrap super-admin-email="superadmin@clinica.local" super-admin-name="Administración Inicial"
+seed gateway/redis password="$(random_secret)"
 seed clinical/storage/root username="clinical-storage-admin" password="$(random_secret)"
 seed clinical/storage/attachments access-key="clinical-history-app" secret-key="$(random_secret)"
 
