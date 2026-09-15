@@ -41,7 +41,10 @@ el código ni en la configuración de los contenedores.
 | `auth/bootstrap`                |                   |                            |               |
 
 `auth-service` tiene su propio AppRole: lee `auth/db/migrator`, `auth/db/app` y `auth/bootstrap`, firma con
-`transit/auth-jwt` y lee la clave pública de `transit/api-gateway-client`.
+`transit/auth-jwt`, lee la clave pública de `transit/api-gateway-client` y administra el segundo factor del
+personal en el motor `totp/`: crea, reemplaza y borra claves `totp/keys/staff-*` y valida códigos en
+`totp/code/staff-*`. No puede leer ni listar las claves, así que los secretos TOTP solo salen de OpenBao
+una vez, en el QR del enrolamiento. El motor rechaza un código ya usado dentro de su ventana.
 
 | Clave transit (`transit/`) | Tipo           | Uso                                               |
 | -------------------------- | -------------- | ------------------------------------------------- |

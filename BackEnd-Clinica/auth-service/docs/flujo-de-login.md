@@ -19,8 +19,10 @@ Navegador            Gateway (cliente OAuth)          auth-service              
     │◄──────────────────────────────── 302 /login ──────────│ petición y redirige          │
     │  GET /login ─────────────────────────────────────────────────────────────────────────►│
     │  GET /auth/api/v1/session ───────────────────────────►│ { csrf }                     │
-    │  POST /auth/api/v1/login (X-CSRF-TOKEN) ─────────────►│ { AUTHENTICATED,             │
-    │◄──────────────────────────────────────────────────────│   continueUrl }              │
+    │  POST /auth/api/v1/login (X-CSRF-TOKEN) ─────────────►│ { SECOND_FACTOR_REQUIRED }   │
+    │  POST /auth/api/v1/login/second-factor ──────────────►│ código TOTP verificado en    │
+    │◄──────────────────────────────────────────────────────│ OpenBao: { AUTHENTICATED,    │
+    │                                                       │   continueUrl }              │
     │  location = continueUrl ─────────────────────────────►│ 302 redirect_uri?code=…      │
     │  GET /login/oauth2/code/clinica?code=… ─►│ POST /oauth2/token (private_key_jwt)      │
     │                       │◄──────────────────────────────│ access (5 min), refresh, id  │
@@ -38,12 +40,17 @@ Estado de la sesión y token CSRF. Llamarlo al cargar cada pantalla.
 ```json
 {
   "authenticated": true,
-  "user": { "uuid": "57a7fc78-…", "email": "ana@clinica.local", "name": "Ana Rojas", "role": "DOCTOR" },
+  "user": { "uuid": "57a7fc78-…", "email": "ana@clinica.local", "name": "Ana Rojas", "role": "DOCTOR",
+            "authenticatedAt": "2026-09-14T15:04:05.123Z" },
+  "pendingStep": null,
   "csrf": { "headerName": "X-CSRF-TOKEN", "token": "…" }
 }
 ```
 
-Con `authenticated: false`, `user` es `null`.
+Con `authenticated: false`, `user` es `null`. `pendingStep` dice qué pantalla mostrar si se recarga a mitad
+del flujo: `PASSWORD_CHANGE`, `SECOND_FACTOR`, `SECOND_FACTOR_ENROLLMENT` (sin autenticar) o `STEP_UP`
+(autenticada, pero la autorización pidió reautenticarse). Los pasos pendientes del login vencen a los
+10 minutos; después hay que volver a `POST /api/v1/login`.
 
 ### `POST /api/v1/login`
 
@@ -51,10 +58,13 @@ Con `authenticated: false`, `user` es `null`.
 { "email": "ana@clinica.local", "password": "una frase larga" }
 ```
 
+La contraseña sola **nunca** autentica: todo el personal usa un segundo factor TOTP.
+
 | Respuesta | Qué hacer |
 |---|---|
-| `200 { "outcome": "AUTHENTICATED", "continueUrl": "…/oauth2/authorize?…" }` | Navegar a `continueUrl` (`window.location`). Si el login no vino de una autorización, apunta a la página de inicio |
-| `200 { "outcome": "PASSWORD_CHANGE_REQUIRED" }` | Mostrar el formulario de nueva contraseña; la sesión todavía no está autenticada |
+| `200 { "outcome": "SECOND_FACTOR_REQUIRED" }` | Pedir el código de 6 dígitos de la aplicación autenticadora o un código de recuperación |
+| `200 { "outcome": "SECOND_FACTOR_ENROLLMENT_REQUIRED" }` | Primer login (o segundo factor reiniciado por un administrador): mostrar el enrolamiento |
+| `200 { "outcome": "PASSWORD_CHANGE_REQUIRED" }` | Mostrar el formulario de nueva contraseña; después sigue el segundo factor |
 | `401 INVALID_CREDENTIALS` | Mensaje genérico. Es igual para correo inexistente, contraseña errada o usuario suspendido |
 | `429 TOO_MANY_LOGIN_ATTEMPTS` + `Retry-After: <segundos>` | Deshabilitar el botón durante esa espera |
 | `423 ACCOUNT_LOCKED` | Ofrecer "restablecer contraseña" o contactar a un administrador |
@@ -67,8 +77,66 @@ Solo después de `PASSWORD_CHANGE_REQUIRED`, dentro de los 10 minutos siguientes
 { "newPassword": "otra frase larga" }
 ```
 
-`200` con la misma forma que `AUTHENTICATED`. Errores: `400 PASSWORD_REJECTED` (ver política),
-`400 PASSWORD_REUSED`, `409 PASSWORD_CHANGE_NOT_PENDING`.
+`200` con `SECOND_FACTOR_REQUIRED` o `SECOND_FACTOR_ENROLLMENT_REQUIRED`. Errores: `400 PASSWORD_REJECTED`
+(ver política), `400 PASSWORD_REUSED`, `409 PASSWORD_CHANGE_NOT_PENDING`.
+
+### `POST /api/v1/login/second-factor/enrollment`
+
+Solo con `SECOND_FACTOR_ENROLLMENT_REQUIRED`. Cuerpo vacío (`{}`).
+
+```json
+{ "otpauthUrl": "otpauth://totp/Clinica:ana@clinica.local?secret=…&issuer=Clinica…", "qrPngBase64": "iVBORw0…" }
+```
+
+Mostrar el QR (`<img src="data:image/png;base64,…">`) y, para quien no pueda escanearlo, el `secret` de la
+URL. El secreto vive en el motor TOTP de OpenBao; `auth-service` no lo guarda. Llamarlo otra vez genera
+un secreto nuevo e invalida el anterior. Error: `409 SECOND_FACTOR_NOT_PENDING`.
+
+### `POST /api/v1/login/second-factor/enrollment/confirmation`
+
+```json
+{ "code": "123456" }
+```
+
+```json
+{ "outcome": "AUTHENTICATED", "continueUrl": "…/oauth2/authorize?…",
+  "recoveryCodes": ["K7QX-M2PA-…", "…"], "remainingRecoveryCodes": 10 }
+```
+
+Los 10 códigos de recuperación **solo se entregan aquí**: mostrarlos con opción de copiar o imprimir y
+pedir confirmación antes de navegar a `continueUrl`. Errores: `401 INVALID_SECOND_FACTOR`,
+`429 TOO_MANY_LOGIN_ATTEMPTS`, `409 SECOND_FACTOR_NOT_PENDING`.
+
+### `POST /api/v1/login/second-factor`
+
+Solo con `SECOND_FACTOR_REQUIRED`. Uno de los dos campos:
+
+```json
+{ "code": "123456" }
+```
+```json
+{ "recoveryCode": "K7QX-M2PA-9TRD-H4EW" }
+```
+
+| Respuesta | Qué hacer |
+|---|---|
+| `200 { "outcome": "AUTHENTICATED", "continueUrl": "…", "remainingRecoveryCodes": 9 }` | Navegar a `continueUrl`. Si quedan pocos códigos, avisar que pida regenerarlos |
+| `401 INVALID_SECOND_FACTOR` | Código errado, vencido o ya usado (cada código TOTP sirve una sola vez, aunque siga en su ventana de 30 s) |
+| `429 TOO_MANY_LOGIN_ATTEMPTS` + `Retry-After` | Tras 5 fallos seguidos del segundo factor |
+| `409 SECOND_FACTOR_NOT_PENDING` | La sesión venció o no pasó por la contraseña: volver al login |
+
+Los códigos de recuperación no distinguen mayúsculas ni guiones y se consumen al usarlos.
+
+### Step-up: reautenticación exigida por el cliente
+
+Una autorización con `max_age` (por ejemplo, antes de firmar una nota clínica) y una sesión autenticada
+hace más tiempo que ese valor no emite código: `auth-service` guarda la petición y redirige a
+`<login>?step=step-up`. La pantalla pide el segundo factor y llama:
+
+### `POST /api/v1/login/step-up`
+
+Mismo cuerpo y errores que `POST /api/v1/login/second-factor`; exige una sesión autenticada (`401` si no).
+Devuelve `continueUrl` con la autorización original y el token nuevo trae `auth_time` actualizado.
 
 ### `POST /api/v1/logout`
 
@@ -126,5 +194,6 @@ token CSRF ausente o vencido: volver a pedir `GET /api/v1/session`.
 | `/oauth2/revoke`, `/oauth2/introspect`, `/userinfo`, `/connect/logout` | Estándar de Spring Authorization Server |
 
 Claims del access token: `iss`, `sub` (uuid del usuario), `aud: clinica-api`, `exp` (5 min), `role`,
-`email`, `name`, `auth_time` y `amr`. El refresh token dura 12 horas, rota en cada uso y reutilizar uno
+`email`, `name`, `auth_time` (último factor verificado), `amr` (`["pwd", "otp", "mfa"]`, o `rec` en lugar
+de `otp` si se usó un código de recuperación) y `acr: urn:clinica:acr:mfa`. El refresh token dura 12 horas, rota en cada uso y reutilizar uno
 ya rotado revoca toda la sesión.

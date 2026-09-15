@@ -25,8 +25,11 @@ en [`BackEnd-Clinica/auth-service/docs/flujo-de-login.md`](../BackEnd-Clinica/au
 | Método y ruta | Uso |
 |---|---|
 | `GET /api/v1/session` | Estado de la sesión y token CSRF |
-| `POST /api/v1/login` | Correo y contraseña → `AUTHENTICATED` con `continueUrl` o `PASSWORD_CHANGE_REQUIRED` |
+| `POST /api/v1/login` | Correo y contraseña → `SECOND_FACTOR_REQUIRED`, `SECOND_FACTOR_ENROLLMENT_REQUIRED` o `PASSWORD_CHANGE_REQUIRED` |
 | `POST /api/v1/login/password-change` | Nueva contraseña cuando se exige cambio |
+| `POST /api/v1/login/second-factor/enrollment` · `…/enrollment/confirmation` | QR del TOTP y confirmación con el primer código → `AUTHENTICATED` y 10 códigos de recuperación |
+| `POST /api/v1/login/second-factor` | Código TOTP o de recuperación → `AUTHENTICATED` con `continueUrl` |
+| `POST /api/v1/login/step-up` | Reautenticación con el segundo factor cuando la autorización pide `max_age` |
 | `POST /api/v1/logout` | Cierra la sesión |
 | `POST /api/v1/activation` | Activa la cuenta con el enlace del correo |
 | `POST /api/v1/password-reset/requests` · `POST /api/v1/password-reset` | Solicita y aplica el reseteo |

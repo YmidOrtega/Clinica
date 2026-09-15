@@ -342,23 +342,26 @@ Identidad del personal y de los servicios, reconstruida por incrementos (rama `r
 como servidor OAuth 2.1 / OIDC con Spring Authorization Server.
 
 ```
-domain/user         User (agregado JPA + Envers), Role, UserStatus y CredentialState sellados
+domain/user         User (agregado JPA + Envers), Role, UserStatus, CredentialState y SecondFactorState sellados
+domain/secondfactor TotpAuthenticator y RecoveryCodes como puertos, SecondFactorProof sellado, AuthenticationMethod
 domain/password     PasswordPolicy (NIST 800-63B-4), PasswordHasher y PasswordDenyList como puertos
 domain/throttle     LoginThrottlePolicy, ThrottleKey y LoginAttemptDecision sellados
 domain/onetime      enlaces de un solo uso (activación 72 h, reseteo 30 min)
-application         LoginFlow, AccountActivation, PasswordRecovery, AccountMailing, SuperAdminBootstrap
+application         LoginFlow, SecondFactorFlow, AccountActivation, PasswordRecovery, AccountMailing, SuperAdminBootstrap
 infrastructure      Authorization Server: TransitJwtEncoder (ES256 en OpenBao), TransitJwkSource,
                     aserciones de cliente verificadas contra transit, JdbcAuthorizationStore (tokens
-                    hasheados, familias de refresh, 5 sesiones), API JSON del login, SMTP, Argon2id
+                    hasheados, familias de refresh, 5 sesiones), StepUpFilter (max_age), API JSON del
+                    login, TOTP en OpenBao, códigos de recuperación, SMTP, Argon2id
 ```
 
 | Esquema          | Contenido                                                      | Usuario `app`                 |
 | ---------------- | -------------------------------------------------------------- | ----------------------------- |
-| `auth_db`        | `users`                                                        | `SELECT`, `INSERT`, `UPDATE`  |
+| `auth_db`        | `users`, `recovery_codes` (SHA-256, un solo uso)               | `SELECT`, `INSERT`, `UPDATE`  |
 | `auth_history`   | `revisions` (con autor), `users_aud` (Envers)                  | `SELECT`, `INSERT`            |
 | `auth_sessions`  | autorizaciones y tokens hasheados, sesiones HTTP, frenado, enlaces, outbox de correo | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
 
-Depende de OpenBao para firmar tokens y verificar clientes: sin OpenBao no hay login ni refresh, pero
+Depende de OpenBao para firmar tokens, verificar clientes y validar los códigos TOTP del segundo factor
+obligatorio: sin OpenBao no hay login ni refresh, pero
 los tokens emitidos siguen validándose con el JWKS. Envía correos por SMTP desde un outbox con
 reintentos (Mailpit en desarrollo) y, al arrancar sin ningún `SUPER_ADMIN`, invita al configurado en
 `secret/auth/bootstrap`. Corre con 2 réplicas; sesiones y autorizaciones viven en MySQL.

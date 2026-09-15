@@ -50,7 +50,7 @@ COMPOSE_PROJECT=clinical-e2e JWT_PRIVATE_KEY=/tmp/clinica-private.pem \
 | Paso                         | Qué demuestra                                                            |
 | ---------------------------- | ------------------------------------------------------------------------ |
 | Clúster                      | Tres nodos desellados, raft con tres votantes y un nodo activo           |
-| Políticas                    | Cada AppRole (patient, clinical, auth) lee solo sus rutas; el agente no escribe; solo `clinical-history-service` firma con `transit/clinical-seal` y no puede rotar sus claves |
+| Políticas                    | Cada AppRole (patient, clinical, auth) lee solo sus rutas; el agente no escribe; solo `clinical-history-service` firma con `transit/clinical-seal` y no puede rotar sus claves; `auth-service` administra solo claves TOTP `staff-*` y no puede listarlas |
 | Configuración de contenedores | Ninguna contraseña ni clave aparece en `docker inspect`                 |
 | Conmutación                  | Cae el nodo activo, otro asume, los logins siguen y una réplica de `patient-service` arranca; el nodo vuelve desellado solo |
 | Aislamiento                  | Con los tres nodos caídos `patient-service` sigue registrando pacientes, `clinical-history-service` verifica una cadena ya sellada y responde `503 CLINICAL_KEYS_UNAVAILABLE` al sellar, y el clúster se recupera sin intervención |
@@ -74,12 +74,18 @@ docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml
 COMPOSE_PROJECT=clinical-e2e sh platform/e2e/auth-e2e.sh
 ```
 
+La primera corrida enrola el TOTP del `SUPER_ADMIN` y guarda la URL `otpauth` (con permisos `600`) en
+`${E2E_STATE_DIR:-~/.local/state/clinica-e2e}/<proyecto>-super-admin-totp.json` para calcular los códigos
+de las siguientes con `totp-code.mjs`. Si ese archivo se pierde, recrear el volumen de `auth-db`.
+
 | Paso | Qué demuestra |
 |---|---|
 | Primer `SUPER_ADMIN` | Llega el correo de activación a Mailpit y el enlace activa la cuenta; si ya estaba activa, el reseteo por correo funciona |
-| Authorization code + PKCE | Sin sesión redirige al login del frontend; el login por API devuelve `continueUrl`, que termina en el `redirect_uri` con código y `state` |
+| Authorization code + PKCE | Sin sesión redirige al login del frontend; la contraseña sola no autentica la sesión |
+| Segundo factor | El primer login enrola TOTP en OpenBao (QR y 10 códigos de recuperación); los siguientes validan el código; un código ya usado se rechaza en otra sesión; `continueUrl` termina en el `redirect_uri` con código y `state` |
 | Cliente confidencial | El canje se autentica con una aserción `private_key_jwt` firmada en transit |
-| Tokens | La firma ES256 verifica con el JWKS, que solo expone claves públicas; el refresh token solo existe como SHA-256 |
+| Tokens | La firma ES256 verifica con el JWKS, que solo expone claves públicas; `amr` y `acr` reflejan el segundo factor; el refresh token solo existe como SHA-256 |
+| Step-up | Una autorización con `max_age` vencido redirige a `?step=step-up`; tras el código TOTP el token trae un `auth_time` nuevo |
 | Refresh | Rota en cada uso y reutilizar uno rotado revoca toda la familia |
 | Frenado | Tras 5 fallos desde la misma dirección responde `429` y, pasada la espera, vuelve a entrar |
 

@@ -61,23 +61,40 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
 - El login lo hacen las pantallas del frontend contra una API JSON con sesión en Spring Session JDBC y
   CSRF de sesión. Al autenticarse se cambia el identificador de sesión.
 
-### 2.3 Tokens y tiempos de vida
+### 2.3 Segundo factor obligatorio y step-up
+
+- Todo el personal usa **TOTP** (RFC 6238, 6 dígitos, 30 s). El secreto se genera y se guarda en el motor
+  TOTP de OpenBao (clave `totp/keys/staff-<uuid>`); `auth-service` solo pide validar códigos y la política
+  no le deja leer ni listar las claves. OpenBao rechaza un código ya usado aunque siga en su ventana.
+- El primer login después de activar la cuenta obliga a enrolarse; al confirmar se entregan una sola vez
+  **10 códigos de recuperación** de un solo uso, guardados como SHA-256.
+- El segundo factor tiene su propio frenado: 5 fallos seguidos → `429` con espera creciente.
+- Un administrador podrá reiniciar el segundo factor de otra persona con un motivo (el propio no; el
+  endpoint llega con la API de administración): mueve `tokensNotBefore` y el siguiente login vuelve al
+  enrolamiento.
+- **Step-up (RFC 9470):** si el cliente pide `max_age` y el último factor verificado es más antiguo, la
+  autorización redirige a reautenticarse con el segundo factor antes de emitir el código. El token lleva
+  `auth_time` de esa verificación, `amr` (`pwd`, `otp` o `rec`, `mfa`) y `acr: urn:clinica:acr:mfa`, para
+  que los servicios exijan una autenticación reciente en operaciones sensibles.
+
+### 2.4 Tokens y tiempos de vida
 
 | Elemento | Duración | Notas |
 |---|---|---|
-| Access token (JWT ES256) | 5 min | `aud: clinica-api`, `role`, `email`, `name`, `auth_time`, `amr` |
+| Access token (JWT ES256) | 5 min | `aud: clinica-api`, `role`, `email`, `name`, `auth_time`, `amr`, `acr` |
 | Refresh token (opaco) | 12 h absolutas | Rota en cada uso |
-| Sesión de `auth-service` | 15 min sin actividad, 12 h absolutas | Cookie `HttpOnly`, `SameSite=Lax` |
+| Sesión de `auth-service` | 15 min sin actividad, 12 h absolutas desde el login | Cookie `HttpOnly`, `SameSite=Lax`; el step-up no la alarga |
+| Paso pendiente del login (cambio de contraseña, segundo factor) | 10 min | La sesión no queda autenticada hasta completar el segundo factor |
 | Código de autorización | 1 min | Un solo uso |
 
-### 2.4 Almacenamiento y revocación
+### 2.5 Almacenamiento y revocación
 
 - Códigos, access, refresh e id tokens se guardan **solo como SHA-256** en `auth_sessions`; un volcado
   de la base no entrega credenciales utilizables.
 - **Familias de refresh:** cada refresh rotado queda registrado; si alguien reutiliza uno ya rotado
   (señal de robo), se revoca la autorización completa con todos sus tokens.
 - **Máximo 5 sesiones vivas por usuario:** la sexta cierra la más antigua.
-- **`tokensNotBefore`:** suspender, desactivar, cambiar el rol, forzar cambio o resetear la contraseña lo
+- **`tokensNotBefore`:** suspender, desactivar, cambiar el rol, forzar cambio, reiniciar el segundo factor o resetear la contraseña lo
   mueve; desde ese instante `auth-service` rechaza refrescar las sesiones anteriores. El reseteo borra
   además todas las sesiones y autorizaciones del usuario.
 
