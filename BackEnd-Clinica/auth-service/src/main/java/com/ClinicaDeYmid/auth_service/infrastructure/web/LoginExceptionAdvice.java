@@ -24,6 +24,7 @@ class LoginExceptionAdvice {
             case LoginException.PasswordChangeNotPending notPending -> HttpStatus.CONFLICT;
             case LoginException.InvalidSecondFactor invalidSecondFactor -> HttpStatus.UNAUTHORIZED;
             case LoginException.SecondFactorNotPending notPending -> HttpStatus.CONFLICT;
+            case LoginException.WrongCurrentPassword wrongCurrentPassword -> HttpStatus.BAD_REQUEST;
             case LoginException.PasswordReused reused -> HttpStatus.BAD_REQUEST;
             case LoginException.InvalidLink invalidLink -> HttpStatus.BAD_REQUEST;
         };

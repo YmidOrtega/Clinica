@@ -30,8 +30,7 @@ class JdbcRecoveryCodes implements RecoveryCodes {
 
     @Override
     public List<String> replaceAll(UUID userUuid, Instant now) {
-        jdbc.update("UPDATE recovery_codes SET revoked_at = ? WHERE user_uuid = ? AND used_at IS NULL AND revoked_at IS NULL",
-                Timestamp.from(now), userUuid.toString());
+        revokeAll(userUuid, now);
         List<String> codes = new ArrayList<>();
         for (int index = 0; index < CODES_PER_USER; index++) {
             String code = newCode();
@@ -59,6 +58,12 @@ class JdbcRecoveryCodes implements RecoveryCodes {
                 SELECT COUNT(*) FROM recovery_codes WHERE user_uuid = ? AND used_at IS NULL AND revoked_at IS NULL""",
                 Integer.class, userUuid.toString());
         return remaining == null ? 0 : remaining;
+    }
+
+    @Override
+    public void revokeAll(UUID userUuid, Instant now) {
+        jdbc.update("UPDATE recovery_codes SET revoked_at = ? WHERE user_uuid = ? AND used_at IS NULL AND revoked_at IS NULL",
+                Timestamp.from(now), userUuid.toString());
     }
 
     private static String newCode() {

@@ -316,7 +316,7 @@ public class User {
         return updatedAt;
     }
 
-    private void requireManageableBy(Actor actor) {
+    public void requireManageableBy(Actor actor) {
         DomainRules.required(actor, "actor");
         if (actor.uuid().equals(uuid)) {
             throw new UserException.SelfManagement();

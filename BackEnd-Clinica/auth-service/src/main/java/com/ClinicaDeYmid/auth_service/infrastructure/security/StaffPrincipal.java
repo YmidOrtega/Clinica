@@ -1,7 +1,9 @@
 package com.ClinicaDeYmid.auth_service.infrastructure.security;
 
+import com.ClinicaDeYmid.auth_service.application.Caller;
 import com.ClinicaDeYmid.auth_service.application.StaffIdentity;
 import com.ClinicaDeYmid.auth_service.domain.secondfactor.AuthenticationMethod;
+import com.ClinicaDeYmid.auth_service.domain.user.Actor;
 import com.ClinicaDeYmid.auth_service.domain.user.Role;
 
 import java.io.Serializable;
@@ -26,5 +28,9 @@ public record StaffPrincipal(UUID uuid, String email, String fullName, Role role
 
     public boolean multiFactor() {
         return methods.contains(AuthenticationMethod.MULTI_FACTOR.amr());
+    }
+
+    public Caller caller() {
+        return new Caller(new Actor(uuid, role), authenticatedAt, multiFactor());
     }
 }

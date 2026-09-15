@@ -7,8 +7,13 @@ import com.ClinicaDeYmid.auth_service.domain.user.UserException;
 import com.ClinicaDeYmid.auth_service.domain.user.UserStatus;
 import com.ClinicaDeYmid.auth_service.domain.user.Users;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -58,5 +63,17 @@ class JpaUsers implements Users {
     @Override
     public boolean anyNotDeactivatedWithRole(Role role) {
         return repository.existsByRoleAndStatusNot(role, UserStatus.Code.DEACTIVATED);
+    }
+
+    @Override
+    public List<UUID> lockActiveWithRole(Role role) {
+        return repository.lockUuidsByRoleAndStatus(role.name(), UserStatus.Code.ACTIVE.name()).stream().map(UUID::fromString).toList();
+    }
+
+    @Override
+    public Page<User> search(Criteria criteria, Pageable pageable) {
+        String prefix = criteria.text() == null ? null : criteria.text().replaceAll("([\\\\%_])", "\\\\$1") + "%";
+        Pageable ordered = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("fullName.value", "email.value"));
+        return repository.search(prefix, criteria.role(), criteria.status(), ordered);
     }
 }

@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.auth_service.infrastructure.security;
 
+import com.ClinicaDeYmid.auth_service.domain.user.Role;
 import com.ClinicaDeYmid.auth_service.domain.user.Users;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitClient;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitKeys;
@@ -15,8 +16,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.authentication.JwtClientAssertionAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
@@ -35,6 +42,7 @@ import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 import org.springframework.security.web.savedrequest.RequestCache;
 
 import java.time.Clock;
+import java.util.List;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AuthorizationServerProperties.class)
@@ -70,6 +78,27 @@ public class AuthorizationServerConfiguration {
 
     @Bean
     @Order(2)
+    SecurityFilterChain staffApiFilterChain(HttpSecurity http, JWKSource<SecurityContext> jwkSource, AuthorizationServerProperties properties,
+                                            Users users) throws Exception {
+        NimbusJwtDecoder decoder = (NimbusJwtDecoder) OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefaultWithIssuer(properties.issuer()),
+                new JwtClaimValidator<List<String>>(JwtClaimNames.AUD, audience -> audience != null && audience.contains(properties.tokens().audience()))));
+        http.securityMatcher("/api/v1/users", "/api/v1/users/**", "/api/v1/me", "/api/v1/me/**")
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/api/v1/users", "/api/v1/users/**").hasAnyRole(Role.SUPER_ADMIN.name(), Role.ADMIN.name())
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(resourceServer -> resourceServer.jwt(jwt -> jwt
+                        .decoder(decoder)
+                        .jwtAuthenticationConverter(new StaffBearerAuthenticationConverter(users))))
+                .sessionManagement(sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable);
+        return http.build();
+    }
+
+    @Bean
+    @Order(3)
     SecurityFilterChain loginFlowFilterChain(HttpSecurity http, SessionLifetimeFilter sessionLifetime) throws Exception {
         http.securityMatcher("/api/**", "/actuator/**", "/error")
                 .authorizeHttpRequests(authorize -> authorize
