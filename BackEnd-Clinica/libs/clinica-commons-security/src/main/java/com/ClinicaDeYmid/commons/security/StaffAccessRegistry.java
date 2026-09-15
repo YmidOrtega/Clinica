@@ -26,7 +26,7 @@ public class StaffAccessRegistry {
         if (known == null) {
             return false;
         }
-        return !ACTIVE.equals(known.status()) || known.tokensNotBefore().truncatedTo(ChronoUnit.SECONDS).isAfter(issuedAt);
+        return !ACTIVE.equals(known.status()) || !known.tokensNotBefore().truncatedTo(ChronoUnit.SECONDS).isBefore(issuedAt);
     }
 
     public Optional<StaffAccess> of(UUID userUuid) {

@@ -30,7 +30,7 @@ final class StaffBearerAuthenticationConverter implements Converter<Jwt, StaffAu
         User user = subject(jwt)
                 .flatMap(users::findByUuid)
                 .filter(User::mayAuthenticate)
-                .filter(current -> !current.tokensNotBefore().truncatedTo(ChronoUnit.SECONDS).isAfter(issuedAt))
+                .filter(current -> current.tokensNotBefore().truncatedTo(ChronoUnit.SECONDS).isBefore(issuedAt))
                 .orElseThrow(StaffBearerAuthenticationConverter::revoked);
         List<String> methods = Optional.ofNullable(jwt.getClaimAsStringList("amr")).orElse(List.of());
         return new StaffAuthentication(new StaffPrincipal(user.uuid(), user.email().value(), user.fullName().value(), user.role(),
