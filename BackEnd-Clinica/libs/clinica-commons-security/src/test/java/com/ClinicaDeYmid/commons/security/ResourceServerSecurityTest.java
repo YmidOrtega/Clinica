@@ -87,6 +87,8 @@ class ResourceServerSecurityTest {
                 .expiresAt(Instant.now().minusSeconds(1800)).value());
         expectInvalidToken(SecurityTestTokens.staff("DOCTOR", DOCTOR).issuer("someone-else").value());
         expectInvalidToken(SecurityTestTokens.staff("DOCTOR", DOCTOR).claim("sub", null).value());
+        expectInvalidToken(SecurityTestTokens.staff("SUPER_ADMIN", DOCTOR).unsigned());
+        expectInvalidToken(SecurityTestTokens.staff("DOCTOR", DOCTOR).keyId("auth-jwt-v99").value());
     }
 
     @Test
