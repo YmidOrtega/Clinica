@@ -4,7 +4,7 @@ import com.ClinicaDeYmid.clinical_history_service.application.copy.RecordCopySer
 import com.ClinicaDeYmid.clinical_history_service.domain.copy.RecordCopy;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity.EcdsaClinicalSignature;
 import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
-import com.ClinicaDeYmid.commons.security.CurrentUser;
+import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
@@ -34,12 +34,12 @@ class RecordCopyController {
 
     private final RecordCopyService copies;
     private final EcdsaClinicalSignature signature;
-    private final CurrentUser currentUser;
+    private final RecentAuthentication recentAuthentication;
 
-    RecordCopyController(RecordCopyService copies, EcdsaClinicalSignature signature, CurrentUser currentUser) {
+    RecordCopyController(RecordCopyService copies, EcdsaClinicalSignature signature, RecentAuthentication recentAuthentication) {
         this.copies = copies;
         this.signature = signature;
-        this.currentUser = currentUser;
+        this.recentAuthentication = recentAuthentication;
     }
 
     record CopyRequest(String reason, Instant from, Instant to) {
@@ -61,9 +61,9 @@ class RecordCopyController {
     @Operation(summary = "Generar la copia en PDF de la historia clínica para entregar al paciente",
             description = "Exige motivo; incluye notas restringidas, anulaciones, sellos y una página de verificación; queda auditada")
     ResponseEntity<byte[]> generate(@PathVariable UUID patientUuid, @RequestBody CopyRequest request) {
-        AuthenticatedUser user = currentUser.get().orElseThrow();
+        AuthenticatedUser user = recentAuthentication.require();
         RecordCopyService.Generated generated = copies.generate(patientUuid, request.reason(), request.from(), request.to(),
-                new RecordCopyService.Requester(UUID.fromString(user.uuid()), user.role()), signature.algorithm(), signature.activeKeyId());
+                new RecordCopyService.Requester(user.uuid(), user.role()), signature.algorithm(), signature.activeKeyId());
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .cacheControl(CacheControl.noStore())

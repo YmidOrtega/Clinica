@@ -77,6 +77,6 @@ class TerminologyController {
     }
 
     private UUID actor() {
-        return currentUser.get().map(AuthenticatedUser::uuid).map(UUID::fromString).orElseThrow();
+        return currentUser.get().map(AuthenticatedUser::uuid).orElseThrow();
     }
 }
