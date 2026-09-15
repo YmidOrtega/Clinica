@@ -24,6 +24,10 @@ public final class StaffApi {
         return send(request(path, token).GET());
     }
 
+    public OAuthBrowser.Response delete(String path, String token) {
+        return send(request(path, token).DELETE());
+    }
+
     public OAuthBrowser.Response post(String path, String token, Object body) {
         return post(path, token, null, body);
     }

@@ -10,7 +10,7 @@
     "type": {"enum": ["UserInvited", "UserActivated", "UserRenamed", "UserRoleChanged", "UserSuspended", "UserDeactivated", "UserReactivated",
       "UserPasswordChangeRequired", "UserPasswordChanged", "UserPasswordReset", "UserSecondFactorEnrolled", "UserSecondFactorReset",
       "UserSessionsRevoked", "SignInCompleted", "SignInFailed", "PasswordResetRequested", "RecoveryCodesRegenerated", "SignInUnlocked",
-      "InvitationResent", "RefreshTokenReuseDetected"]},
+      "InvitationResent", "RefreshTokenReuseDetected", "SessionClosed"]},
     "schemaVersion": {"const": 1},
     "occurredAt": {"type": "string", "format": "date-time"},
     "traceId": {"type": "string"},

@@ -43,7 +43,7 @@ public sealed interface UserEvent {
     record SecondFactorReset(String reason, Actor by) implements UserEvent {
     }
 
-    record SessionsRevoked() implements UserEvent {
+    record SessionsRevoked(Actor by) implements UserEvent {
     }
 
     default Optional<Actor> actor() {
@@ -56,12 +56,13 @@ public sealed interface UserEvent {
             case Reactivated reactivated -> Optional.of(reactivated.by());
             case PasswordChangeRequired required -> Optional.of(required.by());
             case SecondFactorReset reset -> Optional.of(reset.by());
+            case SessionsRevoked revoked -> Optional.of(revoked.by());
             case Bootstrapped bootstrapped -> Optional.empty();
             case Activated activated -> Optional.empty();
             case PasswordChanged changed -> Optional.empty();
             case PasswordReset reset -> Optional.empty();
             case SecondFactorEnrolled enrolled -> Optional.empty();
-            case SessionsRevoked revoked -> Optional.empty();
+
         };
     }
 }

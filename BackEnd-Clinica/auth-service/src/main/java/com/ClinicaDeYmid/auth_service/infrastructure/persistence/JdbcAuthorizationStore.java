@@ -2,7 +2,7 @@ package com.ClinicaDeYmid.auth_service.infrastructure.persistence;
 
 import com.ClinicaDeYmid.auth_service.application.audit.SecurityAuditLog;
 import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent;
-import com.ClinicaDeYmid.auth_service.application.session.SessionRevocation;
+import com.ClinicaDeYmid.auth_service.application.session.StaffSessions;
 import com.ClinicaDeYmid.auth_service.infrastructure.security.StaffAuthentication;
 import com.ClinicaDeYmid.auth_service.infrastructure.security.StaffPrincipal;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -52,7 +52,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Repository
-public class JdbcAuthorizationStore implements OAuth2AuthorizationService, SessionRevocation {
+public class JdbcAuthorizationStore implements OAuth2AuthorizationService, StaffSessions {
 
     static final int MAX_SESSIONS_PER_USER = 5;
 
@@ -150,6 +150,31 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Sessi
         int revoked = jdbc.update("DELETE FROM auth_sessions.authorizations WHERE principal_name = ?", userUuid.toString());
         jdbc.update("DELETE FROM auth_sessions.SPRING_SESSION WHERE PRINCIPAL_NAME = ?", userUuid.toString());
         return revoked;
+    }
+
+    @Override
+    public List<StaffSession> of(UUID userUuid) {
+        return jdbc.query("""
+                SELECT a.id, a.registered_client_id, a.created_at, a.updated_at, t.expires_at
+                FROM auth_sessions.authorizations a
+                JOIN auth_sessions.authorization_tokens t ON t.authorization_id = a.id AND t.token_type = ? AND t.expires_at > ?
+                WHERE a.principal_name = ? AND a.grant_type = ?
+                ORDER BY a.created_at DESC""", (row, index) -> new StaffSession(row.getString("id"), row.getString("registered_client_id"),
+                instant(row.getTimestamp("created_at")), instant(row.getTimestamp("updated_at")), instant(row.getTimestamp("expires_at"))),
+                OAuth2TokenType.REFRESH_TOKEN.getValue(), Timestamp.from(Instant.now(clock)), userUuid.toString(),
+                AuthorizationGrantType.AUTHORIZATION_CODE.getValue());
+    }
+
+    @Override
+    public boolean revoke(UUID userUuid, String sessionId) {
+        return jdbc.update("DELETE FROM auth_sessions.authorizations WHERE id = ? AND principal_name = ? AND grant_type = ?", sessionId,
+                userUuid.toString(), AuthorizationGrantType.AUTHORIZATION_CODE.getValue()) == 1;
+    }
+
+    @Override
+    public Optional<String> sessionOfAccessToken(String accessToken) {
+        return jdbc.queryForList("SELECT authorization_id FROM auth_sessions.authorization_tokens WHERE value_hash = ? AND token_type = ?",
+                String.class, TokenHashes.of(accessToken), OAuth2TokenType.ACCESS_TOKEN.getValue()).stream().findFirst();
     }
 
     private void revokeFamilyOfReusedRefreshToken(String hash) {

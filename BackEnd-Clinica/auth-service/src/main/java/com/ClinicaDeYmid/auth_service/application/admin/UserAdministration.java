@@ -5,7 +5,7 @@ import com.ClinicaDeYmid.auth_service.application.audit.SecurityAuditLog;
 import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent;
 import com.ClinicaDeYmid.auth_service.application.mail.MailKind;
 import com.ClinicaDeYmid.auth_service.application.mail.MailOutbox;
-import com.ClinicaDeYmid.auth_service.application.session.SessionRevocation;
+import com.ClinicaDeYmid.auth_service.application.session.StaffSessions;
 import com.ClinicaDeYmid.auth_service.domain.secondfactor.RecoveryCodes;
 import com.ClinicaDeYmid.auth_service.domain.secondfactor.TotpAuthenticator;
 import com.ClinicaDeYmid.auth_service.domain.throttle.LoginThrottle;
@@ -43,7 +43,7 @@ public class UserAdministration {
 
     private final Users users;
     private final MailOutbox outbox;
-    private final SessionRevocation sessions;
+    private final StaffSessions sessions;
     private final LoginThrottle throttle;
     private final TotpAuthenticator totp;
     private final RecoveryCodes recoveryCodes;
@@ -51,7 +51,7 @@ public class UserAdministration {
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public UserAdministration(Users users, MailOutbox outbox, SessionRevocation sessions, LoginThrottle throttle, TotpAuthenticator totp,
+    public UserAdministration(Users users, MailOutbox outbox, StaffSessions sessions, LoginThrottle throttle, TotpAuthenticator totp,
                               RecoveryCodes recoveryCodes, SecurityAuditLog audit, TransactionOperations transactions, Clock clock) {
         this.users = users;
         this.outbox = outbox;
@@ -125,6 +125,13 @@ public class UserAdministration {
         }
         log.info("Staff user {} reset the second factor of {}", caller.uuid(), uuid);
         return reset;
+    }
+
+    public User revokeSessions(Caller caller, UUID uuid, long expectedVersion) {
+        caller.requireRecentAuthentication(clock);
+        User revoked = modify(uuid, expectedVersion, SuperAdmins.UNAFFECTED, user -> user.revokeSessions(caller.actor(), clock));
+        log.info("Staff user {} closed every session of {}", caller.uuid(), uuid);
+        return revoked;
     }
 
     public void resendInvitation(Caller caller, UUID uuid) {

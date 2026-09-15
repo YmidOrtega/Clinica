@@ -169,6 +169,26 @@ class UserAdministrationApiIT {
     }
 
     @Test
+    void anAdministratorClosesEverySessionOfAStaffMember() {
+        User admin = staff.active(Role.ADMIN).user();
+        StaffAccounts.StaffAccount receptionist = staff.active(Role.RECEPTIONIST);
+        OAuthBrowser browser = new OAuthBrowser(port);
+        browser.authorize();
+        JsonNode issued = browser.exchangeCode(browser.authorizationCode(browser.signIn(receptionist))).json();
+
+        assertThat(api.post("/api/v1/users/" + receptionist.user().uuid() + "/session-revocation", tokens.authenticatedAgo(admin, Duration.ofMinutes(6)),
+                tag(receptionist.user()), null).status()).isEqualTo(401);
+        OAuthBrowser.Response revoked = api.post("/api/v1/users/" + receptionist.user().uuid() + "/session-revocation", tokens.fresh(admin),
+                tag(receptionist.user()), null);
+
+        assertThat(revoked.status()).isEqualTo(200);
+        assertThat(browser.refresh(issued.get("refresh_token").asText()).status()).isEqualTo(400);
+        assertThat(api.get("/api/v1/me", issued.get("access_token").asText()).status()).isEqualTo(401);
+        assertThat(api.post("/api/v1/users/" + admin.uuid() + "/session-revocation", tokens.fresh(staff.active(Role.ADMIN).user()), tag(admin), null)
+                .status()).isEqualTo(403);
+    }
+
+    @Test
     void resettingTheSecondFactorSendsTheUserBackToEnrollment() {
         User superAdmin = staff.active(Role.SUPER_ADMIN).user();
         StaffAccounts.StaffAccount doctor = staff.active(Role.DOCTOR);

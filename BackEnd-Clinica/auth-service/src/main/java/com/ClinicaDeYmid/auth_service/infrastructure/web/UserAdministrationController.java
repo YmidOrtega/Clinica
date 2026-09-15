@@ -137,6 +137,12 @@ class UserAdministrationController {
         return respond(administration.resetSecondFactor(principal.caller(), uuid, EntityTags.requiredVersion(ifMatch), body.reason()));
     }
 
+    @PostMapping("/{uuid}/session-revocation")
+    ResponseEntity<UserView> revokeSessions(@AuthenticationPrincipal StaffPrincipal principal, @PathVariable UUID uuid,
+                                            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        return respond(administration.revokeSessions(principal.caller(), uuid, EntityTags.requiredVersion(ifMatch)));
+    }
+
     @PostMapping("/{uuid}/invitation")
     ResponseEntity<Void> resendInvitation(@AuthenticationPrincipal StaffPrincipal principal, @PathVariable UUID uuid) {
         administration.resendInvitation(principal.caller(), uuid);

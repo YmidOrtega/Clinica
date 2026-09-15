@@ -106,6 +106,8 @@ record SecurityAuditMessage(UUID eventId, String type, int schemaVersion, Instan
                     unlocked.by(), SubjectView.of(unlocked.userUuid(), null), client, Details.NONE);
             case SecurityEvent.InvitationResent resent -> message(eventId, "InvitationResent", occurredAt, traceId, Outcome.SUCCEEDED,
                     resent.by(), SubjectView.of(resent.userUuid(), null), client, Details.NONE);
+            case SecurityEvent.SessionClosed closed -> message(eventId, "SessionClosed", occurredAt, traceId, Outcome.SUCCEEDED, null,
+                    SubjectView.of(closed.userUuid(), null), client, Details.authorization(closed.authorizationId()));
             case SecurityEvent.RefreshTokenReuseDetected reuse -> message(eventId, "RefreshTokenReuseDetected", occurredAt, traceId,
                     Outcome.FAILED, null, SubjectView.of(reuse.userUuid(), null), client, Details.authorization(reuse.authorizationId()));
         };

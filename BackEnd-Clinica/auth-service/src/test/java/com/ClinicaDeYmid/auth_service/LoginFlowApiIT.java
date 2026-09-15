@@ -16,6 +16,8 @@ import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.Clock;
 import java.util.Map;
+import java.util.function.IntConsumer;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,6 +47,28 @@ class LoginFlowApiIT {
                 .postJson("/api/v1/login", Map.of("email", nurse.email().value(), "password", StaffAccounts.PASSWORD), false);
 
         assertThat(withoutCsrf.status()).isEqualTo(403);
+    }
+
+    @Test
+    void responseTimesDoNotRevealWhichEmailsBelongToStaff() {
+        User doctor = staff.active(Role.DOCTOR).user();
+        OAuthBrowser warmUp = new OAuthBrowser(port);
+        IntStream.range(0, 3).forEach(attempt -> warmUp.login("calentamiento" + attempt + "@clinica.test", "frase de calentamiento " + attempt));
+
+        long unknown = medianMillis(attempt -> new OAuthBrowser(port).login("desconocido" + attempt + "@clinica.test", "una frase cualquiera " + attempt));
+        long wrongPassword = medianMillis(attempt -> new OAuthBrowser(port).login(doctor.email().value(), "no es su frase " + attempt));
+
+        assertThat(Math.abs(unknown - wrongPassword)).as("unknown %d ms vs wrong password %d ms", unknown, wrongPassword)
+                .isLessThanOrEqualTo(Math.max(unknown, wrongPassword) / 2);
+    }
+
+    private static long medianMillis(IntConsumer attempt) {
+        long[] durations = IntStream.range(0, 9).mapToLong(index -> {
+            long start = System.nanoTime();
+            attempt.accept(index);
+            return (System.nanoTime() - start) / 1_000_000;
+        }).sorted().toArray();
+        return durations[durations.length / 2];
     }
 
     @Test
