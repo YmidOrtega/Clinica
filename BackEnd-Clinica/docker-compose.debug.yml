@@ -65,6 +65,18 @@ services:
          - kafka-net
          - debug-net
 
+
+   auth-db:
+      ports:
+         - "127.0.0.1:3312:3306"
+      networks:
+         - auth-data
+         - debug-net
+
+   auth-service:
+      ports:
+         - "127.0.0.1:8093-8094:8086"
+
 networks:
    debug-net:
       driver: bridge

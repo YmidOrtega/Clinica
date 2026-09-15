@@ -36,6 +36,10 @@ el código ni en la configuración de los contenedores.
 | `clinical/storage/attachments`  |                   | lectura                    | lectura       |
 | `clinical/retired-master-keys`  |                   | lectura                    |               |
 | `clinical/retired-seal-keys`    |                   | lectura                    |               |
+| `auth/db/root`                  |                   |                            | lectura       |
+| `auth/db/migrator`, `app`       |                   |                            | lectura       |
+
+`auth-service` tiene su propio AppRole y solo lee `auth/db/migrator` y `auth/db/app`.
 
 | Clave transit (`transit/`) | Tipo           | `clinical-history-service`                        |
 | -------------------------- | -------------- | ------------------------------------------------- |

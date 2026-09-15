@@ -99,6 +99,7 @@ services:
          - openbao_bootstrap:/openbao/bootstrap
          - openbao_approle_patient:/openbao/approle/patient-service
          - openbao_approle_clinical:/openbao/approle/clinical-history-service
+         - openbao_approle_auth:/openbao/approle/auth-service
          - openbao_approle_agent:/openbao/approle/infra-agent
       networks:
          - secrets-net
@@ -119,10 +120,11 @@ services:
          - clinical_db_secrets:/rendered/clinical-db
          - clinical_storage_secrets:/rendered/clinical-storage
          - kafka_connect_secrets:/rendered/kafka-connect
+         - auth_db_secrets:/rendered/auth-db
       networks:
          - secrets-net
       healthcheck:
-         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password; do test -s /rendered/$$f || exit 1; done"]
+         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password; do test -s /rendered/$$f || exit 1; done"]
          interval: 5s
          timeout: 3s
          retries: 24
@@ -353,23 +355,27 @@ services:
       image: mysql:8.0
       container_name: auth-db
       restart: always
+      depends_on:
+         openbao-agent:
+            condition: service_healthy
       environment:
-         MYSQL_ROOT_PASSWORD: ${AUTH_DB_ROOT_PASSWORD}
-         MYSQL_DATABASE: ${AUTH_DB_NAME}
-         MYSQL_USER: ${AUTH_DB_USER}
-         MYSQL_PASSWORD: ${AUTH_DB_PASSWORD}
-
-      ports:
-         - "3312:3306"
+         MYSQL_ROOT_PASSWORD_FILE: /run/secrets/auth-db/root-password
+         MYSQL_DATABASE: ${AUTH_DB_NAME:-auth_db}
+         AUTH_DB_MIGRATOR_USER_FILE: /run/secrets/auth-db/migrator-user
+         AUTH_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/auth-db/migrator-password
+         AUTH_DB_APP_USER_FILE: /run/secrets/auth-db/app-user
+         AUTH_DB_APP_PASSWORD_FILE: /run/secrets/auth-db/app-password
       volumes:
          - auth_data:/var/lib/mysql
+         - ./auth-service/docker/mysql-init:/docker-entrypoint-initdb.d:ro
+         - auth_db_secrets:/run/secrets/auth-db:ro
       networks:
-         - clinica-net
+         - auth-data
       healthcheck:
-         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-         timeout: 20s
+         test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$(cat $$MYSQL_ROOT_PASSWORD_FILE)\" --silent"]
+         interval: 10s
+         timeout: 5s
          retries: 10
-      command: --log-bin-trust-function-creators=1
 
    # Base de datos para clientes
    clients-db:
@@ -737,41 +743,33 @@ services:
 
    auth-service:
       build: ./auth-service
-      container_name: auth-service
+      restart: unless-stopped
+      deploy:
+         replicas: ${AUTH_SERVICE_REPLICAS:-2}
       depends_on:
          auth-db:
             condition: service_healthy
+         openbao-init:
+            condition: service_completed_successfully
          eureka-service:
             condition: service_healthy
-         redis-cache:
-            condition: service_healthy
       environment:
-         - SPRING_DATASOURCE_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${AUTH_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${AUTH_DB_PASSWORD}
-         - SPRING_DATA_REDIS_HOST=redis-cache
-         - SPRING_DATA_REDIS_PORT=6379
-         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_DATA_REDIS_TIMEOUT=2000ms
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
-         - JWT_SECRET=${JWT_SECRET}
-         - JWT_EXPIRATION=${JWT_EXPIRATION}
-         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
-         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-         - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-         - SPRING_PROFILES_ACTIVE=docker
-      ports:
-         - "8086:8086"
+         - SPRING_PROFILES_ACTIVE=openbao
+         - AUTH_DB_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME:-auth_db}
+         - EUREKA_URL=http://eureka-service:8761/eureka/
+      volumes:
+         - openbao_tls:/run/secrets/openbao-tls:ro
+         - openbao_approle_auth:/run/secrets/openbao/approle:ro
       networks:
          - clinica-net
+         - auth-data
+         - secrets-net
       healthcheck:
-         test: [ "CMD", "curl", "-f", "http://localhost:8086/actuator/health" ]
-         interval: 30s
-         timeout: 10s
+         test: [ "CMD", "curl", "-fs", "http://localhost:8086/actuator/health/readiness" ]
+         interval: 15s
+         timeout: 5s
          retries: 5
-         start_period: 90s
+         start_period: 60s
 
    clients-service:
       build: ./clients-service
@@ -898,11 +896,13 @@ volumes:
    openbao_3_audit:
    openbao_approle_patient:
    openbao_approle_clinical:
+   openbao_approle_auth:
    openbao_approle_agent:
    patient_db_secrets:
    clinical_db_secrets:
    clinical_storage_secrets:
    kafka_connect_secrets:
+   auth_db_secrets:
    gateway_data:
    patient_data:
    billing_data:
@@ -931,5 +931,8 @@ networks:
       driver: bridge
       internal: true
    secrets-net:
+      driver: bridge
+      internal: true
+   auth-data:
       driver: bridge
       internal: true
