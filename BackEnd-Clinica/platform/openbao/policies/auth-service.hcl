@@ -22,6 +22,14 @@ path "transit/keys/api-gateway-client" {
   capabilities = ["read"]
 }
 
+path "transit/keys/patient-service-client" {
+  capabilities = ["read"]
+}
+
+path "transit/keys/clinical-history-service-client" {
+  capabilities = ["read"]
+}
+
 path "totp/keys/staff-*" {
   capabilities = ["create", "update", "delete"]
 }
