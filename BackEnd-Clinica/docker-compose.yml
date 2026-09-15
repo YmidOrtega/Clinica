@@ -546,6 +546,7 @@ services:
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
          - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_PREFER_IP_ADDRESS=false
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
          - openbao_approle_patient:/run/secrets/openbao/approle:ro
@@ -585,6 +586,7 @@ services:
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_PREFER_IP_ADDRESS=false
          - CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
@@ -760,6 +762,7 @@ services:
          - SPRING_PROFILES_ACTIVE=openbao
          - AUTH_DB_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME:-auth_db}
          - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_PREFER_IP_ADDRESS=false
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_LOGIN_URL=${AUTH_LOGIN_URL:-http://localhost:4321/login}
          - AUTH_HOME_URL=${AUTH_HOME_URL:-http://localhost:4321/}
@@ -848,6 +851,7 @@ services:
          - GATEWAY_SESSION_SAME_SITE=${GATEWAY_SESSION_SAME_SITE:-lax}
          - GATEWAY_SESSION_COOKIE_SECURE=${GATEWAY_SESSION_COOKIE_SECURE:-false}
          - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_PREFER_IP_ADDRESS=false
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
          - openbao_approle_gateway:/run/secrets/openbao/approle:ro
