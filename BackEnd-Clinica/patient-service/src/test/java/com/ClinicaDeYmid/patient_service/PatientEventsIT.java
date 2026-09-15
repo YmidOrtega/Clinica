@@ -126,7 +126,7 @@ class PatientEventsIT {
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.flyway.user", MYSQL::getUsername);
         registry.add("spring.flyway.password", MYSQL::getPassword);
-        registry.add("clinica.security.jwt.public-key", JwtTestTokens::publicKeyBase64);
+        JwtTestTokens.register(registry);
         registry.add("eureka.client.enabled", () -> false);
     }
 

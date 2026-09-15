@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.patient_service;
 
+import com.ClinicaDeYmid.commons.security.testing.SecurityTestTokens;
 import com.ClinicaDeYmid.patient_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.patient_service.support.MySqlTestContainer;
 import com.ClinicaDeYmid.patient_service.support.PatientJson;
@@ -18,6 +19,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+
+import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyRequestedFor;
@@ -52,7 +55,7 @@ class PatientApiIT {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("clinica.security.jwt.public-key", JwtTestTokens::publicKeyBase64);
+        JwtTestTokens.register(registry);
         registry.add("spring.cloud.openfeign.client.config.clients-service.url", clientsService::baseUrl);
         registry.add("eureka.client.enabled", () -> false);
         registry.add("clinica.patient.health-providers.fresh-ttl", () -> "0s");
@@ -69,6 +72,22 @@ class PatientApiIT {
                 .andExpect(jsonPath("$.status.code").value("ACTIVE"))
                 .andExpect(jsonPath("$.demographics.firstNames").value("Ana María"))
                 .andExpect(jsonPath("$.audit.createdBy").value(JwtTestTokens.USERS.get("RECEPTIONIST")));
+    }
+
+    @Test
+    void acceptsTokensExchangedForPatientServiceButNotForOtherServices() throws Exception {
+        String uuid = register(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula()));
+        UUID nurse = UUID.fromString(JwtTestTokens.USERS.get("NURSE"));
+
+        mockMvc.perform(fetch("/api/v1/patients/" + uuid).header(HttpHeaders.AUTHORIZATION,
+                        SecurityTestTokens.staff("NURSE", nurse).audience("patient-service").actingThrough("clinical-history-service").bearer()))
+                .andExpect(status().isOk());
+        mockMvc.perform(fetch("/api/v1/patients/" + uuid).header(HttpHeaders.AUTHORIZATION,
+                        SecurityTestTokens.staff("NURSE", nurse).audience("billing-service").bearer()))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(fetch("/api/v1/patients/" + uuid).header(HttpHeaders.AUTHORIZATION,
+                        SecurityTestTokens.service("clinical-history-service").claim("role", "ADMIN").bearer()))
+                .andExpect(status().isForbidden());
     }
 
     @Test
