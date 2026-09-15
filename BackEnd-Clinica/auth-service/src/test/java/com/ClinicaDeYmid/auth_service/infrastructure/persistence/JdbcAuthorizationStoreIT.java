@@ -26,6 +26,7 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({JdbcAuthorizationStore.class, JdbcAuthEventOutbox.class, ClockConfiguration.class, MySqlTestContainer.class, JdbcAuthorizationStoreIT.Clients.class})
+@TestPropertySource(properties = {"spring.datasource.hikari.maximum-pool-size=1", "spring.datasource.hikari.connection-timeout=1000"})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class JdbcAuthorizationStoreIT {
 

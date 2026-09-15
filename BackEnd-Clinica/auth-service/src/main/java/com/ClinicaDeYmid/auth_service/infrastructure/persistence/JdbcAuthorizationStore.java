@@ -234,46 +234,38 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Staff
     }
 
     private Optional<OAuth2Authorization> load(String id, String matchedType, String matchedValue) {
-        return jdbc.query("SELECT * FROM auth_sessions.authorizations WHERE id = ?", (row, index) -> row(row, matchedType, matchedValue), id)
-                .stream().findFirst();
+        return jdbc.query("SELECT * FROM auth_sessions.authorizations WHERE id = ?", (row, index) -> StoredAuthorization.of(row), id)
+                .stream().findFirst().map(stored -> build(stored, matchedType, matchedValue));
     }
 
-    private OAuth2Authorization row(ResultSet row, String matchedType, String matchedValue) throws SQLException {
-        String registeredClientId = row.getString("registered_client_id");
-        RegisteredClient client = clients.findById(registeredClientId);
+    private OAuth2Authorization build(StoredAuthorization stored, String matchedType, String matchedValue) {
+        RegisteredClient client = clients.findById(stored.registeredClientId());
         if (client == null) {
-            throw new IllegalStateException("The registered client " + registeredClientId + " no longer exists");
+            throw new IllegalStateException("The registered client " + stored.registeredClientId() + " no longer exists");
         }
         OAuth2Authorization.Builder builder = OAuth2Authorization.withRegisteredClient(client)
-                .id(row.getString("id"))
-                .principalName(row.getString("principal_name"))
-                .authorizationGrantType(new AuthorizationGrantType(row.getString("grant_type")))
-                .authorizedScopes(StringUtils.commaDelimitedListToSet(row.getString("authorized_scopes")));
-        String attributes = row.getString("attributes");
-        if (attributes != null) {
-            Map<String, Object> values = read(oauthJson, attributes);
+                .id(stored.id())
+                .principalName(stored.principalName())
+                .authorizationGrantType(new AuthorizationGrantType(stored.grantType()))
+                .authorizedScopes(StringUtils.commaDelimitedListToSet(stored.authorizedScopes()));
+        if (stored.attributes() != null) {
+            Map<String, Object> values = read(oauthJson, stored.attributes());
             builder.attributes(map -> map.putAll(values));
         }
-        String principal = row.getString("principal");
-        if (principal != null) {
-            StaffAuthentication staff = new StaffAuthentication(read(principalJson, principal, StaffPrincipal.class));
-            String actors = row.getString("actors");
-            builder.attribute(Principal.class.getName(), actors == null
+        if (stored.principal() != null) {
+            StaffAuthentication staff = new StaffAuthentication(read(principalJson, stored.principal(), StaffPrincipal.class));
+            builder.attribute(Principal.class.getName(), stored.actors() == null
                     ? staff
-                    : new OAuth2TokenExchangeCompositeAuthenticationToken(staff, read(principalJson, actors, STORED_ACTORS).stream()
+                    : new OAuth2TokenExchangeCompositeAuthenticationToken(staff, read(principalJson, stored.actors(), STORED_ACTORS).stream()
                     .map(OAuth2TokenExchangeActor::new).toList()));
         }
-        String stateHash = row.getString("state_hash");
-        if (stateHash != null) {
-            builder.attribute(STATE, TokenHashes.placeholder(stateHash));
+        if (stored.stateHash() != null) {
+            builder.attribute(STATE, TokenHashes.placeholder(stored.stateHash()));
         }
-        jdbc.query("SELECT * FROM auth_sessions.authorization_tokens WHERE authorization_id = ?", tokenRow -> {
-            String type = tokenRow.getString("token_type");
-            String value = type.equals(matchedType) ? matchedValue : TokenHashes.placeholder(tokenRow.getString("value_hash"));
-            Map<String, Object> metadata = read(oauthJson, tokenRow.getString("metadata"));
-            TokenKind.of(type).addTo(builder, value, instant(tokenRow.getTimestamp("issued_at")), instant(tokenRow.getTimestamp("expires_at")),
-                    metadata);
-        }, row.getString("id"));
+        jdbc.query("SELECT * FROM auth_sessions.authorization_tokens WHERE authorization_id = ?", (row, index) -> StoredToken.of(row), stored.id())
+                .forEach(token -> TokenKind.of(token.type()).addTo(builder,
+                        token.type().equals(matchedType) ? matchedValue : TokenHashes.placeholder(token.valueHash()), token.issuedAt(),
+                        token.expiresAt(), read(oauthJson, token.metadata())));
         return builder.build();
     }
 
@@ -345,6 +337,24 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Staff
             return mapper.readValue(json, type);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Could not read a stored principal", ex);
+        }
+    }
+
+    private record StoredAuthorization(String id, String registeredClientId, String principalName, String grantType, String authorizedScopes,
+                                       String attributes, String principal, String actors, String stateHash) {
+
+        static StoredAuthorization of(ResultSet row) throws SQLException {
+            return new StoredAuthorization(row.getString("id"), row.getString("registered_client_id"), row.getString("principal_name"),
+                    row.getString("grant_type"), row.getString("authorized_scopes"), row.getString("attributes"), row.getString("principal"),
+                    row.getString("actors"), row.getString("state_hash"));
+        }
+    }
+
+    private record StoredToken(String type, String valueHash, Instant issuedAt, Instant expiresAt, String metadata) {
+
+        static StoredToken of(ResultSet row) throws SQLException {
+            return new StoredToken(row.getString("token_type"), row.getString("value_hash"), instant(row.getTimestamp("issued_at")),
+                    instant(row.getTimestamp("expires_at")), row.getString("metadata"));
         }
     }
 
