@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.commons.openbao.testing.OpenBaoTestContainer;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 
 import java.util.List;
@@ -20,6 +21,11 @@ public class AuthTestSupport {
     public static final String REDIRECT_URI = "http://gateway.clinica.test/login/oauth2/code/clinica";
     public static final String SIGNING_KEY = OpenBaoTestContainer.ensureKey("auth-jwt", "ecdsa-p256");
     public static final String CLIENT_ASSERTION_KEY = OpenBaoTestContainer.ensureKey("api-gateway-client", "ecdsa-p256");
+
+    @Bean
+    BearerTokens bearerTokens(JwtEncoder encoder) {
+        return new BearerTokens(encoder);
+    }
 
     @Bean
     @Primary

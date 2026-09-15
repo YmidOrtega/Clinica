@@ -56,6 +56,12 @@ public sealed abstract class LoginException extends DomainException {
         }
     }
 
+    public static final class WrongCurrentPassword extends LoginException {
+        public WrongCurrentPassword() {
+            super(ErrorCategory.INVALID_INPUT, "CURRENT_PASSWORD_INVALID", "La contraseña actual no es correcta");
+        }
+    }
+
     public static final class PasswordReused extends LoginException {
         public PasswordReused() {
             super(ErrorCategory.INVALID_INPUT, "PASSWORD_REUSED", "La nueva contraseña debe ser distinta de la actual");

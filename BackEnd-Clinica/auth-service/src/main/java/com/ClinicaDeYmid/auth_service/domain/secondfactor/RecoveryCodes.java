@@ -13,4 +13,6 @@ public interface RecoveryCodes {
     boolean use(UUID userUuid, String code, Instant now);
 
     int remaining(UUID userUuid);
+
+    void revokeAll(UUID userUuid, Instant now);
 }

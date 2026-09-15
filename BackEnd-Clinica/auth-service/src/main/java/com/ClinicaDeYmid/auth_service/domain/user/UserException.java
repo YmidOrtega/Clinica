@@ -67,6 +67,12 @@ public sealed abstract class UserException extends DomainException {
         }
     }
 
+    public static final class LastSuperAdmin extends UserException {
+        public LastSuperAdmin() {
+            super(ErrorCategory.RULE_VIOLATION, "LAST_SUPER_ADMIN", "La operación dejaría a la clínica sin ningún SUPER_ADMIN activo");
+        }
+    }
+
     public static final class NotActive extends UserException {
         public NotActive() {
             super(ErrorCategory.RULE_VIOLATION, "USER_NOT_ACTIVE", "La operación solo aplica a usuarios activos");

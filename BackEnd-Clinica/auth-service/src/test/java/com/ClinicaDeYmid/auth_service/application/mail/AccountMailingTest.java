@@ -8,6 +8,9 @@ import com.ClinicaDeYmid.auth_service.domain.user.User;
 import com.ClinicaDeYmid.auth_service.domain.user.UserFixtures;
 import com.ClinicaDeYmid.auth_service.domain.user.Users;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Duration;
@@ -187,6 +190,16 @@ class AccountMailingTest {
         @Override
         public boolean anyNotDeactivatedWithRole(Role role) {
             return users.values().stream().anyMatch(user -> user.role() == role);
+        }
+
+        @Override
+        public List<UUID> lockActiveWithRole(Role role) {
+            return users.values().stream().filter(user -> user.role() == role && user.mayAuthenticate()).map(User::uuid).toList();
+        }
+
+        @Override
+        public Page<User> search(Criteria criteria, Pageable pageable) {
+            return new PageImpl<>(List.copyOf(users.values()), pageable, users.size());
         }
     }
 }
