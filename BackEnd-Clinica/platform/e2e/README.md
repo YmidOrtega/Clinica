@@ -64,3 +64,22 @@ sin catálogo el script toma la rama alterna y comprueba que la epicrisis se rec
 Las claves de cifrado y sello de la historia clínica viven en transit dentro del clúster OpenBao del
 stack: `docker compose down -v` las destruye junto con los datos que protegen
 (`clinical-history-service/docs/claves-y-cifrado.md`).
+
+## Prueba de auth-service
+
+`auth-e2e.sh` necesita además `auth-service` y `mailpit` levantados con `docker-compose.debug.yml`:
+
+```bash
+docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml up -d --build auth-service
+COMPOSE_PROJECT=clinical-e2e sh platform/e2e/auth-e2e.sh
+```
+
+| Paso | Qué demuestra |
+|---|---|
+| Primer `SUPER_ADMIN` | Llega el correo de activación a Mailpit y el enlace activa la cuenta; si ya estaba activa, el reseteo por correo funciona |
+| Authorization code + PKCE | Sin sesión redirige al login del frontend; el login por API devuelve `continueUrl`, que termina en el `redirect_uri` con código y `state` |
+| Cliente confidencial | El canje se autentica con una aserción `private_key_jwt` firmada en transit |
+| Tokens | La firma ES256 verifica con el JWKS, que solo expone claves públicas; el refresh token solo existe como SHA-256 |
+| Refresh | Rota en cada uso y reutilizar uno rotado revoca toda la familia |
+| Frenado | Tras 5 fallos desde la misma dirección responde `429` y, pasada la espera, vuelve a entrar |
+
