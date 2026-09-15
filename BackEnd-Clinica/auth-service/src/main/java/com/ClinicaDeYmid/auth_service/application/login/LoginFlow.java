@@ -1,5 +1,9 @@
 package com.ClinicaDeYmid.auth_service.application.login;
 
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityAuditLog;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent.FailureReason;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent.Stage;
 import com.ClinicaDeYmid.auth_service.domain.password.NormalizedPassword;
 import com.ClinicaDeYmid.auth_service.domain.password.PasswordHash;
 import com.ClinicaDeYmid.auth_service.domain.password.PasswordHasher;
@@ -34,16 +38,18 @@ public class LoginFlow {
     private final PasswordHasher hasher;
     private final LoginThrottle throttle;
     private final LoginThrottlePolicy throttlePolicy;
+    private final SecurityAuditLog audit;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public LoginFlow(Users users, PasswordPolicy passwordPolicy, PasswordHasher hasher, LoginThrottle throttle,
-                     LoginThrottlePolicy throttlePolicy, TransactionOperations transactions, Clock clock) {
+                     LoginThrottlePolicy throttlePolicy, SecurityAuditLog audit, TransactionOperations transactions, Clock clock) {
         this.users = users;
         this.passwordPolicy = passwordPolicy;
         this.hasher = hasher;
         this.throttle = throttle;
         this.throttlePolicy = throttlePolicy;
+        this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -53,14 +59,21 @@ public class LoginFlow {
         Optional<EmailAddress> address = parse(email);
         if (address.isEmpty()) {
             hasher.matchAgainstDecoy(normalized);
+            audit.record(new SecurityEvent.SignInFailed(Stage.PASSWORD, FailureReason.INVALID_CREDENTIALS, email, null));
             throw new LoginException.InvalidCredentials();
         }
         ThrottleKey account = new ThrottleKey.Account(address.get());
         ThrottleKey fromAddress = new ThrottleKey.AccountFromAddress(address.get(), clientAddress);
         Instant now = Instant.now(clock);
         switch (throttlePolicy.decide(throttle.failuresOf(account), throttle.failuresOf(fromAddress), now)) {
-            case LoginAttemptDecision.Locked locked -> throw new LoginException.AccountLocked();
-            case LoginAttemptDecision.Delayed delayed -> throw new LoginException.TooManyAttempts(delayed.retryAfter());
+            case LoginAttemptDecision.Locked locked -> {
+                audit.record(new SecurityEvent.SignInFailed(Stage.PASSWORD, FailureReason.ACCOUNT_LOCKED, email, null));
+                throw new LoginException.AccountLocked();
+            }
+            case LoginAttemptDecision.Delayed delayed -> {
+                audit.record(new SecurityEvent.SignInFailed(Stage.PASSWORD, FailureReason.TOO_MANY_ATTEMPTS, email, null));
+                throw new LoginException.TooManyAttempts(delayed.retryAfter());
+            }
             case LoginAttemptDecision.Allowed allowed -> {
             }
         }
@@ -74,6 +87,8 @@ public class LoginFlow {
             transactions.executeWithoutResult(status -> {
                 throttle.recordFailure(account, now);
                 throttle.recordFailure(fromAddress, now);
+                audit.record(new SecurityEvent.SignInFailed(Stage.PASSWORD, FailureReason.INVALID_CREDENTIALS, email,
+                        found.map(User::uuid).orElse(null)));
             });
             log.info("Rejected login attempt for a staff account");
             throw new LoginException.InvalidCredentials();

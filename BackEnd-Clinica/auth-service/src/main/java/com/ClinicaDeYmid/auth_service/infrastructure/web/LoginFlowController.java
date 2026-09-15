@@ -148,14 +148,14 @@ class LoginFlowController {
     @PostMapping("/login/second-factor")
     StepResponse verifySecondFactor(@RequestBody SecondFactorRequest body, HttpServletRequest request, HttpServletResponse response) {
         PendingSignIn pending = require(request, PendingStep.SECOND_FACTOR, LoginException.SecondFactorNotPending::new);
-        SecondFactorFlow.Verified verified = secondFactorFlow.verify(pending.userUuid(), body.proof());
+        SecondFactorFlow.Verified verified = secondFactorFlow.verify(pending.userUuid(), body.proof(), SecondFactorFlow.Purpose.SIGN_IN);
         return new StepResponse("AUTHENTICATED", establish(verified.identity(), request, response), null, verified.remainingRecoveryCodes());
     }
 
     @PostMapping("/login/step-up")
     StepResponse stepUp(@RequestBody SecondFactorRequest body, HttpServletRequest request, HttpServletResponse response) {
         StaffAuthentication current = (StaffAuthentication) SecurityContextHolder.getContext().getAuthentication();
-        SecondFactorFlow.Verified verified = secondFactorFlow.verify(current.getPrincipal().uuid(), body.proof());
+        SecondFactorFlow.Verified verified = secondFactorFlow.verify(current.getPrincipal().uuid(), body.proof(), SecondFactorFlow.Purpose.STEP_UP);
         return new StepResponse("AUTHENTICATED", establish(verified.identity(), request, response), null, verified.remainingRecoveryCodes());
     }
 

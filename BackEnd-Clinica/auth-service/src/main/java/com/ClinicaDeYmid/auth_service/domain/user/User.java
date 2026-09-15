@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.envers.Audited;
@@ -23,6 +24,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -114,6 +117,9 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Transient
+    private final List<UserEvent> events = new ArrayList<>();
+
     protected User() {
     }
 
@@ -133,6 +139,7 @@ public class User {
         user.applyCredential(new CredentialState.NotSet(), null);
         user.secondFactorCode = SecondFactorState.Code.NOT_ENROLLED;
         user.tokensNotBefore = now;
+        user.events.add(new UserEvent.Invited(invitedBy));
         return user;
     }
 
@@ -149,6 +156,7 @@ public class User {
         user.applyCredential(new CredentialState.NotSet(), null);
         user.secondFactorCode = SecondFactorState.Code.NOT_ENROLLED;
         user.tokensNotBefore = now;
+        user.events.add(new UserEvent.Bootstrapped());
         return user;
     }
 
@@ -157,12 +165,12 @@ public class User {
         Instant now = now(clock);
         applyStatus(status().activate(), now);
         applyCredential(new CredentialState.Current(now), hash);
+        events.add(new UserEvent.Activated());
     }
 
     public void changePassword(PasswordHash hash, Clock clock) {
-        DomainRules.required(hash, "passwordHash");
-        requireActive();
-        applyCredential(new CredentialState.Current(now(clock)), hash);
+        replaceCredential(hash, clock);
+        events.add(new UserEvent.PasswordChanged());
     }
 
     public void rehashPassword(PasswordHash hash) {
@@ -172,16 +180,19 @@ public class User {
     }
 
     public void resetPassword(PasswordHash hash, Clock clock) {
-        changePassword(hash, clock);
+        replaceCredential(hash, clock);
         tokensNotBefore = now(clock);
+        events.add(new UserEvent.PasswordReset());
     }
 
     public void requirePasswordChange(String reason, Actor actor, Clock clock) {
         requireManageableBy(actor);
         requireActive();
         Instant changedAt = passwordChangedAt;
-        applyCredential(new CredentialState.ChangeRequired(changedAt, reason), currentHash().orElseThrow());
+        CredentialState.ChangeRequired required = new CredentialState.ChangeRequired(changedAt, reason);
+        applyCredential(required, currentHash().orElseThrow());
         tokensNotBefore = now(clock);
+        events.add(new UserEvent.PasswordChangeRequired(required.reason(), actor));
     }
 
     public void rename(FullName newName, Actor actor) {
@@ -189,7 +200,10 @@ public class User {
         if (!actor.uuid().equals(uuid)) {
             requireManageable(role, actor);
         }
-        fullName = newName;
+        if (!newName.equals(fullName)) {
+            fullName = newName;
+            events.add(new UserEvent.Renamed(actor));
+        }
     }
 
     public void changeRole(Role newRole, Actor actor, Clock clock) {
@@ -197,8 +211,10 @@ public class User {
         requireManageableBy(actor);
         requireManageable(newRole, actor);
         if (newRole != role) {
+            Role previousRole = role;
             role = newRole;
             tokensNotBefore = now(clock);
+            events.add(new UserEvent.RoleChanged(previousRole, actor));
         }
     }
 
@@ -207,6 +223,7 @@ public class User {
         Instant now = now(clock);
         applyStatus(status().suspend(reason, actor, now), now);
         tokensNotBefore = now;
+        events.add(new UserEvent.Suspended(statusReason, actor));
     }
 
     public void deactivate(String reason, Actor actor, Clock clock) {
@@ -214,11 +231,13 @@ public class User {
         Instant now = now(clock);
         applyStatus(status().deactivate(reason, actor, now), now);
         tokensNotBefore = now;
+        events.add(new UserEvent.Deactivated(statusReason, actor));
     }
 
     public void reactivate(Actor actor, Clock clock) {
         requireManageableBy(actor);
         applyStatus(status().reactivate(passwordHash != null), now(clock));
+        events.add(new UserEvent.Reactivated(actor));
     }
 
     public void enrollTotp(Clock clock) {
@@ -228,6 +247,7 @@ public class User {
         }
         secondFactorCode = SecondFactorState.Code.TOTP_ENROLLED;
         secondFactorEnrolledAt = now(clock);
+        events.add(new UserEvent.SecondFactorEnrolled());
     }
 
     public void resetSecondFactor(String reason, Actor actor, Clock clock) {
@@ -242,10 +262,18 @@ public class User {
         secondFactorResetBy = actor.uuid();
         secondFactorResetAt = now;
         tokensNotBefore = now;
+        events.add(new UserEvent.SecondFactorReset(secondFactorResetReason, actor));
     }
 
     public void revokeSessions(Clock clock) {
         tokensNotBefore = now(clock);
+        events.add(new UserEvent.SessionsRevoked());
+    }
+
+    public List<UserEvent> pullEvents() {
+        List<UserEvent> pulled = List.copyOf(events);
+        events.clear();
+        return pulled;
     }
 
     public boolean mayAuthenticate() {
@@ -322,6 +350,12 @@ public class User {
             throw new UserException.SelfManagement();
         }
         requireManageable(role, actor);
+    }
+
+    private void replaceCredential(PasswordHash hash, Clock clock) {
+        DomainRules.required(hash, "passwordHash");
+        requireActive();
+        applyCredential(new CredentialState.Current(now(clock)), hash);
     }
 
     private void requireActive() {

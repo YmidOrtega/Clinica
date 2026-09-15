@@ -1,6 +1,10 @@
 package com.ClinicaDeYmid.auth_service.application.account;
 
 import com.ClinicaDeYmid.auth_service.application.Caller;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityAuditLog;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent.FailureReason;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent.Stage;
 import com.ClinicaDeYmid.auth_service.application.login.LoginException;
 import com.ClinicaDeYmid.auth_service.application.login.PasswordContexts;
 import com.ClinicaDeYmid.auth_service.application.session.SessionRevocation;
@@ -41,11 +45,13 @@ public class OwnAccount {
     private final LoginThrottlePolicy throttlePolicy;
     private final RecoveryCodes recoveryCodes;
     private final SessionRevocation sessions;
+    private final SecurityAuditLog audit;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public OwnAccount(Users users, PasswordPolicy passwordPolicy, PasswordHasher hasher, LoginThrottle throttle, LoginThrottlePolicy throttlePolicy,
-                      RecoveryCodes recoveryCodes, SessionRevocation sessions, TransactionOperations transactions, Clock clock) {
+                      RecoveryCodes recoveryCodes, SessionRevocation sessions, SecurityAuditLog audit, TransactionOperations transactions,
+                      Clock clock) {
         this.users = users;
         this.passwordPolicy = passwordPolicy;
         this.hasher = hasher;
@@ -53,6 +59,7 @@ public class OwnAccount {
         this.throttlePolicy = throttlePolicy;
         this.recoveryCodes = recoveryCodes;
         this.sessions = sessions;
+        this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -66,14 +73,23 @@ public class OwnAccount {
         ThrottleKey key = new ThrottleKey.Account(user.email());
         FailureCount failures = throttle.failuresOf(key);
         switch (throttlePolicy.decide(failures, failures, Instant.now(clock))) {
-            case LoginAttemptDecision.Locked locked -> throw new LoginException.AccountLocked();
-            case LoginAttemptDecision.Delayed delayed -> throw new LoginException.TooManyAttempts(delayed.retryAfter());
+            case LoginAttemptDecision.Locked locked -> {
+                audit.record(new SecurityEvent.SignInFailed(Stage.CURRENT_PASSWORD, FailureReason.ACCOUNT_LOCKED, null, user.uuid()));
+                throw new LoginException.AccountLocked();
+            }
+            case LoginAttemptDecision.Delayed delayed -> {
+                audit.record(new SecurityEvent.SignInFailed(Stage.CURRENT_PASSWORD, FailureReason.TOO_MANY_ATTEMPTS, null, user.uuid()));
+                throw new LoginException.TooManyAttempts(delayed.retryAfter());
+            }
             case LoginAttemptDecision.Allowed allowed -> {
             }
         }
         NormalizedPassword current = passwordPolicy.normalize(currentPassword);
         if (!hasher.matches(current, user.currentHash().orElseThrow())) {
-            transactions.executeWithoutResult(status -> throttle.recordFailure(key, Instant.now(clock)));
+            transactions.executeWithoutResult(status -> {
+                throttle.recordFailure(key, Instant.now(clock));
+                audit.record(new SecurityEvent.SignInFailed(Stage.CURRENT_PASSWORD, FailureReason.INVALID_CREDENTIALS, null, user.uuid()));
+            });
             throw new LoginException.WrongCurrentPassword();
         }
         NormalizedPassword accepted = passwordPolicy.accept(newPassword, PasswordContexts.of(user));
@@ -96,6 +112,7 @@ public class OwnAccount {
             if (!(user.secondFactorState() instanceof SecondFactorState.TotpEnrolled)) {
                 throw new UserException.SecondFactorNotEnrolled();
             }
+            audit.record(new SecurityEvent.RecoveryCodesRegenerated(user.uuid()));
             return recoveryCodes.replaceAll(user.uuid(), Instant.now(clock));
         });
         log.info("Staff user {} regenerated the recovery codes", caller.uuid());
