@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.transit;
+package com.ClinicaDeYmid.commons.openbao.transit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +34,7 @@ public class TransitKeys {
         if (Instant.now(clock).isAfter(fetchedAt.plus(refreshInterval))) {
             try {
                 refresh();
-            } catch (ClinicalKeysUnavailableException unavailable) {
+            } catch (OpenBaoUnavailableException unavailable) {
                 log.warn("Using the last known versions of transit key {}: {}", name, unavailable.getMessage());
             }
         }
@@ -55,7 +55,7 @@ public class TransitKeys {
         }
         try {
             return refresh();
-        } catch (ClinicalKeysUnavailableException unavailable) {
+        } catch (OpenBaoUnavailableException unavailable) {
             return known;
         }
     }

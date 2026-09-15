@@ -56,6 +56,10 @@ spring:
         disable-time-limiter: true
 
 clinica:
+  openbao:
+    transit:
+      mount: ${CLINICAL_TRANSIT_MOUNT:transit}
+      key-refresh-interval: 5m
   clinical:
     time-zone: America/Bogota
     patient-events:
@@ -78,9 +82,6 @@ clinica:
       archive-bucket: ${CLINICAL_ATTACHMENTS_ARCHIVE_BUCKET:clinical-attachments}
       retention-after-last-care: P15Y
       create-buckets: ${CLINICAL_ATTACHMENTS_CREATE_BUCKETS:false}
-    transit:
-      mount: ${CLINICAL_TRANSIT_MOUNT:transit}
-      key-refresh-interval: 5m
     encryption:
       transit-key: ${CLINICAL_ENCRYPTION_TRANSIT_KEY:clinical-kek}
     seal:

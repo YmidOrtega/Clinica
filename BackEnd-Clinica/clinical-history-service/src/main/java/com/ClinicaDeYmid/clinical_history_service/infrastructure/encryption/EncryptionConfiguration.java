@@ -1,8 +1,8 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption;
 
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitClient;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitKeys;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitProperties;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitClient;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitKeys;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

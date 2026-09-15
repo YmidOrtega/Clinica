@@ -1,7 +1,5 @@
-package com.ClinicaDeYmid.clinical_history_service.support;
+package com.ClinicaDeYmid.commons.openbao.testing;
 
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.vault.authentication.TokenAuthentication;
 import org.springframework.vault.client.VaultEndpoint;
@@ -12,26 +10,26 @@ import org.testcontainers.containers.wait.strategy.Wait;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
-@TestConfiguration(proxyBeanMethods = false)
-public class OpenBaoTestContainer {
+public final class OpenBaoTestContainer {
 
-    public static final String ENCRYPTION_KEY = "clinical-kek";
-    public static final String SEAL_KEY = "clinical-seal";
-    public static final String ENCRYPTION_KEY_ID = ENCRYPTION_KEY + "-v1";
-    public static final String SEAL_KEY_ID = SEAL_KEY + "-v1";
+    public static final String TOKEN = "root";
 
-    private static final String TOKEN = "root";
     private static final GenericContainer<?> OPENBAO = start();
 
-    @Bean
-    VaultTemplate vaultTemplate() {
-        return template();
+    private OpenBaoTestContainer() {
     }
 
     public static VaultTemplate template() {
         return new VaultTemplate(VaultEndpoint.from(URI.create(uri())), new TokenAuthentication(TOKEN));
+    }
+
+    public static String uri() {
+        return "http://" + OPENBAO.getHost() + ":" + OPENBAO.getMappedPort(8200);
     }
 
     public static void register(DynamicPropertyRegistry registry) {
@@ -39,6 +37,13 @@ public class OpenBaoTestContainer {
         registry.add("spring.cloud.vault.uri", OpenBaoTestContainer::uri);
         registry.add("spring.cloud.vault.authentication", () -> "TOKEN");
         registry.add("spring.cloud.vault.token", () -> TOKEN);
+    }
+
+    public static synchronized String ensureKey(String name, String type) {
+        if (exec("read", "transit/keys/" + name).getExitCode() != 0) {
+            bao("write", "-f", "transit/keys/" + name, "type=" + type);
+        }
+        return name;
     }
 
     public static String createKey(String prefix, String type) {
@@ -51,8 +56,10 @@ public class OpenBaoTestContainer {
         bao("write", "-f", "transit/keys/" + key + "/rotate");
     }
 
-    private static String uri() {
-        return "http://" + OPENBAO.getHost() + ":" + OPENBAO.getMappedPort(8200);
+    public static void putSecret(String path, Map<String, String> values) {
+        List<String> arguments = new ArrayList<>(List.of("kv", "put", "-mount=secret", path));
+        values.forEach((key, value) -> arguments.add(key + "=" + value));
+        bao(arguments.toArray(String[]::new));
     }
 
     private static GenericContainer<?> start() {
@@ -64,25 +71,30 @@ public class OpenBaoTestContainer {
                 .withExposedPorts(8200)
                 .waitingFor(Wait.forHttp("/v1/sys/health").forStatusCode(200));
         container.start();
-        exec(container, "secrets", "enable", "transit");
-        exec(container, "write", "-f", "transit/keys/" + ENCRYPTION_KEY, "type=aes256-gcm96");
-        exec(container, "write", "-f", "transit/keys/" + SEAL_KEY, "type=ecdsa-p256");
+        Container.ExecResult enabled = run(container, "secrets", "enable", "transit");
+        if (enabled.getExitCode() != 0) {
+            throw new IllegalStateException("Could not enable transit: " + enabled.getStderr());
+        }
         return container;
     }
 
     private static void bao(String... arguments) {
-        exec(OPENBAO, arguments);
+        Container.ExecResult result = exec(arguments);
+        if (result.getExitCode() != 0) {
+            throw new IllegalStateException("bao " + String.join(" ", arguments) + " failed: " + result.getStderr());
+        }
     }
 
-    private static void exec(GenericContainer<?> container, String... arguments) {
+    private static Container.ExecResult exec(String... arguments) {
+        return run(OPENBAO, arguments);
+    }
+
+    private static Container.ExecResult run(GenericContainer<?> container, String... arguments) {
         String[] command = new String[arguments.length + 1];
         command[0] = "bao";
         System.arraycopy(arguments, 0, command, 1, arguments.length);
         try {
-            Container.ExecResult result = container.execInContainer(command);
-            if (result.getExitCode() != 0) {
-                throw new IllegalStateException("bao " + String.join(" ", arguments) + " failed: " + result.getStderr());
-            }
+            return container.execInContainer(command);
         } catch (IOException ex) {
             throw new IllegalStateException(ex);
         } catch (InterruptedException ex) {

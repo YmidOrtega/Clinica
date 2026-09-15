@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.transit;
+package com.ClinicaDeYmid.commons.openbao.transit;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -48,14 +48,14 @@ public class TransitClient {
         return Base64.getDecoder().decode((String) data.get("plaintext"));
     }
 
-    public byte[] sign(KeyVersion key, byte[] input) {
+    public byte[] sign(KeyVersion key, byte[] input, SignatureFormat format) {
         Map<String, Object> data = write("sign/" + key.keyName(), Map.of(
                 "input", base64(input),
                 "hash_algorithm", "sha2-256",
-                "marshaling_algorithm", "asn1",
+                "marshaling_algorithm", format.marshalingAlgorithm(),
                 "key_version", key.version()));
         String signature = (String) data.get("signature");
-        return Base64.getDecoder().decode(requireVersion(signature, key));
+        return format.decode(requireVersion(signature, key));
     }
 
     public TransitKey key(String name) {
@@ -82,16 +82,16 @@ public class TransitClient {
             VaultResponse response = vault.doWithSession(rest -> rest.exchange(path, method,
                     body == null ? HttpEntity.EMPTY : new HttpEntity<>(body), VaultResponse.class).getBody());
             if (response == null || response.getData() == null) {
-                throw new ClinicalKeysUnavailableException("OpenBao returned no data for " + path, null);
+                throw new OpenBaoUnavailableException("OpenBao returned no data for " + path, null);
             }
             return response.getData();
         } catch (VaultException failed) {
             if (statusOf(failed) == HttpStatus.BAD_REQUEST.value()) {
                 throw new TransitRejectedException("OpenBao rejected " + path + ": " + failed.getMessage(), failed);
             }
-            throw new ClinicalKeysUnavailableException("OpenBao failed for " + path + ": " + failed.getMessage(), failed);
+            throw new OpenBaoUnavailableException("OpenBao failed for " + path + ": " + failed.getMessage(), failed);
         } catch (RestClientException unreachable) {
-            throw new ClinicalKeysUnavailableException("OpenBao is not reachable for " + path, unreachable);
+            throw new OpenBaoUnavailableException("OpenBao is not reachable for " + path, unreachable);
         }
     }
 

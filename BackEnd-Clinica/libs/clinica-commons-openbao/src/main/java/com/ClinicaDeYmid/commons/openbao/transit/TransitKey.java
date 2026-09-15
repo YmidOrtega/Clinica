@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.transit;
+package com.ClinicaDeYmid.commons.openbao.transit;
 
 import java.util.Map;
 import java.util.stream.Collectors;

@@ -1,13 +1,13 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
 
+import com.ClinicaDeYmid.clinical_history_service.domain.copy.DocumentSealer.DocumentSeal;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainLink;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainVerification;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.IntegrityProblem;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
-import com.ClinicaDeYmid.clinical_history_service.domain.copy.DocumentSealer.DocumentSeal;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitClient;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.transit.TransitKeys;
-import com.ClinicaDeYmid.clinical_history_service.support.OpenBaoTestContainer;
+import com.ClinicaDeYmid.commons.openbao.testing.OpenBaoTestContainer;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitClient;
+import com.ClinicaDeYmid.commons.openbao.transit.TransitKeys;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
