@@ -14,6 +14,7 @@ import com.ClinicaDeYmid.commons.openbao.testing.TotpCodes;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -24,6 +25,7 @@ public class StaffAccounts {
 
     public static final String PASSWORD = "un caballo verde toma café";
     private static final Actor PROVISIONER = new Actor(UUID.randomUUID(), Role.SUPER_ADMIN);
+    private static final Duration PROVISIONED_BEFORE = Duration.ofSeconds(5);
 
     public record StaffAccount(User user, String otpauthUrl, List<String> recoveryCodes) {
 
@@ -47,7 +49,7 @@ public class StaffAccounts {
         this.hasher = hasher;
         this.totp = totp;
         this.recoveryCodes = recoveryCodes;
-        this.clock = clock;
+        this.clock = Clock.offset(clock, PROVISIONED_BEFORE.negated());
     }
 
     public User withoutSecondFactor(Role role) {
