@@ -1,6 +1,10 @@
 package com.ClinicaDeYmid.auth_service.application.login;
 
 import com.ClinicaDeYmid.auth_service.application.StaffIdentity;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityAuditLog;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent.FailureReason;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent.Stage;
 import com.ClinicaDeYmid.auth_service.domain.secondfactor.AuthenticationMethod;
 import com.ClinicaDeYmid.auth_service.domain.secondfactor.RecoveryCodes;
 import com.ClinicaDeYmid.auth_service.domain.secondfactor.SecondFactorProof;
@@ -36,21 +40,28 @@ public class SecondFactorFlow {
     public record Verified(StaffIdentity identity, int remainingRecoveryCodes) {
     }
 
+    public enum Purpose {
+        SIGN_IN,
+        STEP_UP
+    }
+
     private final Users users;
     private final TotpAuthenticator totp;
     private final RecoveryCodes recoveryCodes;
     private final LoginThrottle throttle;
     private final LoginThrottlePolicy throttlePolicy;
+    private final SecurityAuditLog audit;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public SecondFactorFlow(Users users, TotpAuthenticator totp, RecoveryCodes recoveryCodes, LoginThrottle throttle,
-                            LoginThrottlePolicy throttlePolicy, TransactionOperations transactions, Clock clock) {
+                            LoginThrottlePolicy throttlePolicy, SecurityAuditLog audit, TransactionOperations transactions, Clock clock) {
         this.users = users;
         this.totp = totp;
         this.recoveryCodes = recoveryCodes;
         this.throttle = throttle;
         this.throttlePolicy = throttlePolicy;
+        this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -61,7 +72,7 @@ public class SecondFactorFlow {
 
     public EnrollmentCompleted confirmEnrollment(UUID userUuid, String code) {
         User user = pendingEnrollment(userUuid);
-        ThrottleKey key = new ThrottleKey.SecondFactor(userUuid);
+        ThrottleKey.SecondFactor key = new ThrottleKey.SecondFactor(userUuid);
         guard(key);
         if (!totp.verify(user, code)) {
             fail(key);
@@ -72,14 +83,16 @@ public class SecondFactorFlow {
             User saved = users.save(enrolling);
             List<String> codes = recoveryCodes.replaceAll(userUuid, Instant.now(clock));
             throttle.clear(key);
+            StaffIdentity identity = identity(saved, AuthenticationMethod.TOTP);
+            audit.record(new SecurityEvent.SignInCompleted(userUuid, identity.methods(), false, codes.size()));
             log.info("Staff user {} enrolled a TOTP second factor", userUuid);
-            return new EnrollmentCompleted(identity(saved, AuthenticationMethod.TOTP), codes);
+            return new EnrollmentCompleted(identity, codes);
         });
     }
 
-    public Verified verify(UUID userUuid, SecondFactorProof proof) {
+    public Verified verify(UUID userUuid, SecondFactorProof proof, Purpose purpose) {
         User user = users.findByUuid(userUuid).filter(this::readyForSecondFactor).orElseThrow(LoginException.SecondFactorNotPending::new);
-        ThrottleKey key = new ThrottleKey.SecondFactor(userUuid);
+        ThrottleKey.SecondFactor key = new ThrottleKey.SecondFactor(userUuid);
         guard(key);
         boolean valid = switch (proof) {
             case SecondFactorProof.Totp code -> totp.verify(user, code.code());
@@ -88,12 +101,16 @@ public class SecondFactorFlow {
         if (!valid) {
             fail(key);
         }
-        throttle.clear(key);
         int remaining = recoveryCodes.remaining(userUuid);
+        StaffIdentity identity = identity(user, proof.method());
+        transactions.executeWithoutResult(status -> {
+            throttle.clear(key);
+            audit.record(new SecurityEvent.SignInCompleted(userUuid, identity.methods(), purpose == Purpose.STEP_UP, remaining));
+        });
         if (proof instanceof SecondFactorProof.RecoveryCode) {
             log.warn("Staff user {} signed in with a recovery code; {} left", userUuid, remaining);
         }
-        return new Verified(identity(user, proof.method()), remaining);
+        return new Verified(identity, remaining);
     }
 
     private User pendingEnrollment(UUID userUuid) {
@@ -111,18 +128,27 @@ public class SecondFactorFlow {
         return user.mayAuthenticate() && user.credentialState() instanceof CredentialState.Current;
     }
 
-    private void guard(ThrottleKey key) {
+    private void guard(ThrottleKey.SecondFactor key) {
         FailureCount failures = throttle.failuresOf(key);
         switch (throttlePolicy.decide(failures, failures, Instant.now(clock))) {
-            case LoginAttemptDecision.Locked locked -> throw new LoginException.AccountLocked();
-            case LoginAttemptDecision.Delayed delayed -> throw new LoginException.TooManyAttempts(delayed.retryAfter());
+            case LoginAttemptDecision.Locked locked -> {
+                audit.record(new SecurityEvent.SignInFailed(Stage.SECOND_FACTOR, FailureReason.ACCOUNT_LOCKED, null, key.userUuid()));
+                throw new LoginException.AccountLocked();
+            }
+            case LoginAttemptDecision.Delayed delayed -> {
+                audit.record(new SecurityEvent.SignInFailed(Stage.SECOND_FACTOR, FailureReason.TOO_MANY_ATTEMPTS, null, key.userUuid()));
+                throw new LoginException.TooManyAttempts(delayed.retryAfter());
+            }
             case LoginAttemptDecision.Allowed allowed -> {
             }
         }
     }
 
-    private void fail(ThrottleKey key) {
-        transactions.executeWithoutResult(status -> throttle.recordFailure(key, Instant.now(clock)));
+    private void fail(ThrottleKey.SecondFactor key) {
+        transactions.executeWithoutResult(status -> {
+            throttle.recordFailure(key, Instant.now(clock));
+            audit.record(new SecurityEvent.SignInFailed(Stage.SECOND_FACTOR, FailureReason.INVALID_SECOND_FACTOR, null, key.userUuid()));
+        });
         throw new LoginException.InvalidSecondFactor();
     }
 

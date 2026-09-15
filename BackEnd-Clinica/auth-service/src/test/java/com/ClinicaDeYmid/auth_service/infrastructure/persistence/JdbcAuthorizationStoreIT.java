@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.auth_service.infrastructure.persistence;
 
 import com.ClinicaDeYmid.auth_service.domain.user.Role;
 import com.ClinicaDeYmid.auth_service.infrastructure.config.ClockConfiguration;
+import com.ClinicaDeYmid.auth_service.infrastructure.events.JdbcAuthEventOutbox;
 import com.ClinicaDeYmid.auth_service.infrastructure.security.StaffAuthentication;
 import com.ClinicaDeYmid.auth_service.infrastructure.security.StaffPrincipal;
 import com.ClinicaDeYmid.auth_service.support.MySqlTestContainer;
@@ -40,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({JdbcAuthorizationStore.class, ClockConfiguration.class, MySqlTestContainer.class, JdbcAuthorizationStoreIT.Clients.class})
+@Import({JdbcAuthorizationStore.class, JdbcAuthEventOutbox.class, ClockConfiguration.class, MySqlTestContainer.class, JdbcAuthorizationStoreIT.Clients.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class JdbcAuthorizationStoreIT {
 
@@ -117,6 +118,9 @@ class JdbcAuthorizationStoreIT {
         assertThat(store.findByToken("refresh-first", OAuth2TokenType.REFRESH_TOKEN)).isNull();
         assertThat(store.findById(authorization.getId())).isNull();
         assertThat(store.findByToken("refresh-second", OAuth2TokenType.REFRESH_TOKEN)).isNull();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM auth_outbox.outbox_events WHERE type = 'RefreshTokenReuseDetected' AND aggregateid = ?""", Long.class,
+                authorization.getPrincipalName())).isEqualTo(1);
     }
 
     private static OAuth2Authorization.Builder base(StaffPrincipal principal) {

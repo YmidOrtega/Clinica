@@ -1,5 +1,7 @@
 package com.ClinicaDeYmid.auth_service.infrastructure.persistence;
 
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityAuditLog;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent;
 import com.ClinicaDeYmid.auth_service.application.session.SessionRevocation;
 import com.ClinicaDeYmid.auth_service.infrastructure.security.StaffAuthentication;
 import com.ClinicaDeYmid.auth_service.infrastructure.security.StaffPrincipal;
@@ -60,14 +62,17 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Sessi
     private final JdbcTemplate jdbc;
     private final RegisteredClientRepository clients;
     private final TransactionOperations transactions;
+    private final SecurityAuditLog audit;
     private final Clock clock;
     private final ObjectMapper oauthJson;
     private final ObjectMapper principalJson = JsonMapper.builder().addModule(new JavaTimeModule()).build();
 
-    public JdbcAuthorizationStore(JdbcTemplate jdbc, RegisteredClientRepository clients, TransactionOperations transactions, Clock clock) {
+    public JdbcAuthorizationStore(JdbcTemplate jdbc, RegisteredClientRepository clients, TransactionOperations transactions, SecurityAuditLog audit,
+                                  Clock clock) {
         this.jdbc = jdbc;
         this.clients = clients;
         this.transactions = transactions;
+        this.audit = audit;
         this.clock = clock;
         ClassLoader classLoader = JdbcAuthorizationStore.class.getClassLoader();
         this.oauthJson = new ObjectMapper();
@@ -143,12 +148,15 @@ public class JdbcAuthorizationStore implements OAuth2AuthorizationService, Sessi
 
     private void revokeFamilyOfReusedRefreshToken(String hash) {
         jdbc.queryForList("SELECT authorization_id FROM auth_sessions.rotated_refresh_tokens WHERE value_hash = ?", String.class, hash)
-                .stream().findFirst().ifPresent(authorizationId -> {
+                .stream().findFirst().ifPresent(authorizationId -> transactions.executeWithoutResult(status -> {
+                    String principalName = jdbc.queryForList("SELECT principal_name FROM auth_sessions.authorizations WHERE id = ?", String.class,
+                            authorizationId).stream().findFirst().orElse(null);
                     int removed = jdbc.update("DELETE FROM auth_sessions.authorizations WHERE id = ?", authorizationId);
                     if (removed > 0) {
+                        audit.record(new SecurityEvent.RefreshTokenReuseDetected(UUID.fromString(principalName), authorizationId));
                         log.warn("A rotated refresh token was reused; revoked authorization {} and all its tokens", authorizationId);
                     }
-                });
+                }));
     }
 
     private void replaceTokens(OAuth2Authorization authorization, Instant now) {

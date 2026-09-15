@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clinica:events:auth.security-audit.v1",
+  "title": "Evento de seguridad de la identidad del personal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "type", "schemaVersion", "occurredAt", "outcome", "details"],
+  "properties": {
+    "eventId": {"type": "string", "format": "uuid"},
+    "type": {"enum": ["UserInvited", "UserActivated", "UserRenamed", "UserRoleChanged", "UserSuspended", "UserDeactivated", "UserReactivated",
+      "UserPasswordChangeRequired", "UserPasswordChanged", "UserPasswordReset", "UserSecondFactorEnrolled", "UserSecondFactorReset",
+      "UserSessionsRevoked", "SignInCompleted", "SignInFailed", "PasswordResetRequested", "RecoveryCodesRegenerated", "SignInUnlocked",
+      "InvitationResent", "RefreshTokenReuseDetected"]},
+    "schemaVersion": {"const": 1},
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "traceId": {"type": "string"},
+    "outcome": {"enum": ["SUCCEEDED", "FAILED"]},
+    "actor": {"$ref": "#/$defs/actor"},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "uuid": {"type": "string", "format": "uuid"},
+        "email": {"type": "string", "maxLength": 254}
+      }
+    },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "address": {"type": "string", "maxLength": 45},
+        "userAgent": {"type": "string", "maxLength": 255}
+      }
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {"type": "string", "minLength": 10, "maxLength": 500},
+        "role": {"$ref": "#/$defs/role"},
+        "previousRole": {"$ref": "#/$defs/role"},
+        "stage": {"enum": ["PASSWORD", "SECOND_FACTOR", "CURRENT_PASSWORD"]},
+        "failureReason": {"enum": ["INVALID_CREDENTIALS", "INVALID_SECOND_FACTOR", "TOO_MANY_ATTEMPTS", "ACCOUNT_LOCKED"]},
+        "methods": {"type": "array", "items": {"enum": ["pwd", "otp", "rec", "mfa"]}, "uniqueItems": true},
+        "stepUp": {"type": "boolean"},
+        "remainingRecoveryCodes": {"type": "integer", "minimum": 0},
+        "authorizationId": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "role": {"enum": ["SUPER_ADMIN", "ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST", "MEDICAL_RECORDS"]},
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uuid", "role"],
+      "properties": {
+        "uuid": {"type": "string", "format": "uuid"},
+        "role": {"$ref": "#/$defs/role"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"type": {"const": "SignInFailed"}}},
+      "then": {"properties": {"outcome": {"const": "FAILED"}, "details": {"required": ["stage", "failureReason"]}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "SignInCompleted"}}},
+      "then": {"required": ["subject"], "properties": {"outcome": {"const": "SUCCEEDED"},
+        "details": {"required": ["methods", "stepUp", "remainingRecoveryCodes"]}}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["UserSuspended", "UserDeactivated", "UserPasswordChangeRequired", "UserSecondFactorReset"]}}},
+      "then": {"required": ["actor", "subject"], "properties": {"details": {"required": ["reason"]}}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["UserRoleChanged"]}}},
+      "then": {"required": ["actor", "subject"], "properties": {"details": {"required": ["role", "previousRole"]}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "RefreshTokenReuseDetected"}}},
+      "then": {"required": ["subject"], "properties": {"outcome": {"const": "FAILED"}, "details": {"required": ["authorizationId"]}}}
+    }
+  ]
+}

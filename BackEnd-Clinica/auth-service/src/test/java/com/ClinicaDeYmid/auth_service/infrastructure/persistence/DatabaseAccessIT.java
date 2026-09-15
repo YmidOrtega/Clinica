@@ -31,6 +31,8 @@ class DatabaseAccessIT {
     private static final String MIGRATOR_PASSWORD = "migrator-test-secret";
     private static final String APP = "auth_app";
     private static final String APP_PASSWORD = "app-test-secret";
+    private static final String DEBEZIUM = "auth_debezium";
+    private static final String DEBEZIUM_PASSWORD = "debezium-test-secret";
     private static final String HASH = "$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHRzYWx0c2FsdA$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2g";
     private static final String INSERT_USER = """
             INSERT INTO users (uuid, version, email, full_name, role, status, status_reason, status_changed_by, status_changed_by_role,
@@ -45,7 +47,9 @@ class DatabaseAccessIT {
             "AUTH_DB_MIGRATOR_USER", MIGRATOR,
             "AUTH_DB_MIGRATOR_PASSWORD", MIGRATOR_PASSWORD,
             "AUTH_DB_APP_USER", APP,
-            "AUTH_DB_APP_PASSWORD", APP_PASSWORD));
+            "AUTH_DB_APP_PASSWORD", APP_PASSWORD,
+            "AUTH_DB_DEBEZIUM_USER", DEBEZIUM,
+            "AUTH_DB_DEBEZIUM_PASSWORD", DEBEZIUM_PASSWORD));
 
     private static JdbcTemplate app;
 
@@ -87,6 +91,22 @@ class DatabaseAccessIT {
         assertThatThrownBy(() -> app.update("UPDATE recovery_codes SET revoked_at = NOW(6) WHERE user_uuid = ?", user))
                 .hasMessageContaining("chk_recovery_codes_single_use");
         assertDenied(() -> app.update("DELETE FROM users"));
+    }
+
+    @Test
+    void theOutboxIsAppendOnlyForTheApplicationAndReadOnlyForDebezium() {
+        app.update("""
+                INSERT INTO auth_outbox.outbox_events (id, aggregatetype, aggregateid, type, payload, created_at)
+                VALUES (UUID(), 'auth.security-audit', UUID(), 'SignInFailed', '{}', NOW(6))""");
+        assertDenied(() -> app.update("UPDATE auth_outbox.outbox_events SET payload = '{}'"));
+        assertThatThrownBy(() -> app.update("""
+                INSERT INTO auth_outbox.outbox_events (id, aggregatetype, aggregateid, type, payload, created_at)
+                VALUES (UUID(), 'auth.users', UUID(), 'PatientRegistered', '{}', NOW(6))""")).hasMessageContaining("chk_outbox_events_type");
+        JdbcTemplate debezium = new JdbcTemplate(new DriverManagerDataSource(
+                "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(MySQLContainer.MYSQL_PORT) + "/", DEBEZIUM, DEBEZIUM_PASSWORD));
+        assertThat(debezium.queryForObject("SELECT COUNT(*) FROM auth_outbox.outbox_events", Long.class)).isPositive();
+        assertDenied(() -> debezium.queryForObject("SELECT COUNT(*) FROM " + MYSQL.getDatabaseName() + ".users", Long.class));
+        assertThat(app.update("DELETE FROM auth_outbox.outbox_events")).isPositive();
     }
 
     @ParameterizedTest

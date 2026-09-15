@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clinica:events:auth.users.v1",
+  "title": "Estado de un usuario del personal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "type", "schemaVersion", "occurredAt", "userUuid", "userVersion", "data"],
+  "properties": {
+    "eventId": {"type": "string", "format": "uuid"},
+    "type": {"enum": ["UserInvited", "UserActivated", "UserRenamed", "UserRoleChanged", "UserSuspended", "UserDeactivated", "UserReactivated",
+      "UserPasswordChangeRequired", "UserPasswordReset", "UserSecondFactorReset", "UserSessionsRevoked"]},
+    "schemaVersion": {"const": 1},
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "traceId": {"type": "string"},
+    "userUuid": {"type": "string", "format": "uuid"},
+    "userVersion": {"type": "integer", "minimum": 0},
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user"],
+      "properties": {
+        "user": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["uuid", "email", "fullName", "role", "status", "tokensNotBefore"],
+          "properties": {
+            "uuid": {"type": "string", "format": "uuid"},
+            "email": {"type": "string", "maxLength": 254},
+            "fullName": {"type": "string", "minLength": 3, "maxLength": 150},
+            "role": {"enum": ["SUPER_ADMIN", "ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST", "MEDICAL_RECORDS"]},
+            "status": {"enum": ["PENDING_ACTIVATION", "ACTIVE", "SUSPENDED", "DEACTIVATED"]},
+            "tokensNotBefore": {"type": "string", "format": "date-time"}
+          }
+        }
+      }
+    }
+  }
+}

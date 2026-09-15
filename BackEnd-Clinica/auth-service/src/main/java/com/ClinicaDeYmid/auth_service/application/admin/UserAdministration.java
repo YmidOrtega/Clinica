@@ -1,6 +1,8 @@
 package com.ClinicaDeYmid.auth_service.application.admin;
 
 import com.ClinicaDeYmid.auth_service.application.Caller;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityAuditLog;
+import com.ClinicaDeYmid.auth_service.application.audit.SecurityEvent;
 import com.ClinicaDeYmid.auth_service.application.mail.MailKind;
 import com.ClinicaDeYmid.auth_service.application.mail.MailOutbox;
 import com.ClinicaDeYmid.auth_service.application.session.SessionRevocation;
@@ -45,17 +47,19 @@ public class UserAdministration {
     private final LoginThrottle throttle;
     private final TotpAuthenticator totp;
     private final RecoveryCodes recoveryCodes;
+    private final SecurityAuditLog audit;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public UserAdministration(Users users, MailOutbox outbox, SessionRevocation sessions, LoginThrottle throttle, TotpAuthenticator totp,
-                              RecoveryCodes recoveryCodes, TransactionOperations transactions, Clock clock) {
+                              RecoveryCodes recoveryCodes, SecurityAuditLog audit, TransactionOperations transactions, Clock clock) {
         this.users = users;
         this.outbox = outbox;
         this.sessions = sessions;
         this.throttle = throttle;
         this.totp = totp;
         this.recoveryCodes = recoveryCodes;
+        this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -133,6 +137,7 @@ public class UserAdministration {
             if (!outbox.hasPending(MailKind.ACTIVATION, uuid)) {
                 outbox.enqueue(MailKind.ACTIVATION, uuid, Instant.now(clock));
             }
+            audit.record(new SecurityEvent.InvitationResent(uuid, caller.actor()));
         });
     }
 
@@ -142,6 +147,7 @@ public class UserAdministration {
             user.requireManageableBy(caller.actor());
             throttle.clear(new ThrottleKey.Account(user.email()));
             throttle.clear(new ThrottleKey.SecondFactor(uuid));
+            audit.record(new SecurityEvent.SignInUnlocked(uuid, caller.actor()));
         });
         log.info("Staff user {} unlocked the sign-in of {}", caller.uuid(), uuid);
     }

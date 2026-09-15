@@ -3,15 +3,18 @@ package com.ClinicaDeYmid.auth_service.infrastructure.persistence;
 import com.ClinicaDeYmid.auth_service.domain.user.EmailAddress;
 import com.ClinicaDeYmid.auth_service.domain.user.Role;
 import com.ClinicaDeYmid.auth_service.domain.user.User;
+import com.ClinicaDeYmid.auth_service.domain.user.UserEvent;
 import com.ClinicaDeYmid.auth_service.domain.user.UserException;
 import com.ClinicaDeYmid.auth_service.domain.user.UserStatus;
 import com.ClinicaDeYmid.auth_service.domain.user.Users;
+import com.ClinicaDeYmid.auth_service.infrastructure.events.JdbcAuthEventOutbox;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,15 +26,21 @@ class JpaUsers implements Users {
     private static final String UNIQUE_EMAIL = "uk_users_email";
 
     private final UserJpaRepository repository;
+    private final JdbcAuthEventOutbox outbox;
 
-    JpaUsers(UserJpaRepository repository) {
+    JpaUsers(UserJpaRepository repository, JdbcAuthEventOutbox outbox) {
         this.repository = repository;
+        this.outbox = outbox;
     }
 
     @Override
+    @Transactional
     public User save(User user) {
+        List<UserEvent> events = user.pullEvents();
         try {
-            return repository.saveAndFlush(user);
+            User saved = repository.saveAndFlush(user);
+            outbox.appendUserEvents(saved, events);
+            return saved;
         } catch (DataIntegrityViolationException violation) {
             if (String.valueOf(violation.getMostSpecificCause().getMessage()).contains(UNIQUE_EMAIL)) {
                 throw new UserException.EmailAlreadyRegistered();

@@ -21,6 +21,7 @@
 		<clinica-commons-openbao.version>1.1.0</clinica-commons-openbao.version>
 		<bouncycastle.version>1.80</bouncycastle.version>
 		<archunit.version>1.4.1</archunit.version>
+		<json-schema-validator.version>1.5.9</json-schema-validator.version>
 	</properties>
 
 	<dependencies>
@@ -143,6 +144,13 @@
 			<artifactId>clinica-commons-openbao</artifactId>
 			<version>${clinica-commons-openbao.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.networknt</groupId>
+			<artifactId>json-schema-validator</artifactId>
+			<version>${json-schema-validator.version}</version>
 			<scope>test</scope>
 		</dependency>
 

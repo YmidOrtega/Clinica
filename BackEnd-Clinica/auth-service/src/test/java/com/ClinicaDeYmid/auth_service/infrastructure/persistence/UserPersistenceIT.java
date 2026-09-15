@@ -7,6 +7,7 @@ import com.ClinicaDeYmid.auth_service.domain.user.UserException;
 import com.ClinicaDeYmid.auth_service.domain.user.UserStatus;
 import com.ClinicaDeYmid.auth_service.infrastructure.config.ClockConfiguration;
 import com.ClinicaDeYmid.auth_service.infrastructure.config.PersistenceConfiguration;
+import com.ClinicaDeYmid.auth_service.infrastructure.events.JdbcAuthEventOutbox;
 import com.ClinicaDeYmid.auth_service.support.MySqlTestContainer;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.envers.AuditReaderFactory;
@@ -36,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({JpaUsers.class, PersistenceConfiguration.class, ClockConfiguration.class, MySqlTestContainer.class})
+@Import({JpaUsers.class, JdbcAuthEventOutbox.class, PersistenceConfiguration.class, ClockConfiguration.class, MySqlTestContainer.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class UserPersistenceIT {
 
