@@ -115,6 +115,15 @@ bao_as openbao_approle_auth "bao kv get -mount=secret clinical/db/app > /dev/nul
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "auth-service leyó un secreto de clinical-history-service"
 bao_as openbao_approle_auth "bao kv get -mount=secret auth/db/app > /dev/null" || fail "auth-service no lee su secreto"
 ok "auth-service lee solo secret/auth/db"
+bao_as openbao_approle_auth "bao write -field=barcode totp/keys/staff-e2e generate=true issuer=Clinica account_name=e2e > /dev/null \
+  && bao delete totp/keys/staff-e2e > /dev/null" || fail "auth-service no administra las claves TOTP del personal"
+status=0
+bao_as openbao_approle_auth "bao list totp/keys > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "auth-service pudo listar las claves TOTP"
+status=0
+bao_as openbao_approle_auth "bao write totp/keys/other generate=true issuer=Clinica account_name=e2e > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "auth-service creó una clave TOTP fuera de staff-*"
+ok "auth-service administra solo las claves TOTP staff-* y no puede listarlas"
 status=0
 bao_as openbao_approle_agent "bao kv put -mount=secret patient/db/app password=tampered > /dev/null 2>&1" || status=$?
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "el agente pudo escribir un secreto"

@@ -14,6 +14,7 @@ DIR=$(cd "$(dirname "$0")" && pwd)
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 JAR="$WORK/cookies"
+TOTP_STATE="${E2E_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/clinica-e2e}/$PROJECT-super-admin-totp.json"
 
 step() { printf '\n== %s\n' "$1"; }
 ok() { echo "ok  $1"; }
@@ -59,6 +60,16 @@ client_assertion() {
   printf '%s.%s.%s' "$header" "$payload" "$signature"
 }
 
+totp() {
+  set -- $(node "$DIR/totp-code.mjs" "$(jq -r .otpauthUrl "$TOTP_STATE")" "$(jq -r .lastPeriod "$TOTP_STATE")")
+  jq --argjson period "$2" '.lastPeriod = $period' "$TOTP_STATE" > "$TOTP_STATE.tmp" && mv "$TOTP_STATE.tmp" "$TOTP_STATE"
+  echo "$1"
+}
+
+session_field() {
+  curl -s -b "$JAR" -c "$JAR" "$AUTH_URL/api/v1/session" | jq -r "$1"
+}
+
 token_request() {
   curl -s -o "$WORK/tokens" -w '%{http_code}' -X POST "$AUTH_URL/oauth2/token" \
     --data-urlencode "client_id=api-gateway" \
@@ -90,7 +101,39 @@ AUTHORIZE="$AUTH_URL/oauth2/authorize?response_type=code&client_id=api-gateway&s
 location=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" "$AUTHORIZE")
 case "$location" in */login*) ok "sin sesión redirige a la página de login del frontend";; *) fail "authorize respondió $location";; esac
 [ "$(api /api/v1/login "{\"email\": \"$SUPER_ADMIN\", \"password\": \"$PASSWORD\"}")" = "200" ] || fail "login rechazado: $(cat "$WORK/body")"
+outcome=$(jq -r .outcome "$WORK/body")
+[ "$(session_field .authenticated)" = "false" ] || fail "la contraseña sola autenticó la sesión"
+ok "la contraseña sola no autentica: $outcome"
+
+step "Segundo factor"
+case "$outcome" in
+  SECOND_FACTOR_ENROLLMENT_REQUIRED)
+    [ "$(api /api/v1/login/second-factor/enrollment '{}')" = "200" ] || fail "enrolamiento: $(cat "$WORK/body")"
+    jq -e '(.qrPngBase64 | length > 0) and (.otpauthUrl | startswith("otpauth://totp/"))' "$WORK/body" > /dev/null \
+      || fail "el enrolamiento no trajo el QR y la URL otpauth"
+    mkdir -p "$(dirname "$TOTP_STATE")"
+    (umask 077 && jq '{otpauthUrl, lastPeriod: -1}' "$WORK/body" > "$TOTP_STATE")
+    code=$(totp)
+    [ "$(api /api/v1/login/second-factor/enrollment/confirmation "{\"code\": \"$code\"}")" = "200" ] || fail "confirmación: $(cat "$WORK/body")"
+    [ "$(jq '.recoveryCodes | length' "$WORK/body")" = "10" ] || fail "se esperaban 10 códigos de recuperación: $(cat "$WORK/body")"
+    ok "TOTP enrolado en OpenBao en el primer login; 10 códigos de recuperación entregados una vez"
+    ;;
+  SECOND_FACTOR_REQUIRED)
+    [ -f "$TOTP_STATE" ] || fail "el SUPER_ADMIN ya tiene TOTP y falta $TOTP_STATE; recrear auth-db para enrolarlo de nuevo"
+    code=$(totp)
+    [ "$(api /api/v1/login/second-factor "{\"code\": \"$code\"}")" = "200" ] || fail "segundo factor: $(cat "$WORK/body")"
+    ok "código TOTP verificado en OpenBao"
+    ;;
+  *) fail "resultado inesperado del login: $outcome" ;;
+esac
 continue_url=$(jq -r .continueUrl "$WORK/body")
+MAIN_JAR="$JAR"
+JAR="$WORK/replay"
+api /api/v1/login "{\"email\": \"$SUPER_ADMIN\", \"password\": \"$PASSWORD\"}" > /dev/null
+status=$(api /api/v1/login/second-factor "{\"code\": \"$code\"}")
+[ "$status" = "401" ] || fail "un código TOTP ya usado respondió $status"
+ok "un código TOTP ya usado se rechaza en otra sesión"
+JAR="$MAIN_JAR"
 callback=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" "$continue_url")
 case "$callback" in "$REDIRECT_URI"*"state=$STATE"*) ok "login por API y redirección con código";; *) fail "callback inesperado: $callback";; esac
 code=$(printf '%s' "$callback" | sed -n 's/.*[?&]code=\([^&]*\).*/\1/p')
@@ -103,8 +146,9 @@ ACCESS=$(jq -r .access_token "$WORK/tokens")
 REFRESH=$(jq -r .refresh_token "$WORK/tokens")
 claims=$(node "$DIR/verify-jwt.mjs" "$ACCESS" "$(curl -s "$AUTH_URL/oauth2/jwks")") || fail "la firma del access token no verificó con el JWKS"
 [ "$(echo "$claims" | jq -r .role)" = "SUPER_ADMIN" ] && [ "$(echo "$claims" | jq -r '.aud | if type == "array" then .[0] else . end')" = "clinica-api" ] \
-  && [ "$(echo "$claims" | jq -r .iss)" = "$ISSUER" ] || fail "claims inesperados: $claims"
-ok "firma ES256 verificada con $(echo "$claims" | jq -r .kid) del JWKS; rol, audiencia y emisor correctos"
+  && [ "$(echo "$claims" | jq -r .iss)" = "$ISSUER" ] && [ "$(echo "$claims" | jq -r '.amr | join(",")')" = "pwd,otp,mfa" ] \
+  && [ "$(echo "$claims" | jq -r .acr)" = "urn:clinica:acr:mfa" ] || fail "claims inesperados: $claims"
+ok "firma ES256 verificada con $(echo "$claims" | jq -r .kid) del JWKS; rol, audiencia, emisor, amr y acr correctos"
 jwks=$(curl -s "$AUTH_URL/oauth2/jwks")
 echo "$jwks" | jq -e 'all(.keys[]; has("d") | not)' > /dev/null || fail "el JWKS expone material privado"
 ok "el JWKS solo publica claves públicas"
@@ -112,6 +156,21 @@ hash=$(printf '%s' "$REFRESH" | openssl dgst -sha256 -r | cut -d' ' -f1)
 stored=$(docker exec auth-db sh -c "mysql -N -uroot -p\"\$(cat \$MYSQL_ROOT_PASSWORD_FILE)\" -e \"SELECT COUNT(*) FROM auth_sessions.authorization_tokens WHERE value_hash = '$hash'\" 2>/dev/null")
 [ "$stored" = "1" ] || fail "el refresh token no está guardado como hash"
 ok "el refresh token solo existe como SHA-256 en la base"
+
+step "Step-up con max_age"
+sleep 2
+location=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" "$AUTHORIZE&max_age=1")
+case "$location" in *step=step-up*) ok "una sesión más vieja que max_age redirige al step-up";; *) fail "authorize con max_age respondió $location";; esac
+[ "$(session_field .pendingStep)" = "STEP_UP" ] || fail "la sesión no quedó pendiente de step-up"
+[ "$(api /api/v1/login/step-up "{\"code\": \"$(totp)\"}")" = "200" ] || fail "step-up: $(cat "$WORK/body")"
+callback=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" "$(jq -r .continueUrl "$WORK/body")")
+code=$(printf '%s' "$callback" | sed -n 's/.*[?&]code=\([^&]*\).*/\1/p')
+[ -n "$code" ] || fail "el step-up no devolvió al cliente con código: $callback"
+[ "$(token_request --data-urlencode grant_type=authorization_code --data-urlencode "code=$code" \
+      --data-urlencode "redirect_uri=$REDIRECT_URI" --data-urlencode "code_verifier=$VERIFIER")" = "200" ] || fail "token tras step-up: $(cat "$WORK/tokens")"
+stepped=$(node "$DIR/verify-jwt.mjs" "$(jq -r .access_token "$WORK/tokens")" "$(curl -s "$AUTH_URL/oauth2/jwks")")
+[ "$(echo "$stepped" | jq -r .auth_time)" -gt "$(echo "$claims" | jq -r .auth_time)" ] || fail "auth_time no avanzó: $stepped"
+ok "tras el step-up el token trae un auth_time nuevo"
 
 step "Rotación y reutilización"
 [ "$(token_request --data-urlencode grant_type=refresh_token --data-urlencode "refresh_token=$REFRESH")" = "200" ] || fail "refresh: $(cat "$WORK/tokens")"
@@ -131,7 +190,8 @@ status=$(api /api/v1/login "{\"email\": \"$SUPER_ADMIN\", \"password\": \"$PASSW
 [ "$status" = "429" ] || fail "tras 5 fallos se esperaba 429 y llegó $status"
 ok "tras 5 fallos desde la misma dirección responde 429"
 sleep 2
-[ "$(api /api/v1/login "{\"email\": \"$SUPER_ADMIN\", \"password\": \"$PASSWORD\"}")" = "200" ] || fail "no se recuperó tras la espera"
+[ "$(api /api/v1/login "{\"email\": \"$SUPER_ADMIN\", \"password\": \"$PASSWORD\"}")" = "200" ] \
+  && [ "$(jq -r .outcome "$WORK/body")" = "SECOND_FACTOR_REQUIRED" ] || fail "no se recuperó tras la espera: $(cat "$WORK/body")"
 ok "tras la espera vuelve a entrar y el contador se limpia"
 
 printf '\nE2E de auth-service completo\n'
