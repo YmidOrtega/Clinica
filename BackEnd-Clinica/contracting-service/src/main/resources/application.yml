@@ -34,6 +34,7 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+      org.hibernate.envers.default_catalog: contracting_history
   cloud:
     vault:
       enabled: false
