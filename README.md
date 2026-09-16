@@ -160,7 +160,7 @@ Clinica/
 │   ├── api-gateway/
 │   ├── auth-service/
 │   ├── billing-service/      # 🚧 In Development
-│   ├── clients-service/
+│   ├── contracting-service/
 │   ├── clinical-history-service/
 │   ├── eureka-service/
 │   ├── patient-service/

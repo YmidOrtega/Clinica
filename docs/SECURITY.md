@@ -151,6 +151,10 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   autentican con `private_key_jwt` firmando la aserción en OpenBao transit (`patient-service-client`,
   `clinical-history-service-client`, `contracting-service-client`); sus tokens propios duran 30 minutos
   y se renuevan antes de vencer.
+- **Lectura entre servicios:** las consultas de `contracting-service` aceptan el permiso de persona
+  `contracting:read` o el scope de servicio `contracting.read`. `patient-service` verifica con ese scope que
+  el pagador de una afiliación existe, porque es una comprobación del sistema y debe funcionar aunque no
+  haya usuario en la petición.
 
 ---
 
