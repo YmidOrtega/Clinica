@@ -55,4 +55,29 @@ public sealed abstract class ContractingException extends DomainException {
             super(ErrorCategory.RULE_VIOLATION, "PAYER_NOT_ACTIVE", "El pagador no está activo");
         }
     }
+
+    public static final class PortfolioItemNotFound extends ContractingException {
+        public PortfolioItemNotFound() {
+            super(ErrorCategory.NOT_FOUND, "PORTFOLIO_ITEM_NOT_FOUND", "No se encontró el servicio solicitado");
+        }
+    }
+
+    public static final class ClinicCodeAlreadyUsed extends ContractingException {
+        public ClinicCodeAlreadyUsed() {
+            super(ErrorCategory.CONFLICT, "PORTFOLIO_CLINIC_CODE_ALREADY_USED",
+                    "Ya existe un servicio con ese código de la clínica");
+        }
+    }
+
+    public static final class PortfolioItemNotOffered extends ContractingException {
+        public PortfolioItemNotOffered() {
+            super(ErrorCategory.RULE_VIOLATION, "PORTFOLIO_ITEM_NOT_OFFERED", "El servicio ya está fuera del portafolio");
+        }
+    }
+
+    public static final class PortfolioItemAlreadyOffered extends ContractingException {
+        public PortfolioItemAlreadyOffered() {
+            super(ErrorCategory.RULE_VIOLATION, "PORTFOLIO_ITEM_ALREADY_OFFERED", "El servicio ya se está ofreciendo");
+        }
+    }
 }
