@@ -7,6 +7,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -24,8 +25,17 @@ public class ClinicaJwtAuthenticationConverter implements Converter<Jwt, Abstrac
                     .toList();
         }
         return TokenSubjects.user(jwt)
-                .<List<GrantedAuthority>>map(user -> List.of(new SimpleGrantedAuthority(
-                        ClinicaJwtClaims.ROLE_PREFIX + user.role().trim().toUpperCase(Locale.ROOT))))
+                .<List<GrantedAuthority>>map(ClinicaJwtAuthenticationConverter::staffAuthorities)
                 .orElse(List.of());
+    }
+
+    private static List<GrantedAuthority> staffAuthorities(AuthenticatedUser user) {
+        String role = user.role().trim().toUpperCase(Locale.ROOT);
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(ClinicaJwtClaims.ROLE_PREFIX + role));
+        StaffRole.permissionsOf(role).stream()
+                .map(permission -> new SimpleGrantedAuthority(permission.code()))
+                .forEach(authorities::add);
+        return List.copyOf(authorities);
     }
 }
