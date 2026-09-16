@@ -34,7 +34,7 @@ interface PatientRegistryClient {
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
-        record Affiliation(String regime, String healthProviderNit) {
+        record Affiliation(String regime, String payerUuid) {
         }
     }
 

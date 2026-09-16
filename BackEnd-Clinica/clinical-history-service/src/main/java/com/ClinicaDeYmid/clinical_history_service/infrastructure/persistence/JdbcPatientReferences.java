@@ -26,17 +26,17 @@ class JdbcPatientReferences implements PatientReferences {
 
     private static final String COLUMNS = """
             uuid, kind, source_version, document_type, document_number, first_names, last_names, birth_date, code,
-            estimated_birth_year, sex, status, date_of_death, health_regime, health_provider_nit, identified_patient_uuid""";
+            estimated_birth_year, sex, status, date_of_death, health_regime, payer_uuid, identified_patient_uuid""";
 
     private static final String INSERT = "INSERT INTO patient_references (" + COLUMNS + ", updated_at) VALUES "
             + "(:uuid, :kind, :sourceVersion, :documentType, :documentNumber, :firstNames, :lastNames, :birthDate, :code, "
-            + ":estimatedBirthYear, :sex, :status, :dateOfDeath, :healthRegime, :healthProviderNit, :identifiedPatientUuid, :updatedAt)";
+            + ":estimatedBirthYear, :sex, :status, :dateOfDeath, :healthRegime, :payerUuid, :identifiedPatientUuid, :updatedAt)";
 
     private static final String UPDATE = """
             UPDATE patient_references SET kind = :kind, source_version = :sourceVersion, document_type = :documentType,
                 document_number = :documentNumber, first_names = :firstNames, last_names = :lastNames, birth_date = :birthDate,
                 code = :code, estimated_birth_year = :estimatedBirthYear, sex = :sex, status = :status,
-                date_of_death = :dateOfDeath, health_regime = :healthRegime, health_provider_nit = :healthProviderNit,
+                date_of_death = :dateOfDeath, health_regime = :healthRegime, payer_uuid = :payerUuid,
                 identified_patient_uuid = :identifiedPatientUuid, updated_at = :updatedAt
             WHERE uuid = :uuid AND source_version < :sourceVersion""";
 
@@ -99,7 +99,7 @@ class JdbcPatientReferences implements PatientReferences {
                     .addValue("status", registered.status().name())
                     .addValue("dateOfDeath", toDate(registered.dateOfDeath()))
                     .addValue("healthRegime", registered.healthRegime())
-                    .addValue("healthProviderNit", registered.healthProviderNit())
+                    .addValue("payerUuid", registered.payerUuid())
                     .addValue("identifiedPatientUuid", null);
             case PatientReference.Unidentified unidentified -> parameters
                     .addValue("kind", "UNIDENTIFIED")
@@ -113,7 +113,7 @@ class JdbcPatientReferences implements PatientReferences {
                     .addValue("status", unidentified.status().name())
                     .addValue("dateOfDeath", toDate(unidentified.dateOfDeath()))
                     .addValue("healthRegime", null)
-                    .addValue("healthProviderNit", null)
+                    .addValue("payerUuid", null)
                     .addValue("identifiedPatientUuid", unidentified.identifiedAs().map(UUID::toString).orElse(null));
         }
         return parameters;
@@ -135,7 +135,7 @@ class JdbcPatientReferences implements PatientReferences {
                     new PatientReference.Document(row.getString("document_type"), row.getString("document_number")),
                     row.getString("first_names"), row.getString("last_names"), row.getObject("birth_date", LocalDate.class),
                     sex, PatientReference.Registered.Status.valueOf(row.getString("status")), dateOfDeath,
-                    row.getString("health_regime"), row.getString("health_provider_nit"));
+                    row.getString("health_regime"), row.getString("payer_uuid"));
         }
         String identified = row.getString("identified_patient_uuid");
         return new PatientReference.Unidentified(uuid, version, row.getString("code"), sex, row.getInt("estimated_birth_year"),

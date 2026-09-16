@@ -41,7 +41,7 @@ class PatientEventMapperTest {
             assertThat(registered.status()).isEqualTo(PatientReference.Registered.Status.DECEASED);
             assertThat(registered.dateOfDeath()).isEqualTo(LocalDate.of(2026, 9, 1));
             assertThat(registered.document().number()).isEqualTo("1098765432");
-            assertThat(registered.healthProviderNit()).isEqualTo("900123456-7");
+            assertThat(registered.payerUuid()).isEqualTo("7c9e6679-7425-40de-944b-e07fc1f90ae7");
         });
     }
 

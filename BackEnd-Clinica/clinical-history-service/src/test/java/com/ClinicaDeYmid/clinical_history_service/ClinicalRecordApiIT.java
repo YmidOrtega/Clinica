@@ -799,7 +799,7 @@ class ClinicalRecordApiIT {
         UUID uuid = UUID.randomUUID();
         patients.saveIfNewer(new PatientReference.Registered(uuid, 0, new PatientReference.Document("CEDULA_DE_CIUDADANIA", "1098765432"),
                 "Ana María", "Restrepo Gómez", LocalDate.of(1990, 4, 12), PatientReference.Sex.FEMALE, status, null, "CONTRIBUTORY",
-                "900123456-7"));
+                "7c9e6679-7425-40de-944b-e07fc1f90ae7"));
         return uuid;
     }
 

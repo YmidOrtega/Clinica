@@ -53,7 +53,7 @@ class ResilientPatientRegistry implements PatientRegistry {
                 payload.demographics().firstNames(), payload.demographics().lastNames(), payload.demographics().birthDate(),
                 PatientReference.Sex.valueOf(payload.demographics().sex()),
                 PatientReference.Registered.Status.valueOf(payload.status().code()), payload.status().dateOfDeath(),
-                payload.affiliation().regime(), payload.affiliation().healthProviderNit());
+                payload.affiliation().regime(), payload.affiliation().payerUuid());
     }
 
     private static PatientReference toReference(PatientRegistryClient.UnidentifiedPayload payload) {
