@@ -39,7 +39,7 @@ public sealed interface PatientReference {
             Status status,
             LocalDate dateOfDeath,
             String healthRegime,
-            String healthProviderNit) implements PatientReference {
+            String payerUuid) implements PatientReference {
 
         public enum Status {
             ACTIVE,

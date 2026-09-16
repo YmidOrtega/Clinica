@@ -87,7 +87,7 @@ class PatientReferencesPersistenceIT {
     static PatientReference.Registered registered(UUID uuid, long version, PatientReference.Registered.Status status) {
         return new PatientReference.Registered(uuid, version, new PatientReference.Document("CEDULA_DE_CIUDADANIA", "1098765432"),
                 "Ana María", "Restrepo Gómez", LocalDate.of(1990, 4, 12), PatientReference.Sex.FEMALE, status, null,
-                "CONTRIBUTORY", "900123456-7");
+                "CONTRIBUTORY", "7c9e6679-7425-40de-944b-e07fc1f90ae7");
     }
 
     static PatientReference.Unidentified unidentified(UUID uuid, long version, UUID identifiedAs) {

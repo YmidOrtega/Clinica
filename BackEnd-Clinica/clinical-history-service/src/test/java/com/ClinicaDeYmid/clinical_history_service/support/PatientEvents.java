@@ -14,7 +14,7 @@ public final class PatientEvents {
                  "data": {"patient": {"uuid": "%s", "document": {"type": "CEDULA_DE_CIUDADANIA", "number": "1098765432"},
                           "firstNames": "Ana María", "lastNames": "Restrepo Gómez", "birthDate": "1990-04-12", "sex": "FEMALE",
                           "status": "%s"%s,
-                          "affiliation": {"regime": "CONTRIBUTORY", "healthProviderNit": "900123456-7"}}}}
+                          "affiliation": {"regime": "CONTRIBUTORY", "payerUuid": "7c9e6679-7425-40de-944b-e07fc1f90ae7"}}}}
                 """.formatted(UUID.randomUUID(), type, uuid, version, uuid, status,
                 dateOfDeath == null ? "" : ", \"dateOfDeath\": \"" + dateOfDeath + "\"");
     }

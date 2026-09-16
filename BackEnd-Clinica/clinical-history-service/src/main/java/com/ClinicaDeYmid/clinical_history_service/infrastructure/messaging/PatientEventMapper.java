@@ -48,7 +48,7 @@ final class PatientEventMapper {
                 PatientReference.Registered.Status.valueOf(required(patient, "status").asText()),
                 optionalDate(patient, "dateOfDeath"),
                 required(affiliation, "regime").asText(),
-                optionalText(affiliation, "healthProviderNit"));
+                optionalText(affiliation, "payerUuid"));
     }
 
     private static PatientReference.Unidentified unidentified(JsonNode patient, long version) {
