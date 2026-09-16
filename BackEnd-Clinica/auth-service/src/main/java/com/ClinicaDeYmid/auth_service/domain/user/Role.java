@@ -6,7 +6,9 @@ public enum Role {
     DOCTOR,
     NURSE,
     RECEPTIONIST,
-    MEDICAL_RECORDS;
+    MEDICAL_RECORDS,
+    CONTRACTING,
+    BILLING;
 
     public boolean privileged() {
         return this == SUPER_ADMIN || this == ADMIN;
@@ -16,7 +18,7 @@ public enum Role {
         return switch (actor) {
             case SUPER_ADMIN -> true;
             case ADMIN -> !privileged();
-            case DOCTOR, NURSE, RECEPTIONIST, MEDICAL_RECORDS -> false;
+            case DOCTOR, NURSE, RECEPTIONIST, MEDICAL_RECORDS, CONTRACTING, BILLING -> false;
         };
     }
 }
