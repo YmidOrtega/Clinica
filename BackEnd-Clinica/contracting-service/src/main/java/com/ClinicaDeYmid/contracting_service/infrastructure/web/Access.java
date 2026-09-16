@@ -4,6 +4,7 @@ final class Access {
 
     static final String READ = "hasAuthority('contracting:read')";
     static final String MANAGE_PAYERS = "hasAuthority('contracting:manage-payers')";
+    static final String MANAGE_PORTFOLIO = "hasAuthority('contracting:manage-tariffs')";
 
     private Access() {
     }
