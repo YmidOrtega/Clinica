@@ -102,6 +102,7 @@ services:
          - openbao_approle_auth:/openbao/approle/auth-service
          - openbao_approle_agent:/openbao/approle/infra-agent
          - openbao_approle_gateway:/openbao/approle/api-gateway
+         - openbao_approle_contracting:/openbao/approle/contracting-service
       networks:
          - secrets-net
 
@@ -917,6 +918,7 @@ volumes:
    openbao_approle_auth:
    openbao_approle_agent:
    openbao_approle_gateway:
+   openbao_approle_contracting:
    patient_db_secrets:
    clinical_db_secrets:
    clinical_storage_secrets:

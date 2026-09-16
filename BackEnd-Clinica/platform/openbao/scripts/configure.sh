@@ -7,7 +7,7 @@ BOOTSTRAP_DIR=/openbao/bootstrap
 POLICIES_DIR=/openbao/policies
 CREDENTIALS_DIR=/openbao/approle
 NODES="openbao-1 openbao-2 openbao-3"
-APPROLES="patient-service clinical-history-service auth-service api-gateway infra-agent"
+APPROLES="patient-service clinical-history-service auth-service api-gateway contracting-service infra-agent"
 
 random_secret() {
   openssl rand -base64 36 | tr -d '/+=\n' | cut -c1-40
@@ -86,6 +86,7 @@ bao write "transit/keys/auth-jwt/config" auto_rotate_period=720h > /dev/null
 transit_key api-gateway-client ecdsa-p256
 transit_key patient-service-client ecdsa-p256
 transit_key clinical-history-service-client ecdsa-p256
+transit_key contracting-service-client ecdsa-p256
 
 if ! bao auth list -format=json | jq -e 'has("approle/")' > /dev/null; then
   bao auth enable approle
@@ -117,7 +118,7 @@ seed() {
   echo "Seeded secret/$path"
 }
 
-for service in patient clinical; do
+for service in patient clinical contracting; do
   seed "$service/db/root" password="$(random_secret)"
   seed "$service/db/migrator" username="${service}_migrator" password="$(random_secret)"
   seed "$service/db/app" username="${service}_app" password="$(random_secret)"
