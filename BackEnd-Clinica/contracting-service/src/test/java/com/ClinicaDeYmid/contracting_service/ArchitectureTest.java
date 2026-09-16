@@ -15,7 +15,7 @@ class ArchitectureTest {
     static final ArchRule layersOnlyDependInward = layeredArchitecture()
             .consideringOnlyDependenciesInLayers()
             .layer("Domain").definedBy("..contracting_service.domain..")
-            .optionalLayer("Application").definedBy("..contracting_service.application..")
+            .layer("Application").definedBy("..contracting_service.application..")
             .layer("Infrastructure").definedBy("..contracting_service.infrastructure..")
             .whereLayer("Infrastructure").mayNotBeAccessedByAnyLayer()
             .whereLayer("Application").mayOnlyBeAccessedByLayers("Infrastructure")
@@ -32,6 +32,5 @@ class ArchitectureTest {
     static final ArchRule applicationIgnoresWebAndPersistenceDetails = noClasses()
             .that().resideInAPackage("..contracting_service.application..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "org.springframework.web..", "feign..", "jakarta.servlet..", "jakarta.persistence..", "org.hibernate..")
-            .allowEmptyShould(true);
+                    "org.springframework.web..", "feign..", "jakarta.servlet..", "jakarta.persistence..", "org.hibernate..");
 }
