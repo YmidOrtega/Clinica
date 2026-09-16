@@ -32,11 +32,14 @@ public class TariffCommands {
     private static final char RECORD_SEPARATOR = 30;
 
     private final TariffManuals manuals;
+    private final ContractingEventOutbox outbox;
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public TariffCommands(TariffManuals manuals, TransactionOperations transactions, Clock clock) {
+    public TariffCommands(TariffManuals manuals, ContractingEventOutbox outbox, TransactionOperations transactions,
+                          Clock clock) {
         this.manuals = manuals;
+        this.outbox = outbox;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -99,11 +102,13 @@ public class TariffCommands {
                     .filter(current -> !current.uuid().equals(versionUuid))
                     .ifPresent(current -> {
                         current.retire(clock);
-                        manuals.save(current);
+                        outbox.tariffVersionChanged(manuals.save(current), "TariffVersionRetired");
                     });
             version.activate(clock);
             log.info("Tariff version activated: manual={} label={}", version.manual().code(), version.label());
-            return manuals.save(version);
+            TariffManualVersion published = manuals.save(version);
+            outbox.tariffVersionChanged(published, "TariffVersionPublished");
+            return published;
         });
     }
 

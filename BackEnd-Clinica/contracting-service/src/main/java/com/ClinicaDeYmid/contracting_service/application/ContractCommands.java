@@ -31,14 +31,16 @@ public class ContractCommands {
     private final Contracts contracts;
     private final Payers payers;
     private final TariffManuals manuals;
+    private final ContractingEventOutbox outbox;
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public ContractCommands(Contracts contracts, Payers payers, TariffManuals manuals,
+    public ContractCommands(Contracts contracts, Payers payers, TariffManuals manuals, ContractingEventOutbox outbox,
                             TransactionOperations transactions, Clock clock) {
         this.contracts = contracts;
         this.payers = payers;
         this.manuals = manuals;
+        this.outbox = outbox;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -52,12 +54,12 @@ public class ContractCommands {
                 throw new ContractingException.ContractNumberAlreadyUsed();
             }
             log.info("Contract drafted: uuid={} payer={} number={}", contract.uuid(), payer.nit().number(), contract.number());
-            return contracts.save(contract);
+            return publish(contracts.save(contract), "ContractDrafted");
         });
     }
 
     public Contract agreeTariff(UUID uuid, long expectedVersion, UUID tariffVersionUuid, BigDecimal factor) {
-        return modify(uuid, expectedVersion, contract -> {
+        return modify(uuid, expectedVersion, "ContractTariffTermsAgreed", contract -> {
             TariffManualVersion version = manuals.findVersionByUuid(tariffVersionUuid)
                     .orElseThrow(ContractingException.TariffVersionNotFound::new);
             contract.agreeTariff(version, factor);
@@ -65,23 +67,23 @@ public class ContractCommands {
     }
 
     public Contract rename(UUID uuid, long expectedVersion, String name) {
-        return modify(uuid, expectedVersion, contract -> contract.rename(name));
+        return modify(uuid, expectedVersion, "ContractRenamed", contract -> contract.rename(name));
     }
 
     public Contract extendTo(UUID uuid, long expectedVersion, LocalDate validTo) {
-        return modify(uuid, expectedVersion, contract -> contract.extendTo(validTo));
+        return modify(uuid, expectedVersion, "ContractValidityChanged", contract -> contract.extendTo(validTo));
     }
 
     public Contract activate(UUID uuid, long expectedVersion) {
-        return modify(uuid, expectedVersion, contract -> contract.activate(clock));
+        return modify(uuid, expectedVersion, "ContractActivated", contract -> contract.activate(clock));
     }
 
     public Contract suspend(UUID uuid, long expectedVersion, String reason) {
-        return modify(uuid, expectedVersion, contract -> contract.suspend(reason, clock));
+        return modify(uuid, expectedVersion, "ContractSuspended", contract -> contract.suspend(reason, clock));
     }
 
     public Contract terminate(UUID uuid, long expectedVersion, String reason) {
-        return modify(uuid, expectedVersion, contract -> contract.terminate(reason, clock));
+        return modify(uuid, expectedVersion, "ContractTerminated", contract -> contract.terminate(reason, clock));
     }
 
     public ContractTariffException registerException(UUID contractUuid, String cupsCode, BigDecimal agreedPrice,
@@ -96,7 +98,9 @@ public class ContractCommands {
             ContractTariffException registered = ContractTariffException.register(contract, cupsCode, agreedPrice,
                     reason, validFrom, actor, clock);
             log.info("Contract exception registered: contract={} code={}", contractUuid, cupsCode);
-            return contracts.save(registered);
+            ContractTariffException saved = contracts.save(registered);
+            publish(contract, "ContractTariffExceptionRegistered");
+            return saved;
         });
     }
 
@@ -105,7 +109,9 @@ public class ContractCommands {
             ContractTariffException exception = contracts.findExceptionByUuid(exceptionUuid)
                     .orElseThrow(ContractingException.ExceptionNotFound::new);
             exception.revoke(from, reason, actor, clock);
-            return contracts.save(exception);
+            ContractTariffException saved = contracts.save(exception);
+            publish(saved.contract(), "ContractTariffExceptionRevoked");
+            return saved;
         });
     }
 
@@ -123,7 +129,9 @@ public class ContractCommands {
                     });
             log.info("Contract package agreed: contract={} code={} items={}", contractUuid, agreed.code(),
                     agreed.includedCodes().size());
-            return contracts.save(agreed);
+            ContractPackage saved = contracts.save(agreed);
+            publish(contract, "ContractPackageAgreed");
+            return saved;
         });
     }
 
@@ -132,7 +140,9 @@ public class ContractCommands {
             ContractPackage agreed = contracts.findPackageByUuid(packageUuid)
                     .orElseThrow(ContractingException.PackageNotFound::new);
             agreed.revoke(from, actor, clock);
-            return contracts.save(agreed);
+            ContractPackage saved = contracts.save(agreed);
+            publish(saved.contract(), "ContractPackageRevoked");
+            return saved;
         });
     }
 
@@ -140,14 +150,19 @@ public class ContractCommands {
         return contracts.findByUuid(uuid).orElseThrow(ContractingException.ContractNotFound::new);
     }
 
-    private Contract modify(UUID uuid, long expectedVersion, Consumer<Contract> change) {
+    private Contract modify(UUID uuid, long expectedVersion, String change, Consumer<Contract> apply) {
         return transactions.execute(status -> {
             Contract contract = contract(uuid);
             if (contract.version() != expectedVersion) {
                 throw new EntityTags.StaleVersion();
             }
-            change.accept(contract);
-            return contracts.save(contract);
+            apply.accept(contract);
+            return publish(contracts.save(contract), change);
         });
+    }
+
+    private Contract publish(Contract contract, String change) {
+        outbox.contractChanged(contract, change);
+        return contract;
     }
 }
