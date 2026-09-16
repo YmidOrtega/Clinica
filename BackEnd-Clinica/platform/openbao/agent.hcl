@@ -255,3 +255,15 @@ template {
   destination = "/rendered/contracting-db/debezium-password"
   perms       = "0444"
 }
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/kafka-connect/contracting-db-debezium-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/kafka-connect/contracting-db-debezium-password"
+  perms       = "0444"
+}
