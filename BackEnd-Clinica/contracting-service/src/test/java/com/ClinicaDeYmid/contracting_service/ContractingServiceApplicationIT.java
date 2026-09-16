@@ -1,0 +1,44 @@
+package com.ClinicaDeYmid.contracting_service;
+
+import com.ClinicaDeYmid.commons.security.testing.SecurityTestTokens;
+import com.ClinicaDeYmid.contracting_service.support.MySqlTestContainer;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(MySqlTestContainer.class)
+class ContractingServiceApplicationIT {
+
+    @Autowired
+    private TestRestTemplate http;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @DynamicPropertySource
+    static void properties(DynamicPropertyRegistry registry) {
+        SecurityTestTokens.register(registry, "contracting-service");
+        registry.add("eureka.client.enabled", () -> false);
+    }
+
+    @Test
+    void startsWithTheMigratedSchema() {
+        assertThat(http.getForObject("/actuator/health/readiness", String.class)).contains("UP");
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'contracting_history' AND table_name = 'revisions'",
+                Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void refusesAnonymousCallers() {
+        assertThat(http.getForEntity("/api/v1/payers", String.class).getStatusCode().value()).isEqualTo(401);
+    }
+}
