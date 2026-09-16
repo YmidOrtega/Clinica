@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.contracting_service;
 
-import com.ClinicaDeYmid.commons.security.testing.SecurityTestTokens;
+import com.ClinicaDeYmid.contracting_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.contracting_service.support.MySqlTestContainer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,8 +25,7 @@ class ContractingServiceApplicationIT {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        SecurityTestTokens.register(registry, "contracting-service");
-        registry.add("eureka.client.enabled", () -> false);
+        JwtTestTokens.register(registry);
     }
 
     @Test
