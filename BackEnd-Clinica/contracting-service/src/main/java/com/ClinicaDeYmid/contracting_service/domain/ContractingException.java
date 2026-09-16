@@ -118,4 +118,92 @@ public sealed abstract class ContractingException extends DomainException {
             super(ErrorCategory.NOT_FOUND, "TARIFF_ITEM_NOT_FOUND", "El manual no tiene una tarifa para ese código");
         }
     }
+
+    public static final class ContractNotFound extends ContractingException {
+        public ContractNotFound() {
+            super(ErrorCategory.NOT_FOUND, "CONTRACT_NOT_FOUND", "No se encontró el contrato solicitado");
+        }
+    }
+
+    public static final class ContractNumberAlreadyUsed extends ContractingException {
+        public ContractNumberAlreadyUsed() {
+            super(ErrorCategory.CONFLICT, "CONTRACT_NUMBER_ALREADY_USED",
+                    "El pagador ya tiene un contrato con ese número");
+        }
+    }
+
+    public static final class InvalidContractTransition extends ContractingException {
+        public InvalidContractTransition(ContractStatus.Code current, ContractStatus.Code target) {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_INVALID_STATUS_TRANSITION",
+                    "Un contrato " + label(current) + " no puede pasar a " + label(target));
+        }
+
+        private static String label(ContractStatus.Code code) {
+            return switch (code) {
+                case DRAFT -> "en borrador";
+                case ACTIVE -> "vigente";
+                case SUSPENDED -> "suspendido";
+                case TERMINATED -> "terminado";
+            };
+        }
+    }
+
+    public static final class ContractNotNegotiable extends ContractingException {
+        public ContractNotNegotiable() {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_NOT_NEGOTIABLE",
+                    "Los términos solo se cambian mientras el contrato es un borrador");
+        }
+    }
+
+    public static final class ContractNotInForce extends ContractingException {
+        public ContractNotInForce(java.time.LocalDate date) {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_NOT_IN_FORCE",
+                    "El contrato no estaba vigente el " + date);
+        }
+    }
+
+    public static final class TariffTermsMissing extends ContractingException {
+        public TariffTermsMissing() {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_TARIFF_TERMS_MISSING",
+                    "El contrato necesita un manual tarifario y un factor antes de activarse");
+        }
+    }
+
+    public static final class TariffNotApplicable extends ContractingException {
+        public TariffNotApplicable(ContractModality modality) {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_TARIFF_NOT_APPLICABLE",
+                    "Un contrato de modalidad " + modality.label() + " no se tarifa por servicio");
+        }
+    }
+
+    public static final class PackagesNotApplicable extends ContractingException {
+        public PackagesNotApplicable(ContractModality modality) {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_PACKAGES_NOT_APPLICABLE",
+                    "Un contrato de modalidad " + modality.label() + " no admite paquetes");
+        }
+    }
+
+    public static final class ExceptionAlreadyRevoked extends ContractingException {
+        public ExceptionAlreadyRevoked() {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_EXCEPTION_ALREADY_REVOKED", "La excepción ya fue revocada");
+        }
+    }
+
+    public static final class PackageAlreadyRevoked extends ContractingException {
+        public PackageAlreadyRevoked() {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_PACKAGE_ALREADY_REVOKED", "El paquete ya fue revocado");
+        }
+    }
+
+    public static final class ExceptionNotFound extends ContractingException {
+        public ExceptionNotFound() {
+            super(ErrorCategory.NOT_FOUND, "CONTRACT_EXCEPTION_NOT_FOUND", "No se encontró la excepción del contrato");
+        }
+    }
+
+    public static final class PackageNotFound extends ContractingException {
+        public PackageNotFound() {
+            super(ErrorCategory.NOT_FOUND, "CONTRACT_PACKAGE_NOT_FOUND", "No se encontró el paquete del contrato");
+        }
+    }
 }
