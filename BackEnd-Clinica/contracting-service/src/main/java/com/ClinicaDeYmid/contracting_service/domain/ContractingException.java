@@ -22,4 +22,37 @@ public sealed abstract class ContractingException extends DomainException {
             return field;
         }
     }
+
+    public static final class PayerNotFound extends ContractingException {
+        public PayerNotFound() {
+            super(ErrorCategory.NOT_FOUND, "PAYER_NOT_FOUND", "No se encontró el pagador solicitado");
+        }
+    }
+
+    public static final class NitAlreadyRegistered extends ContractingException {
+        public NitAlreadyRegistered() {
+            super(ErrorCategory.CONFLICT, "PAYER_NIT_ALREADY_REGISTERED", "Ya existe un pagador registrado con ese NIT");
+        }
+    }
+
+    public static final class InvalidStatusTransition extends ContractingException {
+        public InvalidStatusTransition(PayerStatus.Code current, PayerStatus.Code target) {
+            super(ErrorCategory.RULE_VIOLATION, "PAYER_INVALID_STATUS_TRANSITION",
+                    "Un pagador " + label(current) + " no puede pasar a " + label(target));
+        }
+
+        private static String label(PayerStatus.Code code) {
+            return switch (code) {
+                case ACTIVE -> "activo";
+                case SUSPENDED -> "suspendido";
+                case DEACTIVATED -> "desactivado";
+            };
+        }
+    }
+
+    public static final class PayerNotActive extends ContractingException {
+        public PayerNotActive() {
+            super(ErrorCategory.RULE_VIOLATION, "PAYER_NOT_ACTIVE", "El pagador no está activo");
+        }
+    }
 }
