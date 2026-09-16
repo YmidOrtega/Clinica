@@ -47,8 +47,14 @@ class DatabaseAccessIT {
             "CONTRACTING_DB_DEBEZIUM_USER", DEBEZIUM,
             "CONTRACTING_DB_DEBEZIUM_PASSWORD", DEBEZIUM_PASSWORD));
 
+    private static final String OUTBOX_ROW = "INSERT INTO contracting_outbox.outbox_events "
+            + "(id, aggregatetype, aggregateid, type, payload, created_at) VALUES "
+            + "('6f0d2c1e-8b7a-4c3d-9e2f-1a0b9c8d7e6f', 'contracting.contracts', "
+            + "'3f6c1b2a-7d4e-4a5b-9c8d-1e2f3a4b5c6d', 'ContractDrafted', '{}', NOW(6))";
+
     private static JdbcTemplate app;
     private static JdbcTemplate migrator;
+    private static JdbcTemplate debezium;
 
     @BeforeAll
     static void migrateWithTheMigratorUser() {
@@ -59,6 +65,8 @@ class DatabaseAccessIT {
                 .migrate();
         app = new JdbcTemplate(new DriverManagerDataSource(MYSQL.getJdbcUrl(), APP, APP_PASSWORD));
         migrator = new JdbcTemplate(new DriverManagerDataSource(MYSQL.getJdbcUrl(), MIGRATOR, MIGRATOR_PASSWORD));
+        String outboxUrl = MYSQL.getJdbcUrl().replaceFirst("/" + MYSQL.getDatabaseName() + "(\\?|$)", "/contracting_outbox$1");
+        debezium = new JdbcTemplate(new DriverManagerDataSource(outboxUrl, DEBEZIUM, DEBEZIUM_PASSWORD));
     }
 
     @Test
@@ -107,6 +115,33 @@ class DatabaseAccessIT {
         assertRejected(() -> app.update(PAYER_ROW.replace("'901234567'", "'90A234567'")));
         assertRejected(() -> app.update(PAYER_ROW.replace("'6017429000'", "'123'")));
         assertRejected(() -> app.update(PAYER_ROW.replace("'ACTIVE', NOW(6)", "'SUSPENDED', NOW(6)")));
+    }
+
+    @Test
+    void applicationUserCanWriteAndPurgeOnlyTheOutbox() {
+        migrator.update("DELETE FROM contracting_outbox.outbox_events");
+        app.update(OUTBOX_ROW);
+
+        assertThat(app.update("DELETE FROM contracting_outbox.outbox_events WHERE created_at < NOW(6) + INTERVAL 1 DAY"))
+                .isEqualTo(1);
+        assertDenied(() -> app.update("UPDATE contracting_outbox.outbox_events SET type = 'ContractActivated'"));
+        assertDenied(() -> app.execute("DROP TABLE contracting_outbox.outbox_events"));
+    }
+
+    @Test
+    void theOutboxRefusesEventsThatAreNotPartOfTheContract() {
+        migrator.update("DELETE FROM contracting_outbox.outbox_events");
+
+        assertRejected(() -> app.update(OUTBOX_ROW.replace("'ContractDrafted'", "'ContractInvented'")));
+        assertRejected(() -> app.update(OUTBOX_ROW.replace("'contracting.contracts'", "'contracting.secrets'")));
+    }
+
+    @Test
+    void debeziumUserCanOnlyReadTheOutbox() {
+        assertThat(debezium.queryForObject("SELECT COUNT(*) FROM contracting_outbox.outbox_events", Integer.class)).isNotNull();
+        assertDenied(() -> debezium.queryForObject("SELECT COUNT(*) FROM " + MYSQL.getDatabaseName() + ".contracts", Integer.class));
+        assertDenied(() -> debezium.queryForObject("SELECT COUNT(*) FROM contracting_history.payers_aud", Integer.class));
+        assertDenied(() -> debezium.update("DELETE FROM contracting_outbox.outbox_events"));
     }
 
     private static void assertDenied(ThrowingCallable statement) {

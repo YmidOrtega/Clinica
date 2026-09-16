@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinica.local/events/contracting.contracts.v1.schema.json",
+  "title": "contracting.contracts.v1",
+  "description": "Estado completo de un contrato cada vez que cambia. Topic compactado por uuid del contrato.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "type",
+    "occurredAt",
+    "contractUuid",
+    "payer",
+    "number",
+    "name",
+    "modality",
+    "validFrom",
+    "status",
+    "version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "ContractDrafted",
+        "ContractTariffTermsAgreed",
+        "ContractRenamed",
+        "ContractValidityChanged",
+        "ContractActivated",
+        "ContractSuspended",
+        "ContractTerminated",
+        "ContractTariffExceptionRegistered",
+        "ContractTariffExceptionRevoked",
+        "ContractPackageAgreed",
+        "ContractPackageRevoked"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "traceId": {
+      "type": "string"
+    },
+    "contractUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "payer": {
+      "type": "object",
+      "required": [
+        "uuid",
+        "nit",
+        "socialReason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "nit": {
+          "type": "string"
+        },
+        "socialReason": {
+          "type": "string"
+        }
+      }
+    },
+    "number": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "modality": {
+      "type": "string",
+      "enum": [
+        "EVENT",
+        "PACKAGE",
+        "CAPITATION",
+        "GLOBAL_BUDGET"
+      ]
+    },
+    "validFrom": {
+      "type": "string",
+      "format": "date"
+    },
+    "validTo": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "ACTIVE",
+        "SUSPENDED",
+        "TERMINATED"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tariffTerms": {
+      "type": "object",
+      "required": [
+        "manualVersionUuid",
+        "manualCode",
+        "versionLabel",
+        "unit",
+        "unitValue",
+        "factor"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "manualVersionUuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "manualCode": {
+          "type": "string"
+        },
+        "versionLabel": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string",
+          "enum": [
+            "COP",
+            "SMLDV",
+            "UVB"
+          ]
+        },
+        "unitValue": {
+          "type": "number"
+        },
+        "factor": {
+          "type": "number"
+        }
+      }
+    },
+    "tariffExceptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "uuid",
+          "cupsCode",
+          "agreedPrice",
+          "validFrom"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cupsCode": {
+            "type": "string"
+          },
+          "agreedPrice": {
+            "type": "number"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "uuid",
+          "code",
+          "name",
+          "price",
+          "includedCodes",
+          "validFrom"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "includedCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    },
+    "funding": {
+      "type": "object",
+      "required": [
+        "uuid",
+        "periodicity",
+        "validFrom"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "perCapitaValue": {
+          "type": "number"
+        },
+        "budgetCeiling": {
+          "type": "number"
+        },
+        "periodicity": {
+          "type": "string",
+          "enum": [
+            "MONTHLY",
+            "BIMONTHLY",
+            "QUARTERLY"
+          ]
+        },
+        "validFrom": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  }
+}
