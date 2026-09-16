@@ -42,6 +42,13 @@ services:
          - clinical-data
          - debug-net
 
+   contracting-service:
+      ports:
+         - "127.0.0.1:8087-8088:8087"
+      environment:
+         - SWAGGER_UI_ENABLED=true
+         - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
+
    clinical-history-service:
       ports:
          - "127.0.0.1:8091-8092:8089"

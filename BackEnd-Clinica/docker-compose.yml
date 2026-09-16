@@ -558,6 +558,7 @@ services:
          - PATIENT_DB_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
+         - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
          - EUREKA_URL=http://eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
@@ -819,6 +820,7 @@ services:
          - CONTRACTING_DB_URL=jdbc:mysql://contracting-db:3306/${CONTRACTING_DB_NAME:-contracting_db}
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
+         - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
          - EUREKA_URL=http://eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
