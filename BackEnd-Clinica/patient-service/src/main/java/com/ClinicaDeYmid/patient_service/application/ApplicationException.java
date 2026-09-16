@@ -9,15 +9,15 @@ public sealed abstract class ApplicationException extends DomainException {
         super(category, code, publicMessage);
     }
 
-    public static final class HealthProviderNotFound extends ApplicationException {
-        public HealthProviderNotFound() {
-            super(ErrorCategory.RULE_VIOLATION, "HEALTH_PROVIDER_NOT_FOUND", "La aseguradora indicada no existe");
+    public static final class PayerNotFound extends ApplicationException {
+        public PayerNotFound() {
+            super(ErrorCategory.RULE_VIOLATION, "PAYER_NOT_FOUND", "La aseguradora indicada no existe");
         }
     }
 
-    public static final class HealthProviderUnavailable extends ApplicationException {
-        public HealthProviderUnavailable() {
-            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "HEALTH_PROVIDER_UNAVAILABLE",
+    public static final class PayerUnavailable extends ApplicationException {
+        public PayerUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "PAYER_UNAVAILABLE",
                     "No es posible validar la aseguradora en este momento; intenta de nuevo más tarde");
         }
     }

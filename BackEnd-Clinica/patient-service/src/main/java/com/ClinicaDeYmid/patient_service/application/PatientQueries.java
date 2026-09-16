@@ -23,21 +23,21 @@ public class PatientQueries {
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private final Patients patients;
-    private final HealthProviderDirectory healthProviders;
+    private final PayerDirectory payers;
     private final PatientHistory history;
 
-    public PatientQueries(Patients patients, HealthProviderDirectory healthProviders, PatientHistory history) {
+    public PatientQueries(Patients patients, PayerDirectory payers, PatientHistory history) {
         this.patients = patients;
-        this.healthProviders = healthProviders;
+        this.payers = payers;
         this.history = history;
     }
 
     public PatientDetails get(UUID uuid) {
         Patient patient = patients.findByUuid(uuid).orElseThrow(PatientException.NotFound::new);
-        HealthProviderLookup healthProvider = patient.affiliation().regime().hasHealthProvider()
-                ? healthProviders.findByNit(patient.affiliation().healthProviderNit())
-                : new HealthProviderLookup.NotAffiliated();
-        return new PatientDetails(patient, healthProvider);
+        PayerLookup payer = patient.affiliation().regime().hasPayer()
+                ? payers.findByUuid(patient.affiliation().payerUuid())
+                : new PayerLookup.NotAffiliated();
+        return new PatientDetails(patient, payer);
     }
 
     public Optional<Patient> findByDocument(IdentityDocument document) {
@@ -68,6 +68,6 @@ public class PatientQueries {
         return text;
     }
 
-    public record PatientDetails(Patient patient, HealthProviderLookup healthProvider) {
+    public record PatientDetails(Patient patient, PayerLookup payer) {
     }
 }

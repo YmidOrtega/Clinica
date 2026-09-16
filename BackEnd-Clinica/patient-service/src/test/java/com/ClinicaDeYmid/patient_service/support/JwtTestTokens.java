@@ -21,6 +21,7 @@ public final class JwtTestTokens {
 
     public static void register(DynamicPropertyRegistry registry) {
         SecurityTestTokens.register(registry, "patient-service");
+        registry.add("clinica.security.client.id", () -> "");
     }
 
     public static String bearer(String role) {

@@ -124,7 +124,7 @@ class PatientPersistenceIT {
         firstCopy.updateResidence(PatientFixtures.residence());
         firstCopy.updateAffiliation(Affiliation.uninsured());
         patients.save(firstCopy);
-        secondCopy.updateAffiliation(new Affiliation(HealthRegime.SUBSIDIZED, AffiliateType.BENEFICIARY, "800111222-3", null));
+        secondCopy.updateAffiliation(new Affiliation(HealthRegime.SUBSIDIZED, AffiliateType.BENEFICIARY, PatientFixtures.PAYER_UUID, null));
 
         assertThatThrownBy(() -> patients.save(secondCopy)).isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }

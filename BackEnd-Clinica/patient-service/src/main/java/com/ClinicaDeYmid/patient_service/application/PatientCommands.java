@@ -28,22 +28,22 @@ public class PatientCommands {
     private static final Logger log = LoggerFactory.getLogger(PatientCommands.class);
 
     private final Patients patients;
-    private final HealthProviderDirectory healthProviders;
+    private final PayerDirectory payers;
     private final PatientEventOutbox outbox;
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public PatientCommands(Patients patients, HealthProviderDirectory healthProviders, PatientEventOutbox outbox,
+    public PatientCommands(Patients patients, PayerDirectory payers, PatientEventOutbox outbox,
                            TransactionOperations transactions, Clock clock) {
         this.patients = patients;
-        this.healthProviders = healthProviders;
+        this.payers = payers;
         this.outbox = outbox;
         this.transactions = transactions;
         this.clock = clock;
     }
 
     public Patient register(PatientRegistration registration) {
-        verifyHealthProvider(registration.affiliation());
+        verifyPayer(registration.affiliation());
         return transactions.execute(status -> registerInCurrentTransaction(registration));
     }
 
@@ -76,7 +76,7 @@ public class PatientCommands {
     }
 
     public Patient updateAffiliation(UUID uuid, long expectedVersion, Affiliation affiliation) {
-        verifyHealthProvider(affiliation);
+        verifyPayer(affiliation);
         return modify(uuid, expectedVersion, patient -> patient.updateAffiliation(affiliation));
     }
 
@@ -116,16 +116,16 @@ public class PatientCommands {
         return saved;
     }
 
-    void verifyHealthProvider(Affiliation affiliation) {
-        if (affiliation == null || !affiliation.regime().hasHealthProvider()) {
+    void verifyPayer(Affiliation affiliation) {
+        if (affiliation == null || !affiliation.regime().hasPayer()) {
             return;
         }
-        switch (healthProviders.findByNit(affiliation.healthProviderNit())) {
-            case HealthProviderLookup.Found found -> {
+        switch (payers.findByUuid(affiliation.payerUuid())) {
+            case PayerLookup.Found found -> {
             }
-            case HealthProviderLookup.NotFound notFound -> throw new ApplicationException.HealthProviderNotFound();
-            case HealthProviderLookup.Unavailable unavailable -> throw new ApplicationException.HealthProviderUnavailable();
-            case HealthProviderLookup.NotAffiliated notAffiliated -> {
+            case PayerLookup.NotFound notFound -> throw new ApplicationException.PayerNotFound();
+            case PayerLookup.Unavailable unavailable -> throw new ApplicationException.PayerUnavailable();
+            case PayerLookup.NotAffiliated notAffiliated -> {
             }
         }
     }

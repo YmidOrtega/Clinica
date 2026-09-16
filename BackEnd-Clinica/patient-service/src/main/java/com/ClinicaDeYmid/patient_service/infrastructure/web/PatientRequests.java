@@ -70,9 +70,9 @@ final class PatientRequests {
     record ContactUpdate(@NotNull(message = REQUIRED) @Valid Contact contact, @Valid Emergency emergencyContact) {
     }
 
-    record AffiliationData(HealthRegime regime, AffiliateType affiliateType, String healthProviderNit, String policyNumber) {
+    record AffiliationData(HealthRegime regime, AffiliateType affiliateType, UUID payerUuid, String policyNumber) {
         Affiliation toDomain() {
-            return new Affiliation(regime, affiliateType, healthProviderNit, policyNumber);
+            return new Affiliation(regime, affiliateType, payerUuid, policyNumber);
         }
     }
 

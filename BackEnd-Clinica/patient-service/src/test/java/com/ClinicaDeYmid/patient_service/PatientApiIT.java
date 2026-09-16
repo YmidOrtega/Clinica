@@ -43,10 +43,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(MySqlTestContainer.class)
 class PatientApiIT {
 
-    private static final String PROVIDERS_PATH = "/api/v1/billing-service/health-providers/";
+    private static final String PAYERS_PATH = "/api/v1/payers/";
 
     @RegisterExtension
-    static WireMockExtension clientsService = WireMockExtension.newInstance()
+    static WireMockExtension contractingService = WireMockExtension.newInstance()
             .options(wireMockConfig().dynamicPort())
             .build();
 
@@ -56,16 +56,16 @@ class PatientApiIT {
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         JwtTestTokens.register(registry);
-        registry.add("spring.cloud.openfeign.client.config.clients-service.url", clientsService::baseUrl);
+        registry.add("spring.cloud.openfeign.client.config.contracting-service.url", contractingService::baseUrl);
         registry.add("eureka.client.enabled", () -> false);
-        registry.add("clinica.patient.health-providers.fresh-ttl", () -> "0s");
+        registry.add("clinica.patient.payers.fresh-ttl", () -> "0s");
     }
 
     @Test
     void registersAPatientAndReturnsItsVersion() throws Exception {
-        providerExists(PatientJson.PROVIDER_NIT);
+        payerExists(PatientJson.PAYER_UUID);
 
-        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration(PatientJson.uniqueCedula(), PatientJson.PROVIDER_NIT)))
+        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration(PatientJson.uniqueCedula(), PatientJson.PAYER_UUID)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(HttpHeaders.LOCATION, containsString("/api/v1/patients/")))
                 .andExpect(header().string(HttpHeaders.ETAG, "\"0\""))
@@ -96,76 +96,76 @@ class PatientApiIT {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.affiliation.regime").value("UNINSURED"));
 
-        clientsService.verify(0, anyRequestedFor(anyUrl()));
+        contractingService.verify(0, anyRequestedFor(anyUrl()));
     }
 
     @Test
-    void rejectsUnknownHealthProviders() throws Exception {
-        String nit = "800000001-1";
-        clientsService.stubFor(get(urlPathEqualTo(PROVIDERS_PATH + nit)).willReturn(aResponse().withStatus(404)));
+    void rejectsUnknownPayers() throws Exception {
+        String payerUuid = "11111111-1111-4111-8111-111111111111";
+        contractingService.stubFor(get(urlPathEqualTo(PAYERS_PATH + payerUuid)).willReturn(aResponse().withStatus(404)));
 
-        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration(PatientJson.uniqueCedula(), nit)))
+        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration(PatientJson.uniqueCedula(), payerUuid)))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.code").value("HEALTH_PROVIDER_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("PAYER_NOT_FOUND"));
     }
 
     @Test
-    void answers503WhenTheHealthProviderCannotBeVerified() throws Exception {
-        String nit = "800000002-2";
-        clientsService.stubFor(get(urlPathEqualTo(PROVIDERS_PATH + nit)).willReturn(aResponse().withStatus(500)));
+    void answers503WhenThePayerCannotBeVerified() throws Exception {
+        String payerUuid = "22222222-2222-4222-8222-222222222222";
+        contractingService.stubFor(get(urlPathEqualTo(PAYERS_PATH + payerUuid)).willReturn(aResponse().withStatus(500)));
 
-        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration(PatientJson.uniqueCedula(), nit)))
+        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration(PatientJson.uniqueCedula(), payerUuid)))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PROBLEM_JSON_VALUE))
-                .andExpect(jsonPath("$.code").value("HEALTH_PROVIDER_UNAVAILABLE"));
+                .andExpect(jsonPath("$.code").value("PAYER_UNAVAILABLE"));
     }
 
     @Test
-    void servesPatientsWithTheLastKnownHealthProviderWhenClientsServiceFails() throws Exception {
-        String nit = "800000003-3";
-        providerExists(nit);
-        String uuid = register(PatientJson.registration(PatientJson.uniqueCedula(), nit));
+    void servesPatientsWithTheLastKnownPayerWhenContractingFails() throws Exception {
+        String payerUuid = "33333333-3333-4333-8333-333333333333";
+        payerExists(payerUuid);
+        String uuid = register(PatientJson.registration(PatientJson.uniqueCedula(), payerUuid));
 
         as("DOCTOR", fetch("/api/v1/patients/" + uuid))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.healthProvider.availability").value("AVAILABLE"));
+                .andExpect(jsonPath("$.payer.availability").value("AVAILABLE"));
 
-        clientsService.stubFor(get(urlPathEqualTo(PROVIDERS_PATH + nit)).willReturn(aResponse().withStatus(503)));
+        contractingService.stubFor(get(urlPathEqualTo(PAYERS_PATH + payerUuid)).willReturn(aResponse().withStatus(503)));
 
         as("NURSE", fetch("/api/v1/patients/" + uuid))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.ETAG, "\"0\""))
                 .andExpect(jsonPath("$.uuid").value(uuid))
-                .andExpect(jsonPath("$.healthProvider.availability").value("AVAILABLE"))
-                .andExpect(jsonPath("$.healthProvider.name").value("Salud Total EPS S.A."));
+                .andExpect(jsonPath("$.payer.availability").value("AVAILABLE"))
+                .andExpect(jsonPath("$.payer.name").value("Salud Total EPS S.A."));
     }
 
     @Test
-    void answersWithinTheTimeoutWhenClientsServiceIsSlow() throws Exception {
-        String nit = "800000004-4";
-        providerExists(nit);
-        String uuid = register(PatientJson.registration(PatientJson.uniqueCedula(), nit));
-        clientsService.stubFor(get(urlPathEqualTo(PROVIDERS_PATH + nit)).willReturn(aResponse().withFixedDelay(3000)));
+    void answersWithinTheTimeoutWhenContractingIsSlow() throws Exception {
+        String payerUuid = "44444444-4444-4444-8444-444444444444";
+        payerExists(payerUuid);
+        String uuid = register(PatientJson.registration(PatientJson.uniqueCedula(), payerUuid));
+        contractingService.stubFor(get(urlPathEqualTo(PAYERS_PATH + payerUuid)).willReturn(aResponse().withFixedDelay(3000)));
 
         as("DOCTOR", fetch("/api/v1/patients/" + uuid))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.healthProvider.availability").value("AVAILABLE"));
+                .andExpect(jsonPath("$.payer.availability").value("AVAILABLE"));
     }
 
     @Test
     void rejectsDuplicatedDocuments() throws Exception {
-        providerExists(PatientJson.PROVIDER_NIT);
+        payerExists(PatientJson.PAYER_UUID);
         String document = PatientJson.uniqueCedula();
-        register(PatientJson.registration(document, PatientJson.PROVIDER_NIT));
+        register(PatientJson.registration(document, PatientJson.PAYER_UUID));
 
-        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration(document, PatientJson.PROVIDER_NIT)))
+        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration(document, PatientJson.PAYER_UUID)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PATIENT_DOCUMENT_ALREADY_REGISTERED"));
     }
 
     @Test
     void reportsInvalidAndIncompleteRequests() throws Exception {
-        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration("12AB", PatientJson.PROVIDER_NIT)))
+        as("RECEPTIONIST", post("/api/v1/patients").content(PatientJson.registration("12AB", PatientJson.PAYER_UUID)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PATIENT_INVALID_DATA"))
                 .andExpect(content().string(not(containsString("12AB"))));
@@ -274,8 +274,8 @@ class PatientApiIT {
         return JsonPath.read(response, "$.uuid");
     }
 
-    private void providerExists(String nit) {
-        clientsService.stubFor(get(urlPathEqualTo(PROVIDERS_PATH + nit)).willReturn(okJson(PatientJson.healthProvider(nit))));
+    private void payerExists(String payerUuid) {
+        contractingService.stubFor(get(urlPathEqualTo(PAYERS_PATH + payerUuid)).willReturn(okJson(PatientJson.payer(payerUuid))));
     }
 
     private ResultActions as(String role, MockHttpServletRequestBuilder request) throws Exception {

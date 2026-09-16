@@ -25,7 +25,7 @@ public final class PatientRows {
         row.put("mobile", "'3001234567'");
         row.put("health_regime", "'CONTRIBUTORY'");
         row.put("affiliate_type", "'HOLDER'");
-        row.put("health_provider_nit", "'900123456-7'");
+        row.put("payer_uuid", "'7c9e6679-7425-40de-944b-e07fc1f90ae7'");
         row.put("residence_department", "'Santander'");
         row.put("residence_municipality", "'Bucaramanga'");
         row.put("residence_zone", "'URBAN'");

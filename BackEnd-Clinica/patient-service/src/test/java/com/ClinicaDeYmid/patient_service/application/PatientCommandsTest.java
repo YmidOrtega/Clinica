@@ -24,41 +24,41 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PatientCommandsTest {
 
     private final InMemoryPatients patients = new InMemoryPatients();
-    private final StubHealthProviders healthProviders = new StubHealthProviders();
+    private final StubPayers payers = new StubPayers();
     private final RecordingOutbox outbox = new RecordingOutbox();
-    private final PatientCommands commands = new PatientCommands(patients, healthProviders, outbox,
+    private final PatientCommands commands = new PatientCommands(patients, payers, outbox,
             TransactionOperations.withoutTransaction(), PatientFixtures.today());
 
     @Test
-    void registersPatientsAfterValidatingTheirHealthProvider() {
+    void registersPatientsAfterValidatingTheirPayer() {
         Patient patient = commands.register(PatientFixtures.adultRegistration());
 
         assertThat(patients.findByUuid(patient.uuid())).contains(patient);
-        assertThat(healthProviders.requestedNits).containsExactly("900123456-7");
+        assertThat(payers.requestedPayers).containsExactly(PatientFixtures.PAYER_UUID);
     }
 
     @Test
     void doesNotCallClientsServiceForUninsuredPatients() {
         commands.register(uninsuredRegistration());
 
-        assertThat(healthProviders.requestedNits).isEmpty();
+        assertThat(payers.requestedPayers).isEmpty();
     }
 
     @Test
-    void rejectsUnknownHealthProviders() {
-        healthProviders.answer = new HealthProviderLookup.NotFound();
+    void rejectsUnknownPayers() {
+        payers.answer = new PayerLookup.NotFound();
 
         assertThatThrownBy(() -> commands.register(PatientFixtures.adultRegistration()))
-                .isInstanceOf(ApplicationException.HealthProviderNotFound.class);
+                .isInstanceOf(ApplicationException.PayerNotFound.class);
         assertThat(patients.existsByDocument(PatientFixtures.cedula())).isFalse();
     }
 
     @Test
-    void refusesToRegisterWhenTheHealthProviderCannotBeVerified() {
-        healthProviders.answer = new HealthProviderLookup.Unavailable();
+    void refusesToRegisterWhenThePayerCannotBeVerified() {
+        payers.answer = new PayerLookup.Unavailable();
 
         assertThatThrownBy(() -> commands.register(PatientFixtures.adultRegistration()))
-                .isInstanceOf(ApplicationException.HealthProviderUnavailable.class);
+                .isInstanceOf(ApplicationException.PayerUnavailable.class);
     }
 
     @Test
@@ -95,12 +95,12 @@ class PatientCommandsTest {
     }
 
     @Test
-    void verifiesTheNewHealthProviderWhenTheAffiliationChanges() {
+    void verifiesTheNewPayerWhenTheAffiliationChanges() {
         Patient patient = commands.register(uninsuredRegistration());
-        healthProviders.answer = new HealthProviderLookup.NotFound();
+        payers.answer = new PayerLookup.NotFound();
 
         assertThatThrownBy(() -> commands.updateAffiliation(patient.uuid(), patient.version(), PatientFixtures.contributory()))
-                .isInstanceOf(ApplicationException.HealthProviderNotFound.class);
+                .isInstanceOf(ApplicationException.PayerNotFound.class);
         assertThat(patient.affiliation()).isEqualTo(Affiliation.uninsured());
     }
 
@@ -130,7 +130,7 @@ class PatientCommandsTest {
 
     @Test
     void appendsNothingWhenTheOperationFails() {
-        healthProviders.answer = new HealthProviderLookup.NotFound();
+        payers.answer = new PayerLookup.NotFound();
 
         assertThatThrownBy(() -> commands.register(PatientFixtures.adultRegistration()));
         assertThat(outbox.appended).isEmpty();
@@ -159,14 +159,15 @@ class PatientCommandsTest {
         }
     }
 
-    static final class StubHealthProviders implements HealthProviderDirectory {
+    static final class StubPayers implements PayerDirectory {
 
-        final List<String> requestedNits = new ArrayList<>();
-        HealthProviderLookup answer = new HealthProviderLookup.Found(new HealthProvider("900123456-7", "Salud Total EPS", "EPS"));
+        final List<UUID> requestedPayers = new ArrayList<>();
+        PayerLookup answer = new PayerLookup.Found(
+                new Payer(PatientFixtures.PAYER_UUID, "901234567-7", "Salud Total EPS", "EPS"));
 
         @Override
-        public HealthProviderLookup findByNit(String nit) {
-            requestedNits.add(nit);
+        public PayerLookup findByUuid(UUID uuid) {
+            requestedPayers.add(uuid);
             return answer;
         }
     }

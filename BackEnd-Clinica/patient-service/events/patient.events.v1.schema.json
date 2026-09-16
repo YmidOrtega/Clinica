@@ -380,9 +380,9 @@
                 "UNINSURED"
               ]
             },
-            "healthProviderNit": {
+            "payerUuid": {
               "type": "string",
-              "pattern": "^[0-9]{9,10}(-[0-9])?$"
+              "format": "uuid"
             }
           }
         }

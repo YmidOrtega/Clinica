@@ -48,14 +48,14 @@ class PatientEventContractTest {
     }
 
     @Test
-    void uninsuredPatientsOmitTheHealthProvider() {
+    void uninsuredPatientsOmitThePayer() {
         Patient patient = PatientFixtures.registeredAdult();
         patient.updateAffiliation(Affiliation.uninsured());
 
         String json = json(new PatientEvent.AffiliationUpdated(), patient);
 
         assertThat(PatientEventContract.violations(json)).isEmpty();
-        assertThat(json).doesNotContain("healthProviderNit");
+        assertThat(json).doesNotContain("payerUuid");
     }
 
     @Test
