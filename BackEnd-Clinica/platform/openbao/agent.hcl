@@ -213,3 +213,45 @@ template {
   destination = "/rendered/gateway-redis/password"
   perms       = "0444"
 }
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/root\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/contracting-db/root-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/migrator\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/contracting-db/migrator-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/migrator\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/contracting-db/migrator-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/app\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/contracting-db/app-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/app\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/contracting-db/app-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/contracting-db/debezium-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/contracting/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/contracting-db/debezium-password"
+  perms       = "0444"
+}
