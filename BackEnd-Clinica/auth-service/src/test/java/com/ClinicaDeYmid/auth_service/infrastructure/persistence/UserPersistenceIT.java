@@ -13,6 +13,8 @@ import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.envers.AuditReaderFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -60,6 +62,14 @@ class UserPersistenceIT {
         jdbc.update("DELETE FROM auth_history.revisions");
         jdbc.update("DELETE FROM users");
         jdbc.update("SET FOREIGN_KEY_CHECKS = 1");
+    }
+
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void theDatabaseAcceptsEveryRoleOfTheCatalogue(Role role) {
+        User saved = users.save(invited(role, role.name().toLowerCase() + "@clinica.test"));
+
+        assertThat(users.findByUuid(saved.uuid()).orElseThrow().role()).isEqualTo(role);
     }
 
     @Test
