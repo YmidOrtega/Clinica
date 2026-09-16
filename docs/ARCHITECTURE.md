@@ -109,7 +109,7 @@ domain                      Patient (métodos de intención, sin setters)
 ```
 
 Las dependencias solo apuntan hacia el dominio, y lo verifica un test de ArchUnit. El dominio lleva
-anotaciones JPA para no duplicar el modelo; las dependencias externas (`clients-service`, auditoría)
+anotaciones JPA para no duplicar el modelo; las dependencias externas (`contracting-service`, auditoría)
 están detrás de puertos.
 
 **Reglas de negocio en el dominio, integridad en la base de datos:**
@@ -135,9 +135,9 @@ Debezium lo publica en el topic compactado `patient.events.v1`. `patient-service
 Kafka o Connect caen, sigue registrando y los eventos salen cuando vuelven. El contrato y las reglas
 para consumidores están en `patient-service/events/README.md`.
 
-**Resiliencia frente a `clients-service`:** timeout de 1 s de conexión y 2 s de lectura, circuit
+**Resiliencia frente a `contracting-service`:** timeout de 1 s de conexión y 2 s de lectura, circuit
 breaker, caché local de aseguradoras (5 min) y último valor conocido (24 h). Consultar un paciente
-nunca falla por culpa de `clients-service`; registrar con aseguradora responde `503` si no se puede
+nunca falla por culpa de `contracting-service`; registrar con aseguradora responde `503` si no se puede
 validar.
 
 **Sin caché de pacientes:** la prueba de carga con 500.000 pacientes a 5 veces el pico de una clínica
@@ -608,7 +608,7 @@ Clinica/
 │   ├── clinical-history-service/       # Historia clínica: notas firmadas, anexos, auditoría
 │   ├── admissions-service/             # Atenciones, triage, autorizaciones
 │   ├── suppliers-service/              # Médicos, especialidades, horarios
-│   ├── clients-service/                # Aseguradoras, contratos
+│   ├── contracting-service/            # Pagadores, contratos, tarifas y precios
 │   ├── ai-assistant-service/           # Chat con Gemini / LM Studio
 │   └── billing-service/                # Facturación (en desarrollo)
 ├── FrontEnd-Clinica/                   # Astro 6 (en desarrollo)

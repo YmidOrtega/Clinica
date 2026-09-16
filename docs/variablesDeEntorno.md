@@ -466,3 +466,26 @@ private String jwtSecret;
 - [Spring Boot External Configuration](https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config)
 - [Docker Environment Variables](https://docs.docker.com/compose/environment-variables/)
 - [12 Factor App - Config](https://12factor.net/config)
+
+### contracting-service
+
+```
+CONTRACTING_SERVICE_PORT=8087
+CONTRACTING_DB_URL=jdbc:mysql://contracting-db:3306/contracting_db
+CONTRACTING_DB_POOL_SIZE=15                      # opcional
+CONTRACTING_CLIENT_TRANSIT_KEY=contracting-service-client  # opcional; firma de su aserción private_key_jwt
+CONTRACTING_SERVICE_REPLICAS=2                   # opcional; réplicas en compose
+```
+
+Con el perfil `openbao` el usuario y la contraseña de la base salen de `secret/contracting/db/{migrator,app}`
+y no se definen por entorno. `AUTH_ISSUER`, `AUTH_JWKS_URI`, `AUTH_TOKEN_URI`, `EUREKA_URL` y
+`KAFKA_BOOTSTRAP_SERVERS` son los mismos del resto de servicios.
+
+### patient-service (cambios de esta versión)
+
+```
+AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token   # necesario: verifica el pagador con su token de servicio
+PATIENT_CLIENT_TRANSIT_KEY=patient-service-client      # opcional
+```
+
+`GATEWAY_CONTRACTING_SERVICE_URI` apunta al servicio desde el gateway (`lb://contracting-service` por defecto).

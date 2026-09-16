@@ -140,7 +140,7 @@ clínica (alergias, enfermedades crónicas, medicamentos, antecedentes, vacunas)
 
 ### POST `/`
 
-Registra un paciente. Si tiene aseguradora, se valida contra `clients-service`: si no existe responde
+Registra un paciente. Si tiene aseguradora, se valida contra `contracting-service`: si no existe responde
 `422 HEALTH_PROVIDER_NOT_FOUND` y si no es posible validarla, `503 HEALTH_PROVIDER_UNAVAILABLE`.
 
 **Request:**
@@ -153,7 +153,7 @@ Registra un paciente. Si tiene aseguradora, se valida contra `clients-service`: 
   },
   "contact": { "mobile": "3001234567", "phone": null, "email": "ana@example.com" },
   "emergencyContact": { "fullName": "Luis Restrepo", "relationship": "FATHER", "phone": "3017654321" },
-  "affiliation": { "regime": "CONTRIBUTORY", "affiliateType": "HOLDER", "healthProviderNit": "900123456-7", "policyNumber": null },
+  "affiliation": { "regime": "CONTRIBUTORY", "affiliateType": "HOLDER", "payerUuid": "7c9e6679-7425-40de-944b-e07fc1f90ae7", "policyNumber": null },
   "residence": { "department": "Santander", "municipality": "Bucaramanga", "zone": "URBAN", "address": "Calle 45 # 27-10" }
 }
 ```
@@ -170,7 +170,7 @@ Reglas: el tipo de documento debe corresponder a la edad (Registro Civil < 7, Ta
   "demographics": { "firstNames": "Ana María", "lastNames": "Restrepo Gómez", "birthDate": "1990-04-12", "sex": "FEMALE", "countryOfOrigin": "CO", "disability": "NONE" },
   "contact": { "mobile": "3001234567", "email": "ana@example.com" },
   "emergencyContact": { "fullName": "Luis Restrepo", "relationship": "FATHER", "phone": "3017654321" },
-  "affiliation": { "regime": "CONTRIBUTORY", "affiliateType": "HOLDER", "healthProviderNit": "900123456-7" },
+  "affiliation": { "regime": "CONTRIBUTORY", "affiliateType": "HOLDER", "payerUuid": "7c9e6679-7425-40de-944b-e07fc1f90ae7" },
   "residence": { "department": "Santander", "municipality": "Bucaramanga", "zone": "URBAN", "address": "Calle 45 # 27-10" },
   "status": { "code": "ACTIVE", "changedAt": "2026-09-13T18:45:46Z" },
   "audit": { "createdAt": "2026-09-13T18:45:46Z", "createdBy": "7d1c3f2e-…", "updatedAt": "2026-09-13T18:45:46Z", "updatedBy": "7d1c3f2e-…" }
@@ -181,7 +181,7 @@ Reglas: el tipo de documento debe corresponder a la edad (Registro Civil < 7, Ta
 
 ### GET `/{uuid}`
 
-Retorna el paciente y la disponibilidad de su aseguradora. Si `clients-service` falla, el paciente se
+Retorna el paciente y la disponibilidad de su aseguradora. Si `contracting-service` falla, el paciente se
 entrega igual con el último valor conocido de la aseguradora o `availability: UNAVAILABLE`.
 
 **Response `200 OK`** con `ETag`: el mismo cuerpo de `POST /` más:
@@ -704,50 +704,36 @@ Registra un período de no disponibilidad (vacaciones, incapacidad, etc.).
 
 ---
 
-## 6. Clients Service — `/api/v1/health-providers`
+## 6. Contracting Service — `/api/v1`
 
-### GET `/`
+Pagadores, contratos, portafolio de servicios, manuales tarifarios y resolución de precios. Autoriza por
+permiso (`contracting:read`, `contracting:manage-payers`, `contracting:manage-contracts`,
+`contracting:manage-tariffs`, `contracting:manage-capitation`, `contracting:quote-prices`) y exige segundo
+factor reciente en toda decisión de precio.
 
-Lista todos los proveedores de salud (aseguradoras, EPS).
+| Método y ruta | Para qué | Step-up |
+|---|---|---|
+| `POST /api/v1/payers` | registrar un pagador (EPS, ARL, póliza) | no |
+| `POST /api/v1/payers/search` | buscar por NIT exacto o prefijo de razón social | no |
+| `PUT /api/v1/payers/{uuid}/identity` · `/contact` | corregir identidad o contacto (`If-Match`) | no |
+| `POST /api/v1/payers/{uuid}/suspension` · `/reactivation` · `/deactivation` | cambiar su estado | no |
+| `GET /api/v1/payers/{uuid}/history` | historial de cambios (Envers) | no |
+| `POST /api/v1/portfolio-items` · `/imports` | portafolio de servicios de la clínica, con carga masiva idempotente | no |
+| `POST /api/v1/tariff-manuals` · `/{uuid}/versions` · `/versions/{uuid}/items` | manuales tarifarios versionados y su carga idempotente | no |
+| `POST /api/v1/tariff-manuals/versions/{uuid}/activation` | publicar la versión y retirar la anterior | **sí** |
+| `POST /api/v1/contracts` | abrir un contrato en borrador | no |
+| `PUT /api/v1/contracts/{uuid}/tariff-terms` | pactar manual y factor | **sí** |
+| `POST /api/v1/contracts/{uuid}/activation` · `/suspension` · `/termination` | ciclo de vida del contrato | activación **sí** |
+| `POST /api/v1/contracts/{uuid}/tariff-exceptions` · `/packages` | precios pactados por fuera del manual y paquetes | **sí** |
+| `POST /api/v1/contracts/{uuid}/capitation-agreement` · `/budget-agreement` | acuerdos de capitación y PGP | **sí** |
+| `POST /api/v1/contracts/{uuid}/capitated-members/imports?period=YYYY-MM` | población capitada del periodo | no |
+| `GET /api/v1/capitated-members/coverage` | saber si una persona está capitada en una fecha | no |
+| `POST /api/v1/price-quotes` | resolver el precio de unos servicios para un contrato y una fecha | no |
 
-**Response `200 OK`:**
-```json
-{
-  "content": [
-    {
-      "id": "hp001-...",
-      "name": "EPS Sura",
-      "nit": "890903790-1",
-      "type": "EPS",
-      "contactEmail": "contratos@sura.com.co",
-      "status": "ACTIVE"
-    }
-  ]
-}
-```
-
----
-
-### GET `/{id}/contracts`
-
-Retorna los contratos activos con un proveedor.
-
-**Response `200 OK`:**
-```json
-{
-  "providerId": "hp001-...",
-  "contracts": [
-    {
-      "id": "con001-...",
-      "number": "CLN-2025-001",
-      "startDate": "2025-01-01",
-      "endDate": "2025-12-31",
-      "coverageType": "FULL",
-      "status": "ACTIVE"
-    }
-  ]
-}
-```
+El detalle de la resolución de precios está en
+[contracting-service/docs/resolucion-de-precios.md](../BackEnd-Clinica/contracting-service/docs/resolucion-de-precios.md)
+y el de capitación en
+[capitacion-y-presupuesto.md](../BackEnd-Clinica/contracting-service/docs/capitacion-y-presupuesto.md).
 
 ---
 
