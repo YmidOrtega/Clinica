@@ -83,6 +83,7 @@ AUTH_ISSUER=http://localhost:8080/auth
 AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
 AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token          # intercambio de tokens para llamar a patient-service
 CLINICAL_CLIENT_TRANSIT_KEY=clinical-history-service-client   # opcional; firma de su aserción private_key_jwt
+AUTH_CONTRACTING_SERVICE_CLIENT_KEY=contracting-service-client  # opcional; clave transit del cliente de contratación
 
 CLINICAL_TRANSIT_MOUNT=transit                                # opcional; motor transit de OpenBao
 CLINICAL_ENCRYPTION_TRANSIT_KEY=clinical-kek                  # opcional; clave maestra aes256-gcm96

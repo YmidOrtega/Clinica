@@ -51,7 +51,8 @@ en todos los servicios. Queda auditado como `SessionClosed` o `UserSessionsRevok
 
 ## Administración — `/api/v1/users`
 
-`SUPER_ADMIN` administra a `ADMIN` y `SUPER_ADMIN`; `ADMIN` a los roles operativos. Nadie cambia su
+`SUPER_ADMIN` administra a `ADMIN` y `SUPER_ADMIN`; `ADMIN` a los roles operativos. El catálogo de roles
+y los permisos que cada uno otorga están en [roles-y-permisos.md](roles-y-permisos.md). Nadie cambia su
 propio rol ni su propio estado (`403 USER_SELF_MANAGEMENT`) y siempre queda un `SUPER_ADMIN` activo
 (`422 LAST_SUPER_ADMIN`).
 
