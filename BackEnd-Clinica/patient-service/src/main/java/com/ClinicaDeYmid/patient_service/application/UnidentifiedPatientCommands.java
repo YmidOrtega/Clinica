@@ -58,7 +58,7 @@ public class UnidentifiedPatientCommands {
     }
 
     public UnidentifiedPatient identifyAsNew(UUID uuid, long expectedVersion, PatientRegistration registration, String reason) {
-        patientCommands.verifyHealthProvider(registration.affiliation());
+        patientCommands.verifyPayer(registration.affiliation());
         return modify(uuid, expectedVersion, unidentified -> {
             Patient patient = patientCommands.registerInCurrentTransaction(registration);
             unidentified.identifyAs(patient, reason, clock);

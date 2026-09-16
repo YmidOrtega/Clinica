@@ -20,9 +20,9 @@ class UnidentifiedPatientCommandsTest {
 
     private final InMemoryPatients patients = new InMemoryPatients();
     private final InMemoryUnidentifiedPatients unidentifiedPatients = new InMemoryUnidentifiedPatients();
-    private final PatientCommandsTest.StubHealthProviders healthProviders = new PatientCommandsTest.StubHealthProviders();
+    private final PatientCommandsTest.StubPayers payers = new PatientCommandsTest.StubPayers();
     private final PatientCommandsTest.RecordingOutbox outbox = new PatientCommandsTest.RecordingOutbox();
-    private final PatientCommands patientCommands = new PatientCommands(patients, healthProviders, outbox,
+    private final PatientCommands patientCommands = new PatientCommands(patients, payers, outbox,
             TransactionOperations.withoutTransaction(), PatientFixtures.today());
     private final UnidentifiedPatientCommands commands = new UnidentifiedPatientCommands(unidentifiedPatients, patients,
             patientCommands, outbox, TransactionOperations.withoutTransaction(), PatientFixtures.today());
@@ -69,7 +69,7 @@ class UnidentifiedPatientCommandsTest {
         assertThat(identified.status()).isInstanceOfSatisfying(UnidentifiedPatientStatus.Identified.class,
                 status -> assertThat(status.patientUuid()).isEqualTo(registered.uuid()));
         assertThat(outbox.appended).containsExactly(new PatientEvent.Registered());
-        assertThat(healthProviders.requestedNits).containsExactly("900123456-7");
+        assertThat(payers.requestedPayers).containsExactly(PatientFixtures.PAYER_UUID);
     }
 
     @Test
@@ -83,13 +83,13 @@ class UnidentifiedPatientCommandsTest {
     }
 
     @Test
-    void refusesToIdentifyAsNewWhenTheHealthProviderDoesNotExist() {
+    void refusesToIdentifyAsNewWhenThePayerDoesNotExist() {
         UnidentifiedPatient unidentified = register();
-        healthProviders.answer = new HealthProviderLookup.NotFound();
+        payers.answer = new PayerLookup.NotFound();
 
         assertThatThrownBy(() -> commands.identifyAsNew(unidentified.uuid(), unidentified.version(),
                 PatientFixtures.adultRegistration(), "Datos"))
-                .isInstanceOf(ApplicationException.HealthProviderNotFound.class);
+                .isInstanceOf(ApplicationException.PayerNotFound.class);
         assertThat(patients.existsByDocument(PatientFixtures.cedula())).isFalse();
     }
 

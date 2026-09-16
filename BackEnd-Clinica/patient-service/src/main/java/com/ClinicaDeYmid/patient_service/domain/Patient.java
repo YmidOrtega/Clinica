@@ -88,7 +88,7 @@ public class Patient {
     @Embedded
     @AttributeOverride(name = "regime", column = @Column(name = "health_regime", nullable = false, length = 20))
     @AttributeOverride(name = "affiliateType", column = @Column(name = "affiliate_type", length = 20))
-    @AttributeOverride(name = "healthProviderNit", column = @Column(name = "health_provider_nit", length = 12))
+    @AttributeOverride(name = "payerUuid", column = @Column(name = "payer_uuid", length = 36))
     @AttributeOverride(name = "policyNumber", column = @Column(name = "policy_number", length = 50))
     private Affiliation affiliation;
 

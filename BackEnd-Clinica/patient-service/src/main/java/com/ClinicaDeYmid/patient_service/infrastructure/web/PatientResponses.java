@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.patient_service.infrastructure.web;
 
-import com.ClinicaDeYmid.patient_service.application.HealthProviderLookup;
+import com.ClinicaDeYmid.patient_service.application.PayerLookup;
 import com.ClinicaDeYmid.patient_service.application.PatientHistory;
 import com.ClinicaDeYmid.patient_service.domain.AffiliateType;
 import com.ClinicaDeYmid.patient_service.domain.Affiliation;
@@ -59,7 +59,7 @@ final class PatientResponses {
         }
     }
 
-    record PatientDetailsView(@JsonUnwrapped PatientView patient, HealthProviderView healthProvider) {
+    record PatientDetailsView(@JsonUnwrapped PatientView patient, PayerView payer) {
     }
 
     record PatientSummaryView(UUID uuid, DocumentView document, String firstNames, String lastNames,
@@ -136,10 +136,10 @@ final class PatientResponses {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    record AffiliationView(HealthRegime regime, AffiliateType affiliateType, String healthProviderNit, String policyNumber) {
+    record AffiliationView(HealthRegime regime, AffiliateType affiliateType, UUID payerUuid, String policyNumber) {
         static AffiliationView from(Affiliation affiliation) {
             return new AffiliationView(affiliation.regime(), affiliation.affiliateType(),
-                    affiliation.healthProviderNit(), affiliation.policyNumber());
+                    affiliation.payerUuid(), affiliation.policyNumber());
         }
     }
 
@@ -165,7 +165,7 @@ final class PatientResponses {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    record HealthProviderView(Availability availability, String name, String type) {
+    record PayerView(Availability availability, UUID uuid, String nit, String name, String type) {
 
         enum Availability {
             AVAILABLE,
@@ -174,14 +174,14 @@ final class PatientResponses {
             NOT_AFFILIATED
         }
 
-        static HealthProviderView from(HealthProviderLookup lookup) {
+        static PayerView from(PayerLookup lookup) {
             return switch (lookup) {
-                case HealthProviderLookup.Found found ->
-                        new HealthProviderView(Availability.AVAILABLE, found.provider().name(), found.provider().type());
-                case HealthProviderLookup.NotFound notFound -> new HealthProviderView(Availability.NOT_FOUND, null, null);
-                case HealthProviderLookup.Unavailable unavailable -> new HealthProviderView(Availability.UNAVAILABLE, null, null);
-                case HealthProviderLookup.NotAffiliated notAffiliated ->
-                        new HealthProviderView(Availability.NOT_AFFILIATED, null, null);
+                case PayerLookup.Found found -> new PayerView(Availability.AVAILABLE, found.payer().uuid(),
+                        found.payer().nit(), found.payer().name(), found.payer().type());
+                case PayerLookup.NotFound notFound -> new PayerView(Availability.NOT_FOUND, null, null, null, null);
+                case PayerLookup.Unavailable unavailable -> new PayerView(Availability.UNAVAILABLE, null, null, null, null);
+                case PayerLookup.NotAffiliated notAffiliated ->
+                        new PayerView(Availability.NOT_AFFILIATED, null, null, null, null);
             };
         }
     }

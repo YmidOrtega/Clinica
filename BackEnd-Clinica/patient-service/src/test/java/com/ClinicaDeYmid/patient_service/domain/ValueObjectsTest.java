@@ -67,25 +67,23 @@ class ValueObjectsTest {
     class Affiliations {
 
         @Test
-        void requiresHealthProviderWhenInsured() {
+        void requiresPayerWhenInsured() {
             assertThatThrownBy(() -> new Affiliation(HealthRegime.SUBSIDIZED, AffiliateType.HOLDER, null, null))
                     .isInstanceOf(PatientException.InvalidData.class)
-                    .hasMessageContaining("affiliation.healthProviderNit");
+                    .hasMessageContaining("affiliation.payerUuid");
         }
 
         @Test
-        void rejectsHealthProviderForUninsuredPatients() {
-            assertThatThrownBy(() -> new Affiliation(HealthRegime.UNINSURED, null, "900123456-7", null))
+        void rejectsPayerForUninsuredPatients() {
+            assertThatThrownBy(() -> new Affiliation(HealthRegime.UNINSURED, null, PatientFixtures.PAYER_UUID, null))
                     .isInstanceOf(PatientException.InvalidData.class);
             assertThat(Affiliation.uninsured().regime()).isEqualTo(HealthRegime.UNINSURED);
         }
 
         @Test
-        void validatesNitAndNormalizesPolicy() {
-            assertThatThrownBy(() -> new Affiliation(HealthRegime.CONTRIBUTORY, AffiliateType.HOLDER, "90012", null))
-                    .isInstanceOf(PatientException.InvalidData.class);
-            assertThat(new Affiliation(HealthRegime.CONTRIBUTORY, AffiliateType.BENEFICIARY, "900123456-7", "pol-001").policyNumber())
-                    .isEqualTo("POL-001");
+        void normalizesThePolicyNumber() {
+            assertThat(new Affiliation(HealthRegime.CONTRIBUTORY, AffiliateType.BENEFICIARY, PatientFixtures.PAYER_UUID,
+                    "pol-001").policyNumber()).isEqualTo("POL-001");
         }
     }
 

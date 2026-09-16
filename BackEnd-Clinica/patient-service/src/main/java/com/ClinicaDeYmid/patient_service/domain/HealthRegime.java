@@ -6,7 +6,7 @@ public enum HealthRegime {
     SPECIAL,
     UNINSURED;
 
-    public boolean hasHealthProvider() {
+    public boolean hasPayer() {
         return this != UNINSURED;
     }
 }

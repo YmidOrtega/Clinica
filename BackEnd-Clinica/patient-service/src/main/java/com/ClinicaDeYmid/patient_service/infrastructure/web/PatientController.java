@@ -4,7 +4,7 @@ import com.ClinicaDeYmid.patient_service.application.PatientCommands;
 import com.ClinicaDeYmid.patient_service.application.PatientQueries;
 import com.ClinicaDeYmid.patient_service.domain.Patient;
 import com.ClinicaDeYmid.patient_service.domain.PatientException;
-import com.ClinicaDeYmid.patient_service.infrastructure.web.PatientResponses.HealthProviderView;
+import com.ClinicaDeYmid.patient_service.infrastructure.web.PatientResponses.PayerView;
 import com.ClinicaDeYmid.patient_service.infrastructure.web.PatientResponses.PatientDetailsView;
 import com.ClinicaDeYmid.patient_service.infrastructure.web.PatientResponses.PatientSummaryView;
 import com.ClinicaDeYmid.patient_service.infrastructure.web.PatientResponses.PatientView;
@@ -66,7 +66,7 @@ class PatientController {
         PatientQueries.PatientDetails details = queries.get(uuid);
         return ResponseEntity.ok()
                 .eTag(EntityTags.of(details.patient().version()))
-                .body(new PatientDetailsView(PatientView.from(details.patient()), HealthProviderView.from(details.healthProvider())));
+                .body(new PatientDetailsView(PatientView.from(details.patient()), PayerView.from(details.payer())));
     }
 
     @PostMapping("/search")

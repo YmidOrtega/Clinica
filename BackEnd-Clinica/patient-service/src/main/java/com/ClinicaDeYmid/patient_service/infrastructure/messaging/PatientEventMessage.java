@@ -81,9 +81,9 @@ record PatientEventMessage(
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    record AffiliationData(HealthRegime regime, String healthProviderNit) {
+    record AffiliationData(HealthRegime regime, UUID payerUuid) {
         static AffiliationData from(Affiliation affiliation) {
-            return new AffiliationData(affiliation.regime(), affiliation.healthProviderNit());
+            return new AffiliationData(affiliation.regime(), affiliation.payerUuid());
         }
     }
 }

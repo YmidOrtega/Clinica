@@ -21,18 +21,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PatientQueriesTest {
 
     private final InMemoryPatients patients = new InMemoryPatients();
-    private final PatientCommandsTest.StubHealthProviders healthProviders = new PatientCommandsTest.StubHealthProviders();
-    private final PatientQueries queries = new PatientQueries(patients, healthProviders, uuid -> List.of());
+    private final PatientCommandsTest.StubPayers payers = new PatientCommandsTest.StubPayers();
+    private final PatientQueries queries = new PatientQueries(patients, payers, uuid -> List.of());
 
     @Test
-    void includesTheHealthProviderLookupInTheDetails() {
+    void includesThePayerLookupInTheDetails() {
         Patient patient = patients.save(Patient.register(PatientFixtures.adultRegistration(), PatientFixtures.today()));
-        healthProviders.answer = new HealthProviderLookup.Unavailable();
+        payers.answer = new PayerLookup.Unavailable();
 
         PatientQueries.PatientDetails details = queries.get(patient.uuid());
 
         assertThat(details.patient()).isEqualTo(patient);
-        assertThat(details.healthProvider()).isEqualTo(new HealthProviderLookup.Unavailable());
+        assertThat(details.payer()).isEqualTo(new PayerLookup.Unavailable());
     }
 
     @Test
@@ -40,8 +40,8 @@ class PatientQueriesTest {
         Patient patient = patients.save(Patient.register(new PatientRegistration(PatientFixtures.cedula(), PatientFixtures.adult(),
                 PatientFixtures.contact(), null, Affiliation.uninsured(), PatientFixtures.residence()), PatientFixtures.today()));
 
-        assertThat(queries.get(patient.uuid()).healthProvider()).isEqualTo(new HealthProviderLookup.NotAffiliated());
-        assertThat(healthProviders.requestedNits).isEmpty();
+        assertThat(queries.get(patient.uuid()).payer()).isEqualTo(new PayerLookup.NotAffiliated());
+        assertThat(payers.requestedPayers).isEmpty();
     }
 
     @Test

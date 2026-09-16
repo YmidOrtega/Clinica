@@ -7,6 +7,8 @@ import java.time.ZonedDateTime;
 
 public final class PatientFixtures {
 
+    public static final java.util.UUID PAYER_UUID = java.util.UUID.fromString("7c9e6679-7425-40de-944b-e07fc1f90ae7");
+
     public static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
     public static final LocalDate TODAY = LocalDate.of(2026, 9, 13);
 
@@ -42,7 +44,7 @@ public final class PatientFixtures {
     }
 
     public static Affiliation contributory() {
-        return new Affiliation(HealthRegime.CONTRIBUTORY, AffiliateType.HOLDER, "900123456-7", null);
+        return new Affiliation(HealthRegime.CONTRIBUTORY, AffiliateType.HOLDER, PAYER_UUID, null);
     }
 
     public static Residence residence() {

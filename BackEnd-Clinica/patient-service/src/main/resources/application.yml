@@ -40,7 +40,7 @@ spring:
     openfeign:
       client:
         config:
-          clients-service:
+          contracting-service:
             connect-timeout: 1000
             read-timeout: 2000
     circuitbreaker:
@@ -50,7 +50,7 @@ spring:
 clinica:
   patient:
     time-zone: America/Bogota
-    health-providers:
+    payers:
       fresh-ttl: 5m
       last-known-ttl: 24h
       maximum-size: 1000
@@ -59,13 +59,17 @@ clinica:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
       issuer: ${AUTH_ISSUER:http://localhost:8080/auth}
       audiences: clinica-api, patient-service
+    client:
+      id: patient-service
+      token-uri: ${AUTH_TOKEN_URI:http://localhost:8086/oauth2/token}
+      assertion-key: ${PATIENT_CLIENT_TRANSIT_KEY:patient-service-client}
     revocation:
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
 
 resilience4j:
   circuitbreaker:
     instances:
-      clients-service:
+      contracting-service:
         sliding-window-type: COUNT_BASED
         sliding-window-size: 20
         minimum-number-of-calls: 10
