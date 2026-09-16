@@ -206,4 +206,30 @@ public sealed abstract class ContractingException extends DomainException {
             super(ErrorCategory.NOT_FOUND, "CONTRACT_PACKAGE_NOT_FOUND", "No se encontró el paquete del contrato");
         }
     }
+
+    public static final class FundingNotApplicable extends ContractingException {
+        public FundingNotApplicable(ContractModality actual, ContractModality expected) {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_FUNDING_NOT_APPLICABLE",
+                    "El acuerdo es de " + expected.label() + " y el contrato es de " + actual.label());
+        }
+    }
+
+    public static final class FundingAgreementAlreadyRevoked extends ContractingException {
+        public FundingAgreementAlreadyRevoked() {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_FUNDING_ALREADY_REVOKED", "El acuerdo ya fue revocado");
+        }
+    }
+
+    public static final class FundingAgreementNotFound extends ContractingException {
+        public FundingAgreementNotFound() {
+            super(ErrorCategory.NOT_FOUND, "CONTRACT_FUNDING_NOT_FOUND", "El contrato no tiene un acuerdo registrado");
+        }
+    }
+
+    public static final class CapitationNotApplicable extends ContractingException {
+        public CapitationNotApplicable(ContractModality modality) {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_CAPITATION_NOT_APPLICABLE",
+                    "Un contrato de modalidad " + modality.label() + " no tiene población capitada");
+        }
+    }
 }
