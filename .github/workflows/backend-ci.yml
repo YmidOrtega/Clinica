@@ -64,6 +64,7 @@ jobs:
           - auth-service
           - patient-service
           - clinical-history-service
+          - contracting-service
           - api-gateway
     steps:
       - uses: actions/checkout@v4
@@ -106,7 +107,6 @@ jobs:
         service:
           - eureka-service
           - suppliers-service
-          - clients-service
           - admissions-service
           - ai-assistant-service
     steps:
@@ -267,7 +267,7 @@ jobs:
           - patient-service
           - clinical-history-service
           - suppliers-service
-          - clients-service
+          - contracting-service
           - admissions-service
           - ai-assistant-service
           # - billing-service  # TODO: Uncomment when service is implemented
