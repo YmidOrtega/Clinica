@@ -8,6 +8,7 @@ final class Access {
     static final String MANAGE_TARIFFS = "hasAuthority('contracting:manage-tariffs')";
     static final String MANAGE_CONTRACTS = "hasAuthority('contracting:manage-contracts')";
     static final String MANAGE_CAPITATION = "hasAuthority('contracting:manage-capitation')";
+    static final String QUOTE_PRICES = "hasAuthority('contracting:quote-prices')";
 
     private Access() {
     }
