@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinica.local/events/contracting.tariffs.v1.schema.json",
+  "title": "contracting.tariffs.v1",
+  "description": "Hechos sobre las versiones de los manuales tarifarios. Topic sin compactar, retención indefinida.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "type",
+    "occurredAt",
+    "manualVersionUuid",
+    "manualUuid",
+    "manualCode",
+    "unit",
+    "label",
+    "unitValue",
+    "validFrom",
+    "status",
+    "itemCount"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "TariffVersionPublished",
+        "TariffVersionRetired"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "traceId": {
+      "type": "string"
+    },
+    "manualVersionUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "manualUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "manualCode": {
+      "type": "string"
+    },
+    "manualName": {
+      "type": "string"
+    },
+    "unit": {
+      "type": "string",
+      "enum": [
+        "COP",
+        "SMLDV",
+        "UVB"
+      ]
+    },
+    "label": {
+      "type": "string"
+    },
+    "unitValue": {
+      "type": "number"
+    },
+    "validFrom": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "ACTIVE",
+        "RETIRED"
+      ]
+    },
+    "itemCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sourceChecksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
