@@ -85,7 +85,7 @@ clinica:
           assertion-key: api-gateway-client
         patient-service:
           grant-types: client_credentials, urn:ietf:params:oauth:grant-type:token-exchange
-          scopes: openid, profile
+          scopes: openid, profile, contracting.read
           assertion-key: ${AUTH_PATIENT_SERVICE_CLIENT_KEY:patient-service-client}
           access-token-ttl: 30m
         clinical-history-service:
