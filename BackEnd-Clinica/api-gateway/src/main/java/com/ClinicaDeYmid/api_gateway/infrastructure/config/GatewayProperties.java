@@ -27,6 +27,7 @@ public record GatewayProperties(Frontend frontend, @DefaultValue Session session
     public record RateLimit(@DefaultValue("1000") int perAddress, @DefaultValue("300") int perUser, @DefaultValue("1m") Duration window) {
     }
 
-    public record Routes(String authService, String patientService, String clinicalHistoryService) {
+    public record Routes(String authService, String patientService, String clinicalHistoryService,
+                         String contractingService) {
     }
 }

@@ -37,7 +37,13 @@ class RouteConfiguration {
                 properties.routes().authService(), headers, tokens)
                 .and(staffRoute("patient-service", path("/api/v1/patients/**").or(path("/api/v1/patients")).or(path("/api/v1/unidentified-patients/**"))
                         .or(path("/api/v1/unidentified-patients")), properties.routes().patientService(), headers, tokens))
-                .and(staffRoute("clinical-history-service", path("/api/v1/clinical/**"), properties.routes().clinicalHistoryService(), headers, tokens));
+                .and(staffRoute("clinical-history-service", path("/api/v1/clinical/**"), properties.routes().clinicalHistoryService(), headers, tokens))
+                .and(staffRoute("contracting-service", path("/api/v1/payers/**").or(path("/api/v1/payers"))
+                        .or(path("/api/v1/contracts/**")).or(path("/api/v1/contracts"))
+                        .or(path("/api/v1/portfolio-items/**")).or(path("/api/v1/portfolio-items"))
+                        .or(path("/api/v1/tariff-manuals/**")).or(path("/api/v1/tariff-manuals"))
+                        .or(path("/api/v1/price-quotes")).or(path("/api/v1/funding-agreements/**"))
+                        .or(path("/api/v1/capitated-members/**")), properties.routes().contractingService(), headers, tokens));
     }
 
     private static RouterFunction<ServerResponse> staffRoute(String id, RequestPredicate predicate, String target, ProxiedHeaders headers,
