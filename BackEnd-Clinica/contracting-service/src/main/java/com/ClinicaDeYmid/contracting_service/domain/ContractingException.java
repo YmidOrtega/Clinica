@@ -80,4 +80,42 @@ public sealed abstract class ContractingException extends DomainException {
             super(ErrorCategory.RULE_VIOLATION, "PORTFOLIO_ITEM_ALREADY_OFFERED", "El servicio ya se está ofreciendo");
         }
     }
+
+    public static final class TariffManualNotFound extends ContractingException {
+        public TariffManualNotFound() {
+            super(ErrorCategory.NOT_FOUND, "TARIFF_MANUAL_NOT_FOUND", "No se encontró el manual tarifario solicitado");
+        }
+    }
+
+    public static final class TariffVersionNotFound extends ContractingException {
+        public TariffVersionNotFound() {
+            super(ErrorCategory.NOT_FOUND, "TARIFF_VERSION_NOT_FOUND", "No se encontró la versión del manual tarifario");
+        }
+    }
+
+    public static final class ManualCodeAlreadyUsed extends ContractingException {
+        public ManualCodeAlreadyUsed() {
+            super(ErrorCategory.CONFLICT, "TARIFF_MANUAL_CODE_ALREADY_USED", "Ya existe un manual tarifario con ese código");
+        }
+    }
+
+    public static final class VersionLabelAlreadyUsed extends ContractingException {
+        public VersionLabelAlreadyUsed() {
+            super(ErrorCategory.CONFLICT, "TARIFF_VERSION_LABEL_ALREADY_USED",
+                    "El manual ya tiene una versión con ese nombre");
+        }
+    }
+
+    public static final class TariffVersionNotEditable extends ContractingException {
+        public TariffVersionNotEditable(String reason) {
+            super(ErrorCategory.RULE_VIOLATION, "TARIFF_VERSION_NOT_EDITABLE",
+                    "No se puede cambiar esta versión del manual porque " + reason);
+        }
+    }
+
+    public static final class TariffItemNotFound extends ContractingException {
+        public TariffItemNotFound() {
+            super(ErrorCategory.NOT_FOUND, "TARIFF_ITEM_NOT_FOUND", "El manual no tiene una tarifa para ese código");
+        }
+    }
 }
