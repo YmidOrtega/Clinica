@@ -147,9 +147,10 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   `401` con `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age=300`. En clinical
   lo exigen firmar y anular notas, el acceso de emergencia, emitir la copia de la historia y el rewrap de
   claves.
-- **Clientes de servicio:** `patient-service` y `clinical-history-service` se autentican con
-  `private_key_jwt` firmando la aserción en OpenBao transit (`patient-service-client`,
-  `clinical-history-service-client`); sus tokens propios duran 30 minutos y se renuevan antes de vencer.
+- **Clientes de servicio:** `patient-service`, `clinical-history-service` y `contracting-service` se
+  autentican con `private_key_jwt` firmando la aserción en OpenBao transit (`patient-service-client`,
+  `clinical-history-service-client`, `contracting-service-client`); sus tokens propios duran 30 minutos
+  y se renuevan antes de vencer.
 
 ---
 
@@ -196,6 +197,14 @@ futuros (facturación, laboratorio, farmacia) se agregan en su turno.
 | `ROLE_NURSE`         | Triage, actualización de estados de atención      |
 | `ROLE_RECEPTIONIST`  | Registro de pacientes, creación de atenciones     |
 | `ROLE_MEDICAL_RECORDS` | Archivo clínico — copias de la historia para el paciente, sin editarla |
+| `ROLE_CONTRACTING`   | Contratación — pagadores, contratos, manuales tarifarios y capitación |
+| `ROLE_BILLING`       | Facturación — consulta de contratos y resolución de precios |
+
+El token lleva un solo claim `role`. Los permisos no viajan en el token: `clinica-commons-security`
+los deriva del rol y los entrega como authorities con la forma `servicio:acción` (por ejemplo
+`contracting:manage-tariffs`), de modo que los servicios nuevos autorizan por permiso y no por rol. El
+catálogo y las instrucciones para agregar un rol están en
+[auth-service/docs/roles-y-permisos.md](../BackEnd-Clinica/auth-service/docs/roles-y-permisos.md).
 
 Reglas de administración, aplicadas en el dominio de `auth-service`:
 
