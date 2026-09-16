@@ -43,7 +43,6 @@ class PayerApiIT {
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         JwtTestTokens.register(registry);
-        registry.add("eureka.client.enabled", () -> false);
     }
 
     @Test
