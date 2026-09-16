@@ -38,6 +38,12 @@ spring:
   cloud:
     vault:
       enabled: false
+    openfeign:
+      client:
+        config:
+          patient-service:
+            connect-timeout: 1000
+            read-timeout: 3000
     circuitbreaker:
       resilience4j:
         disable-time-limiter: true
@@ -45,13 +51,36 @@ spring:
 clinica:
   contracting:
     time-zone: America/Bogota
+    patient-directory:
+      ttl: 24h
+      maximum-size: 50000
   security:
     jwt:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
       issuer: ${AUTH_ISSUER:http://localhost:8080/auth}
       audiences: clinica-api, contracting-service
+    client:
+      id: contracting-service
+      token-uri: ${AUTH_TOKEN_URI:http://localhost:8086/oauth2/token}
+      assertion-key: ${CONTRACTING_CLIENT_TRANSIT_KEY:contracting-service-client}
+      audiences:
+        patient-service: patient-service
     revocation:
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      patient-service:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 2000ms
+        slow-call-rate-threshold: 80
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
 
 eureka:
   client:
