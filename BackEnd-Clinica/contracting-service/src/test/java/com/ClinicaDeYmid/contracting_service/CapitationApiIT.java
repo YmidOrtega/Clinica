@@ -149,13 +149,13 @@ class CapitationApiIT {
         patientRegistered();
         importPopulation(contract, population(document));
 
-        as("RECEPTIONIST", get("/api/v1/capitated-members/coverage?documentType=CC&documentNumber=" + document + "&on=2026-03-15"))
+        as("RECEPTIONIST", get("/api/v1/capitated-members/coverage?documentType=CEDULA_DE_CIUDADANIA&documentNumber=" + document + "&on=2026-03-15"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].contractUuid").value(contract))
                 .andExpect(jsonPath("$[0].payerName").isNotEmpty());
 
-        as("RECEPTIONIST", get("/api/v1/capitated-members/coverage?documentType=CC&documentNumber=" + document + "&on=2026-05-15"))
+        as("RECEPTIONIST", get("/api/v1/capitated-members/coverage?documentType=CEDULA_DE_CIUDADANIA&documentNumber=" + document + "&on=2026-05-15"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
@@ -236,8 +236,8 @@ class CapitationApiIT {
 
     private static String population(String documentNumber) {
         return "{\"members\":["
-                + "{\"documentType\":\"CC\",\"documentNumber\":\"" + documentNumber + "\",\"fullName\":\"Ana María Rojas\"},"
-                + "{\"documentType\":\"CC\",\"documentNumber\":\"" + documentNumber + "1\",\"fullName\":\"Carlos Pérez\"}]}";
+                + "{\"documentType\":\"CEDULA_DE_CIUDADANIA\",\"documentNumber\":\"" + documentNumber + "\",\"fullName\":\"Ana María Rojas\"},"
+                + "{\"documentType\":\"CEDULA_DE_CIUDADANIA\",\"documentNumber\":\"" + documentNumber + "1\",\"fullName\":\"Carlos Pérez\"}]}";
     }
 
     private ResultActions as(String role, MockHttpServletRequestBuilder request) throws Exception {

@@ -58,17 +58,17 @@ class FundingAgreementTest {
     @Test
     void capitatedMembersOnlyExistForCapitationContracts() {
         assertThatThrownBy(() -> CapitatedMember.of(contract(ContractModality.EVENT), YearMonth.of(2026, 3),
-                "CC", "1020304050", "Ana María Rojas", "actor", PayerFixtures.CLOCK))
+                "CEDULA_DE_CIUDADANIA", "1020304050", "Ana María Rojas", "actor", PayerFixtures.CLOCK))
                 .isInstanceOf(ContractingException.CapitationNotApplicable.class);
     }
 
     @Test
     void aMemberStartsUnverifiedAndKeepsItsLastVerification() {
         CapitatedMember member = CapitatedMember.of(contract(ContractModality.CAPITATION), YearMonth.of(2026, 3),
-                "cc", "1020304050", "Ana María Rojas", "actor", PayerFixtures.CLOCK);
+                "cedula_de_ciudadania", "1020304050", "Ana María Rojas", "actor", PayerFixtures.CLOCK);
 
         assertThat(member.verification()).isEqualTo(MemberVerification.UNVERIFIED);
-        assertThat(member.documentType()).isEqualTo("CC");
+        assertThat(member.documentType()).isEqualTo("CEDULA_DE_CIUDADANIA");
         assertThat(member.verifiedAt()).isNull();
 
         member.matched(java.util.UUID.randomUUID(), PayerFixtures.CLOCK);
@@ -85,7 +85,7 @@ class FundingAgreementTest {
     @Test
     void renamingReportsWhetherTheNameChanged() {
         CapitatedMember member = CapitatedMember.of(contract(ContractModality.CAPITATION), YearMonth.of(2026, 3),
-                "CC", "1020304050", "Ana María Rojas", "actor", PayerFixtures.CLOCK);
+                "CEDULA_DE_CIUDADANIA", "1020304050", "Ana María Rojas", "actor", PayerFixtures.CLOCK);
 
         assertThat(member.rename("Ana María Rojas")).isFalse();
         assertThat(member.rename("Ana María Rojas Pérez")).isTrue();

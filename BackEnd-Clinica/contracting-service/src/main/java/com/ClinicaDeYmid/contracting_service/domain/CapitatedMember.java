@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 @Table(name = "capitated_members")
 public class CapitatedMember {
 
-    private static final Pattern DOCUMENT_TYPE = Pattern.compile("^[A-Z]{2,20}$");
+    private static final Pattern DOCUMENT_TYPE = Pattern.compile("^[A-Z_]{2,40}$");
     private static final Pattern DOCUMENT_NUMBER = Pattern.compile("^[A-Z0-9-]{3,20}$");
 
     @Id
@@ -43,7 +43,7 @@ public class CapitatedMember {
     @Column(name = "period", nullable = false, updatable = false)
     private LocalDate period;
 
-    @Column(name = "document_type", nullable = false, updatable = false, length = 20)
+    @Column(name = "document_type", nullable = false, updatable = false, length = 40)
     private String documentType;
 
     @Column(name = "document_number", nullable = false, updatable = false, length = 20)
@@ -82,7 +82,7 @@ public class CapitatedMember {
         }
         member.period = DomainRules.required(period, "period").atDay(1);
         member.documentType = DomainRules.matching(
-                DomainRules.upper(DomainRules.requiredText(documentType, "documentType", 20)), DOCUMENT_TYPE, "documentType");
+                DomainRules.upper(DomainRules.requiredText(documentType, "documentType", 40)), DOCUMENT_TYPE, "documentType");
         member.documentNumber = DomainRules.matching(
                 DomainRules.upper(DomainRules.requiredText(documentNumber, "documentNumber", 20)), DOCUMENT_NUMBER, "documentNumber");
         member.fullName = DomainRules.requiredText(fullName, "fullName", 200);
