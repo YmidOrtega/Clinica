@@ -36,7 +36,7 @@ CREATE TABLE capitated_members (
     uuid            CHAR(36)     NOT NULL,
     contract_id     BIGINT       NOT NULL,
     period          DATE         NOT NULL,
-    document_type   VARCHAR(20)  NOT NULL,
+    document_type   VARCHAR(40)  NOT NULL,
     document_number VARCHAR(20)  NOT NULL,
     full_name       VARCHAR(200) NOT NULL,
     patient_uuid    CHAR(36)     NULL,
@@ -51,7 +51,7 @@ CREATE TABLE capitated_members (
     CONSTRAINT fk_capitated_members_contract FOREIGN KEY (contract_id) REFERENCES contracts (id),
 
     CONSTRAINT chk_capitated_members_period CHECK (DAYOFMONTH(period) = 1),
-    CONSTRAINT chk_capitated_members_document_type CHECK (REGEXP_LIKE(document_type, '^[A-Z]{2,20}$', 'c')),
+    CONSTRAINT chk_capitated_members_document_type CHECK (REGEXP_LIKE(document_type, '^[A-Z_]{2,40}$', 'c')),
     CONSTRAINT chk_capitated_members_document_number CHECK (REGEXP_LIKE(document_number, '^[A-Z0-9-]{3,20}$', 'c')),
     CONSTRAINT chk_capitated_members_verification CHECK (verification IN ('MATCHED', 'UNMATCHED', 'UNVERIFIED')),
     CONSTRAINT chk_capitated_members_match
