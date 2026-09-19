@@ -73,3 +73,70 @@ complete_second_factor() {
     *) fail "resultado inesperado del login: $1" ;;
   esac
 }
+
+bao_root() {
+  docker run --rm --user root --network "${PROJECT}_secrets-net" \
+    -v "${PROJECT}_openbao_tls:/openbao/tls:ro" -v "${PROJECT}_openbao_bootstrap:/openbao/bootstrap:ro" \
+    -e BAO_ADDR=https://openbao:8200 -e BAO_CACERT=/openbao/tls/ca.crt \
+    --entrypoint sh "${TOOLS_IMAGE:-clinica/openbao-tools:2.6.2}" -c "BAO_TOKEN=\$(jq -r .root_token /openbao/bootstrap/init.json); export BAO_TOKEN; $*"
+}
+
+client_assertion() {
+  now=$(date +%s)
+  header=$(printf '{"alg":"ES256","typ":"JWT"}' | b64url)
+  payload=$(printf '{"iss":"api-gateway","sub":"api-gateway","aud":"%s","iat":%s,"exp":%s,"jti":"%s"}' \
+    "$ISSUER" "$now" "$((now + 60))" "$(cat /proc/sys/kernel/random/uuid)" | b64url)
+  input=$(printf '%s.%s' "$header" "$payload" | openssl base64 -A)
+  signature=$(bao_root "bao write -field=signature transit/sign/api-gateway-client input=$input hash_algorithm=sha2-256 marshaling_algorithm=jws" | cut -d: -f3)
+  printf '%s.%s.%s' "$header" "$payload" "$signature"
+}
+
+token_request() {
+  curl -s -o "$WORK/tokens" -w '%{http_code}' -X POST "$AUTH_URL/oauth2/token" \
+    --data-urlencode "client_id=api-gateway" \
+    --data-urlencode "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer" \
+    --data-urlencode "client_assertion=$(client_assertion)" "$@"
+}
+
+authorize_url() {
+  printf '%s/oauth2/authorize?response_type=code&client_id=api-gateway&scope=openid%%20profile&state=%s&code_challenge=%s&code_challenge_method=S256&redirect_uri=%s' \
+    "$AUTH_URL" "$(openssl rand 12 | b64url)" "$(printf '%s' "$1" | openssl dgst -sha256 -binary | b64url)" \
+    "$(printf '%s' "$REDIRECT_URI" | jq -sRr @uri)"
+}
+
+code_for_token() {
+  verifier=$1; callback=$2
+  code=$(printf '%s' "$callback" | sed -n 's/.*[?&]code=\([^&]*\).*/\1/p')
+  [ -n "$code" ] || fail "el login no devolvió un código: $callback"
+  [ "$(token_request --data-urlencode grant_type=authorization_code --data-urlencode "code=$code" \
+        --data-urlencode "redirect_uri=$REDIRECT_URI" --data-urlencode "code_verifier=$verifier")" = "200" ] \
+    || fail "canje del código: $(cat "$WORK/tokens")"
+  jq -r .access_token "$WORK/tokens"
+}
+
+super_admin_access_token() {
+  JAR="$WORK/super-admin"
+  prepare_super_admin >&2
+  verifier=$(openssl rand 32 | b64url)
+  curl -s -o /dev/null -b "$JAR" -c "$JAR" "$(authorize_url "$verifier")"
+  [ "$(api /api/v1/login "{\"email\": \"$SUPER_ADMIN\", \"password\": \"$PASSWORD\"}")" = "200" ] || fail "login del SUPER_ADMIN: $(cat "$WORK/body")"
+  complete_second_factor "$(jq -r .outcome "$WORK/body")" >&2
+  code_for_token "$verifier" "$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" "$(jq -r .continueUrl "$WORK/body")")"
+}
+
+invited_staff_access_token() {
+  email=$1; password=$2
+  previous_jar="$JAR"
+  JAR="$WORK/$(printf '%s' "$email" | md5sum | cut -c1-12)"
+  activation=$(latest_token_mailed_to "Active su cuenta de la Clínica" "$email") || fail "no llegó la invitación de $email"
+  [ "$(api /api/v1/activation "{\"token\": \"$activation\", \"password\": \"$password\"}")" = "204" ] || fail "activación de $email: $(cat "$WORK/body")"
+  verifier=$(openssl rand 32 | b64url)
+  curl -s -o /dev/null -b "$JAR" -c "$JAR" "$(authorize_url "$verifier")"
+  api /api/v1/login "{\"email\": \"$email\", \"password\": \"$password\"}" > /dev/null
+  [ "$(api /api/v1/login/second-factor/enrollment '{}')" = "200" ] || fail "enrolamiento de $email: $(cat "$WORK/body")"
+  enrolled=$(node "$DIR/totp-code.mjs" "$(jq -r .otpauthUrl "$WORK/body")" | cut -d' ' -f1)
+  [ "$(api /api/v1/login/second-factor/enrollment/confirmation "{\"code\": \"$enrolled\"}")" = "200" ] || fail "confirmación de $email: $(cat "$WORK/body")"
+  token=$(code_for_token "$verifier" "$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" "$(jq -r .continueUrl "$WORK/body")")")
+  JAR="$previous_jar"
+  echo "$token"
+}

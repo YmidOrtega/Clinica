@@ -20,23 +20,6 @@ TOTP_STATE="${E2E_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/clinica-e2e}/
 
 . "$DIR/staff-login.sh"
 
-bao_root() {
-  docker run --rm --user root --network "${PROJECT}_secrets-net" \
-    -v "${PROJECT}_openbao_tls:/openbao/tls:ro" -v "${PROJECT}_openbao_bootstrap:/openbao/bootstrap:ro" \
-    -e BAO_ADDR=https://openbao:8200 -e BAO_CACERT=/openbao/tls/ca.crt \
-    --entrypoint sh "$TOOLS_IMAGE" -c "BAO_TOKEN=\$(jq -r .root_token /openbao/bootstrap/init.json); export BAO_TOKEN; $*"
-}
-
-client_assertion() {
-  now=$(date +%s)
-  header=$(printf '{"alg":"ES256","typ":"JWT"}' | b64url)
-  payload=$(printf '{"iss":"api-gateway","sub":"api-gateway","aud":"%s","iat":%s,"exp":%s,"jti":"%s"}' \
-    "$ISSUER" "$now" "$((now + 60))" "$(cat /proc/sys/kernel/random/uuid)" | b64url)
-  input=$(printf '%s.%s' "$header" "$payload" | openssl base64 -A)
-  signature=$(bao_root "bao write -field=signature transit/sign/api-gateway-client input=$input hash_algorithm=sha2-256 marshaling_algorithm=jws" | cut -d: -f3)
-  printf '%s.%s.%s' "$header" "$payload" "$signature"
-}
-
 bearer() {
   method=$1; target=$2; shift 2
   curl -s -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' -X "$method" "$AUTH_URL$target" \
@@ -53,13 +36,6 @@ topic_events() {
 topic_config() {
   docker exec kafka /opt/kafka/bin/kafka-configs.sh --bootstrap-server kafka:9092 --entity-type topics --entity-name "$1" --describe --all 2>/dev/null \
     | tr ' ' '\n' | sed -n "s/^$2=//p" | head -1
-}
-
-token_request() {
-  curl -s -o "$WORK/tokens" -w '%{http_code}' -X POST "$AUTH_URL/oauth2/token" \
-    --data-urlencode "client_id=api-gateway" \
-    --data-urlencode "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer" \
-    --data-urlencode "client_assertion=$(client_assertion)" "$@"
 }
 
 PASSWORD="frase e2e $(date +%s) para el turno"
