@@ -85,6 +85,22 @@ class SecuritySupportTest {
     }
 
     @Test
+    void theServiceTokenCarriesTheScopesTheClientDeclares() {
+        assertThat(delegatedTokens(List.of("contracting.read", "billing.read")).serviceToken()).isEqualTo("service-token");
+
+        assertThat(tokenRequests).singleElement().satisfies(request -> assertThat(request)
+                .containsEntry("grant_type", "client_credentials")
+                .containsEntry("scope", "contracting.read billing.read"));
+    }
+
+    @Test
+    void aClientWithoutScopesAsksForNone() {
+        assertThat(delegatedTokens().serviceToken()).isEqualTo("service-token");
+
+        assertThat(tokenRequests).singleElement().satisfies(request -> assertThat(request).doesNotContainKey("scope"));
+    }
+
+    @Test
     void servicesCallingOnTheirOwnDoNotGetAUserTokenAttached() {
         authenticate(SecurityTestTokens.service("patient-service").value());
         RequestTemplate template = template("patient-service");
@@ -113,9 +129,13 @@ class SecuritySupportTest {
     }
 
     private DelegatedTokens delegatedTokens() {
+        return delegatedTokens(List.of());
+    }
+
+    private DelegatedTokens delegatedTokens(List<String> scopes) {
         return new DelegatedTokens(RestClient.builder(), new ClinicaSecurityProperties.Client("clinical-history-service",
                 "http://127.0.0.1:" + authServer.getAddress().getPort() + "/oauth2/token", "clinical-history-service-client", Map.of(),
-                Duration.ofSeconds(60)), SecurityTestTokens.ISSUER, (clientId, audience) -> "assertion-for-" + clientId + "@" + audience,
+                scopes, Duration.ofSeconds(60)), SecurityTestTokens.ISSUER, (clientId, audience) -> "assertion-for-" + clientId + "@" + audience,
                 Clock.systemUTC());
     }
 

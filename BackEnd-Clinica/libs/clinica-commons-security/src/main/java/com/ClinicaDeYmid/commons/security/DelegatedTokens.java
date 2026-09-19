@@ -46,7 +46,9 @@ public class DelegatedTokens {
     public String serviceToken() {
         Issued current = serviceToken;
         if (current == null || !Instant.now(clock).isBefore(current.renewAt())) {
-            current = request(Map.of("grant_type", "client_credentials"));
+            current = request(client.scopes().isEmpty()
+                    ? Map.of("grant_type", "client_credentials")
+                    : Map.of("grant_type", "client_credentials", "scope", String.join(" ", client.scopes())));
             serviceToken = current;
         }
         return current.value();
