@@ -30,6 +30,10 @@ path "transit/keys/clinical-history-service-client" {
   capabilities = ["read"]
 }
 
+path "transit/keys/contracting-service-client" {
+  capabilities = ["read"]
+}
+
 path "totp/keys/staff-*" {
   capabilities = ["create", "update", "delete"]
 }
