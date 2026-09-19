@@ -28,12 +28,16 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
+import org.springframework.cloud.client.circuitbreaker.Customizer;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.client.RestClient;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 @AutoConfiguration(
         after = JacksonAutoConfiguration.class,
@@ -141,6 +145,18 @@ public class CommonsSecurityAutoConfiguration {
             TransitClientAssertions assertions = new TransitClientAssertions(
                     new TransitKeys(transit, properties.client().assertionKey(), transitProperties.keyRefreshInterval(), resolved), resolved);
             return assertions::assertion;
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(Resilience4JCircuitBreakerFactory.class)
+    static class CircuitBreakerConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "clinicaCircuitBreakerSecurityContext")
+        Customizer<Resilience4JCircuitBreakerFactory> clinicaCircuitBreakerSecurityContext() {
+            return factory -> factory.configureExecutorService(
+                    new DelegatingSecurityContextExecutorService(Executors.newCachedThreadPool()));
         }
     }
 
