@@ -94,6 +94,31 @@ de las siguientes con `totp-code.mjs`. Si ese archivo se pierde, recrear el volu
 | Frenado | Tras 5 fallos desde la misma dirección responde `429` y, pasada la espera, vuelve a entrar |
 
 
+## Prueba de contratación
+
+`contracting-e2e.sh` recorre `contracting-service` contra el stack real y necesita además `auth-service`,
+`mailpit` y `patient-service` publicados (usa Node para los códigos TOTP):
+
+```bash
+docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml \
+  up -d --build auth-service patient-service contracting-service kafka-connect-init mailpit
+COMPOSE_PROJECT=clinical-e2e sh platform/e2e/contracting-e2e.sh
+```
+
+| Paso | Qué demuestra |
+|---|---|
+| Pagador, manual y contrato | El manual se carga una sola vez (idempotente por huella), se publica con step-up y el contrato pacta manual y factor |
+| Resolución de precios | 2.5 SMLDV × 47450 × factor 1.2 = 142350.00 y la excepción del contrato manda sobre el manual |
+| Pagador desde patient | `patient-service` valida el pagador de una afiliación con su token de servicio y el scope `contracting.read` |
+| Analista con token real | El `SUPER_ADMIN` invita una `CONTRACTING`, que activa la cuenta, enrola TOTP y obtiene su access token |
+| Población capitada | La carga contrasta cada documento contra `patient-service` con ese token intercambiado; la cobertura sale por recepción |
+| Eventos | El outbox guarda el historial del contrato y Debezium lo publica en `contracting.contracts.v1` |
+| Permisos | Facturación no registra pagadores y un médico no consulta precios |
+
+Los pasos de precios usan los tokens sintéticos de `staff-token.sh`; la carga de la población capitada no
+puede usarlos, porque `contracting-service` intercambia el token de quien llama en `auth-service` y ese
+intercambio exige una sesión real.
+
 ## Prueba del gateway
 
 `gateway-e2e.sh` recorre el BFF con el navegador simulado por `curl`, contra `api-gateway`,

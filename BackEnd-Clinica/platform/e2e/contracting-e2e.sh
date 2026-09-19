@@ -2,13 +2,23 @@
 set -eu
 
 PROJECT="${COMPOSE_PROJECT:-clinica}"
+TOOLS_IMAGE=clinica/openbao-tools:2.6.2
+ISSUER="${AUTH_ISSUER:-http://localhost:8080/auth}"
+REDIRECT_URI="${AUTH_GATEWAY_REDIRECT_URI:-http://localhost:8080/login/oauth2/code/clinica}"
+SUPER_ADMIN="${AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL:-superadmin@clinica.local}"
 published() { echo "http://$(docker compose -p "$PROJECT" port --index 1 "$1" "$2" 2>/dev/null)"; }
 CONTRACTING_URL="${CONTRACTING_URL:-$(published contracting-service 8087)}"
 PATIENT_URL="${PATIENT_URL:-$(published patient-service 8081)}"
+AUTH_URL="${AUTH_URL:-$(published auth-service 8086)}"
+MAILPIT_URL="${MAILPIT_URL:-$(published mailpit 8025)}"
 [ "$CONTRACTING_URL" != "http://" ] && [ "$PATIENT_URL" != "http://" ] || { echo "Publica los puertos con docker-compose.debug.yml o define CONTRACTING_URL y PATIENT_URL" >&2; exit 1; }
+[ "$AUTH_URL" != "http://" ] && [ "$MAILPIT_URL" != "http://" ] || { echo "La capitación necesita auth-service y mailpit publicados, o AUTH_URL y MAILPIT_URL" >&2; exit 1; }
 DIR=$(cd "$(dirname "$0")" && pwd)
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
+JAR="$WORK/cookies"
+TOTP_STATE="${E2E_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/clinica-e2e}/$PROJECT-super-admin-totp.json"
+PASSWORD="frase e2e $(date +%s) para contratación"
 
 CONTRACTING_ID=$(cat /proc/sys/kernel/random/uuid)
 BILLING_ID=$(cat /proc/sys/kernel/random/uuid)
@@ -16,6 +26,18 @@ SUFFIX=$(date +%s | tail -c 6)
 token() { sh "$DIR/staff-token.sh" "$@"; }
 step() { printf '\n== %s\n' "$1"; }
 fail() { echo "FAIL: $1" >&2; exit 1; }
+
+. "$DIR/staff-login.sh"
+
+bearer_call() {
+  method=$1; url=$2; access=$3; body=${4:-}
+  if [ -n "$body" ]; then
+    curl -s -o "$WORK/body" -w '%{http_code}' -X "$method" "$url" -H "Authorization: Bearer $access" \
+      -H 'Content-Type: application/json' --data "$body"
+  else
+    curl -s -o "$WORK/body" -w '%{http_code}' -X "$method" "$url" -H "Authorization: Bearer $access"
+  fi
+}
 
 call() {
   method=$1; url=$2; role=$3; subject=$4; body=${5:-}; extra=${6:-}
@@ -129,9 +151,19 @@ status=$(call POST "$CONTRACTING_URL/api/v1/contracts/$CAPITATED/capitation-agre
   "validFrom": "2026-01-01"}')
 expect "$status" 200 "acuerdo de capitación"
 
-status=$(call POST "$CONTRACTING_URL/api/v1/contracts/$CAPITATED/capitated-members/imports?period=2026-03" CONTRACTING "$CONTRACTING_ID" "{
+step "Analista de contratación con token real de auth"
+STAFF_ACCESS=$(super_admin_access_token)
+ANALYST_EMAIL="contratacion.e2e.$(date +%s)@clinica.local"
+ANALYST_PASSWORD="frase de contratacion $(date +%s) para el turno"
+status=$(bearer_call POST "$AUTH_URL/api/v1/users" "$STAFF_ACCESS" "{
+  \"email\": \"$ANALYST_EMAIL\", \"fullName\": \"Analista de Contratación\", \"role\": \"CONTRACTING\"}")
+expect "$status" 201 "invitación de la analista de contratación"
+ANALYST_ACCESS=$(invited_staff_access_token "$ANALYST_EMAIL" "$ANALYST_PASSWORD")
+echo "ok  la analista activa su cuenta, enrola TOTP y obtiene su token"
+
+status=$(bearer_call POST "$CONTRACTING_URL/api/v1/contracts/$CAPITATED/capitated-members/imports?period=2026-03" "$ANALYST_ACCESS" "{
   \"members\": [{\"documentType\": \"CEDULA_DE_CIUDADANIA\", \"documentNumber\": \"$DOCUMENT\", \"fullName\": \"Marta Cárdenas Ruiz\"}]}")
-expect "$status" 200 "carga de la población capitada"
+expect "$status" 200 "carga de la población capitada con el token de la analista"
 [ "$(jq -r .matched "$WORK/body")" = "1" ] || { cat "$WORK/body" >&2; fail "el afiliado no se contrastó contra patient-service"; }
 echo "ok  el afiliado quedó vinculado al paciente $PATIENT"
 
