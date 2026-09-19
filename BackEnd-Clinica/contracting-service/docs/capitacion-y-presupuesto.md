@@ -29,7 +29,11 @@ factor verificado en los últimos cinco minutos, igual que cualquier otra decisi
 idempotente por documento dentro del periodo: crea los que faltan, corrige el nombre de los que cambiaron
 y deja intactos los iguales.
 
-Cada afiliado se contrasta contra `patient-service` por tipo y número de documento:
+Cada afiliado se contrasta contra `patient-service` por tipo y número de documento. El tipo es el mismo
+nombre que usa el registro de pacientes (`CEDULA_DE_CIUDADANIA`, `TARJETA_DE_IDENTIDAD`, …), y la consulta
+viaja con el token de quien carga el archivo, intercambiado en `auth-service` para la audiencia
+`patient-service`: por eso `patient-service` acepta el rol `CONTRACTING` en sus lecturas y la carga no puede
+correr sin una persona autenticada.
 
 | Estado | Significado |
 |---|---|
@@ -43,6 +47,6 @@ cachean 24 horas y el circuito se abre tras una racha de fallos, para no castiga
 
 ## Cobertura
 
-`GET /api/v1/capitated-members/coverage?documentType=CC&documentNumber=...&on=2026-03-15` responde con los
+`GET /api/v1/capitated-members/coverage?documentType=CEDULA_DE_CIUDADANIA&documentNumber=...&on=2026-03-15` responde con los
 contratos que tienen a esa persona asignada en el periodo de esa fecha. Devuelve una lista porque una
 persona puede estar capitada en más de un contrato, y recepción necesita verlos todos.

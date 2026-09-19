@@ -132,11 +132,14 @@ clínica (alergias, enfermedades crónicas, medicamentos, antecedentes, vacunas)
 
 | Operación                                        | Roles                                   |
 | ------------------------------------------------ | --------------------------------------- |
-| Consultar y buscar                               | SUPER_ADMIN, ADMIN, DOCTOR, NURSE, RECEPTIONIST |
+| Consultar y buscar                               | SUPER_ADMIN, ADMIN, DOCTOR, NURSE, RECEPTIONIST, MEDICAL_RECORDS, CONTRACTING |
 | Registrar y actualizar datos                     | SUPER_ADMIN, ADMIN, RECEPTIONIST        |
 | Desactivar y reactivar                           | SUPER_ADMIN, ADMIN                      |
 | Registrar fallecimiento                          | SUPER_ADMIN, ADMIN, DOCTOR              |
 | Historial de cambios                             | SUPER_ADMIN, ADMIN                      |
+
+`CONTRACTING` solo lee: `contracting-service` busca por documento para contrastar la población capitada
+contra el registro, con el token de quien carga el archivo intercambiado para esta audiencia.
 
 ### POST `/`
 
@@ -726,7 +729,7 @@ factor reciente en toda decisión de precio.
 | `POST /api/v1/contracts/{uuid}/activation` · `/suspension` · `/termination` | ciclo de vida del contrato | activación **sí** |
 | `POST /api/v1/contracts/{uuid}/tariff-exceptions` · `/packages` | precios pactados por fuera del manual y paquetes | **sí** |
 | `POST /api/v1/contracts/{uuid}/capitation-agreement` · `/budget-agreement` | acuerdos de capitación y PGP | **sí** |
-| `POST /api/v1/contracts/{uuid}/capitated-members/imports?period=YYYY-MM` | población capitada del periodo | no |
+| `POST /api/v1/contracts/{uuid}/capitated-members/imports?period=YYYY-MM` | población capitada del periodo (contrasta cada documento contra `patient-service` con el token de quien carga) | no |
 | `GET /api/v1/capitated-members/coverage` | saber si una persona está capitada en una fecha | no |
 | `POST /api/v1/price-quotes` | resolver el precio de unos servicios para un contrato y una fecha | no |
 

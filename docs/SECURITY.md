@@ -124,7 +124,7 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   revocación se rechaza: quien vuelve a entrar justo después de un reseteo o de cerrar todas sus
   sesiones puede recibir un `401` y debe repetir el login un segundo después.
 
-### 2.6 Validación en los servicios (`clinica-commons-security` 2.1.0)
+### 2.6 Validación en los servicios (`clinica-commons-security` 2.3.0)
 
 - **Firma y destino:** cada servicio valida ES256 contra el JWKS de `auth-service` (en caché; si auth
   cae, las claves conocidas siguen sirviendo 24 h), el emisor, la vigencia y que `aud` incluya
@@ -140,7 +140,8 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   intercambia en `auth-service` (RFC 8693, con su propio token como `actor_token`) por uno con `aud`
   exacta del destino, el mismo `sub`, rol, `auth_time` y `amr`, y el claim `act` con la cadena de
   servicios. `auth-service` solo permite las audiencias configuradas por cliente (hoy
-  `clinical-history-service → patient-service`) y rechaza el intercambio si la persona fue suspendida.
+  `clinical-history-service → patient-service` y `contracting-service → patient-service`) y rechaza el
+  intercambio si la persona fue suspendida.
   El token intercambiado vence a los 5 minutos o con el original, lo que ocurra antes; se guarda en
   caché por token original y destino.
 - **Step-up:** `RecentAuthentication` exige segundo factor verificado hace 5 minutos o menos y responde
@@ -150,11 +151,19 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
 - **Clientes de servicio:** `patient-service`, `clinical-history-service` y `contracting-service` se
   autentican con `private_key_jwt` firmando la aserción en OpenBao transit (`patient-service-client`,
   `clinical-history-service-client`, `contracting-service-client`); sus tokens propios duran 30 minutos
-  y se renuevan antes de vencer.
+  y se renuevan antes de vencer. El scope que pide cada uno se declara en su configuración
+  (`clinica.security.client.scopes`, hoy `contracting.read` en `patient-service`) y viaja en el
+  `client_credentials`: sin pedirlo, `auth-service` emite el token sin ningún scope aunque el cliente los
+  tenga registrados.
+- **Contexto en los cortacircuitos:** las llamadas entre servicios corren dentro de un circuit breaker,
+  que las ejecuta en otro hilo. `clinica-commons-security` le entrega un ejecutor que traslada el
+  `SecurityContext`, para que el relevo del token del usuario siga funcionando dentro del cortacircuito.
 - **Lectura entre servicios:** las consultas de `contracting-service` aceptan el permiso de persona
   `contracting:read` o el scope de servicio `contracting.read`. `patient-service` verifica con ese scope que
   el pagador de una afiliación existe, porque es una comprobación del sistema y debe funcionar aunque no
-  haya usuario en la petición.
+  haya usuario en la petición. En sentido contrario, `contracting-service` contrasta la población
+  capitada con el token de la persona que carga el archivo (intercambiado para `patient-service`), por eso
+  las lecturas de `patient-service` aceptan también el rol `CONTRACTING`.
 
 ---
 
