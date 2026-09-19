@@ -267,6 +267,20 @@ class PatientApiIT {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void contractingLooksUpPatientsByDocumentButDoesNotRegisterThem() throws Exception {
+        String document = PatientJson.uniqueCedula();
+        register(PatientJson.uninsuredRegistration(document));
+
+        as("CONTRACTING", post("/api/v1/patients/search")
+                .content("{\"document\": {\"type\": \"CEDULA_DE_CIUDADANIA\", \"number\": \"" + document + "\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1));
+
+        as("CONTRACTING", post("/api/v1/patients").content(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula())))
+                .andExpect(status().isForbidden());
+    }
+
     private String register(String body) throws Exception {
         String response = as("ADMIN", post("/api/v1/patients").content(body))
                 .andExpect(status().isCreated())
