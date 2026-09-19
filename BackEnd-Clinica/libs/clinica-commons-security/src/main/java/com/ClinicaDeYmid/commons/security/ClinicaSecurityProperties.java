@@ -28,7 +28,7 @@ public record ClinicaSecurityProperties(
     }
 
     public record Client(String id, String tokenUri, String assertionKey, @DefaultValue Map<String, String> audiences,
-                         @DefaultValue("60s") Duration renewBeforeExpiry) {
+                         @DefaultValue List<String> scopes, @DefaultValue("60s") Duration renewBeforeExpiry) {
 
         public boolean configured() {
             return id != null && !id.isBlank() && tokenUri != null && !tokenUri.isBlank();

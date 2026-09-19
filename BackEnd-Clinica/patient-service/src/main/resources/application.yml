@@ -63,6 +63,7 @@ clinica:
       id: patient-service
       token-uri: ${AUTH_TOKEN_URI:http://localhost:8086/oauth2/token}
       assertion-key: ${PATIENT_CLIENT_TRANSIT_KEY:patient-service-client}
+      scopes: contracting.read
     revocation:
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
 
