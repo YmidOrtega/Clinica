@@ -15,6 +15,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.note.Diagnosis;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteContent;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.SignedNote;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
+import com.ClinicaDeYmid.clinical_history_service.domain.practitioner.PractitionerReference;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.AppliedUpdate;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.ListItemDetails;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.ListItemHistory;
@@ -146,12 +147,12 @@ class PdfRecordCopyRenderer implements RecordCopyRenderer {
     private void encounter(PdfPages pdf, RecordCopyContent content, EncounterRecord record) {
         pdf.gap(6);
         pdf.line(Style.SECTION, "Atención " + record.encounter().type() + " · " + format(record.encounter().openedAt()));
-        pdf.field("Abierta por", person(record.encounter().openedBy()));
+        pdf.field("Abierta por", person(record.encounter().openedBy(), content));
         if (record.encounter().admissionId() != null) {
             pdf.field("Admisión", record.encounter().admissionId());
         }
         if (record.encounter().status() instanceof EncounterStatus.Closed closed) {
-            pdf.field("Cerrada", format(closed.closedAt()) + " por " + person(closed.closedBy()));
+            pdf.field("Cerrada", format(closed.closedAt()) + " por " + person(closed.closedBy(), content));
         }
         seal(pdf, content, new LedgerEntry.Key(EntryType.ENCOUNTER_OPENED, record.encounter().id()));
         for (NoteEntry entry : record.notes()) {
@@ -163,9 +164,9 @@ class PdfRecordCopyRenderer implements RecordCopyRenderer {
         SignedNote note = entry.note();
         pdf.gap(6);
         pdf.line(Style.SUBSECTION, "Nota " + note.type() + " · firmada " + format(note.recordedAt()));
-        pdf.line(Style.MUTED, "Autor: " + person(note.author()) + " · " + note.signerEmail() + " · ocurrió " + format(note.occurredAt())
+        pdf.line(Style.MUTED, "Autor: " + person(note.author(), content) + " · " + note.signerEmail() + " · ocurrió " + format(note.occurredAt())
                 + (note.extemporaneous() ? " · REGISTRO EXTEMPORÁNEO" : "") + (note.isRestricted() ? " · RESTRINGIDA " + note.restriction() : ""));
-        entry.voiding().ifPresent(voiding -> pdf.line(Style.LABEL, "ANULADA el " + format(voiding.voidedAt()) + " por " + person(voiding.voidedBy())
+        entry.voiding().ifPresent(voiding -> pdf.line(Style.LABEL, "ANULADA el " + format(voiding.voidedAt()) + " por " + person(voiding.voidedBy(), content)
                 + ": " + voiding.reason()));
         content(pdf, note.content());
         if (!note.content().diagnoses().isEmpty()) {
@@ -294,8 +295,14 @@ class PdfRecordCopyRenderer implements RecordCopyRenderer {
         return text.isEmpty() ? "" : " · " + text;
     }
 
-    private static String person(Clinician clinician) {
-        return clinician.uuid() + " (" + clinician.role() + ")";
+    private static String person(Clinician clinician, RecordCopyContent content) {
+        PractitionerReference practitioner = content.practitioners().get(clinician.uuid());
+        if (practitioner == null) {
+            return clinician.uuid() + " (" + clinician.role() + ")";
+        }
+        String specialty = practitioner.specialty() == null ? "" : " · " + practitioner.specialty();
+        return practitioner.fullName() + " (" + clinician.role() + ") · RM " + practitioner.registrationNumber()
+                + specialty;
     }
 
     private String format(Instant instant) {

@@ -13,7 +13,9 @@ import org.springframework.util.backoff.ExponentialBackOff;
 @Configuration(proxyBeanMethods = false)
 class KafkaConfiguration {
 
-    static final String DEAD_LETTER_TOPIC = PatientEventsListener.TOPIC + ".clinical-history.dlt";
+    static final String DEAD_LETTER_SUFFIX = ".clinical-history.dlt";
+    static final String DEAD_LETTER_TOPIC = PatientEventsListener.TOPIC + DEAD_LETTER_SUFFIX;
+    static final String PRACTITIONER_DEAD_LETTER_TOPIC = PractitionerEventsListener.TOPIC + DEAD_LETTER_SUFFIX;
 
     @Bean
     NewTopic patientEventsDeadLetterTopic() {
@@ -21,13 +23,19 @@ class KafkaConfiguration {
     }
 
     @Bean
+    NewTopic practitionerEventsDeadLetterTopic() {
+        return TopicBuilder.name(PRACTITIONER_DEAD_LETTER_TOPIC).partitions(3).build();
+    }
+
+    @Bean
     DefaultErrorHandler patientEventsErrorHandler(KafkaTemplate<Object, Object> template) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template,
-                (record, failure) -> new TopicPartition(DEAD_LETTER_TOPIC, record.partition()));
+                (record, failure) -> new TopicPartition(record.topic() + DEAD_LETTER_SUFFIX, record.partition()));
         ExponentialBackOff backOff = new ExponentialBackOff(500, 2.0);
         backOff.setMaxAttempts(4);
         DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
-        handler.addNotRetryableExceptions(MalformedPatientEventException.class, IllegalArgumentException.class);
+        handler.addNotRetryableExceptions(MalformedPatientEventException.class,
+                PractitionerEventMapper.MalformedPractitionerEventException.class, IllegalArgumentException.class);
         return handler;
     }
 }
