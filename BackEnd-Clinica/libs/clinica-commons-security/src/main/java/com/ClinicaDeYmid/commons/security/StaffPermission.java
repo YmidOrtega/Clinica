@@ -10,7 +10,14 @@ public enum StaffPermission {
     CONTRACTING_QUOTE_PRICES("contracting:quote-prices"),
     PRACTITIONERS_READ("practitioners:read"),
     PRACTITIONERS_MANAGE("practitioners:manage"),
-    PRACTITIONERS_MANAGE_FEES("practitioners:manage-fees");
+    PRACTITIONERS_MANAGE_FEES("practitioners:manage-fees"),
+    ADMISSIONS_READ("admissions:read"),
+    ADMISSIONS_ADMIT("admissions:admit"),
+    ADMISSIONS_MOVE_BED("admissions:move-bed"),
+    ADMISSIONS_DISCHARGE("admissions:discharge"),
+    ADMISSIONS_CANCEL("admissions:cancel"),
+    ADMISSIONS_MANAGE_BEDS("admissions:manage-beds"),
+    ADMISSIONS_OVERRIDE_COVERAGE("admissions:override-coverage");
 
     private final String code;
 
