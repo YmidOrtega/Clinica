@@ -37,7 +37,6 @@ spring:
         default_schema: admissions
         jdbc:
           time_zone: UTC
-        org.hibernate.envers.default_schema: admissions_history
   cloud:
     vault:
       enabled: false
