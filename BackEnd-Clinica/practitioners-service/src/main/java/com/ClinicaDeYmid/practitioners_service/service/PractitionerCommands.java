@@ -39,6 +39,6 @@ public final class PractitionerCommands {
     }
 
     public record Search(Document document, String registrationNumber, String lastNames, String specialtyCode,
-                         PractitionerStatusCode status) {
+                         java.util.UUID authUserUuid, PractitionerStatusCode status) {
     }
 }

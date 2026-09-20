@@ -24,6 +24,9 @@ final class PractitionerResponses {
     record StatusView(String code, boolean attends, String reason, Instant since) {
     }
 
+    record AccountView(boolean linked, UUID userUuid, String state) {
+    }
+
     record SpecialtyView(String specialtyCode, String specialtyName, String subSpecialtyCode, String subSpecialtyName,
                          boolean principal) {
     }
@@ -31,7 +34,7 @@ final class PractitionerResponses {
     record PractitionerView(UUID uuid, long version, DocumentView document, String firstNames, String lastNames,
                             String fullName, RegistrationView registration, ContactView contact, String relationship,
                             String relationshipLabel, StatusView status, List<SpecialtyView> specialties,
-                            Instant specialtiesAgreedAt, Instant createdAt, Instant updatedAt) {
+                            Instant specialtiesAgreedAt, AccountView account, Instant createdAt, Instant updatedAt) {
 
         static PractitionerView from(PractitionerViews.PractitionerView practitioner) {
             return new PractitionerView(practitioner.uuid(), practitioner.version(),
@@ -48,7 +51,10 @@ final class PractitionerResponses {
                             .map(specialty -> new SpecialtyView(specialty.specialtyCode(), specialty.specialtyName(),
                                     specialty.subSpecialtyCode(), specialty.subSpecialtyName(), specialty.principal()))
                             .toList(),
-                    practitioner.specialtiesAgreedAt(), practitioner.createdAt(), practitioner.updatedAt());
+                    practitioner.specialtiesAgreedAt(),
+                    new AccountView(practitioner.account().linked(), practitioner.account().userUuid(),
+                            practitioner.account().state()),
+                    practitioner.createdAt(), practitioner.updatedAt());
         }
     }
 

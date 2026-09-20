@@ -73,12 +73,15 @@ final class PractitionerRequests {
     record StatusChange(String reason) {
     }
 
+    record AccountLink(java.util.UUID userUuid) {
+    }
+
     record Search(Document document, String registrationNumber, String lastNames, String specialtyCode,
-                  PractitionerStatusCode status) {
+                  java.util.UUID authUserUuid, PractitionerStatusCode status) {
 
         PractitionerCommands.Search toCommand() {
             return new PractitionerCommands.Search(document == null ? null : document.toCommand(),
-                    registrationNumber, lastNames, specialtyCode, status);
+                    registrationNumber, lastNames, specialtyCode, authUserUuid, status);
         }
     }
 }

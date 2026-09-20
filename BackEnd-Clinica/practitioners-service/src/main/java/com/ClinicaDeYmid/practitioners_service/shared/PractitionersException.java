@@ -101,6 +101,33 @@ public sealed abstract class PractitionersException extends DomainException {
         }
     }
 
+    public static final class AuthUserNotFound extends PractitionersException {
+        public AuthUserNotFound() {
+            super(ErrorCategory.RULE_VIOLATION, "AUTH_USER_NOT_FOUND",
+                    "No existe una cuenta con ese identificador en el registro de usuarios");
+        }
+    }
+
+    public static final class AuthUserAlreadyLinked extends PractitionersException {
+        public AuthUserAlreadyLinked() {
+            super(ErrorCategory.CONFLICT, "AUTH_USER_ALREADY_LINKED",
+                    "Esa cuenta ya está vinculada a otro profesional");
+        }
+    }
+
+    public static final class AccountDirectoryUnavailable extends PractitionersException {
+        public AccountDirectoryUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "ACCOUNT_DIRECTORY_UNAVAILABLE",
+                    "No es posible verificar la cuenta en este momento; intenta de nuevo más tarde");
+        }
+    }
+
+    public static final class AccountNotLinked extends PractitionersException {
+        public AccountNotLinked() {
+            super(ErrorCategory.RULE_VIOLATION, "ACCOUNT_NOT_LINKED", "El profesional no tiene una cuenta vinculada");
+        }
+    }
+
     public static final class SpecialtyNotActiveForPractitioner extends PractitionersException {
         public SpecialtyNotActiveForPractitioner(String code) {
             super(ErrorCategory.RULE_VIOLATION, "SPECIALTY_NOT_ACTIVE",

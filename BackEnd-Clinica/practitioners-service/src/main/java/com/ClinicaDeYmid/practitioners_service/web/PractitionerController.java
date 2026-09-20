@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -104,6 +105,24 @@ class PractitionerController {
                                                        @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                                        @RequestBody PractitionerRequests.Assignments request) {
         return respond(practitioners.assignSpecialties(uuid, EntityTags.requiredVersion(ifMatch), request.toCommand()));
+    }
+
+    @PutMapping("/{uuid}/account")
+    @PreAuthorize(Access.MANAGE)
+    @Operation(summary = "Vincular la cuenta del profesional",
+            description = "La cuenta debe existir en la copia de auth.users.v1; si esa copia no está al día, responde 503")
+    ResponseEntity<PractitionerView> linkAccount(@PathVariable UUID uuid,
+                                                 @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                                 @RequestBody PractitionerRequests.AccountLink request) {
+        return respond(practitioners.linkAccount(uuid, EntityTags.requiredVersion(ifMatch), request.userUuid()));
+    }
+
+    @DeleteMapping("/{uuid}/account")
+    @PreAuthorize(Access.MANAGE)
+    @Operation(summary = "Desvincular la cuenta del profesional")
+    ResponseEntity<PractitionerView> unlinkAccount(@PathVariable UUID uuid,
+                                                   @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        return respond(practitioners.unlinkAccount(uuid, EntityTags.requiredVersion(ifMatch)));
     }
 
     @PostMapping("/{uuid}/suspension")

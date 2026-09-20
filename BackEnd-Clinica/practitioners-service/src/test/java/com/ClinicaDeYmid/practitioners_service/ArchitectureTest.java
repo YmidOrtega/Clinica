@@ -37,6 +37,13 @@ class ArchitectureTest {
                     "..practitioners_service.repository..");
 
     @ArchTest
+    static final ArchRule theClientDependsOnNoLayer = noClasses()
+            .that().resideInAPackage("..practitioners_service.client..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "..practitioners_service.web..", "..practitioners_service.service..",
+                    "..practitioners_service.repository..");
+
+    @ArchTest
     static final ArchRule theServiceLayerNeverTouchesTheWeb = noClasses()
             .that().resideInAPackage("..practitioners_service.service..")
             .should().dependOnClassesThat().resideInAnyPackage(

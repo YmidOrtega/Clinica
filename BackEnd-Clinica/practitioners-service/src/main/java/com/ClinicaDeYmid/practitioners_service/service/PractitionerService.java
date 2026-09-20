@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.practitioners_service.service;
 
 import com.ClinicaDeYmid.commons.web.EntityTags;
+import com.ClinicaDeYmid.practitioners_service.client.StaffAccountDirectory;
 import com.ClinicaDeYmid.practitioners_service.repository.PractitionerHistoryRepository;
 import com.ClinicaDeYmid.practitioners_service.repository.PractitionerRepository;
 import com.ClinicaDeYmid.practitioners_service.repository.SpecialtyRepository;
@@ -41,15 +42,17 @@ public class PractitionerService {
     private final SpecialtyRepository specialties;
     private final SubSpecialtyRepository subSpecialties;
     private final PractitionerHistoryRepository history;
+    private final StaffAccountDirectory accounts;
     private final Clock clock;
 
     public PractitionerService(PractitionerRepository practitioners, SpecialtyRepository specialties,
                                SubSpecialtyRepository subSpecialties, PractitionerHistoryRepository history,
-                               Clock clock) {
+                               StaffAccountDirectory accounts, Clock clock) {
         this.practitioners = practitioners;
         this.specialties = specialties;
         this.subSpecialties = subSpecialties;
         this.history = history;
+        this.accounts = accounts;
         this.clock = clock;
     }
 
@@ -64,7 +67,7 @@ public class PractitionerService {
         Practitioner registered = practitioners.saveAndFlush(Practitioner.register(document, command.firstNames(),
                 command.lastNames(), registration, contact, relationship(command.relationship())));
         log.info("Practitioner registered: uuid={} registration={}", registered.uuid(), registration.number());
-        return PractitionerView.of(registered);
+        return PractitionerView.of(registered, accounts);
     }
 
     @Transactional
@@ -106,6 +109,31 @@ public class PractitionerService {
     }
 
     @Transactional
+    public PractitionerView linkAccount(UUID uuid, long expectedVersion, UUID userUuid) {
+        Rules.required(userUuid, "account.userUuid");
+        if (!accounts.readable()) {
+            throw new PractitionersException.AccountDirectoryUnavailable();
+        }
+        if (accounts.find(userUuid).isEmpty()) {
+            throw new PractitionersException.AuthUserNotFound();
+        }
+        return change(uuid, expectedVersion, practitioner -> {
+            practitioners.findByAuthUserUuid(userUuid)
+                    .filter(other -> !other.uuid().equals(practitioner.uuid()))
+                    .ifPresent(other -> {
+                        throw new PractitionersException.AuthUserAlreadyLinked();
+                    });
+            practitioner.linkAccount(userUuid);
+            log.info("Practitioner linked to an account: uuid={} user={}", practitioner.uuid(), userUuid);
+        });
+    }
+
+    @Transactional
+    public PractitionerView unlinkAccount(UUID uuid, long expectedVersion) {
+        return change(uuid, expectedVersion, Practitioner::unlinkAccount);
+    }
+
+    @Transactional
     public PractitionerView suspend(UUID uuid, long expectedVersion, String reason) {
         return change(uuid, expectedVersion, practitioner -> practitioner.suspend(reason, clock));
     }
@@ -123,11 +151,16 @@ public class PractitionerService {
     @Transactional(readOnly = true)
     public PractitionerView get(UUID uuid) {
         return PractitionerView.of(practitioners.findByUuid(uuid)
-                .orElseThrow(PractitionersException.PractitionerNotFound::new));
+                .orElseThrow(PractitionersException.PractitionerNotFound::new), accounts);
     }
 
     @Transactional(readOnly = true)
     public List<PractitionerView> search(Search command) {
+        if (command.authUserUuid() != null) {
+            return practitioners.findByAuthUserUuid(command.authUserUuid()).stream()
+                    .map(found -> PractitionerView.of(found, accounts))
+                    .toList();
+        }
         if (command.document() != null) {
             IdentityDocument document = document(command.document());
             return practitioners.findByDocument(document.type(), document.number()).stream()
@@ -141,14 +174,14 @@ public class PractitionerService {
         }
         return practitioners.search(command.status(), Rules.optionalText(command.lastNames(), "lastNames", 100),
                         Rules.upper(command.specialtyCode())).stream()
-                .map(PractitionerView::of)
+                .map(practitioner -> PractitionerView.of(practitioner, accounts))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<RevisionView> history(UUID uuid) {
         practitioners.findByUuid(uuid).orElseThrow(PractitionersException.PractitionerNotFound::new);
-        return history.of(uuid).stream().map(RevisionView::of).toList();
+        return history.of(uuid).stream().map(revision -> RevisionView.of(revision, accounts)).toList();
     }
 
     private List<Practitioner.Assignment> resolve(Practitioner practitioner, Assignments command) {
@@ -169,7 +202,7 @@ public class PractitionerService {
             throw new EntityTags.StaleVersion();
         }
         change.accept(practitioner);
-        return PractitionerView.of(practitioners.saveAndFlush(practitioner));
+        return PractitionerView.of(practitioners.saveAndFlush(practitioner), accounts);
     }
 
     private void refuseRepeatedDocument(IdentityDocument document, UUID allowed) {

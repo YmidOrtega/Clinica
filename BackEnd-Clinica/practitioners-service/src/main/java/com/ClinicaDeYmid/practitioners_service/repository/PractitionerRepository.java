@@ -35,6 +35,15 @@ public interface PractitionerRepository extends JpaRepository<Practitioner, Long
     Optional<Practitioner> findByEmail(@Param("email") String email);
 
     @Query("""
+            select p from Practitioner p
+            left join fetch p.specialties assignment
+            left join fetch assignment.specialty
+            left join fetch assignment.subSpecialty
+            where p.authUserUuid = :userUuid
+            """)
+    Optional<Practitioner> findByAuthUserUuid(@Param("userUuid") UUID userUuid);
+
+    @Query("""
             select distinct p from Practitioner p
             left join fetch p.specialties assignment
             left join fetch assignment.specialty specialty
