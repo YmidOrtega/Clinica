@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.admissions_service.infrastructure.web;
 
 import com.ClinicaDeYmid.admissions_service.application.AdmissionCommands;
 import com.ClinicaDeYmid.admissions_service.application.AdmissionQueries;
+import com.ClinicaDeYmid.admissions_service.application.BedAssignments;
 import com.ClinicaDeYmid.admissions_service.application.patient.UnidentifiedAdmissionRequest;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.Companion;
@@ -34,10 +35,12 @@ class AdmissionController {
 
     private final AdmissionCommands commands;
     private final AdmissionQueries queries;
+    private final BedAssignments bedAssignments;
 
-    AdmissionController(AdmissionCommands commands, AdmissionQueries queries) {
+    AdmissionController(AdmissionCommands commands, AdmissionQueries queries, BedAssignments bedAssignments) {
         this.commands = commands;
         this.queries = queries;
+        this.bedAssignments = bedAssignments;
     }
 
     @PostMapping
@@ -110,7 +113,25 @@ class AdmissionController {
                                               @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                               @Valid @RequestBody AdmissionRequests.PhaseChange request) {
         return tagged(commands.moveTo(uuid, EntityTags.requiredVersion(ifMatch),
-                request.configurationServiceUuid(), request.reason()));
+                request.configurationServiceUuid(), request.reason(), request.bedUuid()));
+    }
+
+    @PostMapping("/{uuid}/bed")
+    @PreAuthorize(Access.MOVE_BED)
+    @Operation(summary = "Asignar o trasladar la cama del episodio",
+            description = "Libera la cama anterior y toma la nueva en una sola transacción")
+    ResponseEntity<AdmissionView> assignBed(@PathVariable UUID uuid,
+                                            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                            @Valid @RequestBody AdmissionRequests.BedAssignment request) {
+        return tagged(bedAssignments.assign(uuid, EntityTags.requiredVersion(ifMatch), request.bedUuid()));
+    }
+
+    @PostMapping("/{uuid}/bed-release")
+    @PreAuthorize(Access.MOVE_BED)
+    @Operation(summary = "Liberar la cama del episodio sin egresarlo")
+    ResponseEntity<AdmissionView> releaseBed(@PathVariable UUID uuid,
+                                             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        return tagged(bedAssignments.release(uuid, EntityTags.requiredVersion(ifMatch)));
     }
 
     @PostMapping("/{uuid}/companion")
