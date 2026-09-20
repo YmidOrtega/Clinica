@@ -72,8 +72,9 @@ class PatientEventsConsumerIT {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         JwtTestTokens.register(registry);
+        registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
+        registry.add("clinica.admissions.patient-events.enabled", () -> true);
     }
 
     @Test

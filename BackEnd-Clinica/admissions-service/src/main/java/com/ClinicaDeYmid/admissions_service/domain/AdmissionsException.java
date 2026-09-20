@@ -129,6 +129,62 @@ public sealed abstract class AdmissionsException extends DomainException {
         }
     }
 
+    public static final class AdmissionNotFound extends AdmissionsException {
+        public AdmissionNotFound() {
+            super(ErrorCategory.NOT_FOUND, "ADMISSION_NOT_FOUND", "No se encontró la admisión solicitada");
+        }
+    }
+
+    public static final class InvalidAdmissionTransition extends AdmissionsException {
+        public InvalidAdmissionTransition(AdmissionStatus.Code current, AdmissionStatus.Code target) {
+            super(ErrorCategory.RULE_VIOLATION, "ADMISSION_INVALID_TRANSITION",
+                    "Una admisión " + label(current) + " no puede pasar a " + label(target));
+        }
+
+        private static String label(AdmissionStatus.Code code) {
+            return switch (code) {
+                case REGISTERED -> "registrada";
+                case ACTIVE -> "activa";
+                case DISCHARGED -> "egresada";
+                case CANCELLED -> "anulada";
+            };
+        }
+    }
+
+    public static final class PhaseAlreadyClosed extends AdmissionsException {
+        public PhaseAlreadyClosed() {
+            super(ErrorCategory.RULE_VIOLATION, "ADMISSION_PHASE_ALREADY_CLOSED", "Esa fase de la admisión ya se cerró");
+        }
+    }
+
+    public static final class RetiredConfigurationService extends AdmissionsException {
+        public RetiredConfigurationService() {
+            super(ErrorCategory.RULE_VIOLATION, "CONFIGURATION_SERVICE_RETIRED",
+                    "No se puede admitir en un servicio configurado que está retirado");
+        }
+    }
+
+    public static final class SamePhaseAlreadyCurrent extends AdmissionsException {
+        public SamePhaseAlreadyCurrent() {
+            super(ErrorCategory.RULE_VIOLATION, "ADMISSION_PHASE_UNCHANGED",
+                    "La admisión ya está en ese servicio configurado");
+        }
+    }
+
+    public static final class PatientNotAdmissible extends AdmissionsException {
+        public PatientNotAdmissible() {
+            super(ErrorCategory.RULE_VIOLATION, "PATIENT_NOT_ADMISSIBLE",
+                    "El paciente no admite nuevos ingresos por su estado actual");
+        }
+    }
+
+    public static final class CareTypeDoesNotBelongToTheService extends AdmissionsException {
+        public CareTypeDoesNotBelongToTheService() {
+            super(ErrorCategory.RULE_VIOLATION, "CARE_TYPE_NOT_IN_SERVICE",
+                    "Ese tipo de atención no pertenece al tipo de servicio de la admisión");
+        }
+    }
+
     public static final class RetiredLocation extends AdmissionsException {
         public RetiredLocation() {
             super(ErrorCategory.RULE_VIOLATION, "LOCATION_RETIRED", "No se puede usar una ubicación retirada");

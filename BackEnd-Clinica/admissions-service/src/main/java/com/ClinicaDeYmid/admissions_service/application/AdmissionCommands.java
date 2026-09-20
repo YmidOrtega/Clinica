@@ -1,0 +1,116 @@
+package com.ClinicaDeYmid.admissions_service.application;
+
+import com.ClinicaDeYmid.admissions_service.application.patient.PatientDirectory;
+import com.ClinicaDeYmid.admissions_service.domain.Admission;
+import com.ClinicaDeYmid.admissions_service.domain.AdmissionPhase;
+import com.ClinicaDeYmid.admissions_service.domain.Admissions;
+import com.ClinicaDeYmid.admissions_service.domain.AdmissionsException;
+import com.ClinicaDeYmid.admissions_service.domain.CareType;
+import com.ClinicaDeYmid.admissions_service.domain.CareTypes;
+import com.ClinicaDeYmid.admissions_service.domain.Cause;
+import com.ClinicaDeYmid.admissions_service.domain.Companion;
+import com.ClinicaDeYmid.admissions_service.domain.ConfigurationService;
+import com.ClinicaDeYmid.admissions_service.domain.ConfigurationServices;
+import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
+import com.ClinicaDeYmid.commons.web.EntityTags;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionOperations;
+
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+@Service
+public class AdmissionCommands {
+
+    private static final Logger log = LoggerFactory.getLogger(AdmissionCommands.class);
+
+    private final Admissions admissions;
+    private final ConfigurationServices configurationServices;
+    private final CareTypes careTypes;
+    private final PatientDirectory patients;
+    private final TransactionOperations transactions;
+    private final Clock clock;
+
+    public AdmissionCommands(Admissions admissions, ConfigurationServices configurationServices, CareTypes careTypes,
+                             PatientDirectory patients, TransactionOperations transactions, Clock clock) {
+        this.admissions = admissions;
+        this.configurationServices = configurationServices;
+        this.careTypes = careTypes;
+        this.patients = patients;
+        this.transactions = transactions;
+        this.clock = clock;
+    }
+
+    public Admission register(UUID patientUuid, UUID configurationServiceUuid, Cause cause, UUID careTypeUuid,
+                              Companion companion) {
+        PatientReference patient = patients.require(patientUuid);
+        if (!patient.admissible()) {
+            throw new AdmissionsException.PatientNotAdmissible();
+        }
+        return transactions.execute(status -> {
+            ConfigurationService service = configurationServices.findByUuid(configurationServiceUuid)
+                    .orElseThrow(AdmissionsException.ConfigurationServiceNotFound::new);
+            CareType careType = careTypeUuid == null ? null : careTypes.findByUuid(careTypeUuid)
+                    .orElseThrow(AdmissionsException.CareTypeNotFound::new);
+            String number = admissions.nextNumber(LocalDate.now(clock).getYear());
+            Admission registered = admissions.save(
+                    Admission.register(number, patientUuid, service, cause, careType, companion, clock));
+            log.info("Admission registered: number={} patient={} kind={}",
+                    registered.number(), patientUuid, registered.kind());
+            return registered;
+        });
+    }
+
+    public Admission activate(UUID uuid, long expectedVersion) {
+        return modify(uuid, expectedVersion, admission -> admission.activate(clock));
+    }
+
+    public Admission cancel(UUID uuid, long expectedVersion, String reason) {
+        return modify(uuid, expectedVersion, admission -> admission.cancel(reason, clock));
+    }
+
+    public Admission discharge(UUID uuid, long expectedVersion) {
+        return modify(uuid, expectedVersion, admission -> admission.discharge(clock));
+    }
+
+    public Admission moveTo(UUID uuid, long expectedVersion, UUID configurationServiceUuid, String reason) {
+        return transactions.execute(status -> {
+            Admission admission = admissions.findByUuid(uuid).orElseThrow(AdmissionsException.AdmissionNotFound::new);
+            requireVersion(admission.version(), expectedVersion);
+            ConfigurationService service = configurationServices.findByUuid(configurationServiceUuid)
+                    .orElseThrow(AdmissionsException.ConfigurationServiceNotFound::new);
+            AdmissionPhase phase = admission.moveTo(service, reason, clock);
+            admissions.save(admission);
+            log.info("Admission {} moved to {} ({})", admission.number(), service.uuid(), phase.kind());
+            return reloaded(uuid);
+        });
+    }
+
+    public Admission accompaniedBy(UUID uuid, long expectedVersion, Companion companion) {
+        return modify(uuid, expectedVersion, admission -> admission.accompaniedBy(companion));
+    }
+
+    private Admission modify(UUID uuid, long expectedVersion, Consumer<Admission> change) {
+        return transactions.execute(status -> {
+            Admission admission = admissions.findByUuid(uuid).orElseThrow(AdmissionsException.AdmissionNotFound::new);
+            requireVersion(admission.version(), expectedVersion);
+            change.accept(admission);
+            admissions.save(admission);
+            return reloaded(uuid);
+        });
+    }
+
+    private Admission reloaded(UUID uuid) {
+        return admissions.findByUuid(uuid).orElseThrow(AdmissionsException.AdmissionNotFound::new);
+    }
+
+    private static void requireVersion(long actual, long expected) {
+        if (actual != expected) {
+            throw new EntityTags.StaleVersion();
+        }
+    }
+}
