@@ -81,6 +81,54 @@ public sealed abstract class AdmissionsException extends DomainException {
         }
     }
 
+    public static final class RoomNotFound extends AdmissionsException {
+        public RoomNotFound() {
+            super(ErrorCategory.NOT_FOUND, "ROOM_NOT_FOUND", "No se encontró la habitación solicitada");
+        }
+    }
+
+    public static final class BedNotFound extends AdmissionsException {
+        public BedNotFound() {
+            super(ErrorCategory.NOT_FOUND, "BED_NOT_FOUND", "No se encontró la cama solicitada");
+        }
+    }
+
+    public static final class BedNotAvailable extends AdmissionsException {
+        public BedNotAvailable(BedStatus.Code current) {
+            super(ErrorCategory.RULE_VIOLATION, "BED_NOT_AVAILABLE",
+                    "La cama no está disponible porque está " + label(current));
+        }
+
+        private static String label(BedStatus.Code code) {
+            return switch (code) {
+                case AVAILABLE -> "disponible";
+                case OCCUPIED -> "ocupada";
+                case CLEANING -> "en limpieza";
+                case MAINTENANCE -> "en mantenimiento";
+                case BLOCKED -> "bloqueada";
+            };
+        }
+    }
+
+    public static final class BedNotOccupied extends AdmissionsException {
+        public BedNotOccupied() {
+            super(ErrorCategory.RULE_VIOLATION, "BED_NOT_OCCUPIED", "La cama no está ocupada");
+        }
+    }
+
+    public static final class BedAlreadyTaken extends AdmissionsException {
+        public BedAlreadyTaken() {
+            super(ErrorCategory.CONFLICT, "BED_ALREADY_TAKEN",
+                    "Otro ingreso tomó esa cama primero; elige una cama libre");
+        }
+    }
+
+    public static final class RetiredRoom extends AdmissionsException {
+        public RetiredRoom() {
+            super(ErrorCategory.RULE_VIOLATION, "ROOM_RETIRED", "No se puede usar una habitación retirada");
+        }
+    }
+
     public static final class RetiredLocation extends AdmissionsException {
         public RetiredLocation() {
             super(ErrorCategory.RULE_VIOLATION, "LOCATION_RETIRED", "No se puede usar una ubicación retirada");
