@@ -66,6 +66,7 @@ jobs:
           - clinical-history-service
           - contracting-service
           - practitioners-service
+          - admissions-service
           - api-gateway
     steps:
       - uses: actions/checkout@v4
