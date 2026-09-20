@@ -24,6 +24,7 @@ public final class JwtTestTokens {
         SecurityTestTokens.register(registry, "admissions-service");
         registry.add("eureka.client.enabled", () -> false);
         registry.add("clinica.security.client.id", () -> "");
+        registry.add("clinica.admissions.patient-events.enabled", () -> false);
     }
 
     public static String bearer(String role) {
