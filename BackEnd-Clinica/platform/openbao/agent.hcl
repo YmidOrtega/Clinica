@@ -299,6 +299,48 @@ template {
 }
 
 template {
+  contents    = "{{ with secret \"secret/data/admissions/db/root\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/admissions-db/root-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/admissions/db/migrator\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/admissions-db/migrator-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/admissions/db/migrator\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/admissions-db/migrator-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/admissions/db/app\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/admissions-db/app-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/admissions/db/app\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/admissions-db/app-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/admissions/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/admissions-db/debezium-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/admissions/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/admissions-db/debezium-password"
+  perms       = "0444"
+}
+
+template {
   contents    = "{{ with secret \"secret/data/contracting/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
   destination = "/rendered/kafka-connect/contracting-db-debezium-user"
   perms       = "0444"
@@ -319,5 +361,17 @@ template {
 template {
   contents    = "{{ with secret \"secret/data/practitioners/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
   destination = "/rendered/kafka-connect/practitioners-db-debezium-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/admissions/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/kafka-connect/admissions-db-debezium-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/admissions/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/kafka-connect/admissions-db-debezium-password"
   perms       = "0444"
 }

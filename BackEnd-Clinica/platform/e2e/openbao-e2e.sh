@@ -143,6 +143,16 @@ bao_as openbao_approle_clinical "bao write -f transit/keys/clinical-kek/rotate >
 bao_as openbao_approle_clinical "bao write transit/sign/clinical-seal input=aGVsbG8= hash_algorithm=sha2-256 > /dev/null" \
   || fail "clinical-history-service no puede firmar con su sello"
 ok "clinical-history-service firma con transit pero no rota sus claves"
+status=0
+bao_as openbao_approle_admissions "bao kv get -mount=secret contracting/db/app > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "admissions-service leyó un secreto de contracting-service"
+bao_as openbao_approle_admissions "bao kv get -mount=secret admissions/db/app > /dev/null" || fail "admissions-service no lee su secreto"
+bao_as openbao_approle_admissions "bao write -field=signature transit/sign/admissions-service-client input=aGVsbG8= hash_algorithm=sha2-256 > /dev/null" \
+  || fail "admissions-service no firma sus aserciones"
+status=0
+bao_as openbao_approle_admissions "bao write transit/sign/clinical-seal input=aGVsbG8= > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "admissions-service firmó con el sello clínico"
+ok "admissions-service lee solo su secreto y firma solo con su clave"
 
 step "Ningún secreto en la configuración de los contenedores"
 secrets=$(bao_root "for path in patient/db/root patient/db/app patient/db/migrator patient/db/debezium clinical/db/root clinical/db/app clinical/db/migrator clinical/db/debezium clinical/storage/root auth/db/root auth/db/app auth/db/migrator auth/db/debezium gateway/redis; do bao kv get -mount=secret -field=password \$path; echo; done; bao kv get -mount=secret -field=secret-key clinical/storage/attachments")
