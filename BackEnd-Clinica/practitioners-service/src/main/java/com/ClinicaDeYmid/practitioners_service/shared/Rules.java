@@ -47,6 +47,10 @@ public final class Rules {
         return value == null ? null : value.toUpperCase(Locale.ROOT);
     }
 
+    public static String lower(String value) {
+        return value == null ? null : value.toLowerCase(Locale.ROOT);
+    }
+
     public static String atLeast(String value, int minLength, String field) {
         if (value != null && value.length() < minLength) {
             throw new PractitionersException.InvalidData(field, "debe tener al menos " + minLength + " caracteres");

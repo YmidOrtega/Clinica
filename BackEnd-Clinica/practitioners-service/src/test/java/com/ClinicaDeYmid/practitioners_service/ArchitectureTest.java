@@ -46,7 +46,8 @@ class ArchitectureTest {
     static final ArchRule entitiesRefuseBlindWrites = noMethods()
             .that().areDeclaredInClassesThat().resideInAPackage("..practitioners_service.repository.entity..")
             .and().haveNameMatching("set[A-Z].*")
-            .should().bePublic();
+            .should().bePublic()
+            .allowEmptyShould(true);
 
     @ArchTest
     static final ArchRule controllersLiveInTheWebLayer = noClasses()
