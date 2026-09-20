@@ -124,7 +124,7 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   revocación se rechaza: quien vuelve a entrar justo después de un reseteo o de cerrar todas sus
   sesiones puede recibir un `401` y debe repetir el login un segundo después.
 
-### 2.6 Validación en los servicios (`clinica-commons-security` 2.3.0)
+### 2.6 Validación en los servicios (`clinica-commons-security` 2.4.0)
 
 - **Firma y destino:** cada servicio valida ES256 contra el JWKS de `auth-service` (en caché; si auth
   cae, las claves conocidas siguen sirviendo 24 h), el emisor, la vigencia y que `aud` incluya
@@ -212,6 +212,7 @@ futuros (facturación, laboratorio, farmacia) se agregan en su turno.
 | `ROLE_MEDICAL_RECORDS` | Archivo clínico — copias de la historia para el paciente, sin editarla |
 | `ROLE_CONTRACTING`   | Contratación — pagadores, contratos, manuales tarifarios y capitación |
 | `ROLE_BILLING`       | Facturación — consulta de contratos y resolución de precios |
+| `ROLE_HUMAN_RESOURCES` | Talento humano — directorio de profesionales y sus honorarios |
 
 El token lleva un solo claim `role`. Los permisos no viajan en el token: `clinica-commons-security`
 los deriva del rol y los entrega como authorities con la forma `servicio:acción` (por ejemplo
