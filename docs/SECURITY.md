@@ -158,6 +158,11 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
 - **Contexto en los cortacircuitos:** las llamadas entre servicios corren dentro de un circuit breaker,
   que las ejecuta en otro hilo. `clinica-commons-security` le entrega un ejecutor que traslada el
   `SecurityContext`, para que el relevo del token del usuario siga funcionando dentro del cortacircuito.
+- **Directorio profesional:** `practitioners-service` no tiene cliente OAuth ni clave de firma, porque no
+  llama a nadie: verifica la cuenta que se vincula contra la copia local de `auth.users.v1` que ya mantiene
+  `clinica-commons-security`, y si esa copia no está al día responde `503` en vez de vincular a ciegas. El
+  estado de la cuenta se muestra pero no decide si el profesional atiende. Sus honorarios exigen step-up y
+  el permiso `practitioners:manage-fees` incluso para leerlos, y **no viajan en `practitioners.v1`**.
 - **Lectura entre servicios:** las consultas de `contracting-service` aceptan el permiso de persona
   `contracting:read` o el scope de servicio `contracting.read`. `patient-service` verifica con ese scope que
   el pagador de una afiliación existe, porque es una comprobación del sistema y debe funcionar aunque no

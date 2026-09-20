@@ -607,7 +607,7 @@ Clinica/
 │   ├── patient-service/                # Registro administrativo de pacientes
 │   ├── clinical-history-service/       # Historia clínica: notas firmadas, anexos, auditoría
 │   ├── admissions-service/             # Atenciones, triage, autorizaciones
-│   ├── suppliers-service/              # Médicos, especialidades, horarios
+│   ├── practitioners-service/          # Directorio profesional, especialidades y honorarios
 │   ├── contracting-service/            # Pagadores, contratos, tarifas y precios
 │   ├── ai-assistant-service/           # Chat con Gemini / LM Studio
 │   └── billing-service/                # Facturación (en desarrollo)

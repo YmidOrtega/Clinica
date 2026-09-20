@@ -164,7 +164,7 @@ Clinica/
 │   ├── clinical-history-service/
 │   ├── eureka-service/
 │   ├── patient-service/
-│   ├── suppliers-service/
+│   ├── practitioners-service/
 │   ├── docker-compose.yml
 │   ├── pom.xml
 │   └── .env
