@@ -8,69 +8,36 @@ import com.ClinicaDeYmid.admissions_service.domain.ServiceType;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
-import com.ClinicaDeYmid.admissions_service.support.PostgresTestContainer;
-import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import com.ClinicaDeYmid.admissions_service.support.TestSequence;
+import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.time.LocalDate;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@Import(PostgresTestContainer.class)
-class CoverageApiIT {
+class CoverageApiIT extends IntegrationTest {
 
     private static final String BASE = "/api/v1/admissions/episodes";
-    private static final AtomicInteger SEQUENCE = new AtomicInteger(500);
-
-    @RegisterExtension
-    static WireMockExtension contracting = WireMockExtension.newInstance()
-            .options(wireMockConfig().dynamicPort())
-            .build();
-
-    @Autowired
-    private MockMvc mockMvc;
-
     @Autowired
     private CatalogueCommands catalogue;
 
     @Autowired
     private PatientReferences patients;
-
-    @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-        JwtTestTokens.register(registry);
-        registry.add("spring.cloud.openfeign.client.config.contracting-service.url", contracting::baseUrl);
-        registry.add("clinica.admissions.coverage.ttl", () -> "0s");
-    }
-
-    @BeforeEach
-    void resetStubs() {
-        contracting.resetAll();
-    }
 
     @Test
     void anEventContractInForceCoversTheAdmission() throws Exception {
@@ -109,7 +76,7 @@ class CoverageApiIT {
     @Test
     void whenContractingDoesNotAnswerNobodyIsBlockedButEverybodyIsMarked() throws Exception {
         UUID payer = UUID.randomUUID();
-        contracting.stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(aResponse().withStatus(500)));
+        StubbedServices.server().stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(aResponse().withStatus(500)));
 
         admit("RECEPTIONIST", aPatient(payer), inpatient(), false)
                 .andExpect(status().isCreated())
@@ -121,7 +88,7 @@ class CoverageApiIT {
     void aCapitatedContractDemandsThePatientBeInThePopulation() throws Exception {
         UUID payer = UUID.randomUUID();
         capitatedContract(payer);
-        contracting.stubFor(get(urlPathEqualTo("/api/v1/capitated-members/coverage")).willReturn(okJson("[]")));
+        StubbedServices.server().stubFor(get(urlPathEqualTo("/api/v1/capitated-members/coverage")).willReturn(okJson("[]")));
 
         admit("RECEPTIONIST", aPatient(payer), inpatient(), false)
                 .andExpect(status().isUnprocessableEntity())
@@ -132,7 +99,7 @@ class CoverageApiIT {
     void aCapitatedPatientInThePopulationIsCovered() throws Exception {
         UUID payer = UUID.randomUUID();
         UUID contract = capitatedContract(payer);
-        contracting.stubFor(get(urlPathEqualTo("/api/v1/capitated-members/coverage")).willReturn(okJson(
+        StubbedServices.server().stubFor(get(urlPathEqualTo("/api/v1/capitated-members/coverage")).willReturn(okJson(
                 "[{\"contractUuid\":\"" + contract + "\",\"contractNumber\":\"CT-CAP-1\",\"payerUuid\":\""
                         + payer + "\"}]")));
 
@@ -170,21 +137,21 @@ class CoverageApiIT {
     }
 
     private void activeEventContract(UUID payer, String number) {
-        contracting.stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(okJson(
+        StubbedServices.server().stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(okJson(
                 "[{\"uuid\":\"" + UUID.randomUUID() + "\",\"number\":\"" + number + "\",\"modality\":\"EVENT\","
                         + "\"payerUuid\":\"" + payer + "\",\"status\":{\"code\":\"ACTIVE\"}}]")));
     }
 
     private UUID capitatedContract(UUID payer) {
         UUID contract = UUID.randomUUID();
-        contracting.stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(okJson(
+        StubbedServices.server().stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(okJson(
                 "[{\"uuid\":\"" + contract + "\",\"number\":\"CT-CAP-1\",\"modality\":\"CAPITATION\","
                         + "\"payerUuid\":\"" + payer + "\",\"status\":{\"code\":\"ACTIVE\"}}]")));
         return contract;
     }
 
     private void noContracts(UUID payer) {
-        contracting.stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(okJson("[]")));
+        StubbedServices.server().stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(okJson("[]")));
     }
 
     private ResultActions admit(String role, UUID patient, UUID service, boolean override) throws Exception {
@@ -198,7 +165,7 @@ class CoverageApiIT {
     private UUID aPatient(UUID payer) {
         UUID uuid = UUID.randomUUID();
         patients.saveIfNewer(new PatientReference.Registered(uuid, 1,
-                new PatientReference.Document("CEDULA_DE_CIUDADANIA", "30" + SEQUENCE.incrementAndGet()),
+                new PatientReference.Document("CEDULA_DE_CIUDADANIA", "30" + TestSequence.next()),
                 "Ana María", "Restrepo Gómez", LocalDate.of(1990, 4, 12), PatientReference.Sex.FEMALE,
                 PatientReference.Registered.Status.ACTIVE, null, "CONTRIBUTORY",
                 payer == null ? null : payer.toString()));
@@ -214,7 +181,7 @@ class CoverageApiIT {
     }
 
     private UUID configured(String service, AdmissionKind kind, String location) {
-        int index = SEQUENCE.incrementAndGet();
+        int index = TestSequence.next();
         ServiceType type = catalogue.defineServiceType(service + " " + index, kind);
         Location where = catalogue.defineLocation(location + " " + index);
         ConfigurationService configured = catalogue.configure(type.uuid(), where.uuid());

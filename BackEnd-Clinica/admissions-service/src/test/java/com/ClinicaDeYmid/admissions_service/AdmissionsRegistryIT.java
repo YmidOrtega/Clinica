@@ -1,28 +1,17 @@
 package com.ClinicaDeYmid.admissions_service;
 
-import com.ClinicaDeYmid.admissions_service.support.PostgresTestContainer;
+import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@Import(PostgresTestContainer.class)
-class AdmissionsRegistryIT {
+class AdmissionsRegistryIT extends IntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
-
-    @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-        JwtTestTokens.register(registry);
-    }
 
     @Test
     void theMigrationCreatesTheSchemasTheServiceWillUse() {

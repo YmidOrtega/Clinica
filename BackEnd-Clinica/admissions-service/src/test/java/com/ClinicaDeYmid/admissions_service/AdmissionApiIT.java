@@ -8,71 +8,39 @@ import com.ClinicaDeYmid.admissions_service.domain.ServiceType;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
-import com.ClinicaDeYmid.admissions_service.support.PostgresTestContainer;
-import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import com.ClinicaDeYmid.admissions_service.support.TestSequence;
+import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.time.LocalDate;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@Import(PostgresTestContainer.class)
-class AdmissionApiIT {
+class AdmissionApiIT extends IntegrationTest {
 
     private static final String BASE = "/api/v1/admissions/episodes";
-    private static final AtomicInteger SEQUENCE = new AtomicInteger();
-
-    @RegisterExtension
-    static WireMockExtension patientService = WireMockExtension.newInstance()
-            .options(wireMockConfig().dynamicPort())
-            .build();
-
-    @Autowired
-    private MockMvc mockMvc;
-
     @Autowired
     private CatalogueCommands catalogue;
 
     @Autowired
     private PatientReferences patients;
-
-    @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-        JwtTestTokens.register(registry);
-        registry.add("spring.cloud.openfeign.client.config.patient-service.url", patientService::baseUrl);
-    }
-
-    @BeforeEach
-    void resetStubs() {
-        patientService.resetAll();
-    }
 
     @Test
     void admitsAKnownPatientIntoAnEmergencyEpisode() throws Exception {
@@ -92,7 +60,7 @@ class AdmissionApiIT {
     @Test
     void registersTheUnidentifiedPatientInPatientServiceBeforeAdmitting() throws Exception {
         UUID assigned = UUID.randomUUID();
-        patientService.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v1/unidentified-patients"))
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v1/unidentified-patients"))
                 .willReturn(okJson(unidentifiedPayload(assigned, "NN-2026-000042"))));
 
         as("NURSE", post(BASE + "/unidentified"), """
@@ -102,12 +70,12 @@ class AdmissionApiIT {
                 .andExpect(jsonPath("$.patientUuid").value(assigned.toString()))
                 .andExpect(jsonPath("$.kind").value("EMERGENCY"));
 
-        patientService.verify(1, postRequestedForUnidentified());
+        StubbedServices.server().verify(1, postRequestedForUnidentified());
     }
 
     @Test
     void refusesToAdmitWhenPatientServiceDoesNotAnswer() throws Exception {
-        patientService.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v1/unidentified-patients"))
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v1/unidentified-patients"))
                 .willReturn(aResponse().withStatus(500)));
 
         as("NURSE", post(BASE + "/unidentified"), """
@@ -119,7 +87,7 @@ class AdmissionApiIT {
 
     @Test
     void refusesToAdmitAPatientNobodyKnows() throws Exception {
-        patientService.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
                 com.github.tomakehurst.wiremock.client.WireMock.urlMatching("/api/v1/.*"))
                 .willReturn(aResponse().withStatus(404)));
 
@@ -248,7 +216,7 @@ class AdmissionApiIT {
     private UUID aLocalPatient(String status) {
         UUID uuid = UUID.randomUUID();
         patients.saveIfNewer(new PatientReference.Registered(uuid, 1,
-                new PatientReference.Document("CEDULA_DE_CIUDADANIA", "20" + SEQUENCE.incrementAndGet()),
+                new PatientReference.Document("CEDULA_DE_CIUDADANIA", "20" + TestSequence.next()),
                 "Ana María", "Restrepo Gómez", LocalDate.of(1990, 4, 12), PatientReference.Sex.FEMALE,
                 PatientReference.Registered.Status.valueOf(status),
                 "DECEASED".equals(status) ? LocalDate.of(2026, 9, 19) : null, "CONTRIBUTORY", null));
@@ -256,7 +224,7 @@ class AdmissionApiIT {
     }
 
     private String aBed() throws Exception {
-        int index = SEQUENCE.incrementAndGet();
+        int index = TestSequence.next();
         String location = JsonPath.read(as("ADMIN", org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/api/v1/admissions/catalogue/locations"),
                 "{\"name\":\"Piso cama " + index + "\"}").andReturn().getResponse().getContentAsString(), "$.uuid");
@@ -279,24 +247,11 @@ class AdmissionApiIT {
     }
 
     private UUID configured(String service, AdmissionKind kind, String location) {
-        int index = SEQUENCE.incrementAndGet();
+        int index = TestSequence.next();
         ServiceType type = catalogue.defineServiceType(service + " " + index, kind);
         Location where = catalogue.defineLocation(location + " " + index);
         ConfigurationService configured = catalogue.configure(type.uuid(), where.uuid());
         return configured.uuid();
     }
 
-    private ResultActions as(String role, MockHttpServletRequestBuilder request, String body) throws Exception {
-        MockHttpServletRequestBuilder prepared = request.contentType(MediaType.APPLICATION_JSON)
-                .header(HttpHeaders.AUTHORIZATION, JwtTestTokens.bearer(role));
-        return mockMvc.perform(body == null ? prepared : prepared.content(body));
-    }
-
-    private ResultActions change(String role, MockHttpServletRequestBuilder request, long version, String body)
-            throws Exception {
-        MockHttpServletRequestBuilder prepared = request.contentType(MediaType.APPLICATION_JSON)
-                .header(HttpHeaders.IF_MATCH, "\"" + version + "\"")
-                .header(HttpHeaders.AUTHORIZATION, JwtTestTokens.bearer(role));
-        return mockMvc.perform(body == null ? prepared.content("{}") : prepared.content(body));
-    }
 }
