@@ -159,16 +159,22 @@ public class Admission {
                 .orElseThrow(AdmissionsException.PhaseAlreadyClosed::new);
     }
 
+    public AdmissionPhase lastPhase() {
+        return phases.stream()
+                .reduce((first, second) -> second)
+                .orElseThrow(AdmissionsException.AdmissionNotFound::new);
+    }
+
     public AdmissionKind kind() {
-        return currentPhase().kind();
+        return lastPhase().kind();
     }
 
     public boolean bedRequired() {
-        return currentPhase().bedRequired();
+        return lastPhase().bedRequired();
     }
 
     public boolean coverageMayBlockAdmission() {
-        return currentPhase().coverageMayBlockAdmission();
+        return lastPhase().coverageMayBlockAdmission();
     }
 
     public AdmissionStatus status() {

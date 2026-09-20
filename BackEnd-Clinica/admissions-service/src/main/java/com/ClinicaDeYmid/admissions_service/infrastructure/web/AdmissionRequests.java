@@ -1,0 +1,36 @@
+package com.ClinicaDeYmid.admissions_service.infrastructure.web;
+
+import com.ClinicaDeYmid.admissions_service.domain.Cause;
+import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+import java.util.UUID;
+
+final class AdmissionRequests {
+
+    record CompanionPayload(@NotBlank String fullName, @NotBlank String phoneNumber, String relationship) {
+    }
+
+    record Registration(@NotNull UUID patientUuid, @NotNull UUID configurationServiceUuid, @NotNull Cause cause,
+                        UUID careTypeUuid, CompanionPayload companion) {
+    }
+
+    record UnidentifiedRegistration(@NotNull PatientReference.Sex sex,
+                                    @NotNull @Min(1900) @Max(2100) Integer estimatedBirthYear,
+                                    String description,
+                                    @NotNull UUID configurationServiceUuid, @NotNull Cause cause,
+                                    UUID careTypeUuid, CompanionPayload companion) {
+    }
+
+    record PhaseChange(@NotNull UUID configurationServiceUuid, @NotBlank String reason) {
+    }
+
+    record Reason(@NotBlank String reason) {
+    }
+
+    private AdmissionRequests() {
+    }
+}

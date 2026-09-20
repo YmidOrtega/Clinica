@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.admissions_service.infrastructure.clients;
 
+import com.ClinicaDeYmid.admissions_service.application.patient.PatientDirectoryException;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientLookup;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientRegistry;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
@@ -34,6 +35,19 @@ class ResilientPatientRegistry implements PatientRegistry {
                     failure.getClass().getSimpleName());
             return new PatientLookup.Unavailable();
         });
+    }
+
+    @Override
+    public PatientReference.Unidentified registerUnidentified(PatientReference.Sex sex, int estimatedBirthYear,
+                                                              String description) {
+        return circuitBreaker.run(
+                () -> (PatientReference.Unidentified) toReference(client.registerUnidentified(
+                        new PatientRegistryClient.UnidentifiedRegistration(sex.name(), estimatedBirthYear, description))),
+                failure -> {
+                    log.error("patient-service refused or could not register an unidentified patient ({}); "
+                            + "the admission was not created", failure.getClass().getSimpleName());
+                    throw new PatientDirectoryException.CannotRegisterUnidentified();
+                });
     }
 
     private PatientLookup lookup(UUID uuid) {

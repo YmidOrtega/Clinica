@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -16,6 +18,12 @@ interface PatientRegistryClient {
 
     @GetMapping("/api/v1/unidentified-patients/{uuid}")
     UnidentifiedPayload findUnidentified(@PathVariable("uuid") UUID uuid);
+
+    @PostMapping("/api/v1/unidentified-patients")
+    UnidentifiedPayload registerUnidentified(@RequestBody UnidentifiedRegistration registration);
+
+    record UnidentifiedRegistration(String sex, Integer estimatedBirthYear, String description) {
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record RegisteredPayload(UUID uuid, long version, Document document, Demographics demographics, Status status,

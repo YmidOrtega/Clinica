@@ -1,6 +1,9 @@
 package com.ClinicaDeYmid.admissions_service.application;
 
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientDirectory;
+import com.ClinicaDeYmid.admissions_service.application.patient.PatientReferenceProjection;
+import com.ClinicaDeYmid.admissions_service.application.patient.PatientRegistry;
+import com.ClinicaDeYmid.admissions_service.application.patient.UnidentifiedAdmissionRequest;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionPhase;
 import com.ClinicaDeYmid.admissions_service.domain.Admissions;
@@ -32,15 +35,20 @@ public class AdmissionCommands {
     private final ConfigurationServices configurationServices;
     private final CareTypes careTypes;
     private final PatientDirectory patients;
+    private final PatientRegistry registry;
+    private final PatientReferenceProjection projection;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public AdmissionCommands(Admissions admissions, ConfigurationServices configurationServices, CareTypes careTypes,
-                             PatientDirectory patients, TransactionOperations transactions, Clock clock) {
+                             PatientDirectory patients, PatientRegistry registry,
+                             PatientReferenceProjection projection, TransactionOperations transactions, Clock clock) {
         this.admissions = admissions;
         this.configurationServices = configurationServices;
         this.careTypes = careTypes;
         this.patients = patients;
+        this.registry = registry;
+        this.projection = projection;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -63,6 +71,15 @@ public class AdmissionCommands {
                     registered.number(), patientUuid, registered.kind());
             return registered;
         });
+    }
+
+    public Admission admitUnidentified(UnidentifiedAdmissionRequest request, UUID configurationServiceUuid,
+                                       Cause cause, UUID careTypeUuid, Companion companion) {
+        PatientReference.Unidentified registered =
+                registry.registerUnidentified(request.sex(), request.estimatedBirthYear(), request.description());
+        projection.apply(registered);
+        log.info("Unidentified patient {} registered in patient-service before admitting", registered.code());
+        return register(registered.uuid(), configurationServiceUuid, cause, careTypeUuid, companion);
     }
 
     public Admission activate(UUID uuid, long expectedVersion) {

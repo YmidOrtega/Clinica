@@ -5,6 +5,9 @@ final class Access {
     static final String READ = "hasAuthority('admissions:read')";
     static final String MANAGE_BEDS = "hasAuthority('admissions:manage-beds')";
     static final String MOVE_BED = "hasAuthority('admissions:move-bed')";
+    static final String ADMIT = "hasAuthority('admissions:admit')";
+    static final String DISCHARGE = "hasAuthority('admissions:discharge')";
+    static final String CANCEL = "hasAuthority('admissions:cancel')";
 
     private Access() {
     }
