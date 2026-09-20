@@ -13,7 +13,7 @@ CREATE TABLE patient_references (
     status                  VARCHAR(20)  NOT NULL,
     date_of_death           DATE         NULL,
     health_regime           VARCHAR(20)  NULL,
-    payer_uuid     VARCHAR(12)  NULL,
+    health_provider_nit     VARCHAR(12)  NULL,
     identified_patient_uuid CHAR(36)     NULL,
     updated_at              DATETIME(6)  NOT NULL,
 

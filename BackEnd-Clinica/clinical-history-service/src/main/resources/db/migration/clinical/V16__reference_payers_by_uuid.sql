@@ -1,5 +1,5 @@
 ALTER TABLE patient_references
-    CHANGE COLUMN payer_uuid payer_uuid CHAR(36) NULL;
+    CHANGE COLUMN health_provider_nit payer_uuid CHAR(36) NULL;
 
 UPDATE patient_references SET payer_uuid = NULL WHERE payer_uuid IS NOT NULL;
 
