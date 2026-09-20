@@ -39,12 +39,14 @@ public class AdmissionCommands {
     private final PatientDirectory patients;
     private final PatientRegistry registry;
     private final CoverageGate coverage;
+    private final BedAssignments bedAssignments;
     private final PatientReferenceProjection projection;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public AdmissionCommands(Admissions admissions, ConfigurationServices configurationServices, CareTypes careTypes,
                              PatientDirectory patients, PatientRegistry registry, CoverageGate coverage,
+                             BedAssignments bedAssignments,
                              PatientReferenceProjection projection, TransactionOperations transactions, Clock clock) {
         this.admissions = admissions;
         this.configurationServices = configurationServices;
@@ -52,6 +54,7 @@ public class AdmissionCommands {
         this.patients = patients;
         this.registry = registry;
         this.coverage = coverage;
+        this.bedAssignments = bedAssignments;
         this.projection = projection;
         this.transactions = transactions;
         this.clock = clock;
@@ -101,24 +104,42 @@ public class AdmissionCommands {
     }
 
     public Admission cancel(UUID uuid, long expectedVersion, String reason) {
-        return modify(uuid, expectedVersion, admission -> admission.cancel(reason, clock));
+        return modify(uuid, expectedVersion, admission -> {
+            if (admission.occupiesABed()) {
+                bedAssignments.freeCurrentBed(admission);
+            }
+            admission.cancel(reason, clock);
+        });
     }
 
     public Admission discharge(UUID uuid, long expectedVersion) {
-        return modify(uuid, expectedVersion, admission -> admission.discharge(clock));
+        return modify(uuid, expectedVersion, admission -> {
+            if (admission.occupiesABed()) {
+                bedAssignments.freeCurrentBed(admission);
+            }
+            admission.discharge(clock);
+        });
     }
 
-    public Admission moveTo(UUID uuid, long expectedVersion, UUID configurationServiceUuid, String reason) {
-        return transactions.execute(status -> {
+    public Admission moveTo(UUID uuid, long expectedVersion, UUID configurationServiceUuid, String reason,
+                            UUID bedUuid) {
+        Admission moved = transactions.execute(status -> {
             Admission admission = admissions.findByUuid(uuid).orElseThrow(AdmissionsException.AdmissionNotFound::new);
             requireVersion(admission.version(), expectedVersion);
             ConfigurationService service = configurationServices.findByUuid(configurationServiceUuid)
                     .orElseThrow(AdmissionsException.ConfigurationServiceNotFound::new);
+            if (service.kind().bedRequired() && bedUuid == null && !admission.occupiesABed()) {
+                throw new AdmissionsException.BedRequired();
+            }
+            if (!service.kind().bedRequired() && admission.occupiesABed()) {
+                bedAssignments.freeCurrentBed(admission);
+            }
             AdmissionPhase phase = admission.moveTo(service, reason, clock);
             admissions.save(admission);
             log.info("Admission {} moved to {} ({})", admission.number(), service.uuid(), phase.kind());
             return reloaded(uuid);
         });
+        return bedUuid == null ? moved : bedAssignments.assign(uuid, moved.version(), bedUuid);
     }
 
     public Admission accompaniedBy(UUID uuid, long expectedVersion, Companion companion) {

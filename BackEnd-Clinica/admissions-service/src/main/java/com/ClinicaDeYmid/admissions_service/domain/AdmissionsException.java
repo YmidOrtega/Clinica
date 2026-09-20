@@ -218,6 +218,26 @@ public sealed abstract class AdmissionsException extends DomainException {
         }
     }
 
+    public static final class BedRequired extends AdmissionsException {
+        public BedRequired() {
+            super(ErrorCategory.RULE_VIOLATION, "ADMISSION_BED_REQUIRED",
+                    "Una hospitalización no puede activarse sin una cama asignada");
+        }
+    }
+
+    public static final class BedNotNeeded extends AdmissionsException {
+        public BedNotNeeded() {
+            super(ErrorCategory.RULE_VIOLATION, "ADMISSION_BED_NOT_NEEDED",
+                    "Ese episodio no ocupa cama en su fase actual");
+        }
+    }
+
+    public static final class NoBedAssigned extends AdmissionsException {
+        public NoBedAssigned() {
+            super(ErrorCategory.RULE_VIOLATION, "ADMISSION_WITHOUT_BED", "El episodio no tiene una cama asignada");
+        }
+    }
+
     public static final class RetiredLocation extends AdmissionsException {
         public RetiredLocation() {
             super(ErrorCategory.RULE_VIOLATION, "LOCATION_RETIRED", "No se puede usar una ubicación retirada");

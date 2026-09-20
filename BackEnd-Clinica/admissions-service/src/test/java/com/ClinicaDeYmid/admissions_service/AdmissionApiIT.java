@@ -148,7 +148,8 @@ class AdmissionApiIT {
                 .andExpect(jsonPath("$.status.code").value("ACTIVE"));
 
         change("RECEPTIONIST", post(BASE + "/" + uuid + "/phase"), 1,
-                "{\"configurationServiceUuid\":\"" + inpatient() + "\",\"reason\":\"Requiere hospitalización\"}")
+                "{\"configurationServiceUuid\":\"" + inpatient() + "\",\"reason\":\"Requiere hospitalización\","
+                        + "\"bedUuid\":\"" + aBed() + "\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.number").value(number))
                 .andExpect(jsonPath("$.kind").value("INPATIENT"))
@@ -252,6 +253,21 @@ class AdmissionApiIT {
                 PatientReference.Registered.Status.valueOf(status),
                 "DECEASED".equals(status) ? LocalDate.of(2026, 9, 19) : null, "CONTRIBUTORY", null));
         return uuid;
+    }
+
+    private String aBed() throws Exception {
+        int index = SEQUENCE.incrementAndGet();
+        String location = JsonPath.read(as("ADMIN", org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/admissions/catalogue/locations"),
+                "{\"name\":\"Piso cama " + index + "\"}").andReturn().getResponse().getContentAsString(), "$.uuid");
+        String room = JsonPath.read(as("ADMIN", org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/admissions/rooms"),
+                "{\"name\":\"Hab " + index + "\",\"locationUuid\":\"" + location + "\"}")
+                .andReturn().getResponse().getContentAsString(), "$.uuid");
+        return JsonPath.read(as("ADMIN", org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/admissions/beds"),
+                "{\"label\":\"Cama " + index + "\",\"roomUuid\":\"" + room + "\"}")
+                .andReturn().getResponse().getContentAsString(), "$.uuid");
     }
 
     private UUID emergency() {

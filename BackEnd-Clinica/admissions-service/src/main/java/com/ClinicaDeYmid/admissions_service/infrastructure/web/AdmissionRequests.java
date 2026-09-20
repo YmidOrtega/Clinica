@@ -25,7 +25,10 @@ final class AdmissionRequests {
                                     UUID careTypeUuid, CompanionPayload companion) {
     }
 
-    record PhaseChange(@NotNull UUID configurationServiceUuid, @NotBlank String reason) {
+    record PhaseChange(@NotNull UUID configurationServiceUuid, @NotBlank String reason, UUID bedUuid) {
+    }
+
+    record BedAssignment(@NotNull UUID bedUuid) {
     }
 
     record Reason(@NotBlank String reason) {

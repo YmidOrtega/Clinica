@@ -70,6 +70,9 @@ public class Admission {
     @Embedded
     private Coverage coverage;
 
+    @Column(name = "bed_uuid")
+    private UUID bedUuid;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private AdmissionStatus.Code statusCode;
@@ -119,7 +122,34 @@ public class Admission {
     }
 
     public void activate(Clock clock) {
+        if (bedRequired() && bedUuid == null) {
+            throw new AdmissionsException.BedRequired();
+        }
         applyStatus(status().activate(Instant.now(clock)));
+    }
+
+    public void assignBed(UUID bed) {
+        if (!status().open()) {
+            throw new AdmissionsException.ClosedAdmission();
+        }
+        this.bedUuid = DomainRules.required(bed, "bed");
+    }
+
+    public UUID releaseBed() {
+        if (bedUuid == null) {
+            throw new AdmissionsException.NoBedAssigned();
+        }
+        UUID released = bedUuid;
+        this.bedUuid = null;
+        return released;
+    }
+
+    public boolean occupiesABed() {
+        return bedUuid != null;
+    }
+
+    public UUID bedUuid() {
+        return bedUuid;
     }
 
     public void discharge(Clock clock) {

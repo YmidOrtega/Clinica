@@ -54,7 +54,7 @@ final class AdmissionResponses {
 
     record AdmissionView(UUID uuid, String number, UUID patientUuid, Cause cause, UUID careTypeUuid,
                          AdmissionKind kind, boolean bedRequired, StatusView status, PhaseView currentPhase,
-                         List<PhaseView> phases, CompanionView companion, CoverageView coverage) {
+                         List<PhaseView> phases, CompanionView companion, CoverageView coverage, UUID bedUuid) {
 
         static AdmissionView from(Admission admission) {
             return new AdmissionView(admission.uuid(), admission.number(), admission.patientUuid(), admission.cause(),
@@ -64,7 +64,7 @@ final class AdmissionResponses {
                     admission.phases().stream().map(PhaseView::from).toList(),
                     admission.companion() == null ? null : new CompanionView(admission.companion().fullName(),
                             admission.companion().phoneNumber(), admission.companion().relationship()),
-                    CoverageView.from(admission.coverage()));
+                    CoverageView.from(admission.coverage()), admission.bedUuid());
         }
     }
 

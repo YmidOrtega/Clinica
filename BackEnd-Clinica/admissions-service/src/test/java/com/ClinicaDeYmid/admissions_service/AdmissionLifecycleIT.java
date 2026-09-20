@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.admissions_service;
 
 import com.ClinicaDeYmid.admissions_service.application.AdmissionCommands;
+import com.ClinicaDeYmid.admissions_service.application.BedCommands;
 import com.ClinicaDeYmid.admissions_service.application.CatalogueCommands;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionKind;
@@ -45,6 +46,9 @@ class AdmissionLifecycleIT {
 
     @Autowired
     private CatalogueCommands catalogue;
+
+    @Autowired
+    private BedCommands bedCommands;
 
     @Autowired
     private Admissions admissions;
@@ -100,7 +104,8 @@ class AdmissionLifecycleIT {
         Admission admission = commands.register(aPatient(), emergency(), Cause.ILLNESS, null, null);
         Admission active = commands.activate(admission.uuid(), admission.version());
 
-        Admission moved = commands.moveTo(active.uuid(), active.version(), inpatient(), "Requiere hospitalización");
+        Admission moved = commands.moveTo(active.uuid(), active.version(), inpatient(),
+                "Requiere hospitalización", aBed());
 
         assertThat(moved.number()).isEqualTo(admission.number());
         assertThat(moved.phases()).hasSize(2);
@@ -159,6 +164,13 @@ class AdmissionLifecycleIT {
 
         assertThat(admissions.findOpenByPatient(patient)).isEmpty();
         assertThat(admissions.findByPatient(patient)).hasSize(1);
+    }
+
+    private UUID aBed() {
+        int index = SEQUENCE.incrementAndGet();
+        Location where = catalogue.defineLocation("Piso cama " + index);
+        return bedCommands.installBed("Cama " + index,
+                bedCommands.openRoom("Hab " + index, where.uuid()).uuid()).uuid();
     }
 
     private UUID aPatient() {
