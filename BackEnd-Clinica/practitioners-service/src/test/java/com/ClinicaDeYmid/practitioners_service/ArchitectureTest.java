@@ -15,7 +15,6 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule dependenciesOnlyGoDown = layeredArchitecture()
             .consideringOnlyDependenciesInLayers()
-            .withOptionalLayers(true)
             .layer("Web").definedBy("..practitioners_service.web..")
             .layer("Service").definedBy("..practitioners_service.service..")
             .layer("Repository").definedBy("..practitioners_service.repository..")
@@ -29,6 +28,13 @@ class ArchitectureTest {
             .should().dependOnClassesThat().resideInAnyPackage(
                     "..practitioners_service.repository..", "jakarta.persistence..", "org.hibernate..",
                     "org.springframework.data..");
+
+    @ArchTest
+    static final ArchRule theSharedCodeDependsOnNoLayer = noClasses()
+            .that().resideInAPackage("..practitioners_service.shared..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "..practitioners_service.web..", "..practitioners_service.service..",
+                    "..practitioners_service.repository..");
 
     @ArchTest
     static final ArchRule theServiceLayerNeverTouchesTheWeb = noClasses()
