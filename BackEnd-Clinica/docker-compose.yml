@@ -126,10 +126,11 @@ services:
          - auth_db_secrets:/rendered/auth-db
          - gateway_redis_secrets:/rendered/gateway-redis
          - contracting_db_secrets:/rendered/contracting-db
+         - practitioners_db_secrets:/rendered/practitioners-db
       networks:
          - secrets-net
       healthcheck:
-         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password; do test -s /rendered/$$f || exit 1; done"]
+         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password; do test -s /rendered/$$f || exit 1; done"]
          interval: 5s
          timeout: 3s
          retries: 24
@@ -310,28 +311,6 @@ services:
          retries: 5
 
    # Base de datos para proveedores
-   suppliers-db:
-      image: mysql:8.0
-      container_name: suppliers-db
-      restart: always
-      environment:
-         MYSQL_ROOT_PASSWORD: ${SUPPLIERS_DB_ROOT_PASSWORD}
-         MYSQL_DATABASE: ${SUPPLIERS_DB_NAME}
-         MYSQL_USER: ${SUPPLIERS_DB_USER}
-         MYSQL_PASSWORD: ${SUPPLIERS_DB_PASSWORD}
-      ports:
-         - "3311:3306"
-      volumes:
-         - suppliers_data:/var/lib/mysql
-      networks:
-         - clinica-net
-      healthcheck:
-         test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-         timeout: 20s
-         retries: 10
-      command: --log-bin-trust-function-creators=1
-
-   # Base de datos para autenticación
    auth-db:
       image: mysql:8.0
       container_name: auth-db
@@ -394,6 +373,34 @@ services:
          - contracting_db_secrets:/run/secrets/contracting-db:ro
       networks:
          - contracting-data
+      healthcheck:
+         test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$(cat $$MYSQL_ROOT_PASSWORD_FILE)\" --silent"]
+         interval: 10s
+         timeout: 5s
+         retries: 10
+
+   practitioners-db:
+      image: mysql:8.0
+      container_name: practitioners-db
+      restart: always
+      depends_on:
+         openbao-agent:
+            condition: service_healthy
+      environment:
+         MYSQL_ROOT_PASSWORD_FILE: /run/secrets/practitioners-db/root-password
+         MYSQL_DATABASE: ${PRACTITIONERS_DB_NAME:-practitioners_db}
+         PRACTITIONERS_DB_MIGRATOR_USER_FILE: /run/secrets/practitioners-db/migrator-user
+         PRACTITIONERS_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/practitioners-db/migrator-password
+         PRACTITIONERS_DB_APP_USER_FILE: /run/secrets/practitioners-db/app-user
+         PRACTITIONERS_DB_APP_PASSWORD_FILE: /run/secrets/practitioners-db/app-password
+         PRACTITIONERS_DB_DEBEZIUM_USER_FILE: /run/secrets/practitioners-db/debezium-user
+         PRACTITIONERS_DB_DEBEZIUM_PASSWORD_FILE: /run/secrets/practitioners-db/debezium-password
+      volumes:
+         - practitioners_data:/var/lib/mysql
+         - ./practitioners-service/docker/mysql-init:/docker-entrypoint-initdb.d:ro
+         - practitioners_db_secrets:/run/secrets/practitioners-db:ro
+      networks:
+         - practitioners-data
       healthcheck:
          test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$(cat $$MYSQL_ROOT_PASSWORD_FILE)\" --silent"]
          interval: 10s
@@ -722,44 +729,6 @@ services:
          retries: 5
          start_period: 90s
 
-   suppliers-service:
-      build: ./suppliers-service
-      container_name: suppliers-service
-      depends_on:
-         suppliers-db:
-            condition: service_healthy
-         eureka-service:
-            condition: service_healthy
-         redis-cache:
-            condition: service_healthy
-      environment:
-         - SPRING_DATASOURCE_URL=jdbc:mysql://suppliers-db:3306/${SUPPLIERS_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${SUPPLIERS_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${SUPPLIERS_DB_PASSWORD}
-         - SPRING_DATA_REDIS_HOST=redis-cache
-         - SPRING_DATA_REDIS_PORT=6379
-         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_DATA_REDIS_TIMEOUT=2000ms
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
-         - JWT_SECRET=${JWT_SECRET}
-         - JWT_EXPIRATION=${JWT_EXPIRATION}
-         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
-         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-         - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-         - SPRING_PROFILES_ACTIVE=docker
-      ports:
-         - "8085:8085"
-      networks:
-         - clinica-net
-      healthcheck:
-         test: [ "CMD", "curl", "-f", "http://localhost:8085/actuator/health" ]
-         interval: 30s
-         timeout: 10s
-         retries: 5
-         start_period: 90s
-
    auth-service:
       build: ./auth-service
       restart: unless-stopped
@@ -835,6 +804,41 @@ services:
          - secrets-net
       healthcheck:
          test: [ "CMD", "curl", "-fs", "http://localhost:8087/actuator/health/readiness" ]
+         interval: 15s
+         timeout: 5s
+         retries: 5
+         start_period: 60s
+
+   practitioners-service:
+      build: ./practitioners-service
+      restart: unless-stopped
+      deploy:
+         replicas: ${PRACTITIONERS_SERVICE_REPLICAS:-2}
+      depends_on:
+         practitioners-db:
+            condition: service_healthy
+         openbao-init:
+            condition: service_completed_successfully
+         eureka-service:
+            condition: service_healthy
+      environment:
+         - SPRING_PROFILES_ACTIVE=openbao
+         - PRACTITIONERS_DB_URL=jdbc:mysql://practitioners-db:3306/${PRACTITIONERS_DB_NAME:-practitioners_db}
+         - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
+         - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
+         - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_PREFER_IP_ADDRESS=false
+      volumes:
+         - openbao_tls:/run/secrets/openbao-tls:ro
+         - openbao_approle_practitioners:/run/secrets/openbao/approle:ro
+      networks:
+         - clinica-net
+         - practitioners-data
+         - kafka-net
+         - secrets-net
+      healthcheck:
+         test: [ "CMD", "curl", "-fs", "http://localhost:8085/actuator/health/readiness" ]
          interval: 15s
          timeout: 5s
          retries: 5
@@ -940,13 +944,14 @@ volumes:
    auth_db_secrets:
    gateway_redis_secrets:
    contracting_db_secrets:
+   practitioners_db_secrets:
    patient_data:
    billing_data:
    admissions_data:
    ai_assistant_data:
-   suppliers_data:
    auth_data:
    contracting_data:
+   practitioners_data:
    redis_data:
    redis_insight_data:
    kafka_data:
@@ -973,6 +978,9 @@ networks:
       driver: bridge
       internal: true
    contracting-data:
+      driver: bridge
+      internal: true
+   practitioners-data:
       driver: bridge
       internal: true
    mail-net:
