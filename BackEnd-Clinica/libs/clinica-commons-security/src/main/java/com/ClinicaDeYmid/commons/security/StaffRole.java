@@ -18,15 +18,24 @@ public enum StaffRole {
             StaffPermission.CONTRACTING_QUOTE_PRICES)),
     BILLING(EnumSet.of(
             StaffPermission.CONTRACTING_READ,
-            StaffPermission.CONTRACTING_QUOTE_PRICES)),
+            StaffPermission.CONTRACTING_QUOTE_PRICES,
+            StaffPermission.ADMISSIONS_READ)),
     HUMAN_RESOURCES(EnumSet.of(
             StaffPermission.PRACTITIONERS_READ,
             StaffPermission.PRACTITIONERS_MANAGE,
             StaffPermission.PRACTITIONERS_MANAGE_FEES)),
-    RECEPTIONIST(EnumSet.of(StaffPermission.CONTRACTING_READ)),
-    DOCTOR(EnumSet.noneOf(StaffPermission.class)),
-    NURSE(EnumSet.noneOf(StaffPermission.class)),
-    MEDICAL_RECORDS(EnumSet.noneOf(StaffPermission.class));
+    RECEPTIONIST(EnumSet.of(
+            StaffPermission.CONTRACTING_READ,
+            StaffPermission.ADMISSIONS_READ,
+            StaffPermission.ADMISSIONS_ADMIT)),
+    DOCTOR(EnumSet.of(
+            StaffPermission.ADMISSIONS_READ,
+            StaffPermission.ADMISSIONS_DISCHARGE)),
+    NURSE(EnumSet.of(
+            StaffPermission.ADMISSIONS_READ,
+            StaffPermission.ADMISSIONS_ADMIT,
+            StaffPermission.ADMISSIONS_MOVE_BED)),
+    MEDICAL_RECORDS(EnumSet.of(StaffPermission.ADMISSIONS_READ));
 
     private final Set<StaffPermission> permissions;
 
