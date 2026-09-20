@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.admissions_service.application;
 
 import com.ClinicaDeYmid.admissions_service.application.coverage.CoverageGate;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientDirectory;
+import com.ClinicaDeYmid.admissions_service.application.practitioner.PractitionerDirectory;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientReferenceProjection;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientRegistry;
 import com.ClinicaDeYmid.admissions_service.application.patient.UnidentifiedAdmissionRequest;
@@ -15,8 +16,10 @@ import com.ClinicaDeYmid.admissions_service.domain.Cause;
 import com.ClinicaDeYmid.admissions_service.domain.Companion;
 import com.ClinicaDeYmid.admissions_service.domain.ConfigurationService;
 import com.ClinicaDeYmid.admissions_service.domain.ConfigurationServices;
+import com.ClinicaDeYmid.admissions_service.domain.AttendingPractitioner;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
+import com.ClinicaDeYmid.admissions_service.domain.practitioner.PractitionerReference;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,13 +43,14 @@ public class AdmissionCommands {
     private final PatientRegistry registry;
     private final CoverageGate coverage;
     private final BedAssignments bedAssignments;
+    private final PractitionerDirectory practitioners;
     private final PatientReferenceProjection projection;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public AdmissionCommands(Admissions admissions, ConfigurationServices configurationServices, CareTypes careTypes,
                              PatientDirectory patients, PatientRegistry registry, CoverageGate coverage,
-                             BedAssignments bedAssignments,
+                             BedAssignments bedAssignments, PractitionerDirectory practitioners,
                              PatientReferenceProjection projection, TransactionOperations transactions, Clock clock) {
         this.admissions = admissions;
         this.configurationServices = configurationServices;
@@ -55,6 +59,7 @@ public class AdmissionCommands {
         this.registry = registry;
         this.coverage = coverage;
         this.bedAssignments = bedAssignments;
+        this.practitioners = practitioners;
         this.projection = projection;
         this.transactions = transactions;
         this.clock = clock;
@@ -144,6 +149,12 @@ public class AdmissionCommands {
 
     public Admission accompaniedBy(UUID uuid, long expectedVersion, Companion companion) {
         return modify(uuid, expectedVersion, admission -> admission.accompaniedBy(companion));
+    }
+
+    public Admission attendedBy(UUID uuid, long expectedVersion, UUID practitionerUuid) {
+        PractitionerReference practitioner = practitioners.require(practitionerUuid);
+        return modify(uuid, expectedVersion, admission -> admission.attendedBy(AttendingPractitioner.of(
+                practitioner.practitionerUuid(), practitioner.fullName(), practitioner.registrationNumber())));
     }
 
     private Admission modify(UUID uuid, long expectedVersion, Consumer<Admission> change) {

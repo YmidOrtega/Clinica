@@ -73,6 +73,9 @@ public class Admission {
     @Column(name = "bed_uuid")
     private UUID bedUuid;
 
+    @Embedded
+    private AttendingPractitioner attending;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private AdmissionStatus.Code statusCode;
@@ -126,6 +129,17 @@ public class Admission {
             throw new AdmissionsException.BedRequired();
         }
         applyStatus(status().activate(Instant.now(clock)));
+    }
+
+    public void attendedBy(AttendingPractitioner practitioner) {
+        if (!status().open()) {
+            throw new AdmissionsException.ClosedAdmission();
+        }
+        this.attending = DomainRules.required(practitioner, "attending");
+    }
+
+    public AttendingPractitioner attending() {
+        return attending;
     }
 
     public void assignBed(UUID bed) {

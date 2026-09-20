@@ -73,6 +73,8 @@ clinica:
     time-zone: America/Bogota
     patient-events:
       enabled: ${ADMISSIONS_PATIENT_EVENTS_ENABLED:true}
+    practitioner-events:
+      enabled: ${ADMISSIONS_PRACTITIONER_EVENTS_ENABLED:true}
     coverage:
       ttl: ${ADMISSIONS_COVERAGE_TTL:10m}
       maximum-size: ${ADMISSIONS_COVERAGE_CACHE_SIZE:5000}
