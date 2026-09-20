@@ -257,6 +257,48 @@ template {
 }
 
 template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/root\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/practitioners-db/root-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/migrator\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/practitioners-db/migrator-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/migrator\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/practitioners-db/migrator-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/app\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/practitioners-db/app-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/app\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/practitioners-db/app-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/practitioners-db/debezium-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/practitioners-db/debezium-password"
+  perms       = "0444"
+}
+
+template {
   contents    = "{{ with secret \"secret/data/contracting/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
   destination = "/rendered/kafka-connect/contracting-db-debezium-user"
   perms       = "0444"

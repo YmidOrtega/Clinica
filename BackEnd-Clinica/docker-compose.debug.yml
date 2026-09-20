@@ -49,6 +49,13 @@ services:
          - SWAGGER_UI_ENABLED=true
          - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
 
+   practitioners-service:
+      ports:
+         - "127.0.0.1:8085-8086:8085"
+      environment:
+         - SWAGGER_UI_ENABLED=true
+         - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
+
    clinical-history-service:
       ports:
          - "127.0.0.1:8091-8092:8089"
