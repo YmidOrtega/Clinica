@@ -15,10 +15,16 @@ class KafkaConfiguration {
 
     static final String DEAD_LETTER_SUFFIX = ".admissions.dlt";
     static final String PATIENT_DEAD_LETTER_TOPIC = PatientEventsListener.TOPIC + DEAD_LETTER_SUFFIX;
+    static final String PRACTITIONER_DEAD_LETTER_TOPIC = PractitionerEventsListener.TOPIC + DEAD_LETTER_SUFFIX;
 
     @Bean
     NewTopic patientEventsDeadLetterTopic() {
         return TopicBuilder.name(PATIENT_DEAD_LETTER_TOPIC).partitions(3).build();
+    }
+
+    @Bean
+    NewTopic practitionerEventsDeadLetterTopic() {
+        return TopicBuilder.name(PRACTITIONER_DEAD_LETTER_TOPIC).partitions(3).build();
     }
 
     @Bean
@@ -28,7 +34,8 @@ class KafkaConfiguration {
         ExponentialBackOff backOff = new ExponentialBackOff(500, 2.0);
         backOff.setMaxAttempts(4);
         DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
-        handler.addNotRetryableExceptions(MalformedPatientEventException.class, IllegalArgumentException.class);
+        handler.addNotRetryableExceptions(MalformedPatientEventException.class,
+                MalformedPractitionerEventException.class, IllegalArgumentException.class);
         return handler;
     }
 }

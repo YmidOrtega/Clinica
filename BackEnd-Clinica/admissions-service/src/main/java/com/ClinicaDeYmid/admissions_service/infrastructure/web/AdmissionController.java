@@ -134,6 +134,16 @@ class AdmissionController {
         return tagged(bedAssignments.release(uuid, EntityTags.requiredVersion(ifMatch)));
     }
 
+    @PostMapping("/{uuid}/attending-practitioner")
+    @PreAuthorize(Access.ADMIT)
+    @Operation(summary = "Asignar el profesional responsable del episodio",
+            description = "Copia su nombre y registro profesional para que el episodio los conserve")
+    ResponseEntity<AdmissionView> attendedBy(@PathVariable UUID uuid,
+                                             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                             @Valid @RequestBody AdmissionRequests.AttendingPractitioner request) {
+        return tagged(commands.attendedBy(uuid, EntityTags.requiredVersion(ifMatch), request.practitionerUuid()));
+    }
+
     @PostMapping("/{uuid}/companion")
     @PreAuthorize(Access.ADMIT)
     @Operation(summary = "Registrar o cambiar el acompañante")

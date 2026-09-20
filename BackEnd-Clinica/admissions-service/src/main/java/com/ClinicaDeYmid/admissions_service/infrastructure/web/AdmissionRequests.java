@@ -31,6 +31,9 @@ final class AdmissionRequests {
     record BedAssignment(@NotNull UUID bedUuid) {
     }
 
+    record AttendingPractitioner(@NotNull UUID practitionerUuid) {
+    }
+
     record Reason(@NotBlank String reason) {
     }
 
