@@ -1,44 +1,125 @@
 server:
-  port: 8083
+  port: ${ADMISSIONS_SERVICE_PORT:8088}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 spring:
   application:
     name: admissions-service
+  config:
+    import: optional:configtree:/run/secrets/openbao/
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${ADMISSIONS_DB_URL:jdbc:postgresql://localhost:5442/admissions_db}
+    username: ${ADMISSIONS_DB_APP_USER:admissions_app}
+    password: ${ADMISSIONS_DB_APP_PASSWORD:}
+    hikari:
+      pool-name: admissions-service
+      maximum-pool-size: ${ADMISSIONS_DB_POOL_SIZE:15}
+      connection-timeout: 5000
   flyway:
-    location: classpath:db/migration/admissions
+    locations: classpath:db/migration/admissions
+    schemas: admissions
+    default-schema: admissions
+    user: ${ADMISSIONS_DB_MIGRATOR_USER:admissions_migrator}
+    password: ${ADMISSIONS_DB_MIGRATOR_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: admissions
+        jdbc:
+          time_zone: UTC
+        org.hibernate.envers.default_schema: admissions_history
+  cloud:
+    vault:
+      enabled: false
+    openfeign:
+      client:
+        config:
+          patient-service:
+            connect-timeout: 1000
+            read-timeout: 3000
+          contracting-service:
+            connect-timeout: 1000
+            read-timeout: 3000
+          practitioners-service:
+            connect-timeout: 1000
+            read-timeout: 3000
+    circuitbreaker:
+      resilience4j:
+        disable-time-limiter: true
 
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-  instance:
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 5
-    lease-expiration-duration-in-seconds: 10
+clinica:
+  admissions:
+    time-zone: America/Bogota
+  security:
+    jwt:
+      jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
+      issuer: ${AUTH_ISSUER:http://localhost:8080/auth}
+      audiences: clinica-api, admissions-service
+    client:
+      id: admissions-service
+      token-uri: ${AUTH_TOKEN_URI:http://localhost:8086/oauth2/token}
+      assertion-key: ${ADMISSIONS_CLIENT_TRANSIT_KEY:admissions-service-client}
+      audiences:
+        patient-service: patient-service
+        contracting-service: contracting-service
+        practitioners-service: practitioners-service
+    revocation:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
 
-# Configuración de Swagger/OpenAPI
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+
 springdoc:
-  api-docs:
-    path: /v3/api-docs
   swagger-ui:
-    path: /swagger-ui.html
-    enabled: true
-    try-it-out-enabled: true
-    operations-sorter: method
-    tags-sorter: alpha
-    filter: true
-    doc-expansion: none
-  show-actuator: true
+    enabled: ${SWAGGER_UI_ENABLED:false}
 
-# Información de la API
-api:
-  version: 1.0.0
-  name: Admissions Service API
-  description: Microservicio para la gestión de clientes
-  contact:
-    name: Development Team
-    email: dev@example.com
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+
+---
+spring:
+  config:
+    activate:
+      on-profile: openbao
+    import:
+      - vault://secret/admissions/db/migrator?prefix=admissions.db.migrator.
+      - vault://secret/admissions/db/app?prefix=admissions.db.app.
+  cloud:
+    vault:
+      enabled: true
+      uri: ${OPENBAO_ADDR:https://openbao:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${approle.role-id}
+        secret-id: ${approle.secret-id}
+      ssl:
+        trust-store: file:/run/secrets/openbao-tls/ca.crt
+        trust-store-type: PEM
+  datasource:
+    username: ${admissions.db.app.username}
+    password: ${admissions.db.app.password}
+  flyway:
+    user: ${admissions.db.migrator.username}
+    password: ${admissions.db.migrator.password}
