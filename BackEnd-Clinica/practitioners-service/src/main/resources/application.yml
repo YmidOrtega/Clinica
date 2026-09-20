@@ -1,0 +1,106 @@
+server:
+  port: ${PRACTITIONERS_SERVICE_PORT:8085}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+spring:
+  application:
+    name: practitioners-service
+  config:
+    import: optional:configtree:/run/secrets/openbao/
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${PRACTITIONERS_DB_URL:jdbc:mysql://localhost:3316/practitioners_db}
+    username: ${PRACTITIONERS_DB_APP_USER:practitioners_app}
+    password: ${PRACTITIONERS_DB_APP_PASSWORD:}
+    hikari:
+      pool-name: practitioners-service
+      maximum-pool-size: ${PRACTITIONERS_DB_POOL_SIZE:15}
+      connection-timeout: 5000
+  flyway:
+    locations: classpath:db/migration/practitioners
+    user: ${PRACTITIONERS_DB_MIGRATOR_USER:practitioners_migrator}
+    password: ${PRACTITIONERS_DB_MIGRATOR_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+      org.hibernate.envers.default_catalog: practitioners_history
+  cloud:
+    vault:
+      enabled: false
+
+clinica:
+  practitioners:
+    time-zone: America/Bogota
+  security:
+    jwt:
+      jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
+      issuer: ${AUTH_ISSUER:http://localhost:8080/auth}
+      audiences: clinica-api, practitioners-service
+    revocation:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+
+springdoc:
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+
+---
+spring:
+  config:
+    activate:
+      on-profile: openbao
+    import:
+      - vault://secret/practitioners/db/migrator?prefix=practitioners.db.migrator.
+      - vault://secret/practitioners/db/app?prefix=practitioners.db.app.
+  cloud:
+    vault:
+      enabled: true
+      uri: ${OPENBAO_ADDR:https://openbao:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${approle.role-id}
+        secret-id: ${approle.secret-id}
+      ssl:
+        trust-store: file:/run/secrets/openbao-tls/ca.crt
+        trust-store-type: PEM
+  datasource:
+    username: ${practitioners.db.app.username}
+    password: ${practitioners.db.app.password}
+  flyway:
+    user: ${practitioners.db.migrator.username}
+    password: ${practitioners.db.migrator.password}

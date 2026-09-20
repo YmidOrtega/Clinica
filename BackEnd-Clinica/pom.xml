@@ -44,7 +44,7 @@
 		<module>clinical-history-service</module>
 		<module>eureka-service</module>
 		<module>patient-service</module>
-		<module>suppliers-service</module>
+		<module>practitioners-service</module>
 	</modules>
 
 	<dependencyManagement>
