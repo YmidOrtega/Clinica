@@ -21,4 +21,11 @@ public sealed abstract class PatientDirectoryException extends DomainException {
                     "No se pudo consultar el registro de pacientes; intenta de nuevo en unos segundos");
         }
     }
+
+    public static final class CannotRegisterUnidentified extends PatientDirectoryException {
+        public CannotRegisterUnidentified() {
+            super(ErrorCategory.RULE_VIOLATION, "UNIDENTIFIED_PATIENT_NOT_REGISTERED",
+                    "No se pudo registrar al paciente sin identificar; no se creó la admisión");
+        }
+    }
 }
