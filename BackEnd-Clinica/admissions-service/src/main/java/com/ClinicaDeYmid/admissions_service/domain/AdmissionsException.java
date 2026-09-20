@@ -192,6 +192,32 @@ public sealed abstract class AdmissionsException extends DomainException {
         }
     }
 
+    public static final class AuthorizationNotFound extends AdmissionsException {
+        public AuthorizationNotFound() {
+            super(ErrorCategory.NOT_FOUND, "AUTHORIZATION_NOT_FOUND", "No se encontró la autorización solicitada");
+        }
+    }
+
+    public static final class AuthorizationAlreadyRevoked extends AdmissionsException {
+        public AuthorizationAlreadyRevoked() {
+            super(ErrorCategory.RULE_VIOLATION, "AUTHORIZATION_ALREADY_REVOKED", "La autorización ya estaba revocada");
+        }
+    }
+
+    public static final class AuthorizationNumberAlreadyUsed extends AdmissionsException {
+        public AuthorizationNumberAlreadyUsed() {
+            super(ErrorCategory.CONFLICT, "AUTHORIZATION_NUMBER_ALREADY_USED",
+                    "Ese número de autorización ya está registrado en el episodio");
+        }
+    }
+
+    public static final class ClosedAdmission extends AdmissionsException {
+        public ClosedAdmission() {
+            super(ErrorCategory.RULE_VIOLATION, "ADMISSION_CLOSED",
+                    "El episodio ya está cerrado y no admite cambios");
+        }
+    }
+
     public static final class RetiredLocation extends AdmissionsException {
         public RetiredLocation() {
             super(ErrorCategory.RULE_VIOLATION, "LOCATION_RETIRED", "No se puede usar una ubicación retirada");
