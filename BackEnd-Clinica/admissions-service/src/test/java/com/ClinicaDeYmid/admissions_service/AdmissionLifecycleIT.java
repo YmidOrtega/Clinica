@@ -18,28 +18,20 @@ import com.ClinicaDeYmid.admissions_service.domain.ServiceType;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
-import com.ClinicaDeYmid.admissions_service.support.PostgresTestContainer;
+import com.ClinicaDeYmid.admissions_service.support.TestSequence;
+import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.LocalDate;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest
-@Import(PostgresTestContainer.class)
-class AdmissionLifecycleIT {
-
-    private static final AtomicInteger SEQUENCE = new AtomicInteger();
+class AdmissionLifecycleIT extends IntegrationTest {
 
     @Autowired
     private AdmissionCommands commands;
@@ -58,11 +50,6 @@ class AdmissionLifecycleIT {
 
     @Autowired
     private JdbcTemplate jdbc;
-
-    @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-        JwtTestTokens.register(registry);
-    }
 
     @Test
     void registersAnEmergencyAdmissionWithItsOwnNumber() {
@@ -167,7 +154,7 @@ class AdmissionLifecycleIT {
     }
 
     private UUID aBed() {
-        int index = SEQUENCE.incrementAndGet();
+        int index = TestSequence.next();
         Location where = catalogue.defineLocation("Piso cama " + index);
         return bedCommands.installBed("Cama " + index,
                 bedCommands.openRoom("Hab " + index, where.uuid()).uuid()).uuid();
@@ -180,7 +167,7 @@ class AdmissionLifecycleIT {
     private UUID aPatient(String status) {
         UUID uuid = UUID.randomUUID();
         patients.saveIfNewer(new PatientReference.Registered(uuid, 1,
-                new PatientReference.Document("CEDULA_DE_CIUDADANIA", "10" + SEQUENCE.incrementAndGet()),
+                new PatientReference.Document("CEDULA_DE_CIUDADANIA", "10" + TestSequence.next()),
                 "Ana María", "Restrepo Gómez", LocalDate.of(1990, 4, 12), PatientReference.Sex.FEMALE,
                 PatientReference.Registered.Status.valueOf(status),
                 "DECEASED".equals(status) ? LocalDate.of(2026, 9, 19) : null, "CONTRIBUTORY", null));
@@ -196,7 +183,7 @@ class AdmissionLifecycleIT {
     }
 
     private UUID configured(String service, AdmissionKind kind, String location) {
-        int index = SEQUENCE.incrementAndGet();
+        int index = TestSequence.next();
         ServiceType type = catalogue.defineServiceType(service + " " + index, kind);
         Location where = catalogue.defineLocation(location + " " + index);
         ConfigurationService configured = catalogue.configure(type.uuid(), where.uuid());

@@ -1,26 +1,21 @@
 package com.ClinicaDeYmid.admissions_service;
 
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
-import com.ClinicaDeYmid.admissions_service.support.PostgresTestContainer;
+import com.ClinicaDeYmid.admissions_service.support.TestSequence;
+import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,25 +24,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@Import(PostgresTestContainer.class)
-class BedApiIT {
+class BedApiIT extends IntegrationTest {
 
     private static final String BASE = "/api/v1/admissions";
     private static final String CATALOGUE = BASE + "/catalogue";
-    private static final AtomicInteger SEQUENCE = new AtomicInteger();
-
-    @Autowired
-    private MockMvc mockMvc;
-
     @Autowired
     private JdbcTemplate jdbc;
-
-    @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-        JwtTestTokens.register(registry);
-    }
 
     @Test
     void installsABedAndWalksItThroughItsWholeLifecycle() throws Exception {
@@ -194,24 +176,11 @@ class BedApiIT {
                 .andReturn().getResponse().getContentAsString());
     }
 
-    private ResultActions as(String role, MockHttpServletRequestBuilder request) throws Exception {
-        return mockMvc.perform(request.contentType(MediaType.APPLICATION_JSON)
-                .header(HttpHeaders.AUTHORIZATION, JwtTestTokens.bearer(role)));
-    }
-
-    private ResultActions change(String role, MockHttpServletRequestBuilder request, long version, String body)
-            throws Exception {
-        MockHttpServletRequestBuilder prepared = request.contentType(MediaType.APPLICATION_JSON)
-                .header(HttpHeaders.IF_MATCH, "\"" + version + "\"")
-                .header(HttpHeaders.AUTHORIZATION, JwtTestTokens.bearer(role));
-        return mockMvc.perform(body == null ? prepared.content("{}") : prepared.content(body));
-    }
-
     private static String uuidOf(String json) {
         return JsonPath.read(json, "$.uuid");
     }
 
     private static String unique(String prefix) {
-        return prefix + " " + SEQUENCE.incrementAndGet();
+        return prefix + " " + TestSequence.next();
     }
 }

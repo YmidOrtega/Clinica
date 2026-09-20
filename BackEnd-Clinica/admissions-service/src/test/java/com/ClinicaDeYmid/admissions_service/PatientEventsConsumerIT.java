@@ -4,7 +4,7 @@ import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.admissions_service.support.PatientEvents;
-import com.ClinicaDeYmid.admissions_service.support.PostgresTestContainer;
+import com.ClinicaDeYmid.admissions_service.support.SharedPostgres;
 import com.ClinicaDeYmid.admissions_service.support.ProducerContract;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -22,7 +22,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.kafka.KafkaContainer;
@@ -37,7 +36,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
-@Import(PostgresTestContainer.class)
 class PatientEventsConsumerIT {
 
     private static final String TOPIC = "patient.events.v1";
@@ -72,6 +70,7 @@ class PatientEventsConsumerIT {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
+        SharedPostgres.register(registry);
         JwtTestTokens.register(registry);
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         registry.add("clinica.admissions.patient-events.enabled", () -> true);
