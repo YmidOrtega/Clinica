@@ -128,6 +128,20 @@ public sealed abstract class PractitionersException extends DomainException {
         }
     }
 
+    public static final class FeesForRetiredPractitioner extends PractitionersException {
+        public FeesForRetiredPractitioner() {
+            super(ErrorCategory.RULE_VIOLATION, "FEES_FOR_RETIRED_PRACTITIONER",
+                    "No se pactan honorarios con un profesional retirado");
+        }
+    }
+
+    public static final class FeeAgreementOverlaps extends PractitionersException {
+        public FeeAgreementOverlaps() {
+            super(ErrorCategory.RULE_VIOLATION, "FEE_AGREEMENT_OVERLAPS",
+                    "El acuerdo nuevo debe empezar después del que está vigente");
+        }
+    }
+
     public static final class SpecialtyNotActiveForPractitioner extends PractitionersException {
         public SpecialtyNotActiveForPractitioner(String code) {
             super(ErrorCategory.RULE_VIOLATION, "SPECIALTY_NOT_ACTIVE",
