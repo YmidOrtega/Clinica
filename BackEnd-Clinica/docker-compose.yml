@@ -869,6 +869,8 @@ services:
          - GATEWAY_AUTH_SERVICE_URI=http://auth-service:8086
          - GATEWAY_PATIENT_SERVICE_URI=http://patient-service:8081
          - GATEWAY_CLINICAL_SERVICE_URI=http://clinical-history-service:8089
+         - GATEWAY_CONTRACTING_SERVICE_URI=http://contracting-service:8087
+         - GATEWAY_PRACTITIONERS_SERVICE_URI=http://practitioners-service:8085
          - GATEWAY_FRONTEND_ORIGINS=${GATEWAY_FRONTEND_ORIGINS:-http://localhost:4321}
          - GATEWAY_FRONTEND_HOME_URL=${GATEWAY_FRONTEND_HOME_URL:-http://localhost:4321/}
          - GATEWAY_SESSION_SAME_SITE=${GATEWAY_SESSION_SAME_SITE:-lax}

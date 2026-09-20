@@ -43,7 +43,10 @@ class RouteConfiguration {
                         .or(path("/api/v1/portfolio-items/**")).or(path("/api/v1/portfolio-items"))
                         .or(path("/api/v1/tariff-manuals/**")).or(path("/api/v1/tariff-manuals"))
                         .or(path("/api/v1/price-quotes")).or(path("/api/v1/funding-agreements/**"))
-                        .or(path("/api/v1/capitated-members/**")), properties.routes().contractingService(), headers, tokens));
+                        .or(path("/api/v1/capitated-members/**")), properties.routes().contractingService(), headers, tokens))
+                .and(staffRoute("practitioners-service", path("/api/v1/practitioners/**").or(path("/api/v1/practitioners"))
+                        .or(path("/api/v1/specialties/**")).or(path("/api/v1/specialties"))
+                        .or(path("/api/v1/sub-specialties/**")), properties.routes().practitionersService(), headers, tokens));
     }
 
     private static RouterFunction<ServerResponse> staffRoute(String id, RequestPredicate predicate, String target, ProxiedHeaders headers,
