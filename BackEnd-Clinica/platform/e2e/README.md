@@ -119,6 +119,29 @@ Los pasos de precios usan los tokens sintéticos de `staff-token.sh`; la carga d
 puede usarlos, porque `contracting-service` intercambia el token de quien llama en `auth-service` y ese
 intercambio exige una sesión real.
 
+## Prueba del directorio profesional
+
+`practitioners-e2e.sh` recorre `practitioners-service` contra el stack real; necesita además `auth-service`
+y `mailpit` publicados, porque comprueba el vínculo con una cuenta de verdad:
+
+```bash
+docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml \
+  up -d --build auth-service practitioners-service clinical-history-service kafka-connect-init mailpit
+COMPOSE_PROJECT=clinical-e2e sh platform/e2e/practitioners-e2e.sh
+```
+
+| Paso | Qué demuestra |
+|---|---|
+| Catálogo | La especialidad y su subespecialidad se registran, y volver a cargar el catálogo no cambia nada |
+| Ficha | Se registra el profesional, se le asignan especialidades y corregir sin `If-Match` responde `428` |
+| Búsqueda | El documento viaja en el cuerpo, nunca en la URL |
+| Cuenta invitada | Al vincular una cuenta recién invitada, el directorio la muestra como no activa |
+| Cuenta activada | Cuando la médica activa su cuenta, el directorio lo refleja sin que nadie toque al profesional |
+| Honorarios | Se pactan por hora y luego por procedimiento; en marzo sigue rigiendo el acuerdo por hora y recepción no los ve |
+| Eventos | El outbox guarda el historial, Debezium lo publica en `practitioners.v1` y **los honorarios no viajan** |
+| Historia clínica | `clinical-history` recibe el registro profesional de quien firma |
+| Permisos | Un médico no consulta el directorio y recepción no escribe el catálogo |
+
 ## Prueba del gateway
 
 `gateway-e2e.sh` recorre el BFF con el navegador simulado por `curl`, contra `api-gateway`,

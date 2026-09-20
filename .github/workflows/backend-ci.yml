@@ -164,14 +164,16 @@ jobs:
 
       - name: Package the services of the stack
         run: |
-          for service in eureka-service auth-service patient-service clinical-history-service contracting-service api-gateway; do
+          for service in eureka-service auth-service patient-service clinical-history-service contracting-service \
+                         practitioners-service api-gateway; do
             mvn package -DskipTests -f "$service/pom.xml"
           done
 
       - name: Start the stack
         run: |
           docker compose -p "$COMPOSE_PROJECT" -f docker-compose.yml -f docker-compose.debug.yml \
-            up -d --build api-gateway auth-service patient-service clinical-history-service contracting-service kafka-connect-init mailpit
+            up -d --build api-gateway auth-service patient-service clinical-history-service contracting-service \
+              practitioners-service kafka-connect-init mailpit
           for attempt in $(seq 1 120); do
             if [ -z "$(docker ps -q --filter health=starting --filter health=unhealthy)" ] \
                 && curl -sf http://localhost:8080/actuator/health > /dev/null; then
@@ -190,6 +192,9 @@ jobs:
 
       - name: Contracting, tariffs and prices
         run: sh platform/e2e/contracting-e2e.sh
+
+      - name: Practitioners, catalogue and fees
+        run: sh platform/e2e/practitioners-e2e.sh
 
       - name: OpenBao failover and isolation
         run: sh platform/e2e/openbao-e2e.sh
