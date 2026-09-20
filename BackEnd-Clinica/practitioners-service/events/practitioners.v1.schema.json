@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinicadeymid.local/events/practitioners.v1.schema.json",
+  "title": "practitioners.v1",
+  "description": "Estado completo del profesional después del cambio; el topic está compactado por su uuid",
+  "type": "object",
+  "required": ["eventId", "type", "occurredAt", "practitionerUuid", "version", "document", "firstNames", "lastNames",
+    "fullName", "registration", "contact", "relationship", "status", "specialties"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {"type": "string", "format": "uuid"},
+    "type": {
+      "type": "string",
+      "enum": ["PractitionerRegistered", "PractitionerIdentityCorrected", "PractitionerRegistrationCorrected",
+        "PractitionerContactUpdated", "PractitionerRelationshipAgreed", "PractitionerSpecialtiesAssigned",
+        "PractitionerSuspended", "PractitionerRetired", "PractitionerReinstated", "PractitionerAccountLinked",
+        "PractitionerAccountUnlinked"]
+    },
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "traceId": {"type": "string"},
+    "practitionerUuid": {"type": "string", "format": "uuid"},
+    "version": {"type": "integer", "minimum": 0},
+    "document": {
+      "type": "object",
+      "required": ["type", "number"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["CEDULA_DE_CIUDADANIA", "CEDULA_DE_EXTRANJERIA", "PASAPORTE", "PERMISO_ESPECIAL_DE_PERMANENCIA",
+            "PERMISO_POR_PROTECCION_TEMPORAL", "DOCUMENTO_EXTRANJERO"]
+        },
+        "number": {"type": "string", "pattern": "^[A-Z0-9-]{4,20}$"}
+      }
+    },
+    "firstNames": {"type": "string", "minLength": 2},
+    "lastNames": {"type": "string", "minLength": 2},
+    "fullName": {"type": "string", "minLength": 5},
+    "registration": {
+      "type": "object",
+      "required": ["number"],
+      "additionalProperties": false,
+      "properties": {
+        "number": {"type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{4,29}$"},
+        "registeredOn": {"type": "string", "format": "date"}
+      }
+    },
+    "contact": {
+      "type": "object",
+      "required": ["email", "mobile"],
+      "additionalProperties": false,
+      "properties": {
+        "email": {"type": "string", "format": "email"},
+        "mobile": {"type": "string", "pattern": "^3[0-9]{9}$"}
+      }
+    },
+    "relationship": {"type": "string", "enum": ["STAFF", "CONTRACTOR", "EXTERNAL"]},
+    "status": {
+      "type": "object",
+      "required": ["code"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {"type": "string", "enum": ["ACTIVE", "SUSPENDED", "RETIRED"]},
+        "reason": {"type": "string", "minLength": 10},
+        "since": {"type": "string", "format": "date-time"}
+      }
+    },
+    "specialties": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["specialtyCode", "specialtyName", "principal"],
+        "additionalProperties": false,
+        "properties": {
+          "specialtyCode": {"type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{1,19}$"},
+          "specialtyName": {"type": "string"},
+          "subSpecialtyCode": {"type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{1,19}$"},
+          "subSpecialtyName": {"type": "string"},
+          "principal": {"type": "boolean"}
+        }
+      }
+    },
+    "authUserUuid": {"type": "string", "format": "uuid"}
+  }
+}

@@ -130,7 +130,7 @@ services:
       networks:
          - secrets-net
       healthcheck:
-         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password; do test -s /rendered/$$f || exit 1; done"]
+         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password kafka-connect/practitioners-db-debezium-password; do test -s /rendered/$$f || exit 1; done"]
          interval: 5s
          timeout: 3s
          retries: 24
@@ -508,6 +508,7 @@ services:
          CLINICAL_DB_HOST: clinical-db
          AUTH_DB_HOST: auth-db
          CONTRACTING_DB_HOST: contracting-db
+         PRACTITIONERS_DB_HOST: practitioners-db
       volumes:
          - kafka_connect_secrets:/run/secrets/kafka-connect:ro
       networks:
@@ -516,6 +517,7 @@ services:
          - clinical-data
          - auth-data
          - contracting-data
+         - practitioners-data
       healthcheck:
          test: ["CMD-SHELL", "curl -fs http://localhost:8083/connectors > /dev/null"]
          interval: 10s
@@ -538,6 +540,8 @@ services:
             condition: service_healthy
          contracting-db:
             condition: service_healthy
+         practitioners-db:
+            condition: service_healthy
       entrypoint: ["sh", "/register-connectors.sh"]
       volumes:
          - ./platform/kafka-connect/register-connectors.sh:/register-connectors.sh:ro
@@ -545,6 +549,7 @@ services:
          - ./clinical-history-service/debezium:/connectors/clinical-history-service:ro
          - ./auth-service/debezium:/connectors/auth-service:ro
          - ./contracting-service/debezium:/connectors/contracting-service:ro
+         - ./practitioners-service/debezium:/connectors/practitioners-service:ro
       networks:
          - kafka-net
 

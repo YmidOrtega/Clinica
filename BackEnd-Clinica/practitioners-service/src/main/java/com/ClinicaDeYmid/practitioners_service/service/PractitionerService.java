@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.practitioners_service.service;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import com.ClinicaDeYmid.practitioners_service.client.StaffAccountDirectory;
 import com.ClinicaDeYmid.practitioners_service.repository.PractitionerHistoryRepository;
+import com.ClinicaDeYmid.practitioners_service.repository.PractitionerOutbox;
 import com.ClinicaDeYmid.practitioners_service.repository.PractitionerRepository;
 import com.ClinicaDeYmid.practitioners_service.repository.SpecialtyRepository;
 import com.ClinicaDeYmid.practitioners_service.repository.SubSpecialtyRepository;
@@ -43,16 +44,18 @@ public class PractitionerService {
     private final SubSpecialtyRepository subSpecialties;
     private final PractitionerHistoryRepository history;
     private final StaffAccountDirectory accounts;
+    private final PractitionerOutbox outbox;
     private final Clock clock;
 
     public PractitionerService(PractitionerRepository practitioners, SpecialtyRepository specialties,
                                SubSpecialtyRepository subSpecialties, PractitionerHistoryRepository history,
-                               StaffAccountDirectory accounts, Clock clock) {
+                               StaffAccountDirectory accounts, PractitionerOutbox outbox, Clock clock) {
         this.practitioners = practitioners;
         this.specialties = specialties;
         this.subSpecialties = subSpecialties;
         this.history = history;
         this.accounts = accounts;
+        this.outbox = outbox;
         this.clock = clock;
     }
 
@@ -66,6 +69,7 @@ public class PractitionerService {
         refuseRepeatedEmail(contact.email(), null);
         Practitioner registered = practitioners.saveAndFlush(Practitioner.register(document, command.firstNames(),
                 command.lastNames(), registration, contact, relationship(command.relationship())));
+        outbox.practitionerChanged(registered, PractitionerEvents.REGISTERED);
         log.info("Practitioner registered: uuid={} registration={}", registered.uuid(), registration.number());
         return PractitionerView.of(registered, accounts);
     }
@@ -73,7 +77,7 @@ public class PractitionerService {
     @Transactional
     public PractitionerView correctIdentity(UUID uuid, long expectedVersion, Identity command) {
         IdentityDocument document = document(command.document());
-        return change(uuid, expectedVersion, practitioner -> {
+        return change(uuid, expectedVersion, PractitionerEvents.IDENTITY_CORRECTED, practitioner -> {
             refuseRepeatedDocument(document, practitioner.uuid());
             practitioner.correctIdentity(document, command.firstNames(), command.lastNames());
         });
@@ -83,7 +87,7 @@ public class PractitionerService {
     public PractitionerView correctRegistration(UUID uuid, long expectedVersion,
                                                 PractitionerCommands.Registration command) {
         ProfessionalRegistration registration = registration(command);
-        return change(uuid, expectedVersion, practitioner -> {
+        return change(uuid, expectedVersion, PractitionerEvents.REGISTRATION_CORRECTED, practitioner -> {
             refuseRepeatedRegistration(registration.number(), practitioner.uuid());
             practitioner.correctRegistration(registration);
         });
@@ -92,7 +96,7 @@ public class PractitionerService {
     @Transactional
     public PractitionerView correctContact(UUID uuid, long expectedVersion, PractitionerCommands.Contact command) {
         ContactInfo contact = contact(command);
-        return change(uuid, expectedVersion, practitioner -> {
+        return change(uuid, expectedVersion, PractitionerEvents.CONTACT_UPDATED, practitioner -> {
             refuseRepeatedEmail(contact.email(), practitioner.uuid());
             practitioner.correctContact(contact);
         });
@@ -100,12 +104,14 @@ public class PractitionerService {
 
     @Transactional
     public PractitionerView agreeRelationship(UUID uuid, long expectedVersion, RelationshipType relationship) {
-        return change(uuid, expectedVersion, practitioner -> practitioner.agreeRelationship(relationship(relationship)));
+        return change(uuid, expectedVersion, PractitionerEvents.RELATIONSHIP_AGREED,
+                practitioner -> practitioner.agreeRelationship(relationship(relationship)));
     }
 
     @Transactional
     public PractitionerView assignSpecialties(UUID uuid, long expectedVersion, Assignments command) {
-        return change(uuid, expectedVersion, practitioner -> practitioner.assign(resolve(practitioner, command), clock));
+        return change(uuid, expectedVersion, PractitionerEvents.SPECIALTIES_ASSIGNED,
+                practitioner -> practitioner.assign(resolve(practitioner, command), clock));
     }
 
     @Transactional
@@ -117,7 +123,7 @@ public class PractitionerService {
         if (accounts.find(userUuid).isEmpty()) {
             throw new PractitionersException.AuthUserNotFound();
         }
-        return change(uuid, expectedVersion, practitioner -> {
+        return change(uuid, expectedVersion, PractitionerEvents.ACCOUNT_LINKED, practitioner -> {
             practitioners.findByAuthUserUuid(userUuid)
                     .filter(other -> !other.uuid().equals(practitioner.uuid()))
                     .ifPresent(other -> {
@@ -130,22 +136,24 @@ public class PractitionerService {
 
     @Transactional
     public PractitionerView unlinkAccount(UUID uuid, long expectedVersion) {
-        return change(uuid, expectedVersion, Practitioner::unlinkAccount);
+        return change(uuid, expectedVersion, PractitionerEvents.ACCOUNT_UNLINKED, Practitioner::unlinkAccount);
     }
 
     @Transactional
     public PractitionerView suspend(UUID uuid, long expectedVersion, String reason) {
-        return change(uuid, expectedVersion, practitioner -> practitioner.suspend(reason, clock));
+        return change(uuid, expectedVersion, PractitionerEvents.SUSPENDED,
+                practitioner -> practitioner.suspend(reason, clock));
     }
 
     @Transactional
     public PractitionerView retire(UUID uuid, long expectedVersion, String reason) {
-        return change(uuid, expectedVersion, practitioner -> practitioner.retire(reason, clock));
+        return change(uuid, expectedVersion, PractitionerEvents.RETIRED,
+                practitioner -> practitioner.retire(reason, clock));
     }
 
     @Transactional
     public PractitionerView reinstate(UUID uuid, long expectedVersion) {
-        return change(uuid, expectedVersion, Practitioner::reinstate);
+        return change(uuid, expectedVersion, PractitionerEvents.REINSTATED, Practitioner::reinstate);
     }
 
     @Transactional(readOnly = true)
@@ -195,14 +203,16 @@ public class PractitionerService {
         }).toList();
     }
 
-    private PractitionerView change(UUID uuid, long expectedVersion, Consumer<Practitioner> change) {
+    private PractitionerView change(UUID uuid, long expectedVersion, String event, Consumer<Practitioner> change) {
         Practitioner practitioner = practitioners.findByUuid(uuid)
                 .orElseThrow(PractitionersException.PractitionerNotFound::new);
         if (practitioner.version() != expectedVersion) {
             throw new EntityTags.StaleVersion();
         }
         change.accept(practitioner);
-        return PractitionerView.of(practitioners.saveAndFlush(practitioner), accounts);
+        Practitioner changed = practitioners.saveAndFlush(practitioner);
+        outbox.practitionerChanged(changed, event);
+        return PractitionerView.of(changed, accounts);
     }
 
     private void refuseRepeatedDocument(IdentityDocument document, UUID allowed) {

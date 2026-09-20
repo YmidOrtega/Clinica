@@ -309,3 +309,15 @@ template {
   destination = "/rendered/kafka-connect/contracting-db-debezium-password"
   perms       = "0444"
 }
+
+template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/debezium\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/kafka-connect/practitioners-db-debezium-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/practitioners/db/debezium\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/kafka-connect/practitioners-db-debezium-password"
+  perms       = "0444"
+}
