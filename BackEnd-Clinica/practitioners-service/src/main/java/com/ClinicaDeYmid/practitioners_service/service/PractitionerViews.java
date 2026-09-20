@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.practitioners_service.service;
 
+import com.ClinicaDeYmid.practitioners_service.client.StaffAccountDirectory;
 import com.ClinicaDeYmid.practitioners_service.repository.PractitionerHistoryRepository;
 import com.ClinicaDeYmid.practitioners_service.repository.entity.Practitioner;
 import com.ClinicaDeYmid.practitioners_service.repository.entity.PractitionerSpecialty;
@@ -48,13 +49,31 @@ public final class PractitionerViews {
         }
     }
 
+    public record AccountView(boolean linked, UUID userUuid, String state) {
+
+        static final String UNKNOWN = "UNKNOWN";
+
+        static AccountView of(Practitioner practitioner, StaffAccountDirectory directory) {
+            if (practitioner.authUserUuid() == null) {
+                return new AccountView(false, null, UNKNOWN);
+            }
+            if (!directory.readable()) {
+                return new AccountView(true, practitioner.authUserUuid(), UNKNOWN);
+            }
+            return new AccountView(true, practitioner.authUserUuid(),
+                    directory.find(practitioner.authUserUuid())
+                            .map(account -> account.active() ? "ACTIVE" : "INACTIVE")
+                            .orElse(UNKNOWN));
+        }
+    }
+
     public record PractitionerView(UUID uuid, long version, DocumentView document, String firstNames, String lastNames,
                                    String fullName, RegistrationView registration, ContactView contact,
                                    String relationship, String relationshipLabel, StatusView status,
                                    List<SpecialtyAssignmentView> specialties, Instant specialtiesAgreedAt,
-                                   Instant createdAt, Instant updatedAt) {
+                                   AccountView account, Instant createdAt, Instant updatedAt) {
 
-        static PractitionerView of(Practitioner practitioner) {
+        static PractitionerView of(Practitioner practitioner, StaffAccountDirectory directory) {
             return new PractitionerView(practitioner.uuid(), practitioner.version(),
                     new DocumentView(practitioner.document().type().name(), practitioner.document().type().label(),
                             practitioner.document().number()),
@@ -65,16 +84,17 @@ public final class PractitionerViews {
                     practitioner.relationship().name(), practitioner.relationship().label(),
                     StatusView.of(practitioner.status()),
                     practitioner.specialties().stream().map(SpecialtyAssignmentView::of).toList(),
-                    practitioner.specialtiesAgreedAt(), practitioner.createdAt(), practitioner.updatedAt());
+                    practitioner.specialtiesAgreedAt(), AccountView.of(practitioner, directory),
+                    practitioner.createdAt(), practitioner.updatedAt());
         }
     }
 
     public record RevisionView(long number, Instant revisedAt, String revisedBy, String changeType,
                                PractitionerView state) {
 
-        static RevisionView of(PractitionerHistoryRepository.Revision revision) {
+        static RevisionView of(PractitionerHistoryRepository.Revision revision, StaffAccountDirectory directory) {
             return new RevisionView(revision.number(), revision.revisedAt(), revision.revisedBy(),
-                    revision.changeType().name(), PractitionerView.of(revision.state()));
+                    revision.changeType().name(), PractitionerView.of(revision.state(), directory));
         }
     }
 }

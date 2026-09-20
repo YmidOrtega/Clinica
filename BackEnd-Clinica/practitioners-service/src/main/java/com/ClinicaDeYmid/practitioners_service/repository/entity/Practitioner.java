@@ -83,6 +83,10 @@ public class Practitioner {
     @Column(name = "specialties_agreed_at")
     private Instant specialtiesAgreedAt;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "auth_user_uuid", unique = true, length = 36)
+    private UUID authUserUuid;
+
     @NotAudited
     @OneToMany(mappedBy = "practitioner", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PractitionerSpecialty> specialties = new ArrayList<>();
@@ -152,6 +156,17 @@ public class Practitioner {
                 .forEach(specialties::add);
     }
 
+    public void linkAccount(UUID userUuid) {
+        authUserUuid = Rules.required(userUuid, "account.userUuid");
+    }
+
+    public void unlinkAccount() {
+        if (authUserUuid == null) {
+            throw new PractitionersException.AccountNotLinked();
+        }
+        authUserUuid = null;
+    }
+
     public void suspend(String reason, Clock clock) {
         apply(status().suspend(reason, Instant.now(clock)));
     }
@@ -210,6 +225,10 @@ public class Practitioner {
 
     public List<PractitionerSpecialty> specialties() {
         return List.copyOf(specialties);
+    }
+
+    public UUID authUserUuid() {
+        return authUserUuid;
     }
 
     public Instant specialtiesAgreedAt() {
