@@ -14,6 +14,10 @@ path "secret/data/practitioners/db/*" {
   capabilities = ["read"]
 }
 
+path "secret/data/admissions/db/*" {
+  capabilities = ["read"]
+}
+
 path "secret/data/auth/db/*" {
   capabilities = ["read"]
 }
