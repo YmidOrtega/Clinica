@@ -59,6 +59,69 @@ public sealed abstract class PractitionersException extends DomainException {
         }
     }
 
+    public static final class PractitionerNotFound extends PractitionersException {
+        public PractitionerNotFound() {
+            super(ErrorCategory.NOT_FOUND, "PRACTITIONER_NOT_FOUND", "No se encontró el profesional solicitado");
+        }
+    }
+
+    public static final class DocumentAlreadyRegistered extends PractitionersException {
+        public DocumentAlreadyRegistered() {
+            super(ErrorCategory.CONFLICT, "PRACTITIONER_DOCUMENT_ALREADY_REGISTERED",
+                    "Ya existe un profesional con ese documento");
+        }
+    }
+
+    public static final class RegistrationAlreadyUsed extends PractitionersException {
+        public RegistrationAlreadyUsed() {
+            super(ErrorCategory.CONFLICT, "PRACTITIONER_REGISTRATION_ALREADY_USED",
+                    "Ya existe un profesional con ese registro profesional");
+        }
+    }
+
+    public static final class EmailAlreadyUsed extends PractitionersException {
+        public EmailAlreadyUsed() {
+            super(ErrorCategory.CONFLICT, "PRACTITIONER_EMAIL_ALREADY_USED", "Ya existe un profesional con ese correo");
+        }
+    }
+
+    public static final class InvalidStatusTransition extends PractitionersException {
+
+        public InvalidStatusTransition(PractitionerStatusCode current, PractitionerStatusCode target) {
+            super(ErrorCategory.RULE_VIOLATION, "PRACTITIONER_INVALID_STATUS_TRANSITION",
+                    "Un profesional " + label(current) + " no puede pasar a " + label(target));
+        }
+
+        private static String label(PractitionerStatusCode code) {
+            return switch (code) {
+                case ACTIVE -> "activo";
+                case SUSPENDED -> "suspendido";
+                case RETIRED -> "retirado";
+            };
+        }
+    }
+
+    public static final class SpecialtyNotActiveForPractitioner extends PractitionersException {
+        public SpecialtyNotActiveForPractitioner(String code) {
+            super(ErrorCategory.RULE_VIOLATION, "SPECIALTY_NOT_ACTIVE",
+                    "La especialidad " + code + " no está activa en el catálogo");
+        }
+    }
+
+    public static final class SubSpecialtyOutsideSpecialty extends PractitionersException {
+        public SubSpecialtyOutsideSpecialty(String subSpecialtyCode, String specialtyCode) {
+            super(ErrorCategory.RULE_VIOLATION, "SUB_SPECIALTY_OUTSIDE_SPECIALTY",
+                    "La subespecialidad " + subSpecialtyCode + " no pertenece a la especialidad " + specialtyCode);
+        }
+    }
+
+    public static final class PrincipalSpecialtyRequired extends PractitionersException {
+        public PrincipalSpecialtyRequired() {
+            super(ErrorCategory.RULE_VIOLATION, "PRINCIPAL_SPECIALTY_REQUIRED",
+                    "El profesional debe tener exactamente una especialidad principal");
+        }
+    }
+
     public static final class SpecialtyNotActiveForSubSpecialty extends PractitionersException {
         public SpecialtyNotActiveForSubSpecialty() {
             super(ErrorCategory.RULE_VIOLATION, "SPECIALTY_NOT_ACTIVE",
