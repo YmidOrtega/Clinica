@@ -139,15 +139,6 @@ AI_ASSISTANT_DB_PASSWORD=AISecure123!
 AI_ASSISTANT_DB_HOST=localhost:3310
 ```
 
-#### Suppliers Service
-```bash
-SUPPLIERS_DB_ROOT_PASSWORD=SuppliersRootPass2024!
-SUPPLIERS_DB_NAME=suppliers_db
-SUPPLIERS_DB_USER=suppliers_user
-SUPPLIERS_DB_PASSWORD=SuppliersSecure123!
-SUPPLIERS_DB_HOST=jdbc:mysql://localhost:3311/suppliers_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-```
-
 #### Auth Service
 ```bash
 AUTH_DB_NAME=auth_db                                        # opcional
@@ -480,6 +471,21 @@ CONTRACTING_SERVICE_REPLICAS=2                   # opcional; réplicas en compos
 Con el perfil `openbao` el usuario y la contraseña de la base salen de `secret/contracting/db/{migrator,app}`
 y no se definen por entorno. `AUTH_ISSUER`, `AUTH_JWKS_URI`, `AUTH_TOKEN_URI`, `EUREKA_URL` y
 `KAFKA_BOOTSTRAP_SERVERS` son los mismos del resto de servicios.
+
+### practitioners-service
+
+```
+PRACTITIONERS_SERVICE_PORT=8085
+PRACTITIONERS_DB_URL=jdbc:mysql://practitioners-db:3306/practitioners_db
+PRACTITIONERS_DB_NAME=practitioners_db            # opcional; nombre del esquema principal
+PRACTITIONERS_DB_POOL_SIZE=15                     # opcional
+PRACTITIONERS_SERVICE_REPLICAS=2                  # opcional; réplicas en compose
+```
+
+Con el perfil `openbao` el usuario y la contraseña de la base salen de `secret/practitioners/db/{migrator,app}`.
+No tiene cliente OAuth ni clave transit: no llama a ningún servicio. `KAFKA_BOOTSTRAP_SERVERS` sí es
+necesario, porque de ahí lee `auth.users.v1` para verificar la cuenta que se vincula.
+`GATEWAY_PRACTITIONERS_SERVICE_URI` apunta al servicio desde el gateway.
 
 ### patient-service (cambios de esta versión)
 

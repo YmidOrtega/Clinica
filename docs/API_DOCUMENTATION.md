@@ -640,72 +640,43 @@ Cambia el estado de una atención.
 
 ---
 
-## 5. Suppliers Service — `/api/v1/doctors`
+## 5. Practitioners Service — `/api/v1`
 
-### GET `/`
+Directorio de profesionales de la salud, su catálogo de especialidades y sus honorarios. Autoriza por
+permiso (`practitioners:read`, `practitioners:manage`, `practitioners:manage-fees`), que hoy tienen
+`HUMAN_RESOURCES` y la administración. El documento y el registro profesional nunca viajan en la URL.
 
-Lista médicos activos con su especialidad.
+| Método y ruta | Para qué | Permiso |
+|---|---|---|
+| `POST /api/v1/specialties` · `/{uuid}/sub-specialties` | registrar especialidades y subespecialidades | manage |
+| `POST /api/v1/specialties/imports` | cargar el catálogo completo, idempotente por código | manage |
+| `GET /api/v1/specialties` · `/{uuid}` | consultar el catálogo, filtrando por estado o nombre | read |
+| `PUT /api/v1/specialties/{uuid}` · `POST .../deactivation` · `/reactivation` | corregir el nombre o cambiar el estado (`If-Match`) | manage |
+| `PUT /api/v1/sub-specialties/{uuid}` · `POST .../deactivation` · `/reactivation` | lo mismo para una subespecialidad | manage |
+| `POST /api/v1/practitioners` | registrar un profesional | manage |
+| `GET /api/v1/practitioners/{uuid}` · `/history` | consultar la ficha y su historial (Envers) | read |
+| `POST /api/v1/practitioners/search` | buscar por documento, registro, apellidos, especialidad o cuenta | read |
+| `PUT /api/v1/practitioners/{uuid}/identity` · `/registration` · `/contact` · `/relationship` | corregir la ficha (`If-Match`) | manage |
+| `PUT /api/v1/practitioners/{uuid}/specialties` | asignar sus especialidades, con exactamente una principal | manage |
+| `PUT` · `DELETE /api/v1/practitioners/{uuid}/account` | vincular o soltar la cuenta de auth | manage |
+| `POST /api/v1/practitioners/{uuid}/suspension` · `/retirement` · `/reinstatement` | cambiar su estado; nunca se borra | manage |
+| `POST` · `GET /api/v1/practitioners/{uuid}/fee-agreements` | pactar y consultar honorarios (**step-up**) | manage-fees |
+| `GET /api/v1/practitioners/{uuid}/fee-agreements/in-force?on=` | qué honorarios regían en una fecha (`204` si ninguno) | manage-fees |
 
-**Response `200 OK`:**
-```json
-{
-  "content": [
-    {
-      "id": "doc001-...",
-      "firstName": "Ana",
-      "lastName": "Martínez",
-      "specialty": "Cardiología",
-      "licenseNumber": "RM-12345",
-      "email": "a.martinez@clinica.com",
-      "status": "ACTIVE"
-    }
-  ]
-}
-```
+### Reglas que conviene conocer
 
----
-
-### GET `/{id}/schedule`
-
-Retorna el horario semanal del médico.
-
-**Response `200 OK`:**
-```json
-{
-  "doctorId": "doc001-...",
-  "schedule": [
-    {
-      "dayOfWeek": "MONDAY",
-      "startTime": "08:00",
-      "endTime": "14:00"
-    },
-    {
-      "dayOfWeek": "WEDNESDAY",
-      "startTime": "14:00",
-      "endTime": "20:00"
-    }
-  ]
-}
-```
-
----
-
-### POST `/{id}/unavailability`
-
-Registra un período de no disponibilidad (vacaciones, incapacidad, etc.).
-
-**Request:**
-```json
-{
-  "reason": "Vacaciones",
-  "startDate": "2025-07-01",
-  "endDate": "2025-07-15"
-}
-```
-
-**Response `201 Created`**
-
----
+- **Estados sellados**: `ACTIVE`, `SUSPENDED` y `RETIRED`; un retirado puede volver, y cada cambio exige
+  un motivo de al menos diez caracteres.
+- **Especialidades**: exactamente una principal, la subespecialidad debe pertenecer a su especialidad y
+  ambas deben estar activas en el catálogo. Desactivar una especialidad arrastra sus subespecialidades;
+  reactivarla no las devuelve solas.
+- **Cuenta**: el vínculo es opcional y explícito. Se valida contra la copia local de `auth.users.v1`; si esa
+  copia no está al día se responde `503`. El estado de la cuenta se muestra (`ACTIVE`, `INACTIVE`,
+  `UNKNOWN`) pero no decide si el profesional atiende: eso lo dice su propio estado.
+- **Honorarios**: append-only. Pactar uno revoca el vigente desde la nueva fecha, que debe ser posterior a
+  la anterior, y nada se reescribe. Por hora, por turno o por procedimiento (con una línea por código).
+- **Eventos**: cada cambio publica el estado completo en `practitioners.v1`, compactado por el uuid del
+  profesional. Los honorarios **no** viajan en el evento.
 
 ## 6. Contracting Service — `/api/v1`
 
