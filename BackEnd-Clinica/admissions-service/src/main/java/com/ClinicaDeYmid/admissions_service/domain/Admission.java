@@ -67,6 +67,9 @@ public class Admission {
     @Embedded
     private Companion companion;
 
+    @Embedded
+    private Coverage coverage;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private AdmissionStatus.Code statusCode;
@@ -143,6 +146,18 @@ public class Admission {
         AdmissionPhase next = AdmissionPhase.begin(this, service, now, reason);
         phases.add(next);
         return next;
+    }
+
+    public void assess(Coverage coverage) {
+        this.coverage = DomainRules.required(coverage, "coverage");
+    }
+
+    public boolean coveragePending() {
+        return coverage != null && coverage.pending();
+    }
+
+    public Coverage coverage() {
+        return coverage;
     }
 
     public void accompaniedBy(Companion companion) {

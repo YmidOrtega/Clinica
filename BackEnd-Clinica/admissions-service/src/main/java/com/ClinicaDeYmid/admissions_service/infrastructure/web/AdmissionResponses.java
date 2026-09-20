@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.admissions_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionPhase;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Cause;
+import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 
 import java.time.Instant;
 import java.util.List;
@@ -41,9 +42,19 @@ final class AdmissionResponses {
     record CompanionView(String fullName, String phoneNumber, String relationship) {
     }
 
+    record CoverageView(Coverage.Code status, UUID contractUuid, String contractNumber, UUID payerUuid,
+                        String detail, Instant checkedAt, boolean pending) {
+
+        static CoverageView from(Coverage coverage) {
+            return coverage == null ? null : new CoverageView(coverage.status(), coverage.contractUuid(),
+                    coverage.contractNumber(), coverage.payerUuid(), coverage.detail(), coverage.checkedAt(),
+                    coverage.pending());
+        }
+    }
+
     record AdmissionView(UUID uuid, String number, UUID patientUuid, Cause cause, UUID careTypeUuid,
                          AdmissionKind kind, boolean bedRequired, StatusView status, PhaseView currentPhase,
-                         List<PhaseView> phases, CompanionView companion) {
+                         List<PhaseView> phases, CompanionView companion, CoverageView coverage) {
 
         static AdmissionView from(Admission admission) {
             return new AdmissionView(admission.uuid(), admission.number(), admission.patientUuid(), admission.cause(),
@@ -52,7 +63,8 @@ final class AdmissionResponses {
                     PhaseView.from(admission.lastPhase()),
                     admission.phases().stream().map(PhaseView::from).toList(),
                     admission.companion() == null ? null : new CompanionView(admission.companion().fullName(),
-                            admission.companion().phoneNumber(), admission.companion().relationship()));
+                            admission.companion().phoneNumber(), admission.companion().relationship()),
+                    CoverageView.from(admission.coverage()));
         }
     }
 

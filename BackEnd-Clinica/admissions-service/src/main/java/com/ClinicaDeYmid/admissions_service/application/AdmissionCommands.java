@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.admissions_service.application;
 
+import com.ClinicaDeYmid.admissions_service.application.coverage.CoverageGate;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientDirectory;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientReferenceProjection;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientRegistry;
@@ -14,6 +15,7 @@ import com.ClinicaDeYmid.admissions_service.domain.Cause;
 import com.ClinicaDeYmid.admissions_service.domain.Companion;
 import com.ClinicaDeYmid.admissions_service.domain.ConfigurationService;
 import com.ClinicaDeYmid.admissions_service.domain.ConfigurationServices;
+import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.slf4j.Logger;
@@ -36,18 +38,20 @@ public class AdmissionCommands {
     private final CareTypes careTypes;
     private final PatientDirectory patients;
     private final PatientRegistry registry;
+    private final CoverageGate coverage;
     private final PatientReferenceProjection projection;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public AdmissionCommands(Admissions admissions, ConfigurationServices configurationServices, CareTypes careTypes,
-                             PatientDirectory patients, PatientRegistry registry,
+                             PatientDirectory patients, PatientRegistry registry, CoverageGate coverage,
                              PatientReferenceProjection projection, TransactionOperations transactions, Clock clock) {
         this.admissions = admissions;
         this.configurationServices = configurationServices;
         this.careTypes = careTypes;
         this.patients = patients;
         this.registry = registry;
+        this.coverage = coverage;
         this.projection = projection;
         this.transactions = transactions;
         this.clock = clock;
@@ -55,21 +59,31 @@ public class AdmissionCommands {
 
     public Admission register(UUID patientUuid, UUID configurationServiceUuid, Cause cause, UUID careTypeUuid,
                               Companion companion) {
+        return register(patientUuid, configurationServiceUuid, cause, careTypeUuid, companion, false);
+    }
+
+    public Admission register(UUID patientUuid, UUID configurationServiceUuid, Cause cause, UUID careTypeUuid,
+                              Companion companion, boolean overrideCoverage) {
         PatientReference patient = patients.require(patientUuid);
         if (!patient.admissible()) {
             throw new AdmissionsException.PatientNotAdmissible();
         }
+        ConfigurationService service = transactions.execute(status -> configurationServices
+                .findByUuid(configurationServiceUuid)
+                .orElseThrow(AdmissionsException.ConfigurationServiceNotFound::new));
+        Coverage assessed = coverage.assess(patient, service.kind(), overrideCoverage);
         return transactions.execute(status -> {
-            ConfigurationService service = configurationServices.findByUuid(configurationServiceUuid)
+            ConfigurationService attached = configurationServices.findByUuid(configurationServiceUuid)
                     .orElseThrow(AdmissionsException.ConfigurationServiceNotFound::new);
             CareType careType = careTypeUuid == null ? null : careTypes.findByUuid(careTypeUuid)
                     .orElseThrow(AdmissionsException.CareTypeNotFound::new);
             String number = admissions.nextNumber(LocalDate.now(clock).getYear());
-            Admission registered = admissions.save(
-                    Admission.register(number, patientUuid, service, cause, careType, companion, clock));
-            log.info("Admission registered: number={} patient={} kind={}",
-                    registered.number(), patientUuid, registered.kind());
-            return registered;
+            Admission registered = Admission.register(number, patientUuid, attached, cause, careType, companion, clock);
+            registered.assess(assessed);
+            admissions.save(registered);
+            log.info("Admission registered: number={} patient={} kind={} coverage={}",
+                    registered.number(), patientUuid, registered.kind(), assessed.status());
+            return reloaded(registered.uuid());
         });
     }
 

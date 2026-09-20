@@ -30,4 +30,8 @@ public class AdmissionQueries {
     public List<Admission> ofPatient(UUID patientUuid) {
         return admissions.findByPatient(patientUuid);
     }
+
+    public List<Admission> withPendingCoverage() {
+        return admissions.findWithPendingCoverage();
+    }
 }

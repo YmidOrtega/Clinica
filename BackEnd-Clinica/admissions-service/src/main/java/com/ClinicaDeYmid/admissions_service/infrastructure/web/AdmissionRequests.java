@@ -15,7 +15,7 @@ final class AdmissionRequests {
     }
 
     record Registration(@NotNull UUID patientUuid, @NotNull UUID configurationServiceUuid, @NotNull Cause cause,
-                        UUID careTypeUuid, CompanionPayload companion) {
+                        UUID careTypeUuid, CompanionPayload companion, boolean overrideCoverage) {
     }
 
     record UnidentifiedRegistration(@NotNull PatientReference.Sex sex,

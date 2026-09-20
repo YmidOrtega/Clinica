@@ -73,6 +73,9 @@ clinica:
     time-zone: America/Bogota
     patient-events:
       enabled: ${ADMISSIONS_PATIENT_EVENTS_ENABLED:true}
+    coverage:
+      ttl: ${ADMISSIONS_COVERAGE_TTL:10m}
+      maximum-size: ${ADMISSIONS_COVERAGE_CACHE_SIZE:5000}
   security:
     jwt:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
