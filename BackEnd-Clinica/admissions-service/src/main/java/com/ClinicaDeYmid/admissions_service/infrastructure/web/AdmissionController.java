@@ -41,12 +41,23 @@ class AdmissionController {
     }
 
     @PostMapping
-    @PreAuthorize(Access.ADMIT)
-    @Operation(summary = "Admitir a un paciente conocido")
+    @PreAuthorize(Access.ADMIT_OR_OVERRIDE)
+    @Operation(summary = "Admitir a un paciente conocido",
+            description = "Sin cobertura se bloquea en hospitalización y ambulatorio; en urgencias nunca. "
+                    + "overrideCoverage exige el permiso admissions:override-coverage")
     ResponseEntity<AdmissionView> register(@Valid @RequestBody AdmissionRequests.Registration request) {
         Admission admission = commands.register(request.patientUuid(), request.configurationServiceUuid(),
-                request.cause(), request.careTypeUuid(), companionOf(request.companion()));
+                request.cause(), request.careTypeUuid(), companionOf(request.companion()),
+                request.overrideCoverage());
         return created(admission);
+    }
+
+    @GetMapping("/pending-coverage")
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Listar los episodios admitidos sin cobertura resuelta",
+            description = "Alimenta la revisión administrativa y la facturación posterior")
+    List<AdmissionView> pendingCoverage() {
+        return queries.withPendingCoverage().stream().map(AdmissionView::from).toList();
     }
 
     @PostMapping("/unidentified")

@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.admissions_service.infrastructure.persistence;
 
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.Admissions;
+import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -43,6 +44,11 @@ class JpaAdmissions implements Admissions {
     @Override
     public List<Admission> findByPatient(UUID patientUuid) {
         return repository.findByPatient(patientUuid);
+    }
+
+    @Override
+    public List<Admission> findWithPendingCoverage() {
+        return repository.findByCoverageOtherThan(Coverage.Code.COVERED);
     }
 
     @Override

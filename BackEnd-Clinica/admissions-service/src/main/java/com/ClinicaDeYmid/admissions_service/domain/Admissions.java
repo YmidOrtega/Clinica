@@ -16,5 +16,7 @@ public interface Admissions {
 
     List<Admission> findByPatient(UUID patientUuid);
 
+    List<Admission> findWithPendingCoverage();
+
     String nextNumber(int year);
 }

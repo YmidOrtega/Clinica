@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.admissions_service.infrastructure.persistence;
 
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
+import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,4 +31,10 @@ interface AdmissionJpaRepository extends JpaRepository<Admission, Long> {
             + "left join fetch c.serviceType left join fetch c.location "
             + "where a.patientUuid = :patientUuid order by a.createdAt desc")
     List<Admission> findByPatient(@Param("patientUuid") UUID patientUuid);
+
+    @Query("select distinct a from Admission a left join fetch a.phases p left join fetch p.configurationService c "
+            + "left join fetch c.serviceType left join fetch c.location "
+            + "where a.coverage.status is not null and a.coverage.status <> :covered "
+            + "order by a.createdAt desc")
+    List<Admission> findByCoverageOtherThan(@Param("covered") Coverage.Code covered);
 }
