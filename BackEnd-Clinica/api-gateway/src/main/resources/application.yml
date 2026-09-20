@@ -72,6 +72,7 @@ clinica:
       patient-service: ${GATEWAY_PATIENT_SERVICE_URI:lb://patient-service}
       clinical-history-service: ${GATEWAY_CLINICAL_SERVICE_URI:lb://clinical-history-service}
       contracting-service: ${GATEWAY_CONTRACTING_SERVICE_URI:lb://contracting-service}
+      practitioners-service: ${GATEWAY_PRACTITIONERS_SERVICE_URI:lb://practitioners-service}
 
 eureka:
   client:
