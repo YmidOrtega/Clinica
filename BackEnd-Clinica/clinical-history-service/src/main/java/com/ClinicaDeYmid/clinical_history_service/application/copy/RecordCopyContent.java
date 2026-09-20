@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainLink;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainVerification;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
+import com.ClinicaDeYmid.clinical_history_service.domain.practitioner.PractitionerReference;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.ListItemHistory;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.VitalSignObservation;
 
@@ -28,6 +29,7 @@ public record RecordCopyContent(
         List<VitalSignObservation> vitalSigns,
         List<ChainVerification> chains,
         Map<LedgerEntry.Key, ChainLink> links,
+        Map<UUID, PractitionerReference> practitioners,
         String sealAlgorithm,
         String activeSealKeyId) {
 }

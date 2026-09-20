@@ -22,6 +22,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainVerifica
 import com.ClinicaDeYmid.clinical_history_service.domain.note.ClinicalNotes;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteVoid;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReference;
+import com.ClinicaDeYmid.clinical_history_service.domain.practitioner.PractitionerReferences;
 import com.ClinicaDeYmid.clinical_history_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.PatientChart;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class RecordCopyService {
@@ -57,6 +59,7 @@ public class RecordCopyService {
 
     private final PatientDirectory patients;
     private final PatientReferences references;
+    private final PractitionerReferences practitioners;
     private final Encounters encounters;
     private final ClinicalNotes notes;
     private final PatientChart chart;
@@ -69,12 +72,14 @@ public class RecordCopyService {
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public RecordCopyService(PatientDirectory patients, PatientReferences references, Encounters encounters, ClinicalNotes notes,
+    public RecordCopyService(PatientDirectory patients, PatientReferences references, PractitionerReferences practitioners,
+                             Encounters encounters, ClinicalNotes notes,
                              PatientChart chart, IntegrityQueries integrity, ChainLinks links, DocumentSealer sealer,
                              RecordCopyRenderer renderer,
                              RecordCopies copies, AccessAudit audit, TransactionOperations transactions, Clock clock) {
         this.patients = patients;
         this.references = references;
+        this.practitioners = practitioners;
         this.encounters = encounters;
         this.notes = notes;
         this.chart = chart;
@@ -112,7 +117,7 @@ public class RecordCopyService {
                     records, chart.listItemsOf(subjects), chart.vitalSignsOf(subjects, null, from, to), integrity.verifyPatient(patientUuid),
                     subjects.stream().flatMap(subject -> links.chainOf(subject).stream())
                             .collect(Collectors.toMap(ChainLink::entryKey, Function.identity(), (first, second) -> first)),
-                    sealAlgorithm, activeSealKeyId);
+                    practitioners.findAll(cliniciansOf(records)), sealAlgorithm, activeSealKeyId);
         });
         byte[] document = renderer.render(content);
         String sha256 = Attachment.sha256Of(document);
@@ -152,6 +157,15 @@ public class RecordCopyService {
                 return all;
             }
         }
+    }
+
+    private static List<UUID> cliniciansOf(List<EncounterRecord> records) {
+        return records.stream()
+                .flatMap(record -> Stream.concat(
+                        Stream.of(record.encounter().openedBy().uuid()),
+                        record.notes().stream().map(entry -> entry.note().author().uuid())))
+                .distinct()
+                .toList();
     }
 
     private EncounterRecord recordOf(Encounter encounter) {
