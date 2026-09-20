@@ -19,6 +19,10 @@ public enum StaffRole {
     BILLING(EnumSet.of(
             StaffPermission.CONTRACTING_READ,
             StaffPermission.CONTRACTING_QUOTE_PRICES)),
+    HUMAN_RESOURCES(EnumSet.of(
+            StaffPermission.PRACTITIONERS_READ,
+            StaffPermission.PRACTITIONERS_MANAGE,
+            StaffPermission.PRACTITIONERS_MANAGE_FEES)),
     RECEPTIONIST(EnumSet.of(StaffPermission.CONTRACTING_READ)),
     DOCTOR(EnumSet.noneOf(StaffPermission.class)),
     NURSE(EnumSet.noneOf(StaffPermission.class)),

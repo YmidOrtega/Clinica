@@ -42,6 +42,20 @@ class StaffAuthoritiesTest {
     }
 
     @Test
+    void humanResourcesOnlyReachesTheDirectory() {
+        assertThat(StaffRole.HUMAN_RESOURCES.permissions()).containsExactlyInAnyOrder(
+                StaffPermission.PRACTITIONERS_READ, StaffPermission.PRACTITIONERS_MANAGE,
+                StaffPermission.PRACTITIONERS_MANAGE_FEES);
+    }
+
+    @Test
+    void onlyTheAdministrativeRolesReachTheDirectory() {
+        assertThat(EnumSet.allOf(StaffRole.class).stream()
+                .filter(role -> role.permissions().contains(StaffPermission.PRACTITIONERS_MANAGE)))
+                .containsExactlyInAnyOrder(StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.HUMAN_RESOURCES);
+    }
+
+    @Test
     void permissionCodesAreUniqueAndNamespaced() {
         assertThat(EnumSet.allOf(StaffPermission.class).stream().map(StaffPermission::code).collect(Collectors.toSet()))
                 .hasSize(StaffPermission.values().length)
