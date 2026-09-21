@@ -77,6 +77,8 @@ clinica:
       enabled: ${ADMISSIONS_PRACTITIONER_EVENTS_ENABLED:true}
     clinical-events:
       enabled: ${ADMISSIONS_CLINICAL_EVENTS_ENABLED:true}
+    seal:
+      transit-key: ${ADMISSIONS_SEAL_TRANSIT_KEY:admissions-seal}
     coverage:
       ttl: ${ADMISSIONS_COVERAGE_TTL:10m}
       maximum-size: ${ADMISSIONS_COVERAGE_CACHE_SIZE:5000}
@@ -95,6 +97,15 @@ clinica:
         practitioners-service: practitioners-service
     revocation:
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+    public-paths:
+      - /actuator/health
+      - /actuator/health/**
+      - /actuator/info
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /api/v1/admissions/seal-keys
+      - /api/v1/admissions/receipts/verification
 
 management:
   endpoints:

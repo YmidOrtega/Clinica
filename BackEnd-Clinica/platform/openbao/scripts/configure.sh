@@ -88,6 +88,7 @@ transit_key patient-service-client ecdsa-p256
 transit_key clinical-history-service-client ecdsa-p256
 transit_key contracting-service-client ecdsa-p256
 transit_key admissions-service-client ecdsa-p256
+transit_key admissions-seal ecdsa-p256
 
 if ! bao auth list -format=json | jq -e 'has("approle/")' > /dev/null; then
   bao auth enable approle

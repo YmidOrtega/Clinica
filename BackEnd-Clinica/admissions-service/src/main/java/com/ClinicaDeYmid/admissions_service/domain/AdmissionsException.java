@@ -245,6 +245,12 @@ public sealed abstract class AdmissionsException extends DomainException {
         }
     }
 
+    public static final class ReceiptNotFound extends AdmissionsException {
+        public ReceiptNotFound() {
+            super(ErrorCategory.NOT_FOUND, "RECEIPT_NOT_FOUND", "No se encontró el comprobante solicitado");
+        }
+    }
+
     public static final class RetiredLocation extends AdmissionsException {
         public RetiredLocation() {
             super(ErrorCategory.RULE_VIOLATION, "LOCATION_RETIRED", "No se puede usar una ubicación retirada");

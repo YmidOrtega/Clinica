@@ -6,6 +6,14 @@ path "secret/data/admissions/db/app" {
   capabilities = ["read"]
 }
 
+path "transit/keys/admissions-seal" {
+  capabilities = ["read"]
+}
+
+path "transit/sign/admissions-seal" {
+  capabilities = ["update"]
+}
+
 path "transit/keys/admissions-service-client" {
   capabilities = ["read"]
 }

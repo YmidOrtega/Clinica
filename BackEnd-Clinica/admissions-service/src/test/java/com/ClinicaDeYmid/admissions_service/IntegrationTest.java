@@ -2,11 +2,13 @@ package com.ClinicaDeYmid.admissions_service;
 
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.admissions_service.support.SharedPostgres;
+import com.ClinicaDeYmid.admissions_service.support.TransitKeys;
 import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -17,6 +19,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(TransitKeys.class)
 abstract class IntegrationTest {
 
     @Autowired
@@ -35,6 +38,10 @@ abstract class IntegrationTest {
     @BeforeEach
     void resetStubbedServices() {
         StubbedServices.reset();
+    }
+
+    protected String bearer(String role) {
+        return JwtTestTokens.bearer(role);
     }
 
     protected ResultActions as(String role, MockHttpServletRequestBuilder request) throws Exception {

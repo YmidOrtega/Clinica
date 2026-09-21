@@ -27,6 +27,8 @@ public final class JwtTestTokens {
         registry.add("clinica.admissions.patient-events.enabled", () -> false);
         registry.add("clinica.admissions.practitioner-events.enabled", () -> false);
         registry.add("clinica.admissions.clinical-events.enabled", () -> false);
+        registry.add("clinica.admissions.seal.transit-key", () -> TransitKeys.SEAL_KEY);
+        registry.add("clinica.security.client.assertion-key", () -> TransitKeys.CLIENT_KEY);
     }
 
     public static String bearer(String role) {
