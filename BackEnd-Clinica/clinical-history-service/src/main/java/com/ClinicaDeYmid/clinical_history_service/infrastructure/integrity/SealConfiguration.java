@@ -1,5 +1,10 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
 
+import com.ClinicaDeYmid.clinical_history_service.domain.copy.RecordCopy;
+import com.ClinicaDeYmid.commons.documents.DocumentSealer;
+import com.ClinicaDeYmid.commons.documents.SealKeyRing;
+import com.ClinicaDeYmid.commons.documents.TransitDocumentSealer;
+import com.ClinicaDeYmid.commons.documents.TransitSealSigner;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitClient;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitKeys;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitProperties;
@@ -14,8 +19,18 @@ import java.time.Clock;
 public class SealConfiguration {
 
     @Bean
-    EcdsaClinicalSignature clinicalSignature(SealProperties properties, TransitClient transit, TransitProperties transitProperties, Clock clock) {
+    SealKeyRing sealKeyRing(SealProperties properties, TransitClient transit, TransitProperties transitProperties, Clock clock) {
         TransitKeys keys = new TransitKeys(transit, properties.transitKey(), transitProperties.keyRefreshInterval(), clock);
-        return new EcdsaClinicalSignature(SealKeyRing.of(new TransitSealSigner(keys), properties.retiredPublicKeys()));
+        return SealKeyRing.of(new TransitSealSigner(keys), properties.retiredPublicKeys());
+    }
+
+    @Bean
+    EcdsaClinicalSignature clinicalSignature(SealKeyRing keys) {
+        return new EcdsaClinicalSignature(keys);
+    }
+
+    @Bean
+    DocumentSealer recordCopySealer(SealKeyRing keys) {
+        return new TransitDocumentSealer(keys, RecordCopy.PURPOSE);
     }
 }

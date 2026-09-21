@@ -1,10 +1,10 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
+package com.ClinicaDeYmid.commons.documents;
 
 import java.security.PublicKey;
 import java.util.Map;
 import java.util.Optional;
 
-interface SealSigner {
+public interface SealSigner {
 
     String activeKeyId();
 

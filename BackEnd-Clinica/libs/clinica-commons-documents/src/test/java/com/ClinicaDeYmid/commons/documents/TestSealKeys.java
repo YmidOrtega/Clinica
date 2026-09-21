@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clinical_history_service.support;
+package com.ClinicaDeYmid.commons.documents;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;

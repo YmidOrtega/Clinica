@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
+package com.ClinicaDeYmid.commons.documents;
 
 import com.ClinicaDeYmid.commons.openbao.transit.KeyVersion;
 import com.ClinicaDeYmid.commons.openbao.transit.SignatureFormat;
@@ -12,14 +12,14 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-final class TransitSealSigner implements SealSigner {
+public final class TransitSealSigner implements SealSigner {
 
-    static final String KEY_TYPE = "ecdsa-p256";
+    public static final String KEY_TYPE = "ecdsa-p256";
 
     private final TransitKeys keys;
     private final ConcurrentMap<String, PublicKey> parsed = new ConcurrentHashMap<>();
 
-    TransitSealSigner(TransitKeys keys) {
+    public TransitSealSigner(TransitKeys keys) {
         this.keys = keys;
         keys.current().requireType(KEY_TYPE);
     }

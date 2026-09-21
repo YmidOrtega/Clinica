@@ -4,6 +4,8 @@ import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainLink;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainVerification;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.IntegrityProblem;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
+import com.ClinicaDeYmid.commons.documents.LocalSealSigner;
+import com.ClinicaDeYmid.commons.documents.SealKeyRing;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;

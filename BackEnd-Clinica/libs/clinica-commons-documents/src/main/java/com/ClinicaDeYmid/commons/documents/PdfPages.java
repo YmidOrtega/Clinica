@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.copy;
+package com.ClinicaDeYmid.commons.documents;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -15,12 +15,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-final class PdfPages implements AutoCloseable {
+public final class PdfPages implements AutoCloseable {
 
     private static final float MARGIN = 50;
     private static final float BOTTOM = 60;
 
-    enum Style {
+    public enum Style {
         TITLE(Standard14Fonts.FontName.HELVETICA_BOLD, 16, 22),
         SECTION(Standard14Fonts.FontName.HELVETICA_BOLD, 12, 18),
         SUBSECTION(Standard14Fonts.FontName.HELVETICA_BOLD, 10, 15),
@@ -46,14 +46,14 @@ final class PdfPages implements AutoCloseable {
     private PDPageContentStream stream;
     private float y;
 
-    PdfPages() {
+    public PdfPages() {
         for (Style style : Style.values()) {
             fonts.put(style, new PDType1Font(style.font));
         }
         newPage();
     }
 
-    void line(Style style, String text) {
+    public void line(Style style, String text) {
         for (String wrapped : wrap(style, sanitize(style, text == null ? "" : text))) {
             ensure(style.leading);
             write(style, MARGIN, wrapped);
@@ -61,7 +61,7 @@ final class PdfPages implements AutoCloseable {
         }
     }
 
-    void field(String label, String value) {
+    public void field(String label, String value) {
         if (value == null || value.isBlank()) {
             return;
         }
@@ -69,16 +69,16 @@ final class PdfPages implements AutoCloseable {
         line(Style.TEXT, value);
     }
 
-    void gap(float points) {
+    public void gap(float points) {
         y -= points;
         ensure(0);
     }
 
-    void pageBreak() {
+    public void pageBreak() {
         newPage();
     }
 
-    byte[] finish(String footerPrefix, String title) {
+    public byte[] finish(String footerPrefix, String title) {
         try {
             stream.close();
             int total = document.getNumberOfPages();

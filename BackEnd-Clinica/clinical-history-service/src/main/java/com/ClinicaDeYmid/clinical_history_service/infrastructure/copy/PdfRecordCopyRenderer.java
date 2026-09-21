@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.copy;
 
+import com.ClinicaDeYmid.commons.documents.PdfPages;
 import com.ClinicaDeYmid.clinical_history_service.application.copy.RecordCopyContent;
 import com.ClinicaDeYmid.clinical_history_service.application.copy.RecordCopyRenderer;
 import com.ClinicaDeYmid.clinical_history_service.application.record.ClinicalRecordQueries.EncounterRecord;
@@ -20,7 +21,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.update.AppliedUpdate;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.ListItemDetails;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.ListItemHistory;
 import com.ClinicaDeYmid.clinical_history_service.domain.update.VitalSignObservation;
-import com.ClinicaDeYmid.clinical_history_service.infrastructure.copy.PdfPages.Style;
+import com.ClinicaDeYmid.commons.documents.PdfPages.Style;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 

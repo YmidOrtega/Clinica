@@ -1,6 +1,5 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
+package com.ClinicaDeYmid.commons.documents;
 
-import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;

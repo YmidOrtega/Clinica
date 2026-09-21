@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
+package com.ClinicaDeYmid.commons.documents;
 
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
@@ -9,9 +9,9 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
-final class SealKeyRing {
+public final class SealKeyRing {
 
-    static final String ALGORITHM = "SHA256withECDSA";
+    public static final String ALGORITHM = "SHA256withECDSA";
 
     private static final Pattern KEY_ID = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
 
@@ -23,7 +23,7 @@ final class SealKeyRing {
         this.retired = Collections.unmodifiableMap(retired);
     }
 
-    static SealKeyRing of(SealSigner signer, Map<String, String> retiredPublicKeysPem) {
+    public static SealKeyRing of(SealSigner signer, Map<String, String> retiredPublicKeysPem) {
         Map<String, PublicKey> retired = new TreeMap<>();
         (retiredPublicKeysPem == null ? Map.<String, String>of() : retiredPublicKeysPem).forEach((keyId, pem) -> {
             if (!KEY_ID.matcher(keyId).matches()) {
@@ -37,19 +37,19 @@ final class SealKeyRing {
         return new SealKeyRing(signer, retired);
     }
 
-    String activeKeyId() {
+    public String activeKeyId() {
         return signer.activeKeyId();
     }
 
-    byte[] sign(String keyId, byte[] data) {
+    public byte[] sign(String keyId, byte[] data) {
         return signer.sign(keyId, data);
     }
 
-    boolean knows(String keyId) {
+    public boolean knows(String keyId) {
         return publicKey(keyId).isPresent();
     }
 
-    Optional<Boolean> verify(String keyId, byte[] data, byte[] seal) {
+    public Optional<Boolean> verify(String keyId, byte[] data, byte[] seal) {
         return publicKey(keyId).map(key -> {
             try {
                 Signature verifier = Signature.getInstance(ALGORITHM);
@@ -62,7 +62,7 @@ final class SealKeyRing {
         });
     }
 
-    Map<String, String> publicKeysPem() {
+    public Map<String, String> publicKeysPem() {
         Map<String, String> pem = new TreeMap<>();
         retired.forEach((keyId, key) -> pem.put(keyId, EcPublicKeys.pem(key)));
         signer.publicKeys().forEach((keyId, key) -> pem.put(keyId, EcPublicKeys.pem(key)));
