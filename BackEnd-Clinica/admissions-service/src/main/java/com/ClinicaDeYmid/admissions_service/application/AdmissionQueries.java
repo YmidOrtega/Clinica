@@ -34,4 +34,8 @@ public class AdmissionQueries {
     public List<Admission> withPendingCoverage() {
         return admissions.findWithPendingCoverage();
     }
+
+    public List<Admission> withPendingDeathNotice() {
+        return admissions.findWithPendingDeathNotice();
+    }
 }

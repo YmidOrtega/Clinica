@@ -7,6 +7,7 @@ import com.ClinicaDeYmid.admissions_service.domain.AdmissionStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Cause;
 import com.ClinicaDeYmid.admissions_service.domain.AttendingPractitioner;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
+import com.ClinicaDeYmid.admissions_service.domain.DeathNotice;
 import com.ClinicaDeYmid.admissions_service.domain.Discharge;
 
 import java.time.Instant;
@@ -33,6 +34,13 @@ final class AdmissionResponses {
                 case Discharge.Death death -> new DischargeView(Discharge.Code.DEATH, death.at(),
                         null, null, null, null, null, null, null, death.occurredAt(), death.certificateNumber());
             };
+        }
+    }
+
+    record DeathNoticeView(DeathNotice.Status status, String detail, Instant at) {
+
+        static DeathNoticeView from(DeathNotice notice) {
+            return notice == null ? null : new DeathNoticeView(notice.status(), notice.detail(), notice.at());
         }
     }
 
@@ -88,7 +96,8 @@ final class AdmissionResponses {
 
     record AdmissionView(UUID uuid, String number, UUID patientUuid, Cause cause, UUID careTypeUuid,
                          AdmissionKind kind, boolean bedRequired, StatusView status, PhaseView currentPhase,
-                         List<PhaseView> phases, CompanionView companion, CoverageView coverage, UUID bedUuid, AttendingView attending) {
+                         List<PhaseView> phases, CompanionView companion, CoverageView coverage, UUID bedUuid,
+                         AttendingView attending, DeathNoticeView deathNotice) {
 
         static AdmissionView from(Admission admission) {
             return new AdmissionView(admission.uuid(), admission.number(), admission.patientUuid(), admission.cause(),
@@ -99,7 +108,7 @@ final class AdmissionResponses {
                     admission.companion() == null ? null : new CompanionView(admission.companion().fullName(),
                             admission.companion().phoneNumber(), admission.companion().relationship()),
                     CoverageView.from(admission.coverage()), admission.bedUuid(),
-                    AttendingView.from(admission.attending()));
+                    AttendingView.from(admission.attending()), DeathNoticeView.from(admission.deathNotice()));
         }
     }
 

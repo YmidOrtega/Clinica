@@ -2,10 +2,12 @@ package com.ClinicaDeYmid.admissions_service.infrastructure.clients;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -22,7 +24,20 @@ interface PatientRegistryClient {
     @PostMapping("/api/v1/unidentified-patients")
     UnidentifiedPayload registerUnidentified(@RequestBody UnidentifiedRegistration registration);
 
+    @PostMapping("/api/v1/patients/{uuid}/death")
+    RegisteredPayload recordDeath(@PathVariable("uuid") UUID uuid,
+                                  @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+                                  @RequestBody DeathRecord death);
+
+    @PostMapping("/api/v1/unidentified-patients/{uuid}/death")
+    UnidentifiedPayload recordUnidentifiedDeath(@PathVariable("uuid") UUID uuid,
+                                                @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+                                                @RequestBody DeathRecord death);
+
     record UnidentifiedRegistration(String sex, Integer estimatedBirthYear, String description) {
+    }
+
+    record DeathRecord(LocalDate dateOfDeath) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

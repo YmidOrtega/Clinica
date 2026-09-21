@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.admissions_service.application;
 
 import com.ClinicaDeYmid.admissions_service.application.coverage.CoverageGate;
+import com.ClinicaDeYmid.admissions_service.application.patient.DeathReport;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientDirectory;
 import com.ClinicaDeYmid.admissions_service.application.practitioner.PractitionerDirectory;
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientReferenceProjection;
@@ -121,12 +122,33 @@ public class AdmissionCommands {
 
     public Admission discharge(UUID uuid, long expectedVersion, DischargeOrder order) {
         Discharge discharge = order.at(Instant.now(clock));
-        return modify(uuid, expectedVersion, admission -> {
+        Admission discharged = modify(uuid, expectedVersion, admission -> {
             if (admission.occupiesABed()) {
                 bedAssignments.freeCurrentBed(admission);
             }
             admission.discharge(discharge);
             log.info("Admission {} discharged as {}", admission.number(), discharge.code());
+        });
+        return discharge instanceof Discharge.Death ? reportDeath(uuid) : discharged;
+    }
+
+    public Admission reportDeath(UUID uuid) {
+        Admission admission = reloaded(uuid);
+        Discharge.Death death = admission.death();
+        DeathReport report = registry.recordDeath(admission.patientUuid(),
+                LocalDate.ofInstant(death.occurredAt(), clock.getZone()));
+        return transactions.execute(status -> {
+            Admission current = admissions.findByUuid(uuid).orElseThrow(AdmissionsException.AdmissionNotFound::new);
+            switch (report) {
+                case DeathReport.Recorded ignored -> current.deathNoticeSent(Instant.now(clock));
+                case DeathReport.Failed failed -> {
+                    log.warn("Admission {} could not tell the patient directory about the death: {}",
+                            current.number(), failed.detail());
+                    current.deathNoticeFailed(failed.detail(), Instant.now(clock));
+                }
+            }
+            admissions.save(current);
+            return reloaded(uuid);
         });
     }
 

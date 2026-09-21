@@ -64,6 +64,13 @@ class AdmissionController {
         return queries.withPendingCoverage().stream().map(AdmissionView::from).toList();
     }
 
+    @GetMapping("/pending-death-notice")
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Listar los fallecimientos que no se pudieron informar al directorio de pacientes")
+    List<AdmissionView> pendingDeathNotice() {
+        return queries.withPendingDeathNotice().stream().map(AdmissionView::from).toList();
+    }
+
     @PostMapping("/unidentified")
     @PreAuthorize(Access.ADMIT)
     @Operation(summary = "Admitir a un paciente sin identificar",
@@ -163,6 +170,15 @@ class AdmissionController {
                                             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                             @Valid @RequestBody AdmissionRequests.DischargePayload request) {
         return tagged(commands.discharge(uuid, EntityTags.requiredVersion(ifMatch), orderOf(request)));
+    }
+
+    @PostMapping("/{uuid}/death-notice")
+    @PreAuthorize(Access.DISCHARGE)
+    @Operation(summary = "Reintentar el aviso de fallecimiento al directorio de pacientes",
+            description = "Para los episodios que aparecen en pending-death-notice porque patient-service "
+                    + "no respondió o rechazó el aviso")
+    ResponseEntity<AdmissionView> reportDeath(@PathVariable UUID uuid) {
+        return tagged(commands.reportDeath(uuid));
     }
 
     @PostMapping("/{uuid}/cancellation")
