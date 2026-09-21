@@ -7,11 +7,18 @@ import com.ClinicaDeYmid.admissions_service.application.DischargeOrder;
 import com.ClinicaDeYmid.admissions_service.application.patient.UnidentifiedAdmissionRequest;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.Companion;
+import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
+import com.ClinicaDeYmid.admissions_service.infrastructure.web.AdmissionResponses.AdmissionSummaryView;
 import com.ClinicaDeYmid.admissions_service.infrastructure.web.AdmissionResponses.AdmissionView;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,10 +28,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -56,19 +63,32 @@ class AdmissionController {
         return created(admission);
     }
 
+    @PostMapping("/search")
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Buscar episodios por documento del paciente, número, estado, tipo, servicio o fechas",
+            description = "Usa POST para que el documento del paciente no quede en URLs ni en logs; el tipo y "
+                    + "el servicio configurado buscan en cualquiera de las fases del episodio")
+    PagedModel<AdmissionSummaryView> search(@Valid @RequestBody AdmissionRequests.Search request,
+                                            @RequestParam(defaultValue = "0") @Min(0) int page,
+                                            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
+        return paged(queries.search(request.toCriteria(), documentOf(request.document()), PageRequest.of(page, size)));
+    }
+
     @GetMapping("/pending-coverage")
     @PreAuthorize(Access.READ)
     @Operation(summary = "Listar los episodios admitidos sin cobertura resuelta",
             description = "Alimenta la revisión administrativa y la facturación posterior")
-    List<AdmissionView> pendingCoverage() {
-        return queries.withPendingCoverage().stream().map(AdmissionView::from).toList();
+    PagedModel<AdmissionSummaryView> pendingCoverage(@RequestParam(defaultValue = "0") @Min(0) int page,
+                                                     @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
+        return paged(queries.withPendingCoverage(PageRequest.of(page, size)));
     }
 
     @GetMapping("/pending-death-notice")
     @PreAuthorize(Access.READ)
     @Operation(summary = "Listar los fallecimientos que no se pudieron informar al directorio de pacientes")
-    List<AdmissionView> pendingDeathNotice() {
-        return queries.withPendingDeathNotice().stream().map(AdmissionView::from).toList();
+    PagedModel<AdmissionSummaryView> pendingDeathNotice(@RequestParam(defaultValue = "0") @Min(0) int page,
+                                                        @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
+        return paged(queries.withPendingDeathNotice(PageRequest.of(page, size)));
     }
 
     @PostMapping("/unidentified")
@@ -89,20 +109,6 @@ class AdmissionController {
     @Operation(summary = "Consultar un episodio")
     ResponseEntity<AdmissionView> get(@PathVariable UUID uuid) {
         return tagged(queries.get(uuid));
-    }
-
-    @GetMapping("/by-number/{number}")
-    @PreAuthorize(Access.READ)
-    @Operation(summary = "Consultar un episodio por su número")
-    ResponseEntity<AdmissionView> byNumber(@PathVariable String number) {
-        return tagged(queries.byNumber(number));
-    }
-
-    @GetMapping("/patients/{patientUuid}")
-    @PreAuthorize(Access.READ)
-    @Operation(summary = "Listar los episodios de un paciente")
-    List<AdmissionView> ofPatient(@PathVariable UUID patientUuid) {
-        return queries.ofPatient(patientUuid).stream().map(AdmissionView::from).toList();
     }
 
     @PostMapping("/{uuid}/activation")
@@ -194,6 +200,14 @@ class AdmissionController {
         return new DischargeOrder(payload.type(), payload.notes(), payload.signedBy(), payload.signatureDocument(),
                 payload.repsCode(), payload.facility(), payload.reason(), payload.noticedAt(), payload.occurredAt(),
                 payload.certificateNumber());
+    }
+
+    private static PatientReference.Document documentOf(AdmissionRequests.Document document) {
+        return document == null ? null : new PatientReference.Document(document.type(), document.number());
+    }
+
+    private static PagedModel<AdmissionSummaryView> paged(Page<Admission> page) {
+        return new PagedModel<>(page.map(AdmissionSummaryView::from));
     }
 
     private static Companion companionOf(AdmissionRequests.CompanionPayload payload) {

@@ -7,5 +7,7 @@ public interface PatientReferences {
 
     Optional<PatientReference> find(UUID uuid);
 
+    Optional<PatientReference> findByDocument(String documentType, String documentNumber);
+
     boolean saveIfNewer(PatientReference reference);
 }

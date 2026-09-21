@@ -6,6 +6,7 @@ import com.ClinicaDeYmid.admissions_service.application.CatalogueCommands;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionStatus;
+import com.ClinicaDeYmid.admissions_service.domain.AdmissionSearch;
 import com.ClinicaDeYmid.admissions_service.domain.Admissions;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionsException;
 import com.ClinicaDeYmid.admissions_service.domain.Cause;
@@ -23,6 +24,7 @@ import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
@@ -60,7 +62,8 @@ class AdmissionLifecycleIT extends IntegrationTest {
         assertThat(admission.number()).startsWith("ADM-" + LocalDate.now().getYear());
         assertThat(admission.status()).isInstanceOf(AdmissionStatus.Registered.class);
         assertThat(admission.currentPhase()).isInstanceOf(EmergencyPhase.class);
-        assertThat(admissions.findByNumber(admission.number())).isPresent();
+        assertThat(admissions.search(new AdmissionSearch(null, admission.number(), null, null, null, null, null),
+                PageRequest.of(0, 1)).getContent()).hasSize(1);
     }
 
     @Test
@@ -150,7 +153,8 @@ class AdmissionLifecycleIT extends IntegrationTest {
         commands.cancel(admission.uuid(), admission.version(), "Se registró dos veces");
 
         assertThat(admissions.findOpenByPatient(patient)).isEmpty();
-        assertThat(admissions.findByPatient(patient)).hasSize(1);
+        assertThat(admissions.search(new AdmissionSearch(patient, null, null, null, null, null, null),
+                PageRequest.of(0, 10)).getContent()).hasSize(1);
     }
 
     private UUID aBed() {

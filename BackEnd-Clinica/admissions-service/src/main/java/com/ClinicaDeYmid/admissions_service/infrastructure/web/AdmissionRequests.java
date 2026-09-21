@@ -1,5 +1,8 @@
 package com.ClinicaDeYmid.admissions_service.infrastructure.web;
 
+import com.ClinicaDeYmid.admissions_service.domain.AdmissionKind;
+import com.ClinicaDeYmid.admissions_service.domain.AdmissionSearch;
+import com.ClinicaDeYmid.admissions_service.domain.AdmissionStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Cause;
 import com.ClinicaDeYmid.admissions_service.domain.Discharge;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
@@ -37,6 +40,17 @@ final class AdmissionRequests {
     }
 
     record Reason(@NotBlank String reason) {
+    }
+
+    record Document(@NotBlank String type, @NotBlank String number) {
+    }
+
+    record Search(Document document, UUID patientUuid, String number, AdmissionStatus.Code status,
+                  AdmissionKind kind, UUID configurationServiceUuid, Instant from, Instant to) {
+
+        AdmissionSearch toCriteria() {
+            return new AdmissionSearch(patientUuid, number, status, kind, configurationServiceUuid, from, to);
+        }
     }
 
     record DischargePayload(@NotNull Discharge.Code type, String notes, String signedBy, String signatureDocument,

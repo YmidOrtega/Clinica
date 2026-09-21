@@ -157,19 +157,61 @@ class AdmissionApiIT extends IntegrationTest {
     }
 
     @Test
-    void findsAnEpisodeByItsNumberAndListsThoseOfThePatient() throws Exception {
+    void findsEpisodesByNumberByPatientAndByDocumentWithoutPuttingThemInTheUrl() throws Exception {
         UUID patient = aLocalPatient("ACTIVE");
+        String document = documentOf(patient);
         String body = as("RECEPTIONIST", post(BASE), registration(patient, emergency()))
                 .andReturn().getResponse().getContentAsString();
         String number = JsonPath.read(body, "$.number");
 
-        as("BILLING", get(BASE + "/by-number/" + number), null)
+        as("BILLING", post(BASE + "/search"), "{\"number\":\"" + number + "\"}")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.patientUuid").value(patient.toString()));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].patientUuid").value(patient.toString()))
+                .andExpect(jsonPath("$.content[0].kind").value("EMERGENCY"))
+                .andExpect(jsonPath("$.content[0].status").value("REGISTERED"))
+                .andExpect(jsonPath("$.content[0].phases").doesNotExist());
 
-        as("BILLING", get(BASE + "/patients/" + patient), null)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
+        as("BILLING", post(BASE + "/search"), "{\"patientUuid\":\"" + patient + "\"}")
+                .andExpect(jsonPath("$.content.length()").value(1));
+
+        as("BILLING", post(BASE + "/search"),
+                "{\"document\":{\"type\":\"CEDULA_DE_CIUDADANIA\",\"number\":\"" + document + "\"}}")
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].number").value(number));
+
+        as("BILLING", post(BASE + "/search"),
+                "{\"document\":{\"type\":\"CEDULA_DE_CIUDADANIA\",\"number\":\"0000000\"}}")
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
+    @Test
+    void theSearchFiltersByStatusKindAndServiceAndRefusesAnOversizedPage() throws Exception {
+        UUID patient = aLocalPatient("ACTIVE");
+        UUID service = emergency();
+        String uuid = JsonPath.read(as("RECEPTIONIST", post(BASE), registration(patient, service))
+                .andReturn().getResponse().getContentAsString(), "$.uuid");
+
+        as("BILLING", post(BASE + "/search"),
+                "{\"patientUuid\":\"" + patient + "\",\"status\":\"ACTIVE\"}")
+                .andExpect(jsonPath("$.content.length()").value(0));
+
+        change("RECEPTIONIST", post(BASE + "/" + uuid + "/activation"), 0, null).andExpect(status().isOk());
+
+        as("BILLING", post(BASE + "/search"),
+                "{\"patientUuid\":\"" + patient + "\",\"status\":\"ACTIVE\",\"kind\":\"EMERGENCY\","
+                        + "\"configurationServiceUuid\":\"" + service + "\"}")
+                .andExpect(jsonPath("$.content.length()").value(1));
+
+        as("BILLING", post(BASE + "/search"),
+                "{\"patientUuid\":\"" + patient + "\",\"kind\":\"INPATIENT\"}")
+                .andExpect(jsonPath("$.content.length()").value(0));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post(BASE + "/search").param("size", "500")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}")
+                        .header(HttpHeaders.AUTHORIZATION, JwtTestTokens.bearer("BILLING")))
+                .andExpect(status().isBadRequest());
     }
 
     @ParameterizedTest
@@ -217,10 +259,18 @@ class AdmissionApiIT extends IntegrationTest {
                  "status":{"code":"UNIDENTIFIED"}}""".formatted(uuid, code);
     }
 
+    private final java.util.Map<UUID, String> documents = new java.util.HashMap<>();
+
+    private String documentOf(UUID patient) {
+        return documents.get(patient);
+    }
+
     private UUID aLocalPatient(String status) {
         UUID uuid = UUID.randomUUID();
+        String document = "20" + TestSequence.next();
+        documents.put(uuid, document);
         patients.saveIfNewer(new PatientReference.Registered(uuid, 1,
-                new PatientReference.Document("CEDULA_DE_CIUDADANIA", "20" + TestSequence.next()),
+                new PatientReference.Document("CEDULA_DE_CIUDADANIA", document),
                 "Ana María", "Restrepo Gómez", LocalDate.of(1990, 4, 12), PatientReference.Sex.FEMALE,
                 PatientReference.Registered.Status.valueOf(status),
                 "DECEASED".equals(status) ? LocalDate.of(2026, 9, 19) : null, "CONTRIBUTORY", null));

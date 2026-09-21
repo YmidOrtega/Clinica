@@ -6,8 +6,12 @@ import com.ClinicaDeYmid.admissions_service.domain.AdmissionPhase;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Cause;
 import com.ClinicaDeYmid.admissions_service.domain.AttendingPractitioner;
+import com.ClinicaDeYmid.admissions_service.application.CensusEntry;
+import com.ClinicaDeYmid.admissions_service.domain.Bed;
+import com.ClinicaDeYmid.admissions_service.domain.BedStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 import com.ClinicaDeYmid.admissions_service.domain.DeathNotice;
+import com.ClinicaDeYmid.admissions_service.domain.Discharge;
 import com.ClinicaDeYmid.admissions_service.domain.Discharge;
 
 import java.time.Instant;
@@ -91,6 +95,43 @@ final class AdmissionResponses {
             return coverage == null ? null : new CoverageView(coverage.status(), coverage.contractUuid(),
                     coverage.contractNumber(), coverage.payerUuid(), coverage.detail(), coverage.checkedAt(),
                     coverage.pending());
+        }
+    }
+
+    record AdmissionSummaryView(UUID uuid, String number, UUID patientUuid, AdmissionKind kind,
+                               AdmissionStatus.Code status, UUID configurationServiceUuid,
+                               String configurationServiceName, Instant startedAt, UUID bedUuid,
+                               Coverage.Code coverage, Discharge.Code discharge) {
+
+        static AdmissionSummaryView from(Admission admission) {
+            AdmissionPhase phase = admission.lastPhase();
+            return new AdmissionSummaryView(admission.uuid(), admission.number(), admission.patientUuid(),
+                    admission.kind(), admission.status().code(), phase.configurationService().uuid(),
+                    phase.configurationService().name(), phase.startedAt(), admission.bedUuid(),
+                    admission.coverage() == null ? null : admission.coverage().status(),
+                    admission.status() instanceof AdmissionStatus.Discharged discharged
+                            ? discharged.discharge().code() : null);
+        }
+    }
+
+    record CensusEntryView(UUID bedUuid, String label, UUID roomUuid, String roomName, BedStatus.Code status,
+                           Instant since, AdmissionSummaryView occupant) {
+
+        static CensusEntryView from(CensusEntry entry) {
+            Bed bed = entry.bed();
+            return new CensusEntryView(bed.uuid(), bed.label(), bed.room().uuid(), bed.room().name(),
+                    bed.status().code(), sinceOf(bed.status()),
+                    entry.occupant() == null ? null : AdmissionSummaryView.from(entry.occupant()));
+        }
+
+        private static Instant sinceOf(BedStatus status) {
+            return switch (status) {
+                case BedStatus.Available ignored -> null;
+                case BedStatus.Occupied occupied -> occupied.since();
+                case BedStatus.Cleaning cleaning -> cleaning.since();
+                case BedStatus.Maintenance maintenance -> maintenance.since();
+                case BedStatus.Blocked blocked -> blocked.since();
+            };
         }
     }
 

@@ -76,7 +76,7 @@ class DeathNoticeIT extends IntegrationTest {
         as("BILLING", org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                 .get(EPISODES + "/pending-death-notice"), null)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.uuid=='" + episode + "')]").exists());
+                .andExpect(jsonPath("$.content[?(@.uuid=='" + episode + "')]").exists());
 
         StubbedServices.reset();
         directoryAnswers(patient, "ACTIVE");
@@ -90,7 +90,7 @@ class DeathNoticeIT extends IntegrationTest {
 
         as("BILLING", org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                 .get(EPISODES + "/pending-death-notice"), null)
-                .andExpect(jsonPath("$[?(@.uuid=='" + episode + "')]").doesNotExist());
+                .andExpect(jsonPath("$.content[?(@.uuid=='" + episode + "')]").doesNotExist());
     }
 
     @Test

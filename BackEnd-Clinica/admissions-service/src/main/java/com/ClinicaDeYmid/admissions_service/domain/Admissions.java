@@ -1,5 +1,9 @@
 package com.ClinicaDeYmid.admissions_service.domain;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -10,15 +14,17 @@ public interface Admissions {
 
     Optional<Admission> findByUuid(UUID uuid);
 
-    Optional<Admission> findByNumber(String number);
-
     Optional<Admission> findOpenByPatient(UUID patientUuid);
 
-    List<Admission> findByPatient(UUID patientUuid);
+    Page<Admission> search(AdmissionSearch criteria, Pageable pageable);
 
-    List<Admission> findWithPendingCoverage();
+    Page<Admission> findWithPendingCoverage(Pageable pageable);
 
-    List<Admission> findWithPendingDeathNotice();
+    Page<Admission> findWithPendingDeathNotice(Pageable pageable);
+
+    List<Admission> findQueueOf(UUID configurationServiceUuid);
+
+    List<Admission> findByBeds(Collection<UUID> bedUuids);
 
     String nextNumber(int year);
 }
