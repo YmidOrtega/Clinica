@@ -55,6 +55,14 @@ abstract class IntegrationTest {
         return mockMvc.perform(body == null ? prepared : prepared.content(body));
     }
 
+    protected ResultActions changeWithToken(String token, MockHttpServletRequestBuilder request, long version,
+                                           String body) throws Exception {
+        return mockMvc.perform(request.contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.IF_MATCH, "\"" + version + "\"")
+                .header(HttpHeaders.AUTHORIZATION, token)
+                .content(body == null ? "{}" : body));
+    }
+
     protected ResultActions change(String role, MockHttpServletRequestBuilder request, long version, String body)
             throws Exception {
         MockHttpServletRequestBuilder prepared = request.contentType(MediaType.APPLICATION_JSON)

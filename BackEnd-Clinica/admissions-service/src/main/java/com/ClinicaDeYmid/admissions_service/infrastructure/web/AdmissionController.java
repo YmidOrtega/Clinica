@@ -7,11 +7,16 @@ import com.ClinicaDeYmid.admissions_service.application.DischargeOrder;
 import com.ClinicaDeYmid.admissions_service.application.patient.UnidentifiedAdmissionRequest;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.Companion;
+import com.ClinicaDeYmid.admissions_service.domain.Discharge;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.infrastructure.web.AdmissionResponses.AdmissionSummaryView;
 import com.ClinicaDeYmid.admissions_service.infrastructure.web.AdmissionResponses.AdmissionView;
+import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
+import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import io.swagger.v3.oas.annotations.Operation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -41,22 +46,31 @@ class AdmissionController {
 
     static final String BASE_PATH = "/api/v1/admissions/episodes";
 
+    private static final Logger log = LoggerFactory.getLogger(AdmissionController.class);
+
     private final AdmissionCommands commands;
     private final AdmissionQueries queries;
     private final BedAssignments bedAssignments;
+    private final RecentAuthentication recentAuthentication;
 
-    AdmissionController(AdmissionCommands commands, AdmissionQueries queries, BedAssignments bedAssignments) {
+    AdmissionController(AdmissionCommands commands, AdmissionQueries queries, BedAssignments bedAssignments,
+                        RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
         this.bedAssignments = bedAssignments;
+        this.recentAuthentication = recentAuthentication;
     }
 
     @PostMapping
     @PreAuthorize(Access.ADMIT_OR_OVERRIDE)
     @Operation(summary = "Admitir a un paciente conocido",
             description = "Sin cobertura se bloquea en hospitalización y ambulatorio; en urgencias nunca. "
-                    + "overrideCoverage exige el permiso admissions:override-coverage")
+                    + "overrideCoverage exige el permiso admissions:override-coverage y reautenticación "
+                    + "con segundo factor")
     ResponseEntity<AdmissionView> register(@Valid @RequestBody AdmissionRequests.Registration request) {
+        if (request.overrideCoverage()) {
+            stepUp("admitir saltándose la cobertura");
+        }
         Admission admission = commands.register(request.patientUuid(), request.configurationServiceUuid(),
                 request.cause(), request.careTypeUuid(), companionOf(request.companion()),
                 request.overrideCoverage());
@@ -171,10 +185,14 @@ class AdmissionController {
     @PreAuthorize(Access.DISCHARGE)
     @Operation(summary = "Egresar el episodio diciendo cómo termina",
             description = "Alta médica, alta voluntaria firmada, remisión a otra institución, fuga o "
-                    + "fallecimiento; cualquiera de los cinco libera la cama y congela el episodio")
+                    + "fallecimiento; cualquiera de los cinco libera la cama y congela el episodio. "
+                    + "Fallecimiento y fuga exigen reautenticación con segundo factor")
     ResponseEntity<AdmissionView> discharge(@PathVariable UUID uuid,
                                             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                             @Valid @RequestBody AdmissionRequests.DischargePayload request) {
+        if (request.type() == Discharge.Code.DEATH || request.type() == Discharge.Code.ESCAPE) {
+            stepUp("egresar el episodio " + uuid + " por " + request.type());
+        }
         return tagged(commands.discharge(uuid, EntityTags.requiredVersion(ifMatch), orderOf(request)));
     }
 
@@ -189,10 +207,12 @@ class AdmissionController {
 
     @PostMapping("/{uuid}/cancellation")
     @PreAuthorize(Access.CANCEL)
-    @Operation(summary = "Anular un episodio con un motivo")
+    @Operation(summary = "Anular un episodio con un motivo",
+            description = "Exige reautenticación con segundo factor")
     ResponseEntity<AdmissionView> cancel(@PathVariable UUID uuid,
                                          @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                          @Valid @RequestBody AdmissionRequests.Reason request) {
+        stepUp("anular el episodio " + uuid);
         return tagged(commands.cancel(uuid, EntityTags.requiredVersion(ifMatch), request.reason()));
     }
 
@@ -200,6 +220,12 @@ class AdmissionController {
         return new DischargeOrder(payload.type(), payload.notes(), payload.signedBy(), payload.signatureDocument(),
                 payload.repsCode(), payload.facility(), payload.reason(), payload.noticedAt(), payload.occurredAt(),
                 payload.certificateNumber());
+    }
+
+    private void stepUp(String action) {
+        AuthenticatedUser user = recentAuthentication.require();
+        log.info("Step-up accepted for {}: {} authenticated with a second factor at {}",
+                action, user.uuid(), user.authenticatedAt());
     }
 
     private static PatientReference.Document documentOf(AdmissionRequests.Document document) {

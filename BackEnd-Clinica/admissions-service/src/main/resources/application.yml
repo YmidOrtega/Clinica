@@ -79,6 +79,9 @@ clinica:
       enabled: ${ADMISSIONS_CLINICAL_EVENTS_ENABLED:true}
     seal:
       transit-key: ${ADMISSIONS_SEAL_TRANSIT_KEY:admissions-seal}
+    receipts:
+      public-checks-per-window: ${ADMISSIONS_PUBLIC_CHECKS_PER_WINDOW:20}
+      public-window: ${ADMISSIONS_PUBLIC_CHECK_WINDOW:1m}
     coverage:
       ttl: ${ADMISSIONS_COVERAGE_TTL:10m}
       maximum-size: ${ADMISSIONS_COVERAGE_CACHE_SIZE:5000}

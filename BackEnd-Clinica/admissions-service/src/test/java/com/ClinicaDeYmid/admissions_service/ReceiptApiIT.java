@@ -114,6 +114,27 @@ class ReceiptApiIT extends IntegrationTest {
     }
 
     @Test
+    void stopsSomebodyFishingForFingerprintsOnThePublicDoor() throws Exception {
+        String body = "{\"number\":\"ADM-2026-999999\",\"sha256\":\"" + "a".repeat(64) + "\"}";
+        int refusedAt = 0;
+
+        for (int attempt = 1; attempt <= 25 && refusedAt == 0; attempt++) {
+            int status = mockMvc.perform(post(BASE + "/receipts/verification")
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andReturn().getResponse().getStatus();
+            if (status == 429) {
+                refusedAt = attempt;
+            }
+        }
+
+        assertThat(refusedAt).as("the public door stops answering after a burst").isBetween(1, 25);
+        mockMvc.perform(post(BASE + "/receipts/verification").contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("TOO_MANY_CHECKS"));
+    }
+
+    @Test
     void publishesTheKeysThatSealTheReceipts() throws Exception {
         mockMvc.perform(get(BASE + "/seal-keys"))
                 .andExpect(status().isOk())
