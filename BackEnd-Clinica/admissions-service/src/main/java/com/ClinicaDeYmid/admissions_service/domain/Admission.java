@@ -86,6 +86,9 @@ public class Admission {
     @Column(name = "status_changed_at")
     private Instant statusChangedAt;
 
+    @Embedded
+    private DischargeDetails discharge;
+
     @NotAudited
     @OneToMany(mappedBy = "admission", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @OrderBy("startedAt asc, id asc")
@@ -166,9 +169,9 @@ public class Admission {
         return bedUuid;
     }
 
-    public void discharge(Clock clock) {
-        applyStatus(status().discharge(Instant.now(clock)));
-        currentPhase().end(Instant.now(clock));
+    public void discharge(Discharge discharge) {
+        applyStatus(status().discharge(discharge));
+        currentPhase().end(discharge.at());
     }
 
     public void cancel(String reason, Clock clock) {
@@ -240,7 +243,7 @@ public class Admission {
         return switch (statusCode) {
             case REGISTERED -> new AdmissionStatus.Registered();
             case ACTIVE -> new AdmissionStatus.Active(statusChangedAt);
-            case DISCHARGED -> new AdmissionStatus.Discharged(statusChangedAt);
+            case DISCHARGED -> new AdmissionStatus.Discharged(discharge.toDischarge(statusChangedAt));
             case CANCELLED -> new AdmissionStatus.Cancelled(statusReason, statusChangedAt);
         };
     }
@@ -251,18 +254,22 @@ public class Admission {
             case AdmissionStatus.Registered ignored -> {
                 this.statusReason = null;
                 this.statusChangedAt = null;
+                this.discharge = null;
             }
             case AdmissionStatus.Active active -> {
                 this.statusReason = null;
                 this.statusChangedAt = active.since();
+                this.discharge = null;
             }
             case AdmissionStatus.Discharged discharged -> {
                 this.statusReason = null;
                 this.statusChangedAt = discharged.at();
+                this.discharge = DischargeDetails.of(discharged.discharge());
             }
             case AdmissionStatus.Cancelled cancelled -> {
                 this.statusReason = cancelled.reason();
                 this.statusChangedAt = cancelled.at();
+                this.discharge = null;
             }
         }
     }

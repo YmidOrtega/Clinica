@@ -7,6 +7,7 @@ import com.ClinicaDeYmid.admissions_service.domain.AdmissionStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Cause;
 import com.ClinicaDeYmid.admissions_service.domain.AttendingPractitioner;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
+import com.ClinicaDeYmid.admissions_service.domain.Discharge;
 
 import java.time.Instant;
 import java.util.List;
@@ -14,18 +15,42 @@ import java.util.UUID;
 
 final class AdmissionResponses {
 
-    record StatusView(AdmissionStatus.Code code, String reason, Instant since, boolean open) {
+    record DischargeView(Discharge.Code type, Instant at, String notes, String signedBy, String signatureDocument,
+                         String repsCode, String facility, String reason, Instant noticedAt, Instant occurredAt,
+                         String certificateNumber) {
+
+        static DischargeView from(Discharge discharge) {
+            return switch (discharge) {
+                case Discharge.Medical medical -> new DischargeView(Discharge.Code.MEDICAL, medical.at(),
+                        medical.notes(), null, null, null, null, null, null, null, null);
+                case Discharge.Voluntary voluntary -> new DischargeView(Discharge.Code.VOLUNTARY, voluntary.at(),
+                        null, voluntary.signedBy(), voluntary.signatureDocument(), null, null, null, null, null, null);
+                case Discharge.Referral referral -> new DischargeView(Discharge.Code.REFERRAL, referral.at(),
+                        null, null, null, referral.repsCode(), referral.facility(), referral.reason(), null, null,
+                        null);
+                case Discharge.Escape escape -> new DischargeView(Discharge.Code.ESCAPE, escape.at(),
+                        null, null, null, null, null, null, escape.noticedAt(), null, null);
+                case Discharge.Death death -> new DischargeView(Discharge.Code.DEATH, death.at(),
+                        null, null, null, null, null, null, null, death.occurredAt(), death.certificateNumber());
+            };
+        }
+    }
+
+    record StatusView(AdmissionStatus.Code code, String reason, Instant since, boolean open,
+                      DischargeView discharge) {
 
         static StatusView from(AdmissionStatus status) {
             return switch (status) {
                 case AdmissionStatus.Registered ignored ->
-                        new StatusView(AdmissionStatus.Code.REGISTERED, null, null, true);
+                        new StatusView(AdmissionStatus.Code.REGISTERED, null, null, true, null);
                 case AdmissionStatus.Active active ->
-                        new StatusView(AdmissionStatus.Code.ACTIVE, null, active.since(), true);
+                        new StatusView(AdmissionStatus.Code.ACTIVE, null, active.since(), true, null);
                 case AdmissionStatus.Discharged discharged ->
-                        new StatusView(AdmissionStatus.Code.DISCHARGED, null, discharged.at(), false);
+                        new StatusView(AdmissionStatus.Code.DISCHARGED, null, discharged.at(), false,
+                                DischargeView.from(discharged.discharge()));
                 case AdmissionStatus.Cancelled cancelled ->
-                        new StatusView(AdmissionStatus.Code.CANCELLED, cancelled.reason(), cancelled.at(), false);
+                        new StatusView(AdmissionStatus.Code.CANCELLED, cancelled.reason(), cancelled.at(), false,
+                                null);
             };
         }
     }

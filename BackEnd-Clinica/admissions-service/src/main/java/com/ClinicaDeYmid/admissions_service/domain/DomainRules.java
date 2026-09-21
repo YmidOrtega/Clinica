@@ -6,6 +6,7 @@ import java.util.regex.Pattern;
 final class DomainRules {
 
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+    private static final Pattern DIGITS = Pattern.compile("\\d+");
 
     private DomainRules() {
     }
@@ -32,6 +33,15 @@ final class DomainRules {
         String text = WHITESPACE.matcher(value.strip()).replaceAll(" ");
         if (text.length() > maxLength) {
             throw new AdmissionsException.InvalidData(field, "no puede superar " + maxLength + " caracteres");
+        }
+        return text;
+    }
+
+    static String requiredDigits(String value, String field, int minLength, int maxLength) {
+        String text = requiredText(value, field, maxLength);
+        if (!DIGITS.matcher(text).matches() || text.length() < minLength) {
+            throw new AdmissionsException.InvalidData(field,
+                    "debe tener entre " + minLength + " y " + maxLength + " dígitos");
         }
         return text;
     }

@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.admissions_service.domain.CareType;
 import com.ClinicaDeYmid.admissions_service.domain.Cause;
 import com.ClinicaDeYmid.admissions_service.domain.Companion;
 import com.ClinicaDeYmid.admissions_service.domain.ConfigurationService;
+import com.ClinicaDeYmid.admissions_service.domain.Discharge;
 import com.ClinicaDeYmid.admissions_service.domain.EmergencyPhase;
 import com.ClinicaDeYmid.admissions_service.domain.InpatientPhase;
 import com.ClinicaDeYmid.admissions_service.domain.Location;
@@ -64,14 +65,14 @@ class AdmissionTest {
         admission.activate(clock);
         assertThat(admission.status()).isEqualTo(new AdmissionStatus.Active(Instant.parse("2026-09-20T10:15:30Z")));
 
-        admission.discharge(clock);
+        admission.discharge(medicalDischarge());
         assertThat(admission.status()).isInstanceOf(AdmissionStatus.Discharged.class);
         assertThat(admission.status().open()).isFalse();
     }
 
     @Test
     void anEpisodeCannotBeDischargedBeforeItIsActive() {
-        assertThatThrownBy(() -> admit(emergency()).discharge(clock))
+        assertThatThrownBy(() -> admit(emergency()).discharge(medicalDischarge()))
                 .isInstanceOf(AdmissionsException.InvalidAdmissionTransition.class);
     }
 
@@ -79,7 +80,7 @@ class AdmissionTest {
     void aDischargedEpisodeIsSealed() {
         Admission admission = admit(emergency());
         admission.activate(clock);
-        admission.discharge(clock);
+        admission.discharge(medicalDischarge());
 
         assertThatThrownBy(() -> admission.activate(clock))
                 .isInstanceOf(AdmissionsException.InvalidAdmissionTransition.class);
@@ -164,6 +165,10 @@ class AdmissionTest {
 
         Companion companion = Companion.of("María Restrepo", "3001234567", "Madre");
         assertThat(companion.fullName()).isEqualTo("María Restrepo");
+    }
+
+    private Discharge medicalDischarge() {
+        return new Discharge.Medical(Instant.now(clock), "Paciente estable");
     }
 
     private Admission admit(ConfigurationService service) {
