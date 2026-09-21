@@ -29,6 +29,7 @@
         "PatientDeactivated",
         "PatientReactivated",
         "PatientDied",
+        "PatientDeathReverted",
         "UnidentifiedPatientRegistered",
         "UnidentifiedPatientIdentified",
         "UnidentifiedPatientIdentificationReverted",
@@ -195,6 +196,35 @@
       "if": {
         "properties": {
           "type": {
+            "const": "PatientDeathReverted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "patient": {
+                "not": {
+                  "required": [
+                    "dateOfDeath"
+                  ]
+                },
+                "properties": {
+                  "status": {
+                    "const": "ACTIVE"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
             "const": "UnidentifiedPatientIdentified"
           }
         }
@@ -237,7 +267,10 @@
               "unidentifiedPatient": {
                 "properties": {
                   "status": {
-                    "const": "UNIDENTIFIED"
+                    "enum": [
+                      "UNIDENTIFIED",
+                      "DECEASED"
+                    ]
                   }
                 }
               }

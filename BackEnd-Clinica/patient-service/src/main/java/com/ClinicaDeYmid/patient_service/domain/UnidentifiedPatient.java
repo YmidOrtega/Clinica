@@ -122,15 +122,24 @@ public class UnidentifiedPatient {
         if (!(patient.status() instanceof PatientStatus.Active)) {
             throw new PatientException.NotActive();
         }
+        LocalDate death = dateOfDeath;
         Instant now = Instant.now(clock);
         applyStatus(status().identifyAs(patient.uuid(), reason, now), now, null);
+        if (death != null) {
+            patient.recordDeath(death, clock);
+        }
         events.add(new UnidentifiedPatientEvent.Identified(patient.uuid()));
     }
 
-    public void revertIdentification(String reason, Clock clock) {
+    public void revertIdentification(Patient patient, String reason, Clock clock) {
         UUID previousPatientUuid = identifiedPatientUuid;
         String validReason = DomainRules.requiredText(reason, "reason", 500);
+        boolean carriedADeath = status() instanceof UnidentifiedPatientStatus.Identified identified
+                && identified.carriesADeath();
         applyStatus(status().revertIdentification(), Instant.now(clock), validReason);
+        if (carriedADeath) {
+            DomainRules.required(patient, "patient").revertDeath(validReason, clock);
+        }
         events.add(new UnidentifiedPatientEvent.IdentificationReverted(previousPatientUuid));
     }
 
@@ -153,7 +162,8 @@ public class UnidentifiedPatient {
     public UnidentifiedPatientStatus status() {
         return switch (statusCode) {
             case UNIDENTIFIED -> new UnidentifiedPatientStatus.Unidentified();
-            case IDENTIFIED -> new UnidentifiedPatientStatus.Identified(identifiedPatientUuid, statusReason, statusChangedAt);
+            case IDENTIFIED ->
+                    new UnidentifiedPatientStatus.Identified(identifiedPatientUuid, statusReason, statusChangedAt, dateOfDeath);
             case DECEASED -> new UnidentifiedPatientStatus.Deceased(dateOfDeath);
         };
     }
@@ -219,11 +229,11 @@ public class UnidentifiedPatient {
                 identifiedPatientUuid = identified.patientUuid();
                 statusReason = identified.reason();
                 statusChangedAt = identified.since();
-                dateOfDeath = null;
+                dateOfDeath = identified.dateOfDeath();
             }
             case UnidentifiedPatientStatus.Deceased deceased -> {
                 identifiedPatientUuid = null;
-                statusReason = null;
+                statusReason = reason;
                 dateOfDeath = deceased.dateOfDeath();
             }
         }

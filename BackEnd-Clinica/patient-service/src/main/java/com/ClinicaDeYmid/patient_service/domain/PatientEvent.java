@@ -24,4 +24,7 @@ public sealed interface PatientEvent {
 
     record Died(LocalDate dateOfDeath) implements PatientEvent {
     }
+
+    record DeathReverted(String reason) implements PatientEvent {
+    }
 }

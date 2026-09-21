@@ -45,6 +45,7 @@ record PatientEventMessage(
             case PatientEvent.Deactivated deactivated -> "PatientDeactivated";
             case PatientEvent.Reactivated reactivated -> "PatientReactivated";
             case PatientEvent.Died died -> "PatientDied";
+            case PatientEvent.DeathReverted deathReverted -> "PatientDeathReverted";
         };
     }
 

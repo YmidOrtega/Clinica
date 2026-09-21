@@ -101,9 +101,11 @@ final class PatientResponses {
                 case UnidentifiedPatientStatus.Unidentified unidentified ->
                         new UnidentifiedStatusView(unidentified.code(), null, patient.statusReason(), patient.statusChangedAt(), null);
                 case UnidentifiedPatientStatus.Identified identified ->
-                        new UnidentifiedStatusView(identified.code(), identified.patientUuid(), identified.reason(), identified.since(), null);
+                        new UnidentifiedStatusView(identified.code(), identified.patientUuid(), identified.reason(),
+                                identified.since(), identified.dateOfDeath());
                 case UnidentifiedPatientStatus.Deceased deceased ->
-                        new UnidentifiedStatusView(deceased.code(), null, null, patient.statusChangedAt(), deceased.dateOfDeath());
+                        new UnidentifiedStatusView(deceased.code(), null, patient.statusReason(),
+                                patient.statusChangedAt(), deceased.dateOfDeath());
             };
         }
     }
@@ -153,7 +155,8 @@ final class PatientResponses {
     record StatusView(PatientStatus.Code code, String reason, Instant changedAt, LocalDate dateOfDeath) {
         static StatusView from(PatientStatus status, Patient patient) {
             return switch (status) {
-                case PatientStatus.Active active -> new StatusView(status.code(), null, patient.statusChangedAt(), null);
+                case PatientStatus.Active active ->
+                        new StatusView(status.code(), patient.statusReason(), patient.statusChangedAt(), null);
                 case PatientStatus.Inactive inactive -> new StatusView(status.code(), inactive.reason(), inactive.since(), null);
                 case PatientStatus.Deceased deceased ->
                         new StatusView(status.code(), null, patient.statusChangedAt(), deceased.dateOfDeath());

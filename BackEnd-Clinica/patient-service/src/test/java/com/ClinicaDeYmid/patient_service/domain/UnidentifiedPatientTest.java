@@ -80,7 +80,7 @@ class UnidentifiedPatientTest {
         unidentified.identifyAs(wrongPatient, "Parecido físico", today());
         unidentified.pullEvents();
 
-        unidentified.revertIdentification("La familia confirmó que no es la persona", today());
+        unidentified.revertIdentification(wrongPatient, "La familia confirmó que no es la persona", today());
 
         assertThat(unidentified.status()).isEqualTo(new UnidentifiedPatientStatus.Unidentified());
         assertThat(unidentified.statusReason()).isEqualTo("La familia confirmó que no es la persona");
@@ -92,7 +92,7 @@ class UnidentifiedPatientTest {
     void rejectsInvalidTransitions() {
         UnidentifiedPatient unidentified = arrivedAtEmergencies();
 
-        assertThatThrownBy(() -> unidentified.revertIdentification("Error", today()))
+        assertThatThrownBy(() -> unidentified.revertIdentification(registeredAdult(), "Error", today()))
                 .isInstanceOf(PatientException.InvalidUnidentifiedStatusTransition.class);
 
         unidentified.identifyAs(registeredAdult(), "Cédula", today());
@@ -114,7 +114,52 @@ class UnidentifiedPatientTest {
 
         assertThat(unidentified.status()).isEqualTo(new UnidentifiedPatientStatus.Deceased(TODAY));
         assertThat(unidentified.pullEvents()).containsExactly(new UnidentifiedPatientEvent.Died(TODAY));
-        assertThatThrownBy(() -> unidentified.identifyAs(registeredAdult(), "Cédula", today()))
+    }
+
+    @Test
+    void aDeadUnidentifiedPatientCanStillBeIdentifiedAndTheDeathFollowsThePerson() {
+        UnidentifiedPatient unidentified = pulled(arrivedAtEmergencies());
+        unidentified.recordDeath(TODAY.minusDays(2), today());
+        Patient patient = pulled(registeredAdult());
+
+        unidentified.identifyAs(patient, "Medicina legal lo identificó por huellas", today());
+
+        assertThat(unidentified.status()).isInstanceOfSatisfying(UnidentifiedPatientStatus.Identified.class,
+                identified -> {
+                    assertThat(identified.patientUuid()).isEqualTo(patient.uuid());
+                    assertThat(identified.dateOfDeath()).isEqualTo(TODAY.minusDays(2));
+                    assertThat(identified.carriesADeath()).isTrue();
+                });
+        assertThat(patient.status()).isEqualTo(new PatientStatus.Deceased(TODAY.minusDays(2)));
+        assertThat(patient.pullEvents()).containsExactly(new PatientEvent.Died(TODAY.minusDays(2)));
+    }
+
+    @Test
+    void revertingAnIdentificationThatCarriedADeathBringsThePersonBackToLife() {
+        UnidentifiedPatient unidentified = pulled(arrivedAtEmergencies());
+        unidentified.recordDeath(TODAY.minusDays(2), today());
+        Patient wrongPatient = pulled(registeredAdult());
+        unidentified.identifyAs(wrongPatient, "Parecido físico", today());
+        wrongPatient.pullEvents();
+
+        unidentified.revertIdentification(wrongPatient, "Las huellas no coinciden", today());
+
+        assertThat(unidentified.status()).isEqualTo(new UnidentifiedPatientStatus.Deceased(TODAY.minusDays(2)));
+        assertThat(unidentified.statusReason()).isEqualTo("Las huellas no coinciden");
+        assertThat(wrongPatient.status()).isEqualTo(new PatientStatus.Active());
+        assertThat(wrongPatient.pullEvents())
+                .containsExactly(new PatientEvent.DeathReverted("Las huellas no coinciden"));
+    }
+
+    @Test
+    void anIdentifiedDeadPatientIsNotIdentifiedTwiceNorKilledAgain() {
+        UnidentifiedPatient unidentified = pulled(arrivedAtEmergencies());
+        unidentified.recordDeath(TODAY, today());
+        unidentified.identifyAs(pulled(registeredAdult()), "Cédula en la ropa", today());
+
+        assertThatThrownBy(() -> unidentified.identifyAs(registeredAdult(), "Otra cédula", today()))
+                .isInstanceOf(PatientException.InvalidUnidentifiedStatusTransition.class);
+        assertThatThrownBy(() -> unidentified.recordDeath(TODAY, today()))
                 .isInstanceOf(PatientException.InvalidUnidentifiedStatusTransition.class);
     }
 
@@ -124,6 +169,11 @@ class UnidentifiedPatientTest {
     }
 
     private static UnidentifiedPatient pulled(UnidentifiedPatient patient) {
+        patient.pullEvents();
+        return patient;
+    }
+
+    private static Patient pulled(Patient patient) {
         patient.pullEvents();
         return patient;
     }

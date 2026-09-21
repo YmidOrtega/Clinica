@@ -107,7 +107,7 @@ public class PatientCommands {
         });
     }
 
-    private Patient saveWithEvents(Patient patient) {
+    Patient saveWithEvents(Patient patient) {
         List<PatientEvent> events = patient.pullEvents();
         Patient saved = patients.save(patient);
         if (!events.isEmpty()) {

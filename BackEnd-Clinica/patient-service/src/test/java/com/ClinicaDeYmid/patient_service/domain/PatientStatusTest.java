@@ -30,10 +30,14 @@ class PatientStatusTest {
     }
 
     @Test
-    void deathIsFinal() {
+    void theOnlyWayBackFromDeathIsRevertingIt() {
         assertThatThrownBy(deceased::reactivate).isInstanceOf(PatientException.InvalidStatusTransition.class);
         assertThatThrownBy(() -> deceased.deactivate("x", NOW)).isInstanceOf(PatientException.InvalidStatusTransition.class);
         assertThatThrownBy(() -> deceased.die(DEATH)).isInstanceOf(PatientException.InvalidStatusTransition.class);
+
+        assertThat(deceased.revertDeath()).isEqualTo(new PatientStatus.Active());
+        assertThatThrownBy(active::revertDeath).isInstanceOf(PatientException.InvalidStatusTransition.class);
+        assertThatThrownBy(inactive::revertDeath).isInstanceOf(PatientException.InvalidStatusTransition.class);
     }
 
     @Test

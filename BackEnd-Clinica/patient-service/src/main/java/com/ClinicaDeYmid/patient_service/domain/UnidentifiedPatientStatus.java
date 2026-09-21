@@ -15,11 +15,16 @@ public sealed interface UnidentifiedPatientStatus {
     record Unidentified() implements UnidentifiedPatientStatus {
     }
 
-    record Identified(UUID patientUuid, String reason, Instant since) implements UnidentifiedPatientStatus {
+    record Identified(UUID patientUuid, String reason, Instant since, LocalDate dateOfDeath)
+            implements UnidentifiedPatientStatus {
         public Identified {
             DomainRules.required(patientUuid, "patientUuid");
             reason = DomainRules.requiredText(reason, "reason", 500);
             DomainRules.required(since, "since");
+        }
+
+        public boolean carriesADeath() {
+            return dateOfDeath != null;
         }
     }
 
@@ -39,15 +44,17 @@ public sealed interface UnidentifiedPatientStatus {
 
     default UnidentifiedPatientStatus identifyAs(UUID patientUuid, String reason, Instant now) {
         return switch (this) {
-            case Unidentified unidentified -> new Identified(patientUuid, reason, now);
+            case Unidentified unidentified -> new Identified(patientUuid, reason, now, null);
+            case Deceased deceased -> new Identified(patientUuid, reason, now, deceased.dateOfDeath());
             case Identified identified -> throw rejected(Code.IDENTIFIED);
-            case Deceased deceased -> throw rejected(Code.IDENTIFIED);
         };
     }
 
     default UnidentifiedPatientStatus revertIdentification() {
         return switch (this) {
-            case Identified identified -> new Unidentified();
+            case Identified identified -> identified.carriesADeath()
+                    ? new Deceased(identified.dateOfDeath())
+                    : new Unidentified();
             case Unidentified unidentified -> throw rejected(Code.UNIDENTIFIED);
             case Deceased deceased -> throw rejected(Code.UNIDENTIFIED);
         };
