@@ -132,8 +132,9 @@ class CoverageApiIT extends IntegrationTest {
                         .get(BASE + "/pending-coverage")
                         .header(HttpHeaders.AUTHORIZATION, JwtTestTokens.bearer("BILLING")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
-                .andExpect(jsonPath("$[0].coverage.pending").value(true));
+                .andExpect(jsonPath("$.content.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.content[0].coverage").value("NOT_COVERED"))
+                .andExpect(jsonPath("$.page.totalElements").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
     }
 
     private void activeEventContract(UUID payer, String number) {

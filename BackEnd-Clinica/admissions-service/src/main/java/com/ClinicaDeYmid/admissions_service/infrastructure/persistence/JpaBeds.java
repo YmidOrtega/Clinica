@@ -39,6 +39,11 @@ class JpaBeds implements Beds {
     }
 
     @Override
+    public List<Bed> findByLocation(UUID locationUuid) {
+        return repository.findByLocation(locationUuid);
+    }
+
+    @Override
     public List<Bed> findAvailableInLocation(UUID locationUuid) {
         return repository.findByLocationAndStatus(locationUuid, BedStatus.Code.AVAILABLE);
     }

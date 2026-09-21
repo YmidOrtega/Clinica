@@ -59,6 +59,14 @@ class JdbcPatientReferences implements PatientReferences {
     }
 
     @Override
+    public Optional<PatientReference> findByDocument(String documentType, String documentNumber) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM " + TABLE
+                        + " WHERE document_type = :type AND document_number = :number",
+                new MapSqlParameterSource("type", documentType).addValue("number", documentNumber),
+                ROW_MAPPER).stream().findFirst();
+    }
+
+    @Override
     public boolean saveIfNewer(PatientReference reference) {
         MapSqlParameterSource parameters = parametersOf(reference);
         Boolean saved = transactions.execute(status -> {

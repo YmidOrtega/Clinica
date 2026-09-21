@@ -17,4 +17,6 @@ public interface Beds {
     List<Bed> findByRoom(UUID roomUuid);
 
     List<Bed> findAvailableInLocation(UUID locationUuid);
+
+    List<Bed> findByLocation(UUID locationUuid);
 }

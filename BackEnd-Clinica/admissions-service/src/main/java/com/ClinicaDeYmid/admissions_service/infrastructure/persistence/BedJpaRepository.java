@@ -30,6 +30,10 @@ interface BedJpaRepository extends JpaRepository<Bed, Long> {
     List<Bed> findByRoom(@Param("roomUuid") UUID roomUuid);
 
     @Query("select b from Bed b join fetch b.room r join fetch r.location l "
+            + "where l.uuid = :locationUuid order by r.name, b.label")
+    List<Bed> findByLocation(@Param("locationUuid") UUID locationUuid);
+
+    @Query("select b from Bed b join fetch b.room r join fetch r.location l "
             + "where l.uuid = :locationUuid and b.statusCode = :status order by r.name, b.label")
     List<Bed> findByLocationAndStatus(@Param("locationUuid") UUID locationUuid,
                                       @Param("status") BedStatus.Code status);
