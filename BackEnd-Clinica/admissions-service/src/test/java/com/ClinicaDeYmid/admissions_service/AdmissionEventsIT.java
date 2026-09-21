@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.admissions_service.domain.ServiceType;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
+import com.ClinicaDeYmid.admissions_service.support.TransitKeys;
 import com.ClinicaDeYmid.admissions_service.support.ProducerContract;
 import com.ClinicaDeYmid.admissions_service.support.SharedPostgres;
 import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -67,6 +69,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@Import(TransitKeys.class)
 @AutoConfigureMockMvc
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AdmissionEventsIT {

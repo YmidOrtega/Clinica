@@ -14,6 +14,7 @@ import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.admissions_service.support.ClinicalEvents;
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
+import com.ClinicaDeYmid.admissions_service.support.TransitKeys;
 import com.ClinicaDeYmid.admissions_service.support.ProducerContract;
 import com.ClinicaDeYmid.admissions_service.support.SharedPostgres;
 import com.ClinicaDeYmid.admissions_service.support.TestSequence;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.kafka.KafkaContainer;
@@ -49,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
+@Import(TransitKeys.class)
 class ClinicalEventsConsumerIT {
 
     private static final String TOPIC = "clinical.encounters.v1";
