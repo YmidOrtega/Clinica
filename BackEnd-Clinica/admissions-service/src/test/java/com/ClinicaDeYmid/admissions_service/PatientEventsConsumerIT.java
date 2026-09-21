@@ -78,8 +78,8 @@ class PatientEventsConsumerIT {
 
     @Test
     void theFixturesFollowTheContractPublishedByPatientService() {
-        assertThat(ProducerContract.violations(PatientEvents.registered(UUID.randomUUID(), 1))).isEmpty();
-        assertThat(ProducerContract.violations(PatientEvents.unidentified(
+        assertThat(ProducerContract.PATIENT_EVENTS.breaches(PatientEvents.registered(UUID.randomUUID(), 1))).isEmpty();
+        assertThat(ProducerContract.PATIENT_EVENTS.breaches(PatientEvents.unidentified(
                 UUID.randomUUID(), 1, "UnidentifiedPatientRegistered", "UNIDENTIFIED", null, null))).isEmpty();
     }
 

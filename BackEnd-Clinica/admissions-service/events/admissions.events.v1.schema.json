@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clinica:events:admissions.events.v1",
+  "title": "Admission event",
+  "description": "Value of every record in the admissions.events.v1 topic. The record key is the UUID of the episode. Every event carries the current summary of that episode, so the latest record per key is its current state. Clinical data never travels here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "type",
+    "schemaVersion",
+    "occurredAt",
+    "admissionUuid",
+    "admissionVersion",
+    "data"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique per event. Use it to discard redeliveries."
+    },
+    "type": {
+      "enum": [
+        "AdmissionRegistered",
+        "AdmissionPhaseChanged",
+        "AdmissionBedAssigned",
+        "AdmissionBedReleased",
+        "AdmissionCoveragePending",
+        "AdmissionDischarged",
+        "AdmissionCancelled"
+      ]
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "admissionUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "admissionVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "traceId": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admission"
+      ],
+      "properties": {
+        "admission": {
+          "$ref": "#/$defs/admission"
+        },
+        "previousServiceUuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "bedUuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "previousBedUuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "coverageDetail": {
+          "type": "string"
+        },
+        "discharge": {
+          "enum": ["MEDICAL", "VOLUNTARY", "REFERRAL", "ESCAPE", "DEATH"]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "AdmissionPhaseChanged"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": ["previousServiceUuid"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "AdmissionBedAssigned"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": ["bedUuid"],
+            "properties": {
+              "admission": {
+                "required": ["bedUuid"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "AdmissionBedReleased"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": ["bedUuid"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "AdmissionCoveragePending"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "admission": {
+                "properties": {
+                  "coverage": {
+                    "enum": ["NOT_COVERED", "UNKNOWN"]
+                  }
+                },
+                "required": ["coverage"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "AdmissionDischarged"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": ["discharge"],
+            "properties": {
+              "admission": {
+                "properties": {
+                  "status": {
+                    "const": "DISCHARGED"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "AdmissionCancelled"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "admission": {
+                "properties": {
+                  "status": {
+                    "const": "CANCELLED"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uuid",
+        "number",
+        "patientUuid",
+        "kind",
+        "status",
+        "configurationServiceUuid"
+      ],
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "number": {
+          "type": "string",
+          "pattern": "^ADM-[0-9]{4}-[0-9]{6}$"
+        },
+        "patientUuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": ["EMERGENCY", "INPATIENT", "OUTPATIENT"]
+        },
+        "status": {
+          "enum": ["REGISTERED", "ACTIVE", "DISCHARGED", "CANCELLED"]
+        },
+        "configurationServiceUuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "bedUuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "coverage": {
+          "enum": ["COVERED", "NOT_COVERED", "UNKNOWN"]
+        }
+      }
+    }
+  }
+}

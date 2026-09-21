@@ -128,10 +128,11 @@ services:
          - gateway_redis_secrets:/rendered/gateway-redis
          - contracting_db_secrets:/rendered/contracting-db
          - practitioners_db_secrets:/rendered/practitioners-db
+         - admissions_db_secrets:/rendered/admissions-db
       networks:
          - secrets-net
       healthcheck:
-         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password kafka-connect/practitioners-db-debezium-password; do test -s /rendered/$$f || exit 1; done"]
+         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password kafka-connect/practitioners-db-debezium-password admissions-db/app-password kafka-connect/admissions-db-debezium-password; do test -s /rendered/$$f || exit 1; done"]
          interval: 5s
          timeout: 3s
          retries: 24
@@ -265,16 +266,36 @@ services:
       image: postgres:16
       container_name: admissions-db
       restart: always
+      depends_on:
+         openbao-agent:
+            condition: service_healthy
+      command:
+         - postgres
+         - -c
+         - wal_level=logical
+         - -c
+         - max_replication_slots=4
+         - -c
+         - max_wal_senders=4
       environment:
          POSTGRES_DB: ${ADMISSIONS_DB_NAME}
          POSTGRES_USER: ${ADMISSIONS_DB_USER}
          POSTGRES_PASSWORD: ${ADMISSIONS_DB_PASSWORD}
+         ADMISSIONS_DB_MIGRATOR_USER_FILE: /run/secrets/admissions-db/migrator-user
+         ADMISSIONS_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/admissions-db/migrator-password
+         ADMISSIONS_DB_APP_USER_FILE: /run/secrets/admissions-db/app-user
+         ADMISSIONS_DB_APP_PASSWORD_FILE: /run/secrets/admissions-db/app-password
+         ADMISSIONS_DB_DEBEZIUM_USER_FILE: /run/secrets/admissions-db/debezium-user
+         ADMISSIONS_DB_DEBEZIUM_PASSWORD_FILE: /run/secrets/admissions-db/debezium-password
       ports:
          - "3309:5432"
       volumes:
          - admissions_data:/var/lib/postgresql/data
+         - ./admissions-service/docker/postgres-init:/docker-entrypoint-initdb.d:ro
+         - admissions_db_secrets:/run/secrets/admissions-db:ro
       networks:
          - clinica-net
+         - admissions-data
       healthcheck:
          test:
             [
@@ -510,6 +531,8 @@ services:
          AUTH_DB_HOST: auth-db
          CONTRACTING_DB_HOST: contracting-db
          PRACTITIONERS_DB_HOST: practitioners-db
+         ADMISSIONS_DB_HOST: admissions-db
+         ADMISSIONS_DB_NAME: ${ADMISSIONS_DB_NAME}
       volumes:
          - kafka_connect_secrets:/run/secrets/kafka-connect:ro
       networks:
@@ -519,6 +542,7 @@ services:
          - auth-data
          - contracting-data
          - practitioners-data
+         - admissions-data
       healthcheck:
          test: ["CMD-SHELL", "curl -fs http://localhost:8083/connectors > /dev/null"]
          interval: 10s
@@ -543,6 +567,8 @@ services:
             condition: service_healthy
          practitioners-db:
             condition: service_healthy
+         admissions-db:
+            condition: service_healthy
       entrypoint: ["sh", "/register-connectors.sh"]
       volumes:
          - ./platform/kafka-connect/register-connectors.sh:/register-connectors.sh:ro
@@ -551,6 +577,7 @@ services:
          - ./auth-service/debezium:/connectors/auth-service:ro
          - ./contracting-service/debezium:/connectors/contracting-service:ro
          - ./practitioners-service/debezium:/connectors/practitioners-service:ro
+         - ./admissions-service/debezium:/connectors/admissions-service:ro
       networks:
          - kafka-net
 
@@ -956,6 +983,7 @@ volumes:
    practitioners_db_secrets:
    patient_data:
    billing_data:
+   admissions_db_secrets:
    admissions_data:
    ai_assistant_data:
    auth_data:
@@ -990,6 +1018,9 @@ networks:
       driver: bridge
       internal: true
    practitioners-data:
+      driver: bridge
+      internal: true
+   admissions-data:
       driver: bridge
       internal: true
    mail-net:

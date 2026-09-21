@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.admissions_service.application.patient.PatientReference
 import com.ClinicaDeYmid.admissions_service.application.patient.PatientRegistry;
 import com.ClinicaDeYmid.admissions_service.application.patient.UnidentifiedAdmissionRequest;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
+import com.ClinicaDeYmid.admissions_service.domain.AdmissionEvent;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionPhase;
 import com.ClinicaDeYmid.admissions_service.domain.Admissions;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionsException;
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
+import java.util.List;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -48,13 +50,15 @@ public class AdmissionCommands {
     private final BedAssignments bedAssignments;
     private final PractitionerDirectory practitioners;
     private final PatientReferenceProjection projection;
+    private final AdmissionEventOutbox outbox;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public AdmissionCommands(Admissions admissions, ConfigurationServices configurationServices, CareTypes careTypes,
                              PatientDirectory patients, PatientRegistry registry, CoverageGate coverage,
                              BedAssignments bedAssignments, PractitionerDirectory practitioners,
-                             PatientReferenceProjection projection, TransactionOperations transactions, Clock clock) {
+                             PatientReferenceProjection projection, AdmissionEventOutbox outbox,
+                             TransactionOperations transactions, Clock clock) {
         this.admissions = admissions;
         this.configurationServices = configurationServices;
         this.careTypes = careTypes;
@@ -64,6 +68,7 @@ public class AdmissionCommands {
         this.bedAssignments = bedAssignments;
         this.practitioners = practitioners;
         this.projection = projection;
+        this.outbox = outbox;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -91,7 +96,7 @@ public class AdmissionCommands {
             String number = admissions.nextNumber(LocalDate.now(clock).getYear());
             Admission registered = Admission.register(number, patientUuid, attached, cause, careType, companion, clock);
             registered.assess(assessed);
-            admissions.save(registered);
+            publish(admissions.save(registered));
             log.info("Admission registered: number={} patient={} kind={} coverage={}",
                     registered.number(), patientUuid, registered.kind(), assessed.status());
             return reloaded(registered.uuid());
@@ -147,7 +152,7 @@ public class AdmissionCommands {
                     current.deathNoticeFailed(failed.detail(), Instant.now(clock));
                 }
             }
-            admissions.save(current);
+            publish(admissions.save(current));
             return reloaded(uuid);
         });
     }
@@ -166,7 +171,7 @@ public class AdmissionCommands {
                 bedAssignments.freeCurrentBed(admission);
             }
             AdmissionPhase phase = admission.moveTo(service, reason, clock);
-            admissions.save(admission);
+            publish(admissions.save(admission));
             log.info("Admission {} moved to {} ({})", admission.number(), service.uuid(), phase.kind());
             return reloaded(uuid);
         });
@@ -188,9 +193,16 @@ public class AdmissionCommands {
             Admission admission = admissions.findByUuid(uuid).orElseThrow(AdmissionsException.AdmissionNotFound::new);
             requireVersion(admission.version(), expectedVersion);
             change.accept(admission);
-            admissions.save(admission);
+            publish(admissions.save(admission));
             return reloaded(uuid);
         });
+    }
+
+    private void publish(Admission admission) {
+        List<AdmissionEvent> events = admission.pullEvents();
+        if (!events.isEmpty()) {
+            outbox.append(admission, events);
+        }
     }
 
     private Admission reloaded(UUID uuid) {

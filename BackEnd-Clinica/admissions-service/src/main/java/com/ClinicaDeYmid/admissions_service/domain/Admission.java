@@ -16,6 +16,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
 import org.hibernate.envers.AuditTable;
 import org.hibernate.envers.Audited;
@@ -97,6 +98,9 @@ public class Admission {
     @OrderBy("startedAt asc, id asc")
     private List<AdmissionPhase> phases = new ArrayList<>();
 
+    @Transient
+    private final List<AdmissionEvent> events = new ArrayList<>();
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -127,6 +131,7 @@ public class Admission {
         admission.statusCode = AdmissionStatus.Code.REGISTERED;
         admission.assignCareType(careType, DomainRules.required(service, "configurationService"));
         admission.phases.add(AdmissionPhase.begin(admission, service, Instant.now(clock), null));
+        admission.events.add(new AdmissionEvent.Registered());
         return admission;
     }
 
@@ -152,7 +157,9 @@ public class Admission {
         if (!status().open()) {
             throw new AdmissionsException.ClosedAdmission();
         }
+        UUID previous = bedUuid;
         this.bedUuid = DomainRules.required(bed, "bed");
+        events.add(new AdmissionEvent.BedAssigned(bedUuid, previous));
     }
 
     public UUID releaseBed() {
@@ -161,6 +168,7 @@ public class Admission {
         }
         UUID released = bedUuid;
         this.bedUuid = null;
+        events.add(new AdmissionEvent.BedReleased(released));
         return released;
     }
 
@@ -175,6 +183,7 @@ public class Admission {
     public void discharge(Discharge discharge) {
         applyStatus(status().discharge(discharge));
         currentPhase().end(discharge.at());
+        events.add(new AdmissionEvent.Discharged(discharge.code()));
         if (discharge instanceof Discharge.Death) {
             this.deathNotice = DeathNotice.pending(
                     "El fallecimiento todavía no se informó al directorio de pacientes", discharge.at());
@@ -211,6 +220,7 @@ public class Admission {
         Instant now = Instant.now(clock);
         applyStatus(status().cancel(reason, now));
         currentPhase().end(now);
+        events.add(new AdmissionEvent.Cancelled(statusReason));
     }
 
     public AdmissionPhase moveTo(ConfigurationService service, String reason, Clock clock) {
@@ -222,14 +232,25 @@ public class Admission {
             throw new AdmissionsException.SamePhaseAlreadyCurrent();
         }
         Instant now = Instant.now(clock);
+        UUID previousService = current.configurationService().uuid();
         current.end(now);
         AdmissionPhase next = AdmissionPhase.begin(this, service, now, reason);
         phases.add(next);
+        events.add(new AdmissionEvent.PhaseChanged(previousService, next.openingReason()));
         return next;
     }
 
     public void assess(Coverage coverage) {
         this.coverage = DomainRules.required(coverage, "coverage");
+        if (this.coverage.pending()) {
+            events.add(new AdmissionEvent.CoveragePending(this.coverage.status(), this.coverage.detail()));
+        }
+    }
+
+    public List<AdmissionEvent> pullEvents() {
+        List<AdmissionEvent> recorded = List.copyOf(events);
+        events.clear();
+        return recorded;
     }
 
     public boolean coveragePending() {

@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.admissions_service.application;
 
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
+import com.ClinicaDeYmid.admissions_service.domain.AdmissionEvent;
 import com.ClinicaDeYmid.admissions_service.domain.Admissions;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionsException;
 import com.ClinicaDeYmid.admissions_service.domain.Bed;
@@ -16,6 +17,7 @@ import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -26,14 +28,16 @@ public class BedAssignments {
     private final Admissions admissions;
     private final Beds beds;
     private final BedStays stays;
+    private final AdmissionEventOutbox outbox;
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public BedAssignments(Admissions admissions, Beds beds, BedStays stays, TransactionOperations transactions,
-                          Clock clock) {
+    public BedAssignments(Admissions admissions, Beds beds, BedStays stays, AdmissionEventOutbox outbox,
+                          TransactionOperations transactions, Clock clock) {
         this.admissions = admissions;
         this.beds = beds;
         this.stays = stays;
+        this.outbox = outbox;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -62,7 +66,7 @@ public class BedAssignments {
             }
             beds.save(bed);
             admission.assignBed(bedUuid);
-            admissions.save(admission);
+            publish(admissions.save(admission));
             log.info("Admission {} took bed {}", admission.number(), bedUuid);
             return reloaded(admissionUuid);
         });
@@ -74,7 +78,7 @@ public class BedAssignments {
                     .orElseThrow(AdmissionsException.AdmissionNotFound::new);
             requireVersion(admission.version(), expectedVersion);
             freeCurrentBed(admission);
-            admissions.save(admission);
+            publish(admissions.save(admission));
             return reloaded(admissionUuid);
         });
     }
@@ -88,6 +92,13 @@ public class BedAssignments {
         stays.save(stay);
         beds.save(bed);
         log.info("Admission {} left bed {}", admission.number(), released);
+    }
+
+    private void publish(Admission admission) {
+        List<AdmissionEvent> events = admission.pullEvents();
+        if (!events.isEmpty()) {
+            outbox.append(admission, events);
+        }
     }
 
     private Admission reloaded(UUID uuid) {
