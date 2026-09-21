@@ -12,7 +12,9 @@ import com.ClinicaDeYmid.admissions_service.domain.BedStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 import com.ClinicaDeYmid.admissions_service.domain.DeathNotice;
 import com.ClinicaDeYmid.admissions_service.domain.Discharge;
+import com.ClinicaDeYmid.admissions_service.domain.Triage;
 import com.ClinicaDeYmid.admissions_service.domain.Discharge;
+import com.ClinicaDeYmid.admissions_service.domain.Triage;
 
 import java.time.Instant;
 import java.util.List;
@@ -98,10 +100,17 @@ final class AdmissionResponses {
         }
     }
 
+    record TriageView(Triage.Level level, Instant at, UUID byUuid) {
+
+        static TriageView from(Triage triage) {
+            return triage == null ? null : new TriageView(triage.level(), triage.at(), triage.byUuid());
+        }
+    }
+
     record AdmissionSummaryView(UUID uuid, String number, UUID patientUuid, AdmissionKind kind,
                                AdmissionStatus.Code status, UUID configurationServiceUuid,
                                String configurationServiceName, Instant startedAt, UUID bedUuid,
-                               Coverage.Code coverage, Discharge.Code discharge) {
+                               Coverage.Code coverage, Discharge.Code discharge, TriageView triage) {
 
         static AdmissionSummaryView from(Admission admission) {
             AdmissionPhase phase = admission.lastPhase();
@@ -110,7 +119,8 @@ final class AdmissionResponses {
                     phase.configurationService().name(), phase.startedAt(), admission.bedUuid(),
                     admission.coverage() == null ? null : admission.coverage().status(),
                     admission.status() instanceof AdmissionStatus.Discharged discharged
-                            ? discharged.discharge().code() : null);
+                            ? discharged.discharge().code() : null,
+                    TriageView.from(admission.triage()));
         }
     }
 
@@ -138,7 +148,7 @@ final class AdmissionResponses {
     record AdmissionView(UUID uuid, String number, UUID patientUuid, Cause cause, UUID careTypeUuid,
                          AdmissionKind kind, boolean bedRequired, StatusView status, PhaseView currentPhase,
                          List<PhaseView> phases, CompanionView companion, CoverageView coverage, UUID bedUuid,
-                         AttendingView attending, DeathNoticeView deathNotice) {
+                         AttendingView attending, DeathNoticeView deathNotice, TriageView triage) {
 
         static AdmissionView from(Admission admission) {
             return new AdmissionView(admission.uuid(), admission.number(), admission.patientUuid(), admission.cause(),
@@ -149,7 +159,8 @@ final class AdmissionResponses {
                     admission.companion() == null ? null : new CompanionView(admission.companion().fullName(),
                             admission.companion().phoneNumber(), admission.companion().relationship()),
                     CoverageView.from(admission.coverage()), admission.bedUuid(),
-                    AttendingView.from(admission.attending()), DeathNoticeView.from(admission.deathNotice()));
+                    AttendingView.from(admission.attending()), DeathNoticeView.from(admission.deathNotice()),
+                    TriageView.from(admission.triage()));
         }
     }
 

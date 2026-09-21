@@ -18,6 +18,8 @@ public final class ProducerContract {
 
     public static final ProducerContract PATIENT_EVENTS =
             new ProducerContract(Path.of("../patient-service/events/patient.events.v1.schema.json"));
+    public static final ProducerContract CLINICAL_EVENTS =
+            new ProducerContract(Path.of("../clinical-history-service/events/clinical.encounters.v1.schema.json"));
     public static final ProducerContract ADMISSION_EVENTS =
             new ProducerContract(Path.of("events/admissions.events.v1.schema.json"));
 

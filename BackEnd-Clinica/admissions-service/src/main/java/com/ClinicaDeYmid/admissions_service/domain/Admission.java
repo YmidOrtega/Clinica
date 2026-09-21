@@ -93,6 +93,9 @@ public class Admission {
     @Embedded
     private DeathNotice deathNotice;
 
+    @Embedded
+    private Triage triage;
+
     @NotAudited
     @OneToMany(mappedBy = "admission", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @OrderBy("startedAt asc, id asc")
@@ -210,6 +213,19 @@ public class Admission {
 
     public DeathNotice deathNotice() {
         return deathNotice;
+    }
+
+    public boolean reflectTriage(Triage.Level level, Instant at, UUID clinician) {
+        Triage classified = Triage.classified(level, at, clinician);
+        if (!classified.newerThan(triage)) {
+            return false;
+        }
+        this.triage = classified;
+        return true;
+    }
+
+    public Triage triage() {
+        return triage;
     }
 
     private void requireADeath() {

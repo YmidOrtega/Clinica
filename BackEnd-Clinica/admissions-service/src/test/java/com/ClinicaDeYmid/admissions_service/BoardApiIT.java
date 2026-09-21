@@ -1,10 +1,12 @@
 package com.ClinicaDeYmid.admissions_service;
 
 import com.ClinicaDeYmid.admissions_service.application.CatalogueCommands;
+import com.ClinicaDeYmid.admissions_service.application.TriageReflection;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.admissions_service.domain.ConfigurationService;
 import com.ClinicaDeYmid.admissions_service.domain.Location;
 import com.ClinicaDeYmid.admissions_service.domain.ServiceType;
+import com.ClinicaDeYmid.admissions_service.domain.Triage;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReferences;
 import com.ClinicaDeYmid.admissions_service.support.TestSequence;
@@ -12,6 +14,7 @@ import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -30,6 +33,9 @@ class BoardApiIT extends IntegrationTest {
 
     @Autowired
     private PatientReferences patients;
+
+    @Autowired
+    private TriageReflection triage;
 
     @Test
     void theCensusShowsEveryBedAndWhoIsInIt() throws Exception {
@@ -97,6 +103,28 @@ class BoardApiIT extends IntegrationTest {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].uuid").value(episode))
                 .andExpect(jsonPath("$[0].kind").value("INPATIENT"));
+    }
+
+    @Test
+    void theQueuePutsThoseWaitingForTriageFirstAndThenOrdersByLevel() throws Exception {
+        UUID service = configured(aLocation(), AdmissionKind.EMERGENCY);
+        String mild = anEpisode(aLocalPatient(), service);
+        String critical = anEpisode(aLocalPatient(), service);
+        String untriaged = anEpisode(aLocalPatient(), service);
+
+        triage.apply(UUID.fromString(mild), Triage.Level.IV, Instant.now().minusSeconds(120), UUID.randomUUID());
+        triage.apply(UUID.fromString(critical), Triage.Level.I, Instant.now().minusSeconds(60), UUID.randomUUID());
+
+        as("DOCTOR", get(BASE + "/configured-services/" + service + "/queue"), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].uuid").value(untriaged))
+                .andExpect(jsonPath("$[0].triage").doesNotExist())
+                .andExpect(jsonPath("$[1].uuid").value(critical))
+                .andExpect(jsonPath("$[1].triage.level").value("I"))
+                .andExpect(jsonPath("$[1].triage.at").isNotEmpty())
+                .andExpect(jsonPath("$[2].uuid").value(mild))
+                .andExpect(jsonPath("$[2].triage.level").value("IV"));
     }
 
     private String anEpisode(UUID patient, UUID service) throws Exception {

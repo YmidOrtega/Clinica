@@ -14,6 +14,7 @@ import com.ClinicaDeYmid.admissions_service.domain.InpatientPhase;
 import com.ClinicaDeYmid.admissions_service.domain.Location;
 import com.ClinicaDeYmid.admissions_service.domain.OutpatientPhase;
 import com.ClinicaDeYmid.admissions_service.domain.ServiceType;
+import com.ClinicaDeYmid.admissions_service.domain.Triage;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -193,6 +194,20 @@ class AdmissionTest {
         assertThatThrownBy(admission::death).isInstanceOf(AdmissionsException.NoDeathToReport.class);
         assertThatThrownBy(() -> admission.deathNoticeSent(Instant.now(clock)))
                 .isInstanceOf(AdmissionsException.NoDeathToReport.class);
+    }
+
+    @Test
+    void theEpisodeKeepsOnlyTheLatestTriageItIsToldAbout() {
+        Admission admission = admit(emergency());
+        Instant now = Instant.now(clock);
+        UUID nurse = UUID.randomUUID();
+
+        assertThat(admission.reflectTriage(Triage.Level.III, now, nurse)).isTrue();
+        assertThat(admission.reflectTriage(Triage.Level.I, now.plusSeconds(60), nurse)).isTrue();
+        assertThat(admission.reflectTriage(Triage.Level.V, now.minusSeconds(60), nurse)).isFalse();
+
+        assertThat(admission.triage().level()).isEqualTo(Triage.Level.I);
+        assertThat(admission.triage().byUuid()).isEqualTo(nurse);
     }
 
     private Discharge medicalDischarge() {
