@@ -99,7 +99,8 @@ final class CanonicalPayloads {
         payload.put("id", encounter.id().toString());
         payload.put("patientUuid", encounter.patientUuid().toString());
         payload.put("type", encounter.type().name());
-        payload.put("admissionId", encounter.admissionId());
+        payload.put("admissionUuid", encounter.admissionUuid() == null ? null : encounter.admissionUuid().toString());
+        payload.put("admissionVerified", encounter.admissionVerified());
         payload.put("openedAt", instant(encounter.openedAt()));
         payload.put("openedBy", clinician(encounter.openedBy()));
         return payload;

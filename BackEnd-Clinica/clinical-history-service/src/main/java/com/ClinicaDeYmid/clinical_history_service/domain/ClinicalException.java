@@ -149,6 +149,13 @@ public sealed abstract class ClinicalException extends DomainException {
         }
     }
 
+    public static final class AdmissionNotFound extends ClinicalException {
+        public AdmissionNotFound() {
+            super(ErrorCategory.RULE_VIOLATION, "CLINICAL_ADMISSION_NOT_FOUND",
+                    "El episodio de admisión indicado no existe");
+        }
+    }
+
     public static final class EncounterNotFound extends ClinicalException {
         public EncounterNotFound() {
             super(ErrorCategory.NOT_FOUND, "ENCOUNTER_NOT_FOUND", "No se encontró la atención clínica");

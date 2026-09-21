@@ -148,8 +148,8 @@ class PdfRecordCopyRenderer implements RecordCopyRenderer {
         pdf.gap(6);
         pdf.line(Style.SECTION, "Atención " + record.encounter().type() + " · " + format(record.encounter().openedAt()));
         pdf.field("Abierta por", person(record.encounter().openedBy(), content));
-        if (record.encounter().admissionId() != null) {
-            pdf.field("Admisión", record.encounter().admissionId());
+        if (record.encounter().admissionUuid() != null) {
+            pdf.field("Admisión", record.encounter().admissionUuid().toString());
         }
         if (record.encounter().status() instanceof EncounterStatus.Closed closed) {
             pdf.field("Cerrada", format(closed.closedAt()) + " por " + person(closed.closedBy(), content));

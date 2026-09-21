@@ -1,6 +1,8 @@
 package com.ClinicaDeYmid.clinical_history_service.application.encounter;
 
 import com.ClinicaDeYmid.clinical_history_service.application.access.RecordAccess;
+import com.ClinicaDeYmid.clinical_history_service.application.admission.AdmissionDirectory;
+import com.ClinicaDeYmid.clinical_history_service.application.admission.AdmissionLookup;
 import com.ClinicaDeYmid.clinical_history_service.application.integrity.RecordSealing;
 import com.ClinicaDeYmid.clinical_history_service.application.patient.PatientDirectory;
 import com.ClinicaDeYmid.clinical_history_service.application.patient.PatientLookup;
@@ -34,6 +36,7 @@ public class EncounterCommands {
     private static final Logger log = LoggerFactory.getLogger(EncounterCommands.class);
 
     private final PatientDirectory patients;
+    private final AdmissionDirectory admissions;
     private final Encounters encounters;
     private final ClinicalNotes notes;
     private final CareTeams careTeams;
@@ -42,9 +45,11 @@ public class EncounterCommands {
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public EncounterCommands(PatientDirectory patients, Encounters encounters, ClinicalNotes notes, CareTeams careTeams,
-                             RecordSealing sealing, RecordAccess access, TransactionOperations transactions, Clock clock) {
+    public EncounterCommands(PatientDirectory patients, AdmissionDirectory admissions, Encounters encounters,
+                             ClinicalNotes notes, CareTeams careTeams, RecordSealing sealing, RecordAccess access,
+                             TransactionOperations transactions, Clock clock) {
         this.patients = patients;
+        this.admissions = admissions;
         this.encounters = encounters;
         this.notes = notes;
         this.careTeams = careTeams;
@@ -54,13 +59,13 @@ public class EncounterCommands {
         this.clock = clock;
     }
 
-    public Encounter open(UUID patientUuid, EncounterType type, String admissionId, Clinician clinician) {
+    public Encounter open(UUID patientUuid, EncounterType type, UUID admissionUuid, Clinician clinician) {
         PatientReference patient = switch (patients.find(patientUuid)) {
             case PatientLookup.Found found -> found.patient();
             case PatientLookup.NotFound notFound -> throw new ClinicalException.PatientNotFound();
             case PatientLookup.Unavailable unavailable -> throw new ClinicalException.PatientRegistryUnavailable();
         };
-        Encounter encounter = Encounter.open(patient, type, admissionId, clinician, clock);
+        Encounter encounter = Encounter.open(patient, type, admissionUuid, verified(admissionUuid), clinician, clock);
         transactions.executeWithoutResult(status -> {
             sealing.record(new LedgerEntry.EncounterOpened(encounter));
             encounters.add(encounter);
@@ -69,6 +74,21 @@ public class EncounterCommands {
         });
         log.info("Encounter {} of type {} opened by {}", encounter.id(), encounter.type(), clinician.uuid());
         return encounter;
+    }
+
+    private boolean verified(UUID admissionUuid) {
+        if (admissionUuid == null) {
+            return false;
+        }
+        return switch (admissions.find(admissionUuid)) {
+            case AdmissionLookup.Found found -> true;
+            case AdmissionLookup.NotFound notFound -> throw new ClinicalException.AdmissionNotFound();
+            case AdmissionLookup.Unavailable unavailable -> {
+                log.warn("Episode {} could not be verified against admissions-service; the encounter opens unverified",
+                        admissionUuid);
+                yield false;
+            }
+        };
     }
 
     @Transactional
@@ -80,7 +100,8 @@ public class EncounterCommands {
         encounters.close(closure);
         sealing.record(new LedgerEntry.EncounterClosed(encounter.patientUuid(), closure));
         log.info("Encounter {} closed by {}", encounterId, clinician.uuid());
-        return new Encounter(encounter.id(), encounter.patientUuid(), encounter.type(), encounter.admissionId(),
-                encounter.openedAt(), encounter.openedBy(), new EncounterStatus.Closed(closure.closedAt(), closure.closedBy()));
+        return new Encounter(encounter.id(), encounter.patientUuid(), encounter.type(), encounter.admissionUuid(),
+                encounter.admissionVerified(), encounter.openedAt(), encounter.openedBy(),
+                new EncounterStatus.Closed(closure.closedAt(), closure.closedBy()));
     }
 }

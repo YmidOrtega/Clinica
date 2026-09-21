@@ -65,7 +65,7 @@ class ChainVerificationTest {
         Chain chain = chainOf(2);
         chain.entries.remove(0);
         Encounter moved = ((LedgerEntry.EncounterOpened) chain.entries.remove(0)).encounter();
-        chain.entries.add(new LedgerEntry.EncounterOpened(new Encounter(moved.id(), UUID.randomUUID(), moved.type(), null,
+        chain.entries.add(new LedgerEntry.EncounterOpened(new Encounter(moved.id(), UUID.randomUUID(), moved.type(), null, false,
                 moved.openedAt(), moved.openedBy(), moved.status())));
 
         ChainVerification verification = ChainVerification.of(chain.patient, chain.links, chain.entries, trustingSignature);
@@ -101,7 +101,7 @@ class ChainVerificationTest {
         ChainLink previous = null;
         for (int i = 0; i < size; i++) {
             Encounter base = openEncounter(EncounterType.OUTPATIENT);
-            LedgerEntry entry = new LedgerEntry.EncounterOpened(new Encounter(base.id(), patient, base.type(), null, base.openedAt(),
+            LedgerEntry entry = new LedgerEntry.EncounterOpened(new Encounter(base.id(), patient, base.type(), null, false, base.openedAt(),
                     base.openedBy(), base.status()));
             previous = trustingSignature.seal(entry, previous, AT);
             links.add(previous);

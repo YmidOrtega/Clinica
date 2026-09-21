@@ -238,7 +238,7 @@ class ClinicalRecordPersistenceIT {
     }
 
     private Encounter encounter(EncounterType type, Instant openedAt) {
-        return new Encounter(UUID.randomUUID(), patient, type, "ADM-1", openedAt, doctor(), new EncounterStatus.Open());
+        return new Encounter(UUID.randomUUID(), patient, type, UUID.randomUUID(), true, openedAt, doctor(), new EncounterStatus.Open());
     }
 
     private static SignedNote note(Encounter encounter, Clinician author, NoteContent content, int minute) {

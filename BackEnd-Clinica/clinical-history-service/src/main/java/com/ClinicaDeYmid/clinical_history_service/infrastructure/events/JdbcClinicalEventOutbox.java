@@ -1,6 +1,8 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.events;
 
 import com.ClinicaDeYmid.clinical_history_service.application.integrity.ClinicalEventPublisher;
+import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
+import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounters;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainLink;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -31,18 +33,28 @@ class JdbcClinicalEventOutbox implements ClinicalEventPublisher {
             .build();
 
     private final JdbcTemplate jdbc;
+    private final Encounters encounters;
 
-    JdbcClinicalEventOutbox(JdbcTemplate jdbc) {
+    JdbcClinicalEventOutbox(JdbcTemplate jdbc, Encounters encounters) {
         this.jdbc = jdbc;
+        this.encounters = encounters;
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public void publish(LedgerEntry entry, ChainLink link) {
         UUID eventId = UUID.randomUUID();
-        EncounterEventMessage message = EncounterEventMessage.of(entry, link, eventId, MDC.get("traceId"));
+        EncounterEventMessage message = EncounterEventMessage.of(entry, link, eventId, MDC.get("traceId"),
+                admissionOf(entry));
         jdbc.update("INSERT INTO clinical_outbox.outbox_events (id, aggregatetype, aggregateid, type, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                 eventId.toString(), AGGREGATE_TYPE, entry.patientUuid().toString(), message.type(), write(message), Timestamp.from(link.sealedAt()));
+    }
+
+    private UUID admissionOf(LedgerEntry entry) {
+        if (!(entry instanceof LedgerEntry.NoteSigned signed)) {
+            return null;
+        }
+        return encounters.find(signed.note().encounterId()).map(Encounter::admissionUuid).orElse(null);
     }
 
     static String write(EncounterEventMessage message) {

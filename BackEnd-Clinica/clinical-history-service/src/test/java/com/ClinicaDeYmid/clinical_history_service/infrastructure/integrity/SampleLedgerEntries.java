@@ -40,7 +40,7 @@ final class SampleLedgerEntries {
     }
 
     static List<LedgerEntry> everyKindOfEntry() {
-        Encounter encounter = new Encounter(ENCOUNTER, PATIENT, EncounterType.EMERGENCY, null, AT, NURSE, new EncounterStatus.Open());
+        Encounter encounter = new Encounter(ENCOUNTER, PATIENT, EncounterType.EMERGENCY, null, false, AT, NURSE, new EncounterStatus.Open());
         return List.of(
                 new LedgerEntry.EncounterOpened(encounter),
                 triageNote("Dolor torácico"),

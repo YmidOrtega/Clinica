@@ -42,7 +42,8 @@ record EncounterEventMessage(
         }
     }
 
-    static EncounterEventMessage of(LedgerEntry entry, ChainLink link, UUID eventId, String traceId) {
+    static EncounterEventMessage of(LedgerEntry entry, ChainLink link, UUID eventId, String traceId,
+                                    UUID admissionUuid) {
         Map<String, Object> data = new TreeMap<>();
         String type;
         UUID encounterId;
@@ -53,7 +54,8 @@ record EncounterEventMessage(
                 encounterId = opened.encounter().id();
                 occurredAt = opened.encounter().openedAt();
                 data.put("encounterType", opened.encounter().type().name());
-                data.put("admissionId", opened.encounter().admissionId());
+                data.put("admissionUuid", opened.encounter().admissionUuid());
+                data.put("admissionVerified", opened.encounter().admissionVerified());
                 data.put("openedBy", Person.of(opened.encounter().openedBy()));
             }
             case LedgerEntry.NoteSigned signed -> {
@@ -63,6 +65,9 @@ record EncounterEventMessage(
                 occurredAt = note.recordedAt();
                 data.put("noteId", note.id());
                 data.put("noteType", note.type().name());
+                data.put("admissionUuid", admissionUuid);
+                data.put("triageLevel", note.content() instanceof NoteContent.Triage triage && triage.level() != null
+                        ? triage.level().name() : null);
                 data.put("restricted", note.isRestricted());
                 data.put("author", Person.of(note.author()));
                 data.put("careOccurredAt", note.occurredAt());
