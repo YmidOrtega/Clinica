@@ -1,6 +1,8 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.persistence;
 
 import com.ClinicaDeYmid.clinical_history_service.domain.copy.RecordCopies;
+import com.ClinicaDeYmid.commons.documents.DocumentSeal;
+import com.ClinicaDeYmid.commons.documents.SealedDocument;
 import com.ClinicaDeYmid.clinical_history_service.domain.copy.RecordCopy;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption;
 import com.ClinicaDeYmid.clinical_history_service.infrastructure.encryption.ContentEncryption.EncryptedField;
@@ -57,10 +59,13 @@ class JdbcRecordCopies implements RecordCopies {
                     UUID copyId = Rows.uuid(row, "id");
                     byte[] reason = encryption.decrypt(new EncryptedField(Rows.uuid(row, "reason_key_id"), row.getBytes("reason_ciphertext")),
                             Purpose.RECORD_COPY_REASON, copyId);
-                    return new RecordCopy(copyId, Rows.uuid(row, "patient_uuid"), Rows.uuid(row, "requested_by"), row.getString("requested_role"),
-                            new String(reason, StandardCharsets.UTF_8), Rows.instant(row, "period_from"), Rows.instant(row, "period_to"),
-                            row.getInt("entries"), row.getBoolean("chain_verified"), row.getString("document_sha256"), row.getString("key_id"),
-                            row.getString("seal"), Rows.instant(row, "generated_at"));
+                    SealedDocument document = new SealedDocument(copyId, RecordCopy.PURPOSE,
+                            Rows.uuid(row, "patient_uuid"), Rows.uuid(row, "requested_by"), row.getString("requested_role"),
+                            Rows.instant(row, "generated_at"), row.getString("document_sha256"),
+                            new DocumentSeal(row.getString("key_id"), row.getString("seal")));
+                    return new RecordCopy(document, new String(reason, StandardCharsets.UTF_8),
+                            Rows.instant(row, "period_from"), Rows.instant(row, "period_to"),
+                            row.getInt("entries"), row.getBoolean("chain_verified"));
                 }).stream().findFirst();
     }
 }

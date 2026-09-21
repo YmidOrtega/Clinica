@@ -1,6 +1,5 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
 
-import com.ClinicaDeYmid.clinical_history_service.domain.copy.DocumentSealer.DocumentSeal;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainLink;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainVerification;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.IntegrityProblem;
@@ -8,6 +7,12 @@ import com.ClinicaDeYmid.clinical_history_service.domain.integrity.LedgerEntry;
 import com.ClinicaDeYmid.commons.openbao.testing.OpenBaoTestContainer;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitClient;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitKeys;
+import com.ClinicaDeYmid.commons.documents.SealKeyRing;
+import com.ClinicaDeYmid.commons.documents.TransitSealSigner;
+import com.ClinicaDeYmid.clinical_history_service.domain.copy.RecordCopy;
+import com.ClinicaDeYmid.commons.documents.DocumentSeal;
+import com.ClinicaDeYmid.commons.documents.TransitDocumentSealer;
+import com.ClinicaDeYmid.commons.documents.LocalSealSigner;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -31,15 +36,16 @@ class TransitSealSignerIT {
     void sealsTheChainAndCopiesWithAKeyThatNeverLeavesOpenBao() {
         String key = OpenBaoTestContainer.createKey("seal", "ecdsa-p256");
         EcdsaClinicalSignature signature = signature(key, Map.of());
+        TransitDocumentSealer sealer = new TransitDocumentSealer(keyRing(key, Map.of()), RecordCopy.PURPOSE);
         List<LedgerEntry> entries = everyKindOfEntry();
 
         List<ChainLink> links = seal(signature, entries);
-        DocumentSeal copySeal = signature.sealDocument("ab".repeat(32));
+        DocumentSeal copySeal = sealer.seal("ab".repeat(32));
 
         assertThat(links).extracting(ChainLink::keyId).containsOnly(key + "-v1");
         assertThat(ChainVerification.of(PATIENT, links, entries, signature).verified()).isTrue();
-        assertThat(signature.verifyDocument("ab".repeat(32), copySeal)).isTrue();
-        assertThat(signature.verifyDocument("cd".repeat(32), copySeal)).isFalse();
+        assertThat(sealer.verify("ab".repeat(32), copySeal)).isTrue();
+        assertThat(sealer.verify("cd".repeat(32), copySeal)).isFalse();
         assertThat(signature.publicKeys()).containsOnlyKeys(key + "-v1");
     }
 
@@ -72,7 +78,11 @@ class TransitSealSignerIT {
     }
 
     private static EcdsaClinicalSignature signature(String key, Map<String, String> retiredPublicKeys) {
+        return new EcdsaClinicalSignature(keyRing(key, retiredPublicKeys));
+    }
+
+    private static SealKeyRing keyRing(String key, Map<String, String> retiredPublicKeys) {
         TransitKeys keys = new TransitKeys(TRANSIT, key, Duration.ofMinutes(5), Clock.systemUTC());
-        return new EcdsaClinicalSignature(SealKeyRing.of(new TransitSealSigner(keys), retiredPublicKeys));
+        return SealKeyRing.of(new TransitSealSigner(keys), retiredPublicKeys);
     }
 }

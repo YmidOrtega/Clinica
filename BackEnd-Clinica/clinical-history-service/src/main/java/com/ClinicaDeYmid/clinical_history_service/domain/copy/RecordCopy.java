@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clinical_history_service.domain.copy;
 
+import com.ClinicaDeYmid.commons.documents.SealedDocument;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalText;
 
@@ -8,30 +9,50 @@ import java.util.Objects;
 import java.util.UUID;
 
 public record RecordCopy(
-        UUID id,
-        UUID patientUuid,
-        UUID requestedBy,
-        String requestedRole,
+        SealedDocument document,
         String reason,
         Instant periodFrom,
         Instant periodTo,
         int entries,
-        boolean chainVerified,
-        String documentSha256,
-        String keyId,
-        String seal,
-        Instant generatedAt) {
+        boolean chainVerified) {
+
+    public static final String PURPOSE = "clinica.clinical.record-copy/v1";
 
     public RecordCopy {
-        Objects.requireNonNull(id, "id");
-        Objects.requireNonNull(patientUuid, "patientUuid");
-        Objects.requireNonNull(requestedBy, "requestedBy");
-        Objects.requireNonNull(requestedRole, "requestedRole");
+        Objects.requireNonNull(document, "document");
         Objects.requireNonNull(reason, "reason");
-        Objects.requireNonNull(documentSha256, "documentSha256");
-        Objects.requireNonNull(keyId, "keyId");
-        Objects.requireNonNull(seal, "seal");
-        Objects.requireNonNull(generatedAt, "generatedAt");
+    }
+
+    public UUID id() {
+        return document.id();
+    }
+
+    public UUID patientUuid() {
+        return document.subjectId();
+    }
+
+    public UUID requestedBy() {
+        return document.issuedBy();
+    }
+
+    public String requestedRole() {
+        return document.issuedByRole();
+    }
+
+    public String documentSha256() {
+        return document.sha256();
+    }
+
+    public String keyId() {
+        return document.keyId();
+    }
+
+    public String seal() {
+        return document.seal().value();
+    }
+
+    public Instant generatedAt() {
+        return document.issuedAt();
     }
 
     public static String requireReason(String reason) {

@@ -1,4 +1,4 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
+package com.ClinicaDeYmid.commons.documents;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -9,14 +9,14 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.regex.Pattern;
 
-final class EcPublicKeys {
+public final class EcPublicKeys {
 
     private static final Pattern PEM_ARMOR = Pattern.compile("-----(BEGIN|END) [A-Z ]+-----|\\s");
 
     private EcPublicKeys() {
     }
 
-    static PublicKey parseP256(String pem, String keyId) {
+    public static PublicKey parseP256(String pem, String keyId) {
         try {
             PublicKey key = KeyFactory.getInstance("EC")
                     .generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(PEM_ARMOR.matcher(pem).replaceAll(""))));
@@ -29,7 +29,7 @@ final class EcPublicKeys {
         }
     }
 
-    static String pem(PublicKey key) {
+    public static String pem(PublicKey key) {
         return "-----BEGIN PUBLIC KEY-----\n"
                 + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(key.getEncoded())
                 + "\n-----END PUBLIC KEY-----\n";

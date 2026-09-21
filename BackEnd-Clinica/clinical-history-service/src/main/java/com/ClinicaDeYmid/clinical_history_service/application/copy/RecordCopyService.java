@@ -11,7 +11,9 @@ import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessAction;
 import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessBasis;
 import com.ClinicaDeYmid.clinical_history_service.domain.attachment.Attachment;
-import com.ClinicaDeYmid.clinical_history_service.domain.copy.DocumentSealer;
+import com.ClinicaDeYmid.commons.documents.DocumentSealer;
+import com.ClinicaDeYmid.commons.documents.Documents;
+import com.ClinicaDeYmid.commons.documents.SealedDocument;
 import com.ClinicaDeYmid.clinical_history_service.domain.copy.RecordCopies;
 import com.ClinicaDeYmid.clinical_history_service.domain.copy.RecordCopy;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
@@ -120,13 +122,13 @@ public class RecordCopyService {
                     practitioners.findAll(cliniciansOf(records)), sealAlgorithm, activeSealKeyId);
         });
         byte[] document = renderer.render(content);
-        String sha256 = Attachment.sha256Of(document);
-        DocumentSealer.DocumentSeal seal = sealer.sealDocument(sha256);
+
         int entries = content.chains().stream().mapToInt(chain -> (int) chain.entries()).sum();
         boolean verified = content.chains().stream().allMatch(ChainVerification::verified);
         boolean restricted = content.encounters().stream().flatMap(record -> record.notes().stream()).anyMatch(entry -> entry.note().isRestricted());
-        RecordCopy copy = new RecordCopy(copyId, patientUuid, requester.uuid(), requester.role(), justification, from, to, entries, verified, sha256,
-                seal.keyId(), seal.value(), generatedAt);
+        RecordCopy copy = new RecordCopy(new SealedDocument(copyId, RecordCopy.PURPOSE, patientUuid, requester.uuid(),
+                requester.role(), generatedAt, Documents.sha256(document), sealer.seal(Documents.sha256(document))),
+                justification, from, to, entries, verified);
         transactions.executeWithoutResult(status -> {
             copies.add(copy);
             audit.record(new AccessEvent(patientUuid, new AccessEvent.Actor(requester.uuid(), requester.role()), AccessAction.EXPORT_RECORD, copyId,
@@ -143,8 +145,8 @@ public class RecordCopyService {
 
     public Verification verify(UUID copyId, byte[] document) {
         RecordCopy copy = find(copyId);
-        boolean matches = Attachment.sha256Of(document).equals(copy.documentSha256());
-        boolean sealValid = sealer.verifyDocument(copy.documentSha256(), new DocumentSealer.DocumentSeal(copy.keyId(), copy.seal()));
+        boolean matches = Documents.sha256(document).equals(copy.documentSha256());
+        boolean sealValid = sealer.verify(copy.documentSha256(), copy.document().seal());
         return new Verification(copy, matches, sealValid);
     }
 

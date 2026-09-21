@@ -1,6 +1,5 @@
-package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
+package com.ClinicaDeYmid.commons.documents;
 
-import com.ClinicaDeYmid.clinical_history_service.support.TestSealKeys;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -10,21 +9,21 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 
-final class LocalSealSigner implements SealSigner {
+public final class LocalSealSigner implements SealSigner {
 
     private final Map<String, KeyPair> pairs = new TreeMap<>();
     private String activeKeyId;
 
-    LocalSealSigner(String keyId) {
+    public LocalSealSigner(String keyId) {
         rotateTo(keyId);
     }
 
-    void rotateTo(String keyId) {
+    public void rotateTo(String keyId) {
         pairs.put(keyId, TestSealKeys.generate());
         activeKeyId = keyId;
     }
 
-    String publicPem(String keyId) {
+    public String publicPem(String keyId) {
         return TestSealKeys.publicPem(pairs.get(keyId).getPublic());
     }
 

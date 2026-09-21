@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.integrity;
 
-import com.ClinicaDeYmid.clinical_history_service.domain.copy.DocumentSealer;
+import com.ClinicaDeYmid.commons.documents.SealKeyRing;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ChainLink;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.ClinicalSignature;
 import com.ClinicaDeYmid.clinical_history_service.domain.integrity.IntegrityProblem;
@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-public class EcdsaClinicalSignature implements ClinicalSignature, DocumentSealer {
+public class EcdsaClinicalSignature implements ClinicalSignature {
 
     private final SealKeyRing keys;
 
@@ -52,21 +52,6 @@ public class EcdsaClinicalSignature implements ClinicalSignature, DocumentSealer
             problems.add(IntegrityProblem.Kind.INVALID_SEAL);
         }
         return problems;
-    }
-
-    @Override
-    public DocumentSeal sealDocument(String sha256) {
-        String keyId = keys.activeKeyId();
-        return new DocumentSeal(keyId, Base64.getEncoder().encodeToString(keys.sign(keyId, documentBytes(sha256))));
-    }
-
-    @Override
-    public boolean verifyDocument(String sha256, DocumentSeal seal) {
-        return decode(seal.value()).flatMap(value -> keys.verify(seal.keyId(), documentBytes(sha256), value)).orElse(false);
-    }
-
-    private static byte[] documentBytes(String sha256) {
-        return ("clinica.clinical.record-copy/v1|" + sha256).getBytes(StandardCharsets.US_ASCII);
     }
 
     public String activeKeyId() {

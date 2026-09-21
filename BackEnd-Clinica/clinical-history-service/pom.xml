@@ -20,6 +20,7 @@
 		<clinica-commons-web.version>1.1.0</clinica-commons-web.version>
 		<clinica-commons-security.version>2.5.0</clinica-commons-security.version>
 		<clinica-commons-openbao.version>1.2.0</clinica-commons-openbao.version>
+		<clinica-commons-documents.version>1.0.0</clinica-commons-documents.version>
 		<wiremock.version>3.13.1</wiremock.version>
 		<archunit.version>1.4.1</archunit.version>
 		<json-schema-validator.version>1.5.9</json-schema-validator.version>
@@ -111,6 +112,12 @@
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>url-connection-client</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.ClinicaDeYmid</groupId>
+			<artifactId>clinica-commons-documents</artifactId>
+			<version>${clinica-commons-documents.version}</version>
 		</dependency>
 
 		<dependency>
@@ -232,6 +239,14 @@
 			<groupId>com.ClinicaDeYmid</groupId>
 			<artifactId>clinica-commons-openbao</artifactId>
 			<version>${clinica-commons-openbao.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.ClinicaDeYmid</groupId>
+			<artifactId>clinica-commons-documents</artifactId>
+			<version>${clinica-commons-documents.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
