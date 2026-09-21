@@ -59,7 +59,11 @@ record UnidentifiedPatientEventMessage(
             UUID identifiedPatientUuid = status instanceof UnidentifiedPatientStatus.Identified identified
                     ? identified.patientUuid()
                     : null;
-            LocalDate dateOfDeath = status instanceof UnidentifiedPatientStatus.Deceased deceased ? deceased.dateOfDeath() : null;
+            LocalDate dateOfDeath = switch (status) {
+                case UnidentifiedPatientStatus.Deceased deceased -> deceased.dateOfDeath();
+                case UnidentifiedPatientStatus.Identified identified -> identified.dateOfDeath();
+                case UnidentifiedPatientStatus ignored -> null;
+            };
             return new UnidentifiedPatientData(patient.uuid(), patient.code(), patient.sex(), patient.estimatedBirthYear(),
                     status.code(), identifiedPatientUuid, dateOfDeath);
         }

@@ -48,6 +48,18 @@ class PatientEventContractTest {
     }
 
     @Test
+    void aRevertedDeathTravelsAsALivingSnapshotWithoutTheReason() {
+        Patient patient = PatientFixtures.registeredAdult();
+        patient.recordDeath(PatientFixtures.TODAY, PatientFixtures.today());
+        patient.revertDeath("Se identificó por error a otra persona", PatientFixtures.today());
+
+        String json = json(new PatientEvent.DeathReverted("Se identificó por error a otra persona"), patient);
+
+        assertThat(PatientEventContract.violations(json)).isEmpty();
+        assertThat(json).contains("\"status\":\"ACTIVE\"").doesNotContain("dateOfDeath", "error a otra persona");
+    }
+
+    @Test
     void uninsuredPatientsOmitThePayer() {
         Patient patient = PatientFixtures.registeredAdult();
         patient.updateAffiliation(Affiliation.uninsured());
@@ -88,17 +100,26 @@ class PatientEventContractTest {
         unidentified.identifyAs(patient, "Cédula", PatientFixtures.today());
         String identified = json(new UnidentifiedPatientEvent.Identified(patient.uuid()), unidentified);
 
-        unidentified.revertIdentification("No era la persona", PatientFixtures.today());
+        unidentified.revertIdentification(patient, "No era la persona", PatientFixtures.today());
         String reverted = json(new UnidentifiedPatientEvent.IdentificationReverted(patient.uuid()), unidentified);
 
         unidentified.recordDeath(PatientFixtures.TODAY, PatientFixtures.today());
         String died = json(new UnidentifiedPatientEvent.Died(PatientFixtures.TODAY), unidentified);
 
-        assertThat(List.of(registered, identified, reverted, died))
+        Patient identifiedLater = PatientFixtures.registeredAdult();
+        unidentified.identifyAs(identifiedLater, "Huellas", PatientFixtures.today());
+        String identifiedDead = json(new UnidentifiedPatientEvent.Identified(identifiedLater.uuid()), unidentified);
+        unidentified.revertIdentification(identifiedLater, "No era", PatientFixtures.today());
+        String revertedBackToDead = json(new UnidentifiedPatientEvent.IdentificationReverted(identifiedLater.uuid()),
+                unidentified);
+
+        assertThat(List.of(registered, identified, reverted, died, identifiedDead, revertedBackToDead))
                 .allSatisfy(json -> assertThat(PatientEventContract.violations(json)).isEmpty())
                 .allSatisfy(json -> assertThat(json).doesNotContain("chaqueta", "description", "Cédula", "No era la persona"));
         assertThat(identified).contains("\"identifiedPatientUuid\":\"" + patient.uuid() + "\"");
         assertThat(reverted).contains("\"previousPatientUuid\":\"" + patient.uuid() + "\"");
+        assertThat(identifiedDead).contains("\"status\":\"IDENTIFIED\"", "\"dateOfDeath\":\"2026-09-13\"");
+        assertThat(revertedBackToDead).contains("\"status\":\"DECEASED\"", "\"dateOfDeath\":\"2026-09-13\"");
     }
 
     @Test

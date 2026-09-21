@@ -7,6 +7,7 @@ import com.ClinicaDeYmid.patient_service.domain.Patients;
 import com.ClinicaDeYmid.patient_service.domain.Sex;
 import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatient;
 import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatientEvent;
+import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatientStatus;
 import com.ClinicaDeYmid.patient_service.domain.UnidentifiedPatients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,7 @@ public class UnidentifiedPatientCommands {
         return modify(uuid, expectedVersion, unidentified -> {
             Patient patient = patients.findByUuid(patientUuid).orElseThrow(PatientException.NotFound::new);
             unidentified.identifyAs(patient, reason, clock);
+            patientCommands.saveWithEvents(patient);
         });
     }
 
@@ -62,15 +64,29 @@ public class UnidentifiedPatientCommands {
         return modify(uuid, expectedVersion, unidentified -> {
             Patient patient = patientCommands.registerInCurrentTransaction(registration);
             unidentified.identifyAs(patient, reason, clock);
+            patientCommands.saveWithEvents(patient);
         });
     }
 
     public UnidentifiedPatient revertIdentification(UUID uuid, long expectedVersion, String reason) {
-        return modify(uuid, expectedVersion, unidentified -> unidentified.revertIdentification(reason, clock));
+        return modify(uuid, expectedVersion, unidentified -> {
+            Patient patient = identifiedPatientOf(unidentified);
+            unidentified.revertIdentification(patient, reason, clock);
+            if (patient != null) {
+                patientCommands.saveWithEvents(patient);
+            }
+        });
     }
 
     public UnidentifiedPatient recordDeath(UUID uuid, long expectedVersion, LocalDate dateOfDeath) {
         return modify(uuid, expectedVersion, unidentified -> unidentified.recordDeath(dateOfDeath, clock));
+    }
+
+    private Patient identifiedPatientOf(UnidentifiedPatient unidentified) {
+        if (unidentified.status() instanceof UnidentifiedPatientStatus.Identified identified) {
+            return patients.findByUuid(identified.patientUuid()).orElseThrow(PatientException.NotFound::new);
+        }
+        return null;
     }
 
     private UnidentifiedPatient modify(UUID uuid, long expectedVersion, Consumer<UnidentifiedPatient> change) {

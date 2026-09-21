@@ -124,8 +124,52 @@ class UnidentifiedPatientApiIT {
                 .andExpect(jsonPath("$.status.code").value("DECEASED"));
 
         as("ADMIN", identification(uuid, 3, "{\"patientUuid\": \"" + patientUuid + "\", \"reason\": \"Cédula\"}"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.code").value("UNIDENTIFIED_PATIENT_INVALID_STATUS_TRANSITION"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.code").value("IDENTIFIED"));
+    }
+
+    @Test
+    void aDeceasedUnidentifiedPatientIsStillIdentifiedAndTheDeathReachesThePerson() throws Exception {
+        String uuid = registerUnidentified();
+        String patientUuid = registerPatient();
+        as("DOCTOR", post(BASE + "/" + uuid + "/death").header(HttpHeaders.IF_MATCH, "\"0\"")
+                .content("{\"dateOfDeath\": \"2026-09-13\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.code").value("DECEASED"));
+
+        as("ADMIN", identification(uuid, 1, "{\"patientUuid\": \"" + patientUuid
+                + "\", \"reason\": \"Medicina legal lo identificó por huellas\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.code").value("IDENTIFIED"))
+                .andExpect(jsonPath("$.status.dateOfDeath").value("2026-09-13"));
+
+        as("ADMIN", get("/api/v1/patients/" + patientUuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.code").value("DECEASED"))
+                .andExpect(jsonPath("$.status.dateOfDeath").value("2026-09-13"));
+    }
+
+    @Test
+    void revertingAnIdentificationThatCarriedADeathBringsThePersonBackToLife() throws Exception {
+        String uuid = registerUnidentified();
+        String patientUuid = registerPatient();
+        as("DOCTOR", post(BASE + "/" + uuid + "/death").header(HttpHeaders.IF_MATCH, "\"0\"")
+                .content("{\"dateOfDeath\": \"2026-09-13\"}")).andExpect(status().isOk());
+        as("ADMIN", identification(uuid, 1, "{\"patientUuid\": \"" + patientUuid
+                + "\", \"reason\": \"Parecido físico\"}")).andExpect(status().isOk());
+
+        as("MEDICAL_RECORDS", post(BASE + "/" + uuid + "/identification-reversal").header(HttpHeaders.IF_MATCH, "\"2\"")
+                .content("{\"reason\": \"Las huellas no coinciden\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.code").value("DECEASED"))
+                .andExpect(jsonPath("$.status.dateOfDeath").value("2026-09-13"))
+                .andExpect(jsonPath("$.status.reason").value("Las huellas no coinciden"));
+
+        as("ADMIN", get("/api/v1/patients/" + patientUuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.code").value("ACTIVE"))
+                .andExpect(jsonPath("$.status.reason").value("Las huellas no coinciden"))
+                .andExpect(jsonPath("$.status.dateOfDeath").doesNotExist());
     }
 
     @Test

@@ -138,6 +138,23 @@ class PatientTest {
     }
 
     @Test
+    void revertingADeathDemandsAReasonAndBringsThePatientBack() {
+        Patient patient = registeredAdult();
+        patient.recordDeath(TODAY, today());
+        patient.pullEvents();
+
+        assertThatThrownBy(() -> patient.revertDeath(" ", today())).isInstanceOf(PatientException.InvalidData.class);
+
+        patient.revertDeath("Se identificó por error a otra persona", today());
+
+        assertThat(patient.status()).isEqualTo(new PatientStatus.Active());
+        assertThat(patient.pullEvents())
+                .containsExactly(new PatientEvent.DeathReverted("Se identificó por error a otra persona"));
+        assertThatThrownBy(() -> patient.revertDeath("Otra vez", today()))
+                .isInstanceOf(PatientException.InvalidStatusTransition.class);
+    }
+
+    @Test
     void identifiesPatientsByTheirPublicIdentifier() {
         Patient first = registeredAdult();
         Patient second = registeredAdult();

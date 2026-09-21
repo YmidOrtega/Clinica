@@ -217,6 +217,13 @@ public class Patient {
         events.add(new PatientEvent.Died(date));
     }
 
+    public void revertDeath(String reason, Clock clock) {
+        String validReason = DomainRules.requiredText(reason, "reason", 500);
+        applyStatus(status().revertDeath(), Instant.now(clock));
+        this.statusReason = validReason;
+        events.add(new PatientEvent.DeathReverted(validReason));
+    }
+
     public List<PatientEvent> pullEvents() {
         List<PatientEvent> recorded = List.copyOf(events);
         events.clear();
@@ -265,6 +272,10 @@ public class Patient {
 
     public Instant statusChangedAt() {
         return statusChangedAt;
+    }
+
+    public String statusReason() {
+        return statusReason;
     }
 
     public Instant createdAt() {

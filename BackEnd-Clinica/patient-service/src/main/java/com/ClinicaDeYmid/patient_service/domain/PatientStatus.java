@@ -59,6 +59,14 @@ public sealed interface PatientStatus {
         };
     }
 
+    default PatientStatus revertDeath() {
+        return switch (this) {
+            case Deceased deceased -> new Active();
+            case Active active -> throw rejected(Code.ACTIVE);
+            case Inactive inactive -> throw rejected(Code.ACTIVE);
+        };
+    }
+
     private PatientException.InvalidStatusTransition rejected(Code target) {
         return new PatientException.InvalidStatusTransition(code(), target);
     }
