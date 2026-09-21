@@ -130,10 +130,13 @@ class AdmissionApiIT extends IntegrationTest {
     void dischargesAnActiveEpisodeAndKeepsItReadable() throws Exception {
         String uuid = anActiveEpisode();
 
-        change("DOCTOR", post(BASE + "/" + uuid + "/discharge"), 1, null)
+        change("DOCTOR", post(BASE + "/" + uuid + "/discharge"), 1,
+                "{\"type\":\"MEDICAL\",\"notes\":\"Paciente estable\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status.code").value("DISCHARGED"))
-                .andExpect(jsonPath("$.status.open").value(false));
+                .andExpect(jsonPath("$.status.open").value(false))
+                .andExpect(jsonPath("$.status.discharge.type").value("MEDICAL"))
+                .andExpect(jsonPath("$.status.discharge.notes").value("Paciente estable"));
 
         as("BILLING", get(BASE + "/" + uuid), null)
                 .andExpect(status().isOk())
@@ -180,7 +183,8 @@ class AdmissionApiIT extends IntegrationTest {
     void onlyDoctorsDischargeAndOnlyAdministrationCancels() throws Exception {
         String uuid = anActiveEpisode();
 
-        change("NURSE", post(BASE + "/" + uuid + "/discharge"), 1, null).andExpect(status().isForbidden());
+        change("NURSE", post(BASE + "/" + uuid + "/discharge"), 1, "{\"type\":\"MEDICAL\"}")
+                .andExpect(status().isForbidden());
         change("RECEPTIONIST", post(BASE + "/" + uuid + "/cancellation"), 1, "{\"reason\":\"No\"}")
                 .andExpect(status().isForbidden());
     }

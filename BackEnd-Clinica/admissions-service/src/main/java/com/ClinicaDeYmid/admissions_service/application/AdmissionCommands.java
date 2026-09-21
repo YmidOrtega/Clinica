@@ -18,6 +18,7 @@ import com.ClinicaDeYmid.admissions_service.domain.ConfigurationService;
 import com.ClinicaDeYmid.admissions_service.domain.ConfigurationServices;
 import com.ClinicaDeYmid.admissions_service.domain.AttendingPractitioner;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
+import com.ClinicaDeYmid.admissions_service.domain.Discharge;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.practitioner.PractitionerReference;
 import com.ClinicaDeYmid.commons.web.EntityTags;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -117,12 +119,14 @@ public class AdmissionCommands {
         });
     }
 
-    public Admission discharge(UUID uuid, long expectedVersion) {
+    public Admission discharge(UUID uuid, long expectedVersion, DischargeOrder order) {
+        Discharge discharge = order.at(Instant.now(clock));
         return modify(uuid, expectedVersion, admission -> {
             if (admission.occupiesABed()) {
                 bedAssignments.freeCurrentBed(admission);
             }
-            admission.discharge(clock);
+            admission.discharge(discharge);
+            log.info("Admission {} discharged as {}", admission.number(), discharge.code());
         });
     }
 

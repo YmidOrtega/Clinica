@@ -120,7 +120,7 @@ class AdmissionBedIT extends IntegrationTest {
                 .andExpect(status().isOk());
         change("RECEPTIONIST", post(EPISODES + "/" + episode + "/activation"), 1, null).andExpect(status().isOk());
 
-        change("DOCTOR", post(EPISODES + "/" + episode + "/discharge"), 2, null)
+        change("DOCTOR", post(EPISODES + "/" + episode + "/discharge"), 2, "{\"type\":\"MEDICAL\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status.code").value("DISCHARGED"))
                 .andExpect(jsonPath("$.bedUuid").doesNotExist());

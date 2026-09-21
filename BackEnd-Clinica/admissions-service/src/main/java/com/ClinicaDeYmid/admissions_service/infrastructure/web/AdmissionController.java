@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.admissions_service.infrastructure.web;
 import com.ClinicaDeYmid.admissions_service.application.AdmissionCommands;
 import com.ClinicaDeYmid.admissions_service.application.AdmissionQueries;
 import com.ClinicaDeYmid.admissions_service.application.BedAssignments;
+import com.ClinicaDeYmid.admissions_service.application.DischargeOrder;
 import com.ClinicaDeYmid.admissions_service.application.patient.UnidentifiedAdmissionRequest;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.Companion;
@@ -155,10 +156,13 @@ class AdmissionController {
 
     @PostMapping("/{uuid}/discharge")
     @PreAuthorize(Access.DISCHARGE)
-    @Operation(summary = "Egresar el episodio")
+    @Operation(summary = "Egresar el episodio diciendo cómo termina",
+            description = "Alta médica, alta voluntaria firmada, remisión a otra institución, fuga o "
+                    + "fallecimiento; cualquiera de los cinco libera la cama y congela el episodio")
     ResponseEntity<AdmissionView> discharge(@PathVariable UUID uuid,
-                                            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        return tagged(commands.discharge(uuid, EntityTags.requiredVersion(ifMatch)));
+                                            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                            @Valid @RequestBody AdmissionRequests.DischargePayload request) {
+        return tagged(commands.discharge(uuid, EntityTags.requiredVersion(ifMatch), orderOf(request)));
     }
 
     @PostMapping("/{uuid}/cancellation")
@@ -168,6 +172,12 @@ class AdmissionController {
                                          @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                          @Valid @RequestBody AdmissionRequests.Reason request) {
         return tagged(commands.cancel(uuid, EntityTags.requiredVersion(ifMatch), request.reason()));
+    }
+
+    private static DischargeOrder orderOf(AdmissionRequests.DischargePayload payload) {
+        return new DischargeOrder(payload.type(), payload.notes(), payload.signedBy(), payload.signatureDocument(),
+                payload.repsCode(), payload.facility(), payload.reason(), payload.noticedAt(), payload.occurredAt(),
+                payload.certificateNumber());
     }
 
     private static Companion companionOf(AdmissionRequests.CompanionPayload payload) {

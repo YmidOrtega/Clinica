@@ -20,9 +20,13 @@ public sealed interface AdmissionStatus {
         }
     }
 
-    record Discharged(Instant at) implements AdmissionStatus {
+    record Discharged(Discharge discharge) implements AdmissionStatus {
         public Discharged {
-            DomainRules.required(at, "at");
+            DomainRules.required(discharge, "discharge");
+        }
+
+        public Instant at() {
+            return discharge.at();
         }
     }
 
@@ -57,9 +61,9 @@ public sealed interface AdmissionStatus {
         };
     }
 
-    default AdmissionStatus discharge(Instant now) {
+    default AdmissionStatus discharge(Discharge discharge) {
         return switch (this) {
-            case Active ignored -> new Discharged(now);
+            case Active ignored -> new Discharged(DomainRules.required(discharge, "discharge"));
             case AdmissionStatus other -> throw new AdmissionsException.InvalidAdmissionTransition(other.code(), Code.DISCHARGED);
         };
     }
