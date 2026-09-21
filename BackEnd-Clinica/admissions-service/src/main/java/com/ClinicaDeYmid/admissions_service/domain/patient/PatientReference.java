@@ -15,6 +15,8 @@ public sealed interface PatientReference {
 
     boolean admissible();
 
+    boolean deceased();
+
     String label();
 
     enum Sex {
@@ -66,6 +68,11 @@ public sealed interface PatientReference {
         }
 
         @Override
+        public boolean deceased() {
+            return status == Status.DECEASED;
+        }
+
+        @Override
         public String label() {
             return firstNames + " " + lastNames;
         }
@@ -104,6 +111,11 @@ public sealed interface PatientReference {
         @Override
         public boolean admissible() {
             return status == Status.UNIDENTIFIED;
+        }
+
+        @Override
+        public boolean deceased() {
+            return status == Status.DECEASED || dateOfDeath != null;
         }
 
         @Override

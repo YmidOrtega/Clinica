@@ -18,5 +18,7 @@ public interface Admissions {
 
     List<Admission> findWithPendingCoverage();
 
+    List<Admission> findWithPendingDeathNotice();
+
     String nextNumber(int year);
 }

@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.admissions_service.infrastructure.persistence;
 import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.Admissions;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
+import com.ClinicaDeYmid.admissions_service.domain.DeathNotice;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -49,6 +50,11 @@ class JpaAdmissions implements Admissions {
     @Override
     public List<Admission> findWithPendingCoverage() {
         return repository.findByCoverageOtherThan(Coverage.Code.COVERED);
+    }
+
+    @Override
+    public List<Admission> findWithPendingDeathNotice() {
+        return repository.findByDeathNoticeStatus(DeathNotice.Status.PENDING);
     }
 
     @Override

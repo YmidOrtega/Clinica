@@ -238,6 +238,13 @@ public sealed abstract class AdmissionsException extends DomainException {
         }
     }
 
+    public static final class NoDeathToReport extends AdmissionsException {
+        public NoDeathToReport() {
+            super(ErrorCategory.RULE_VIOLATION, "ADMISSION_WITHOUT_DEATH",
+                    "Ese episodio no terminó en fallecimiento, así que no hay nada que informar");
+        }
+    }
+
     public static final class RetiredLocation extends AdmissionsException {
         public RetiredLocation() {
             super(ErrorCategory.RULE_VIOLATION, "LOCATION_RETIRED", "No se puede usar una ubicación retirada");

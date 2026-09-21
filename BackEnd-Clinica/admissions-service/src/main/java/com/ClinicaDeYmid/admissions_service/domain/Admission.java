@@ -89,6 +89,9 @@ public class Admission {
     @Embedded
     private DischargeDetails discharge;
 
+    @Embedded
+    private DeathNotice deathNotice;
+
     @NotAudited
     @OneToMany(mappedBy = "admission", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @OrderBy("startedAt asc, id asc")
@@ -172,6 +175,36 @@ public class Admission {
     public void discharge(Discharge discharge) {
         applyStatus(status().discharge(discharge));
         currentPhase().end(discharge.at());
+        if (discharge instanceof Discharge.Death) {
+            this.deathNotice = DeathNotice.pending(
+                    "El fallecimiento todavía no se informó al directorio de pacientes", discharge.at());
+        }
+    }
+
+    public void deathNoticeSent(Instant at) {
+        requireADeath();
+        this.deathNotice = DeathNotice.sent(at);
+    }
+
+    public void deathNoticeFailed(String detail, Instant at) {
+        requireADeath();
+        this.deathNotice = DeathNotice.pending(detail, at);
+    }
+
+    public Discharge.Death death() {
+        if (status() instanceof AdmissionStatus.Discharged discharged
+                && discharged.discharge() instanceof Discharge.Death death) {
+            return death;
+        }
+        throw new AdmissionsException.NoDeathToReport();
+    }
+
+    public DeathNotice deathNotice() {
+        return deathNotice;
+    }
+
+    private void requireADeath() {
+        death();
     }
 
     public void cancel(String reason, Clock clock) {
@@ -255,11 +288,13 @@ public class Admission {
                 this.statusReason = null;
                 this.statusChangedAt = null;
                 this.discharge = null;
+                this.deathNotice = null;
             }
             case AdmissionStatus.Active active -> {
                 this.statusReason = null;
                 this.statusChangedAt = active.since();
                 this.discharge = null;
+                this.deathNotice = null;
             }
             case AdmissionStatus.Discharged discharged -> {
                 this.statusReason = null;
@@ -270,6 +305,7 @@ public class Admission {
                 this.statusReason = cancelled.reason();
                 this.statusChangedAt = cancelled.at();
                 this.discharge = null;
+                this.deathNotice = null;
             }
         }
     }

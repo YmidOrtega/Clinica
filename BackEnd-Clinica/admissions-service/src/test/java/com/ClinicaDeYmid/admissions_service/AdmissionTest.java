@@ -167,6 +167,34 @@ class AdmissionTest {
         assertThat(companion.fullName()).isEqualTo("María Restrepo");
     }
 
+    @Test
+    void dyingLeavesANoticePendingUntilTheDirectoryKnows() {
+        Admission admission = admit(emergency());
+        admission.activate(clock);
+        Instant now = Instant.now(clock);
+
+        admission.discharge(new Discharge.Death(now, now.minusSeconds(600), "CD-2026-0001"));
+
+        assertThat(admission.deathNotice().pending()).isTrue();
+        assertThat(admission.death().certificateNumber()).isEqualTo("CD-2026-0001");
+
+        admission.deathNoticeSent(now);
+        assertThat(admission.deathNotice().pending()).isFalse();
+        assertThat(admission.deathNotice().detail()).isNull();
+    }
+
+    @Test
+    void anEpisodeThatDidNotEndInADeathHasNothingToReport() {
+        Admission admission = admit(emergency());
+        admission.activate(clock);
+        admission.discharge(medicalDischarge());
+
+        assertThat(admission.deathNotice()).isNull();
+        assertThatThrownBy(admission::death).isInstanceOf(AdmissionsException.NoDeathToReport.class);
+        assertThatThrownBy(() -> admission.deathNoticeSent(Instant.now(clock)))
+                .isInstanceOf(AdmissionsException.NoDeathToReport.class);
+    }
+
     private Discharge medicalDischarge() {
         return new Discharge.Medical(Instant.now(clock), "Paciente estable");
     }
