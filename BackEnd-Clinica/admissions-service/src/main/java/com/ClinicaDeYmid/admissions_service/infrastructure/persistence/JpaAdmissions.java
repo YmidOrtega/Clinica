@@ -69,8 +69,13 @@ class JpaAdmissions implements Admissions {
     @Override
     public List<Admission> findQueueOf(UUID configurationServiceUuid) {
         return repository.findQueueOf(configurationServiceUuid).stream()
-                .sorted(Comparator.comparing(admission -> admission.currentPhase().startedAt()))
+                .sorted(Comparator.comparingInt(JpaAdmissions::triageOrder)
+                        .thenComparing(admission -> admission.currentPhase().startedAt()))
                 .toList();
+    }
+
+    private static int triageOrder(Admission admission) {
+        return admission.triage() == null ? 0 : admission.triage().level().ordinal() + 1;
     }
 
     @Override

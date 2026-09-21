@@ -16,6 +16,7 @@ class KafkaConfiguration {
     static final String DEAD_LETTER_SUFFIX = ".admissions.dlt";
     static final String PATIENT_DEAD_LETTER_TOPIC = PatientEventsListener.TOPIC + DEAD_LETTER_SUFFIX;
     static final String PRACTITIONER_DEAD_LETTER_TOPIC = PractitionerEventsListener.TOPIC + DEAD_LETTER_SUFFIX;
+    static final String CLINICAL_DEAD_LETTER_TOPIC = ClinicalEventsListener.TOPIC + DEAD_LETTER_SUFFIX;
 
     @Bean
     NewTopic patientEventsDeadLetterTopic() {
@@ -28,6 +29,11 @@ class KafkaConfiguration {
     }
 
     @Bean
+    NewTopic clinicalEventsDeadLetterTopic() {
+        return TopicBuilder.name(CLINICAL_DEAD_LETTER_TOPIC).partitions(3).build();
+    }
+
+    @Bean
     DefaultErrorHandler admissionsEventsErrorHandler(KafkaTemplate<Object, Object> template) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template,
                 (record, failure) -> new TopicPartition(record.topic() + DEAD_LETTER_SUFFIX, record.partition()));
@@ -35,7 +41,8 @@ class KafkaConfiguration {
         backOff.setMaxAttempts(4);
         DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
         handler.addNotRetryableExceptions(MalformedPatientEventException.class,
-                MalformedPractitionerEventException.class, IllegalArgumentException.class);
+                MalformedPractitionerEventException.class, MalformedClinicalEventException.class,
+                IllegalArgumentException.class);
         return handler;
     }
 }
