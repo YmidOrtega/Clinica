@@ -43,13 +43,14 @@ class EncounterEventMessageTest {
             LedgerEntry entry = entries.get(index);
             ChainLink link = new ChainLink(entry.patientUuid(), index + 1, entry.type(), entry.entryId(), 1, "a".repeat(64),
                     index == 0 ? ChainLink.GENESIS_HASH : "b".repeat(64), "c".repeat(64), "seal-2026", "c2VhbA==", AT);
-            String json = JdbcClinicalEventOutbox.write(EncounterEventMessage.of(entry, link, UUID.randomUUID(), null));
+            String json = JdbcClinicalEventOutbox.write(EncounterEventMessage.of(entry, link, UUID.randomUUID(), null, encounter.admissionUuid()));
 
             assertThat(AccessAuditContract.encounterEventViolations(json)).as(json).isEmpty();
             assertThat(json).doesNotContain("cefalea").doesNotContain("Paciente equivocado").doesNotContain("doctor@clinica.test");
         }
         assertThat(JdbcClinicalEventOutbox.write(EncounterEventMessage.of(entries.get(1), new ChainLink(encounter.patientUuid(), 2,
-                EntryType.NOTE_SIGNED, note.id(), 1, "a".repeat(64), "b".repeat(64), "c".repeat(64), "k", "s", AT), UUID.randomUUID(), null)))
+                EntryType.NOTE_SIGNED, note.id(), 1, "a".repeat(64), "b".repeat(64), "c".repeat(64), "k", "s", AT), UUID.randomUUID(), null,
+                encounter.admissionUuid())))
                 .contains("\"restricted\":true").contains("\"code\":\"I10X\"");
     }
 }

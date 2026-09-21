@@ -44,7 +44,7 @@ class PdfRecordCopyRendererTest {
                 "SUBSIDIZED", null);
         Clinician author = doctor();
         Clinician caretaker = nurse();
-        Encounter encounter = new Encounter(UUID.randomUUID(), patientUuid, EncounterType.EMERGENCY, null, AT, caretaker, new EncounterStatus.Open());
+        Encounter encounter = new Encounter(UUID.randomUUID(), patientUuid, EncounterType.EMERGENCY, null, false, AT, caretaker, new EncounterStatus.Open());
         SignedNote consultation = new SignedNote(UUID.randomUUID(), encounter.id(), author, "doctor@clinica.test",
                 new NoteContent.Consultation("Psiquiatría", "Ideación suicida", "Riesgo alto → vigilancia 1:1 😟", "Hospitalizar",
                         List.of(new Diagnosis("F322", Diagnosis.Role.PRINCIPAL, Diagnosis.Type.IMPRESSION, "Episodio depresivo grave", "2021-02-08"))),

@@ -51,6 +51,9 @@ spring:
           patient-service:
             connect-timeout: 1000
             read-timeout: 2000
+          admissions-service:
+            connect-timeout: 1000
+            read-timeout: 2000
     circuitbreaker:
       resilience4j:
         disable-time-limiter: true
@@ -99,6 +102,7 @@ clinica:
       assertion-key: ${CLINICAL_CLIENT_TRANSIT_KEY:clinical-history-service-client}
       audiences:
         patient-service: patient-service
+        admissions-service: admissions-service
     public-paths:
       - /actuator/health
       - /actuator/health/**

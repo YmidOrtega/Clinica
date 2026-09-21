@@ -54,7 +54,7 @@ class EncounterController {
     @PostMapping("/encounters")
     @Operation(summary = "Abrir una atención clínica para un paciente")
     ResponseEntity<EncounterView> open(@Valid @RequestBody ClinicalRequests.OpenEncounter request) {
-        Encounter encounter = encounters.open(request.patientUuid(), request.type(), request.admissionId(), clinician.require());
+        Encounter encounter = encounters.open(request.patientUuid(), request.type(), request.admissionUuid(), clinician.require());
         return ResponseEntity.created(URI.create(BASE_PATH + "/encounters/" + encounter.id())).body(EncounterView.from(encounter));
     }
 

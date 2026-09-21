@@ -17,7 +17,7 @@ final class ClinicalRequests {
     record OpenEncounter(
             @NotNull(message = "es obligatorio") UUID patientUuid,
             @NotNull(message = "es obligatorio") EncounterType type,
-            String admissionId) {
+            UUID admissionUuid) {
     }
 
     record Draft(@NotNull(message = "es obligatorio") JsonNode content, NoteRestriction restriction, JsonNode updates, Instant occurredAt) {

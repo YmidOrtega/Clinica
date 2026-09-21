@@ -21,7 +21,8 @@ import java.util.UUID;
 class JdbcEncounters implements Encounters {
 
     static final String SELECT = """
-            SELECT e.id, e.patient_uuid, e.type, e.admission_id, e.opened_at, e.opened_by, e.opened_by_role,
+            SELECT e.id, e.patient_uuid, e.type, e.admission_uuid, e.admission_verified, e.opened_at, e.opened_by,
+                   e.opened_by_role,
                    c.closed_at, c.closed_by, c.closed_by_role
             FROM clinical_ledger.encounters e
             LEFT JOIN clinical_ledger.encounter_closures c ON c.encounter_id = e.id""";
@@ -35,13 +36,16 @@ class JdbcEncounters implements Encounters {
     @Override
     public void add(Encounter encounter) {
         jdbc.update("""
-                INSERT INTO clinical_ledger.encounters (id, patient_uuid, type, admission_id, opened_at, opened_by, opened_by_role)
-                VALUES (:id, :patientUuid, :type, :admissionId, :openedAt, :openedBy, :openedByRole)""",
+                INSERT INTO clinical_ledger.encounters (id, patient_uuid, type, admission_uuid, admission_verified,
+                                                        opened_at, opened_by, opened_by_role)
+                VALUES (:id, :patientUuid, :type, :admissionUuid, :admissionVerified, :openedAt, :openedBy, :openedByRole)""",
                 new MapSqlParameterSource()
                         .addValue("id", encounter.id().toString())
                         .addValue("patientUuid", encounter.patientUuid().toString())
                         .addValue("type", encounter.type().name())
-                        .addValue("admissionId", encounter.admissionId())
+                        .addValue("admissionUuid", encounter.admissionUuid() == null ? null
+                                : encounter.admissionUuid().toString())
+                        .addValue("admissionVerified", encounter.admissionVerified())
                         .addValue("openedAt", Rows.timestamp(encounter.openedAt()))
                         .addValue("openedBy", encounter.openedBy().uuid().toString())
                         .addValue("openedByRole", encounter.openedBy().role().name()));
@@ -91,7 +95,8 @@ class JdbcEncounters implements Encounters {
                 ? new EncounterStatus.Open()
                 : new EncounterStatus.Closed(closedAt, Rows.clinician(row, "closed_by", "closed_by_role"));
         return new Encounter(Rows.uuid(row, "id"), Rows.uuid(row, "patient_uuid"), EncounterType.valueOf(row.getString("type")),
-                row.getString("admission_id"), Rows.instant(row, "opened_at"), Rows.clinician(row, "opened_by", "opened_by_role"),
+                Rows.uuid(row, "admission_uuid"), row.getBoolean("admission_verified"),
+                Rows.instant(row, "opened_at"), Rows.clinician(row, "opened_by", "opened_by_role"),
                 status);
     }
 }

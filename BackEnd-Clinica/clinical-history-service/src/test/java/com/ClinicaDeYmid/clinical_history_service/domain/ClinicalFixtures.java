@@ -43,11 +43,11 @@ public final class ClinicalFixtures {
     }
 
     public static Encounter openEncounter(EncounterType type) {
-        return new Encounter(UUID.randomUUID(), UUID.randomUUID(), type, null, OPENED_AT, doctor(), new EncounterStatus.Open());
+        return new Encounter(UUID.randomUUID(), UUID.randomUUID(), type, null, false, OPENED_AT, doctor(), new EncounterStatus.Open());
     }
 
     public static Encounter closed(Encounter encounter) {
-        return new Encounter(encounter.id(), encounter.patientUuid(), encounter.type(), encounter.admissionId(), encounter.openedAt(),
+        return new Encounter(encounter.id(), encounter.patientUuid(), encounter.type(), encounter.admissionUuid(), encounter.admissionVerified(), encounter.openedAt(),
                 encounter.openedBy(), new EncounterStatus.Closed(OPENED_AT.plus(Duration.ofHours(3)), doctor()));
     }
 

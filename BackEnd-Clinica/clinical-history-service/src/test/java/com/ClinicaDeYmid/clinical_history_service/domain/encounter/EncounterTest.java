@@ -37,10 +37,13 @@ class EncounterTest {
         Clinician nurse = nurse();
         PatientReference patient = unidentified(PatientReference.Unidentified.Status.UNIDENTIFIED);
 
-        Encounter encounter = Encounter.open(patient, EncounterType.EMERGENCY, "  ADM-2026-0001 ", nurse, clock);
+        UUID admission = UUID.randomUUID();
+
+        Encounter encounter = Encounter.open(patient, EncounterType.EMERGENCY, admission, true, nurse, clock);
 
         assertThat(encounter.patientUuid()).isEqualTo(patient.uuid());
-        assertThat(encounter.admissionId()).isEqualTo("ADM-2026-0001");
+        assertThat(encounter.admissionUuid()).isEqualTo(admission);
+        assertThat(encounter.admissionVerified()).isTrue();
         assertThat(encounter.openedAt()).isEqualTo(clock.instant());
         assertThat(encounter.isOpen()).isTrue();
     }
@@ -48,7 +51,7 @@ class EncounterTest {
     @Test
     void rejectsPatientsThatNoLongerAcceptEncounters() {
         assertThatThrownBy(() -> Encounter.open(unidentified(PatientReference.Unidentified.Status.DECEASED), EncounterType.EMERGENCY,
-                null, doctor(), clock)).isInstanceOf(ClinicalException.PatientNotAcceptingEncounters.class);
+                null, false, doctor(), clock)).isInstanceOf(ClinicalException.PatientNotAcceptingEncounters.class);
     }
 
     @ParameterizedTest

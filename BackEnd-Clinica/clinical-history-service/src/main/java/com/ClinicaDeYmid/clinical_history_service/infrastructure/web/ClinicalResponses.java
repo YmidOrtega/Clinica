@@ -45,10 +45,11 @@ final class ClinicalResponses {
         }
     }
 
-    record EncounterView(UUID id, UUID patientUuid, String type, String admissionId, Instant openedAt, ClinicianView openedBy,
-                         EncounterStatusView status) {
+    record EncounterView(UUID id, UUID patientUuid, String type, UUID admissionUuid, boolean admissionVerified,
+                         Instant openedAt, ClinicianView openedBy, EncounterStatusView status) {
         static EncounterView from(Encounter encounter) {
-            return new EncounterView(encounter.id(), encounter.patientUuid(), encounter.type().name(), encounter.admissionId(),
+            return new EncounterView(encounter.id(), encounter.patientUuid(), encounter.type().name(),
+                    encounter.admissionUuid(), encounter.admissionVerified(),
                     encounter.openedAt(), ClinicianView.from(encounter.openedBy()), EncounterStatusView.from(encounter.status()));
         }
     }

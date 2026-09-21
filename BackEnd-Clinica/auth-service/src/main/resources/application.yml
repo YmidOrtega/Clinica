@@ -93,7 +93,7 @@ clinica:
           scopes: openid, profile
           assertion-key: ${AUTH_CLINICAL_SERVICE_CLIENT_KEY:clinical-history-service-client}
           access-token-ttl: 30m
-          exchange-audiences: patient-service
+          exchange-audiences: patient-service, admissions-service
         contracting-service:
           grant-types: client_credentials, urn:ietf:params:oauth:grant-type:token-exchange
           scopes: openid, profile
