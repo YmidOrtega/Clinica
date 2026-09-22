@@ -487,6 +487,35 @@ No tiene cliente OAuth ni clave transit: no llama a ningún servicio. `KAFKA_BOO
 necesario, porque de ahí lee `auth.users.v1` para verificar la cuenta que se vincula.
 `GATEWAY_PRACTITIONERS_SERVICE_URI` apunta al servicio desde el gateway.
 
+### admissions-service
+
+```
+ADMISSIONS_SERVICE_PORT=8088
+ADMISSIONS_DB_URL=jdbc:postgresql://admissions-db:5432/admissions_db
+ADMISSIONS_DB_NAME=admissions_db                  # base y nombre del esquema principal
+ADMISSIONS_DB_POOL_SIZE=15                        # opcional
+ADMISSIONS_SERVICE_REPLICAS=2                     # opcional; réplicas en compose
+ADMISSIONS_SEAL_TRANSIT_KEY=admissions-seal       # opcional; clave que sella los comprobantes
+ADMISSIONS_CLIENT_TRANSIT_KEY=admissions-service-client   # opcional; firma sus asertos de cliente
+ADMISSIONS_COVERAGE_TTL=10m                       # opcional; caché de la verificación de cobertura
+ADMISSIONS_COVERAGE_CACHE_SIZE=5000               # opcional
+ADMISSIONS_PATIENT_EVENTS_ENABLED=true            # opcional; consumo de patient.events.v1
+ADMISSIONS_PRACTITIONER_EVENTS_ENABLED=true       # opcional; consumo de practitioners.v1
+ADMISSIONS_CLINICAL_EVENTS_ENABLED=true           # opcional; consumo del triage
+ADMISSIONS_PUBLIC_CHECKS_PER_WINDOW=20            # opcional; verificaciones públicas por IP
+ADMISSIONS_PUBLIC_CHECK_WINDOW=1m                 # opcional
+```
+
+Con el perfil `openbao` el usuario y la contraseña de la base salen de `secret/admissions/db/{migrator,app}`;
+la aplicación entra como `admissions_app` (sin DELETE ni DDL) y Flyway como `admissions_migrator`. Necesita
+`AUTH_TOKEN_URI` porque llama a patient-service, contracting-service y practitioners-service con el token
+del usuario intercambiado, y `KAFKA_BOOTSTRAP_SERVERS` para leer `patient.events.v1`, `practitioners.v1`
+y `clinical.encounters.v1`. `GATEWAY_ADMISSIONS_SERVICE_URI` apunta al servicio desde el gateway.
+
+La base de datos es **PostgreSQL con `wal_level=logical`**: Debezium lee su WAL con el rol
+`admissions_debezium` (REPLICATION) a través de la publicación `admissions_outbox_pub`, que crea el
+script de inicio porque el conector no puede crearla.
+
 ### patient-service (cambios de esta versión)
 
 ```

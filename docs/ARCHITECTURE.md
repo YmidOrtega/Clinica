@@ -606,7 +606,7 @@ Clinica/
 │   ├── libs/                           # clinica-commons-web, clinica-commons-security
 │   ├── patient-service/                # Registro administrativo de pacientes
 │   ├── clinical-history-service/       # Historia clínica: notas firmadas, anexos, auditoría
-│   ├── admissions-service/             # Atenciones, triage, autorizaciones
+│   ├── admissions-service/             # Episodios, camas, cobertura, egresos y comprobantes
 │   ├── practitioners-service/          # Directorio profesional, especialidades y honorarios
 │   ├── contracting-service/            # Pagadores, contratos, tarifas y precios
 │   ├── ai-assistant-service/           # Chat con Gemini / LM Studio
