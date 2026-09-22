@@ -24,10 +24,11 @@ public record GatewayProperties(Frontend frontend, @DefaultValue Session session
                        @DefaultValue("30s") Duration refreshBeforeExpiry) {
     }
 
-    public record RateLimit(@DefaultValue("1000") int perAddress, @DefaultValue("300") int perUser, @DefaultValue("1m") Duration window) {
+    public record RateLimit(@DefaultValue("1000") int perAddress, @DefaultValue("300") int perUser,
+                            @DefaultValue("60") int perPublicAddress, @DefaultValue("1m") Duration window) {
     }
 
     public record Routes(String authService, String patientService, String clinicalHistoryService,
-                         String contractingService, String practitionersService) {
+                         String contractingService, String practitionersService, String admissionsService) {
     }
 }

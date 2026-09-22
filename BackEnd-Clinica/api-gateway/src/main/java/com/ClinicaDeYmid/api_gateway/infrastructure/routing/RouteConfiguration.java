@@ -8,6 +8,8 @@ import org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctio
 import org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.servlet.function.RequestPredicate;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
@@ -46,7 +48,26 @@ class RouteConfiguration {
                         .or(path("/api/v1/capitated-members/**")), properties.routes().contractingService(), headers, tokens))
                 .and(staffRoute("practitioners-service", path("/api/v1/practitioners/**").or(path("/api/v1/practitioners"))
                         .or(path("/api/v1/specialties/**")).or(path("/api/v1/specialties"))
-                        .or(path("/api/v1/sub-specialties/**")), properties.routes().practitionersService(), headers, tokens));
+                        .or(path("/api/v1/sub-specialties/**")), properties.routes().practitionersService(), headers, tokens))
+                .and(staffRoute("admissions-service", path("/api/v1/admissions/**"),
+                        properties.routes().admissionsService(), headers, tokens));
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    RouterFunction<ServerResponse> publicApiRoutes(GatewayProperties properties, ProxiedHeaders headers) {
+        return publicRoute("admissions-public", path(PublicApiPaths.RECEIPT_VERIFICATION)
+                        .or(path(PublicApiPaths.ADMISSIONS_SEAL_KEYS)), properties.routes().admissionsService(), headers)
+                .and(publicRoute("clinical-public", path(PublicApiPaths.CLINICAL_SEAL_KEYS),
+                        properties.routes().clinicalHistoryService(), headers));
+    }
+
+    private static RouterFunction<ServerResponse> publicRoute(String id, RequestPredicate predicate, String target,
+                                                              ProxiedHeaders headers) {
+        return target(GatewayRouterFunctions.route(id), predicate, target)
+                .before(headers::forPublicApi)
+                .after(headers::withoutCorsHeaders)
+                .build();
     }
 
     private static RouterFunction<ServerResponse> staffRoute(String id, RequestPredicate predicate, String target, ProxiedHeaders headers,

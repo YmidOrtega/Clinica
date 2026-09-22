@@ -66,6 +66,7 @@ clinica:
     rate-limit:
       per-address: 1000
       per-user: 300
+      per-public-address: 60
       window: 1m
     routes:
       auth-service: ${GATEWAY_AUTH_SERVICE_URI:lb://auth-service}
@@ -73,6 +74,7 @@ clinica:
       clinical-history-service: ${GATEWAY_CLINICAL_SERVICE_URI:lb://clinical-history-service}
       contracting-service: ${GATEWAY_CONTRACTING_SERVICE_URI:lb://contracting-service}
       practitioners-service: ${GATEWAY_PRACTITIONERS_SERVICE_URI:lb://practitioners-service}
+      admissions-service: ${GATEWAY_ADMISSIONS_SERVICE_URI:lb://admissions-service}
 
 eureka:
   client:
