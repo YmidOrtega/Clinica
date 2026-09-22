@@ -33,6 +33,11 @@ final class RateLimitFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected String getAlreadyFilteredAttributeName() {
+        return getClass().getName() + "." + policy.name() + ".FILTERED";
+    }
+
+    @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return request.getRequestURI().startsWith("/actuator/") || "OPTIONS".equals(request.getMethod());
     }

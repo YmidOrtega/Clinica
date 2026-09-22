@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.api_gateway.infrastructure.security;
 import com.ClinicaDeYmid.api_gateway.domain.ratelimit.RateLimitPolicy;
 import com.ClinicaDeYmid.api_gateway.domain.ratelimit.RateLimiter;
 import com.ClinicaDeYmid.api_gateway.infrastructure.config.GatewayProperties;
+import com.ClinicaDeYmid.api_gateway.infrastructure.routing.PublicApiPaths;
 import com.ClinicaDeYmid.api_gateway.infrastructure.oauth.LoginRedirects;
 import com.ClinicaDeYmid.api_gateway.infrastructure.oauth.OAuthLoginCustomizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -45,10 +47,13 @@ class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfiguration(properties)))
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(new HttpSessionCsrfTokenRepository())
-                        .ignoringRequestMatchers("/auth/**"))
+                        .ignoringRequestMatchers("/auth/**", PublicApiPaths.RECEIPT_VERIFICATION))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/bff/session", "/bff/login", "/bff/step-up", "/auth/**", "/error").permitAll()
+                        .requestMatchers(HttpMethod.POST, PublicApiPaths.RECEIPT_VERIFICATION).permitAll()
+                        .requestMatchers(HttpMethod.GET, PublicApiPaths.ADMISSIONS_SEAL_KEYS,
+                                PublicApiPaths.CLINICAL_SEAL_KEYS).permitAll()
                         .anyRequest().authenticated())
                 .oauth2Login(oauthLogin::customize)
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
@@ -64,6 +69,11 @@ class SecurityConfiguration {
                                 Map.of())))
                 .addFilterAfter(new RateLimitFilter(limiter, new RateLimitPolicy("address", properties.rateLimit().perAddress(),
                         properties.rateLimit().window()), request -> Optional.of(request.getRemoteAddr()), json), CorsFilter.class)
+                .addFilterAfter(new RateLimitFilter(limiter, new RateLimitPolicy("public-address",
+                                properties.rateLimit().perPublicAddress(), properties.rateLimit().window()),
+                        request -> PublicApiPaths.reachedWithoutASession(request)
+                                ? Optional.of(request.getRemoteAddr())
+                                : Optional.empty(), json), CorsFilter.class)
                 .addFilterAfter(new SessionLifetimeFilter(properties.session().absoluteLifetime(), clock), SecurityContextHolderFilter.class)
                 .addFilterAfter(new RateLimitFilter(limiter, new RateLimitPolicy("user", properties.rateLimit().perUser(), properties.rateLimit().window()),
                         request -> SecurityContextHolder.getContext().getAuthentication() instanceof OAuth2AuthenticationToken staff

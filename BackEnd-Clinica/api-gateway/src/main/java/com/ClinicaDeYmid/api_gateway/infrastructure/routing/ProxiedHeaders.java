@@ -28,6 +28,16 @@ class ProxiedHeaders {
         }).build();
     }
 
+    ServerRequest forPublicApi(ServerRequest request) {
+        return ServerRequest.from(request).headers(headers -> {
+            withoutClientForwarding(headers);
+            headers.remove(HttpHeaders.COOKIE);
+            headers.remove(HttpHeaders.AUTHORIZATION);
+            headers.remove("X-XSRF-TOKEN");
+            headers.remove("X-CSRF-TOKEN");
+        }).build();
+    }
+
     ServerRequest forAuthService(ServerRequest request) {
         return ServerRequest.from(request).headers(headers -> {
             withoutClientForwarding(headers);

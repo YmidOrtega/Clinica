@@ -190,6 +190,42 @@ class GatewayBffIT {
     }
 
     @Test
+    void relaysAdmissionsToItsServiceWithTheStaffTokenAndNoBrowserCredentials() {
+        Browser browser = new Browser(port);
+        signIn(browser, FRONTEND + "/admisiones", 300);
+        SERVICES.stubFor(get("/api/v1/admissions/episodes/123").willReturn(okJson("{\"number\": \"ADM-2026-000001\"}")));
+
+        Browser.Response episode = browser.get("/api/v1/admissions/episodes/123", "Origin", FRONTEND);
+
+        assertThat(episode.status()).isEqualTo(200);
+        assertThat(episode.body()).contains("ADM-2026-000001");
+        SERVICES.verify(getRequestedFor(urlPathEqualTo("/api/v1/admissions/episodes/123"))
+                .withHeader("Authorization", matching("Bearer .+"))
+                .withoutHeader("Cookie"));
+    }
+
+    @Test
+    void letsAnybodyCheckAReceiptAndReadTheSealKeysWithoutASession() {
+        Browser browser = new Browser(port);
+        SERVICES.stubFor(post("/api/v1/admissions/receipts/verification").willReturn(okJson("{\"authentic\": true}")));
+        SERVICES.stubFor(get("/api/v1/admissions/seal-keys").willReturn(okJson("{\"admissions-seal-v1\": \"pem\"}")));
+        SERVICES.stubFor(get("/api/v1/clinical/seal-keys").willReturn(okJson("{\"clinical-seal-v1\": \"pem\"}")));
+
+        Browser.Response checked = browser.send("POST", "/api/v1/admissions/receipts/verification",
+                "{\"number\":\"ADM-2026-000001\",\"sha256\":\"" + "a".repeat(64) + "\"}",
+                "Content-Type", "application/json");
+
+        assertThat(checked.status()).isEqualTo(200);
+        assertThat(checked.body()).contains("authentic");
+        assertThat(browser.get("/api/v1/admissions/seal-keys").status()).isEqualTo(200);
+        assertThat(browser.get("/api/v1/clinical/seal-keys").status()).isEqualTo(200);
+        assertThat(browser.get("/api/v1/admissions/episodes/123").status()).isEqualTo(401);
+        SERVICES.verify(postRequestedFor(urlPathEqualTo("/api/v1/admissions/receipts/verification"))
+                .withoutHeader("Authorization")
+                .withoutHeader("Cookie"));
+    }
+
+    @Test
     void corsOnlyTrustsTheFrontendOrigin() {
         Browser browser = new Browser(port);
 

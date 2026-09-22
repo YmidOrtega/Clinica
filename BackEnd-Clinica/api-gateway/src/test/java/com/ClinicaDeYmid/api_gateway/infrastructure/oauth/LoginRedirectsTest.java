@@ -15,7 +15,7 @@ class LoginRedirectsTest {
 
     private final LoginRedirects redirects = new LoginRedirects(new GatewayProperties(
             new GatewayProperties.Frontend(List.of("http://localhost:4321", "https://app.clinica.co"), HOME), null, null,
-            new GatewayProperties.RateLimit(1000, 300, Duration.ofMinutes(1)), null));
+            new GatewayProperties.RateLimit(1000, 300, 60, Duration.ofMinutes(1)), null));
 
     @Test
     void returnsOnlyToTheFrontendOrigins() {
