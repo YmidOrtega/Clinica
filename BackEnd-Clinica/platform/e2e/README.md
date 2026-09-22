@@ -142,6 +142,32 @@ COMPOSE_PROJECT=clinical-e2e sh platform/e2e/practitioners-e2e.sh
 | Historia clínica | `clinical-history` recibe el registro profesional de quien firma |
 | Permisos | Un médico no consulta el directorio y recepción no escribe el catálogo |
 
+## Prueba de admisiones
+
+`admissions-e2e.sh` recorre el episodio entero contra el stack real: necesita `admissions-service` y
+`patient-service` publicados, y aprovecha `practitioners-service` y `clinical-history-service` si están
+arriba (los pasos del profesional y del triage se saltan si no lo están).
+
+```bash
+docker compose -p clinical-e2e -f docker-compose.yml -f docker-compose.debug.yml \
+  up -d --build auth-service patient-service practitioners-service clinical-history-service \
+    admissions-service kafka-connect-init
+COMPOSE_PROJECT=clinical-e2e sh platform/e2e/admissions-e2e.sh
+```
+
+| Paso | Qué demuestra |
+|---|---|
+| Catálogo y camas | Tipos de servicio, sede, servicio configurado, habitación y cama |
+| Admisión de un NN | El NN se registra primero en `patient-service` y solo entonces se admite |
+| Cobertura | Urgencias admite igual y el episodio queda marcado en el panel de pendientes |
+| Cama y fases | La cama queda ocupada, el censo dice quién la ocupa y urgencias pasa a hospitalización sin cambiar de número |
+| Profesional | El episodio guarda copia del nombre y el registro que publicó `practitioners.v1` |
+| Triage | `clinical-history` verifica el episodio al abrir la atención y su triage firmado aparece en la cola de admisiones |
+| Comprobante | El PDF sellado se verifica con el documento y también públicamente por `{número, huella}` sin credenciales |
+| Fallecimiento | El egreso libera la cama, avisa a `patient-service` y allí el NN queda como fallecido |
+| Permisos | Recepción no anula, enfermería no define catálogo y sin credenciales no se ve un episodio |
+| Eventos | El outbox registra los hechos, **el certificado de defunción no viaja** y `admissions.events.v1` los recibe por la réplica lógica de PostgreSQL |
+
 ## Prueba del gateway
 
 `gateway-e2e.sh` recorre el BFF con el navegador simulado por `curl`, contra `api-gateway`,
@@ -178,4 +204,5 @@ COMPOSE_PROJECT=clinical-e2e sh platform/e2e/gateway-e2e.sh
 | `STEP_UP_MAX_AGE_SECONDS` | 300 | `max_age` del step-up en el stack de depuración y en `gateway-e2e.sh` |
 | `GATEWAY_URL`, `GATEWAY_FRONTEND_ORIGIN` | `http://localhost:8080`, `http://localhost:4321` | gateway y origen del frontend simulado |
 | `PATIENT_URL`, `CLINICAL_URL`, `AUTH_URL`, `MAILPIT_URL` | puertos publicados | servicios fuera de Docker Compose |
+| `ADMISSIONS_URL`, `PRACTITIONERS_URL` | puertos publicados | admisiones y directorio fuera de Docker Compose |
 | `AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL` | `superadmin@clinica.local` | correo del primer `SUPER_ADMIN` |
