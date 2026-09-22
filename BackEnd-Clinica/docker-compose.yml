@@ -687,41 +687,39 @@ services:
 
    admissions-service:
       build: ./admissions-service
-      container_name: admissions-service
+      restart: unless-stopped
+      deploy:
+         replicas: ${ADMISSIONS_SERVICE_REPLICAS:-2}
       depends_on:
          admissions-db:
             condition: service_healthy
+         openbao-init:
+            condition: service_completed_successfully
          eureka-service:
             condition: service_healthy
-         redis-cache:
-            condition: service_healthy
       environment:
-         - SPRING_DATASOURCE_URL=jdbc:postgresql://admissions-db:5432/${ADMISSIONS_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${ADMISSIONS_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${ADMISSIONS_DB_PASSWORD}
-         - SPRING_DATA_REDIS_HOST=redis-cache
-         - SPRING_DATA_REDIS_PORT=6379
-         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_DATA_REDIS_TIMEOUT=2000ms
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
-         - JWT_SECRET=${JWT_SECRET}
-         - JWT_EXPIRATION=${JWT_EXPIRATION}
-         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
-         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-         - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-         - SPRING_PROFILES_ACTIVE=docker
-      ports:
-         - "8083:8083"
+         - SPRING_PROFILES_ACTIVE=openbao
+         - ADMISSIONS_DB_URL=jdbc:postgresql://admissions-db:5432/${ADMISSIONS_DB_NAME}
+         - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
+         - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
+         - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
+         - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_PREFER_IP_ADDRESS=false
+      volumes:
+         - openbao_tls:/run/secrets/openbao-tls:ro
+         - openbao_approle_admissions:/run/secrets/openbao/approle:ro
       networks:
          - clinica-net
+         - admissions-data
+         - kafka-net
+         - secrets-net
       healthcheck:
-         test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
-         interval: 30s
-         timeout: 10s
+         test: [ "CMD", "curl", "-fs", "http://localhost:8088/actuator/health/readiness" ]
+         interval: 15s
+         timeout: 5s
          retries: 5
-         start_period: 90s
+         start_period: 60s
 
    ai-assistant-service:
       build: ./ai-assistant-service
@@ -899,7 +897,7 @@ services:
          - GATEWAY_CLINICAL_SERVICE_URI=http://clinical-history-service:8089
          - GATEWAY_CONTRACTING_SERVICE_URI=http://contracting-service:8087
          - GATEWAY_PRACTITIONERS_SERVICE_URI=http://practitioners-service:8085
-         - GATEWAY_ADMISSIONS_SERVICE_URI=http://admissions-service:8083
+         - GATEWAY_ADMISSIONS_SERVICE_URI=http://admissions-service:8088
          - GATEWAY_FRONTEND_ORIGINS=${GATEWAY_FRONTEND_ORIGINS:-http://localhost:4321}
          - GATEWAY_FRONTEND_HOME_URL=${GATEWAY_FRONTEND_HOME_URL:-http://localhost:4321/}
          - GATEWAY_SESSION_SAME_SITE=${GATEWAY_SESSION_SAME_SITE:-lax}
