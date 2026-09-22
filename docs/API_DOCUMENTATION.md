@@ -521,124 +521,56 @@ las DEK con la clave activa. Solo `SUPER_ADMIN`; el procedimiento está en
 
 ---
 
-## 4. Admissions Service — `/api/v1/attentions`
+## 4. Admissions Service — `/api/v1/admissions`
 
-### GET `/`
+El episodio administrativo del paciente: quién entra, por qué servicio pasa, qué cama ocupa y cómo sale.
+Autoriza por permiso (`admissions:read`, `admit`, `move-bed`, `discharge`, `cancel`, `manage-beds`,
+`override-coverage`). El documento del paciente nunca viaja en la URL: se busca por cuerpo.
 
-Lista atenciones con filtros opcionales.
+| Método y ruta | Para qué | Permiso |
+|---|---|---|
+| `POST /api/v1/admissions/catalogue/service-types` · `/care-types` · `/locations` · `/configured-services` | definir el catálogo; se retiran, nunca se borran | manage-beds |
+| `POST /api/v1/admissions/rooms` · `/beds` | abrir habitaciones e instalar camas | manage-beds |
+| `POST /api/v1/admissions/beds/{uuid}/occupancy` · `/release` · `/cleaning-completion` · `/maintenance` · `/block` · `/return-to-service` | mover el estado de una cama | move-bed / manage-beds |
+| `POST /api/v1/admissions/episodes` | admitir a un paciente conocido | admit (+ override-coverage y **step-up** si `overrideCoverage`) |
+| `POST /api/v1/admissions/episodes/unidentified` | admitir a un NN; primero se registra en patient-service | admit |
+| `GET /api/v1/admissions/episodes/{uuid}` | consultar el episodio completo | read |
+| `POST /api/v1/admissions/episodes/search` | buscar por documento, número, estado, tipo, servicio o fechas (paginado) | read |
+| `GET /api/v1/admissions/episodes/pending-coverage` · `/pending-death-notice` | paneles de lo que quedó pendiente (paginados) | read |
+| `POST /api/v1/admissions/episodes/{uuid}/activation` · `/phase` · `/companion` · `/attending-practitioner` | activar, cambiar de servicio y completar el episodio (`If-Match`) | admit |
+| `POST /api/v1/admissions/episodes/{uuid}/bed` · `/bed-release` | asignar, trasladar o soltar la cama (`If-Match`) | move-bed |
+| `POST /api/v1/admissions/episodes/{uuid}/discharge` | egresar diciendo cómo termina (`If-Match`) | discharge (+ **step-up** si `DEATH` o `ESCAPE`) |
+| `POST /api/v1/admissions/episodes/{uuid}/death-notice` | reintentar el aviso de fallecimiento al directorio | discharge |
+| `POST /api/v1/admissions/episodes/{uuid}/cancellation` | anular el episodio con un motivo (`If-Match`) | cancel (+ **step-up**) |
+| `POST` · `GET /api/v1/admissions/episodes/{uuid}/authorizations` · `POST /authorizations/{uuid}/revocation` | autorizaciones del pagador; se revocan, no se borran | admit / read |
+| `GET /api/v1/admissions/locations/{uuid}/census` | censo: cada cama, su estado y qué episodio la ocupa | read |
+| `GET /api/v1/admissions/configured-services/{uuid}/queue` | cola del servicio: pendientes de triage primero, luego por nivel | read |
+| `POST /api/v1/admissions/episodes/{uuid}/receipt` | emitir el comprobante en PDF sellado | admit |
+| `GET /api/v1/admissions/receipts/{id}` · `POST /{id}/verification` | consultar el sello o verificar un PDF emitido | read |
+| `POST /api/v1/admissions/receipts/verification` | comprobar públicamente `{number, sha256}` → `{authentic}` | **sin credenciales** |
+| `GET /api/v1/admissions/seal-keys` | claves públicas con las que se sellan los comprobantes | **sin credenciales** |
 
-**Query params:**
+### Reglas que conviene conocer
 
-| Param      | Tipo   | Descripción                              |
-| ---------- | ------ | ---------------------------------------- |
-| `status`   | string | `CREATED`, `IN_PROGRESS`, `DISCHARGED`, `CANCELLED` |
-| `triage`   | string | `RED`, `ORANGE`, `YELLOW`, `GREEN`, `BLUE` |
-| `date`     | string | Fecha en formato `YYYY-MM-DD`            |
-| `doctorId` | UUID   | Filtrar por médico asignado              |
+- **Un episodio, varias fases**: urgencias → hospitalización es *una* admisión que cambia de fase. El
+  número (`ADM-AAAA-NNNNNN`) no cambia, y cada fase sabe si exige cama.
+- **Estados sellados**: `REGISTERED` → `ACTIVE` → `DISCHARGED` o `CANCELLED`. El egreso dice **cómo**
+  termina: alta médica, alta voluntaria firmada, remisión (con código REPS), fuga o fallecimiento (con
+  certificado). Los cinco liberan la cama.
+- **Cobertura**: se verifica contra contracting al admitir. En **urgencias nunca bloquea** (Ley 100,
+  art. 168); en hospitalización y ambulatorio "sin cobertura" bloquea y "no responde" admite marcando el
+  episodio, que aparece en el panel de pendientes para facturación.
+- **Camas**: la exclusividad la impone la base de datos (`EXCLUDE USING gist`), no la aplicación. Liberar
+  una cama la manda a **limpieza**, no a disponible.
+- **Fallecimiento**: el egreso se registra siempre y avisa a patient-service; si no responde, el episodio
+  queda en `pending-death-notice` y se reintenta.
+- **Triage**: llega desde clinical-history por eventos y es **copia de solo lectura**; admisiones no lo
+  decide, solo ordena su cola con él.
+- **Comprobante**: se guarda su huella SHA-256 y el sello institucional, no el PDF. Reemitir produce otro
+  documento con otra huella.
+- **Eventos**: cada hecho del episodio se publica en `admissions.events.v1` con la ficha resumida del
+  episodio. El certificado de defunción y los motivos clínicos **no** viajan en el evento.
 
-**Response `200 OK`:**
-```json
-{
-  "content": [
-    {
-      "id": "att001-...",
-      "patientId": "p1a2b3c4-...",
-      "patientName": "Carlos Rodríguez",
-      "triageLevel": "YELLOW",
-      "status": "IN_PROGRESS",
-      "assignedDoctorId": "doc001-...",
-      "createdAt": "2025-05-19T08:30:00"
-    }
-  ],
-  "totalElements": 18
-}
-```
-
----
-
-### POST `/`
-
-Crea una nueva atención médica.
-
-**Request:**
-```json
-{
-  "patientId": "p1a2b3c4-...",
-  "triageLevel": "ORANGE",
-  "reason": "Dolor torácico agudo con irradiación al brazo izquierdo",
-  "assignedDoctorId": "doc001-...",
-  "authorizationCode": "EPS-2025-001234"
-}
-```
-
-**Response `201 Created`:**
-```json
-{
-  "id": "att999-...",
-  "status": "CREATED",
-  "triageLevel": "ORANGE",
-  "createdAt": "2025-05-19T14:22:00"
-}
-```
-
----
-
-### GET `/{id}`
-
-Retorna los detalles completos de una atención.
-
-**Response `200 OK`:**
-```json
-{
-  "id": "att001-...",
-  "patientId": "p1a2b3c4-...",
-  "triageLevel": "YELLOW",
-  "status": "IN_PROGRESS",
-  "reason": "Fiebre alta y tos seca",
-  "assignedDoctorId": "doc001-...",
-  "movements": [
-    {
-      "id": "mov001",
-      "fromStatus": "CREATED",
-      "toStatus": "IN_PROGRESS",
-      "performedBy": "dr.martinez",
-      "timestamp": "2025-05-19T09:05:00"
-    }
-  ],
-  "authorization": {
-    "code": "EPS-2025-001234",
-    "status": "APPROVED",
-    "provider": "EPS Sura"
-  }
-}
-```
-
----
-
-### PATCH `/{id}/status`
-
-Cambia el estado de una atención.
-
-**Request:**
-```json
-{
-  "newStatus": "DISCHARGED",
-  "notes": "Paciente estabilizado, alta con prescripción."
-}
-```
-
-**Response `200 OK`**
-
-**Transiciones válidas:**
-
-| Estado actual | Estados destino válidos         |
-| ------------- | ------------------------------- |
-| `CREATED`     | `IN_PROGRESS`, `CANCELLED`      |
-| `IN_PROGRESS` | `DISCHARGED`, `CANCELLED`       |
-| `DISCHARGED`  | (estado final)                  |
-| `CANCELLED`   | (estado final)                  |
-
----
 
 ## 5. Practitioners Service — `/api/v1`
 

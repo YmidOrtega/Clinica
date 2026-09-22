@@ -155,7 +155,7 @@ curl -X POST http://localhost:8080/api/v1/patients/search \
 ```
 Clinica/
 ├── BackEnd-Clinica/
-│   ├── admissions-service/
+│   ├── admissions-service/   # Episodios, camas y comprobantes
 │   ├── ai-assistant-service/
 │   ├── api-gateway/
 │   ├── auth-service/

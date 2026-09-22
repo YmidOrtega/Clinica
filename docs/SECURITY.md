@@ -158,6 +158,14 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
 - **Contexto en los cortacircuitos:** las llamadas entre servicios corren dentro de un circuit breaker,
   que las ejecuta en otro hilo. `clinica-commons-security` le entrega un ejecutor que traslada el
   `SecurityContext`, para que el relevo del token del usuario siga funcionando dentro del cortacircuito.
+- **Admisiones:** autoriza por permiso (`admissions:*`). Exigen **reautenticación con segundo factor** el
+  egreso por fallecimiento, el egreso por fuga, la anulación del episodio y admitir saltándose la
+  cobertura. Solo dos rutas viven sin credenciales —la verificación pública de un comprobante, que
+  responde únicamente `authentic`, y las claves públicas del sello—, ambas con cuota por IP en el gateway
+  (60/min) y en el propio servicio (20/min). Una prueba de arquitectura falla si aparece un endpoint sin
+  `@PreAuthorize` que no esté en esa lista. La aplicación entra a su base como `admissions_app`, sin
+  DELETE ni DDL, y el certificado de defunción nunca viaja en un evento.
+
 - **Directorio profesional:** `practitioners-service` no tiene cliente OAuth ni clave de firma, porque no
   llama a nadie: verifica la cuenta que se vincula contra la copia local de `auth.users.v1` que ya mantiene
   `clinica-commons-security`, y si esa copia no está al día responde `503` en vez de vincular a ciegas. El
