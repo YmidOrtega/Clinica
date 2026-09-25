@@ -6,6 +6,7 @@ import com.ClinicaDeYmid.admissions_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 import com.ClinicaDeYmid.admissions_service.domain.Discharge;
+import com.ClinicaDeYmid.admissions_service.domain.StayType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
@@ -24,10 +25,10 @@ record AdmissionEventMessage(
 
     static final int SCHEMA_VERSION = 1;
 
-    static AdmissionEventMessage of(AdmissionEvent event, Admission admission, UUID eventId, Instant occurredAt,
-                                    String traceId) {
+    static AdmissionEventMessage of(AdmissionEvent event, Admission admission, StayType bedStayType, UUID eventId,
+                                    Instant occurredAt, String traceId) {
         return new AdmissionEventMessage(eventId, typeOf(event), SCHEMA_VERSION, occurredAt, admission.uuid(),
-                admission.version(), traceId, Data.of(event, admission));
+                admission.version(), traceId, Data.of(event, admission, bedStayType));
     }
 
     static String typeOf(AdmissionEvent event) {
@@ -46,8 +47,8 @@ record AdmissionEventMessage(
     record Data(AdmissionData admission, UUID previousServiceUuid, String reason, UUID bedUuid,
                 UUID previousBedUuid, String coverageDetail, Discharge.Code discharge) {
 
-        static Data of(AdmissionEvent event, Admission admission) {
-            AdmissionData snapshot = AdmissionData.from(admission);
+        static Data of(AdmissionEvent event, Admission admission, StayType bedStayType) {
+            AdmissionData snapshot = AdmissionData.from(admission, bedStayType);
             return switch (event) {
                 case AdmissionEvent.Registered registered ->
                         new Data(snapshot, null, null, null, null, null, null);
@@ -78,12 +79,14 @@ record AdmissionEventMessage(
             AdmissionStatus.Code status,
             UUID configurationServiceUuid,
             UUID bedUuid,
+            StayType bedStayType,
             Coverage.Code coverage) {
 
-        static AdmissionData from(Admission admission) {
+        static AdmissionData from(Admission admission, StayType bedStayType) {
             return new AdmissionData(admission.uuid(), admission.number(), admission.patientUuid(), admission.kind(),
                     admission.status().code(), admission.lastPhase().configurationService().uuid(),
-                    admission.bedUuid(), admission.coverage() == null ? null : admission.coverage().status());
+                    admission.bedUuid(), admission.bedUuid() == null ? null : bedStayType,
+                    admission.coverage() == null ? null : admission.coverage().status());
         }
     }
 }

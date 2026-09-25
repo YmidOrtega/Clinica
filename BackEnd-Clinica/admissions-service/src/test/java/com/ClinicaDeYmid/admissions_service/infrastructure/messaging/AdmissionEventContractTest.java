@@ -4,6 +4,7 @@ import com.ClinicaDeYmid.admissions_service.domain.Admission;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionEvent;
 import com.ClinicaDeYmid.admissions_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.admissions_service.domain.Cause;
+import com.ClinicaDeYmid.admissions_service.domain.StayType;
 import com.ClinicaDeYmid.admissions_service.domain.ConfigurationService;
 import com.ClinicaDeYmid.admissions_service.domain.Coverage;
 import com.ClinicaDeYmid.admissions_service.domain.Discharge;
@@ -61,8 +62,10 @@ class AdmissionEventContractTest {
                 assertThat(ProducerContract.ADMISSION_EVENTS.breaches(event)).isEmpty());
         assertThat(moved).contains("\"previousServiceUuid\":\"" + emergencyService + "\"",
                 "\"reason\":\"Requiere hospitalización\"", "\"kind\":\"INPATIENT\"");
-        assertThat(assigned).contains("\"type\":\"AdmissionBedAssigned\"", "\"bedUuid\":\"" + ward + "\"");
-        assertThat(released).contains("\"type\":\"AdmissionBedReleased\"", "\"bedUuid\":\"" + ward + "\"");
+        assertThat(assigned).contains("\"type\":\"AdmissionBedAssigned\"", "\"bedUuid\":\"" + ward + "\"",
+                "\"bedStayType\":\"PRIVATE_ROOM\"");
+        assertThat(released).contains("\"type\":\"AdmissionBedReleased\"", "\"bedUuid\":\"" + ward + "\"")
+                .doesNotContain("bedStayType");
     }
 
     @Test
@@ -121,7 +124,8 @@ class AdmissionEventContractTest {
     }
 
     private static String json(AdmissionEvent event, Admission admission) {
-        return AdmissionEventJson.write(AdmissionEventMessage.of(event, admission, UUID.randomUUID(), NOW,
+        return AdmissionEventJson.write(AdmissionEventMessage.of(event, admission,
+                admission.bedUuid() == null ? null : StayType.PRIVATE_ROOM, UUID.randomUUID(), NOW,
                 "4bf92f3577b34da6a3ce929d0e0e4736"));
     }
 

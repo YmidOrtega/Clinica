@@ -209,7 +209,7 @@ class AdmissionBedIT extends IntegrationTest {
                 .content("{\"name\":\"Piso cama " + index + "\"}")).andReturn().getResponse().getContentAsString(),
                 "$.uuid");
         String room = JsonPath.read(as("ADMIN", post(BASE + "/rooms")
-                .content("{\"name\":\"Hab " + index + "\",\"locationUuid\":\"" + location + "\"}"))
+                .content("{\"name\":\"Hab " + index + "\",\"locationUuid\":\"" + location + "\",\"stayType\":\"GENERAL_WARD\"}"))
                 .andReturn().getResponse().getContentAsString(), "$.uuid");
         return JsonPath.read(as("ADMIN", post(BASE + "/beds")
                 .content("{\"label\":\"Cama " + index + "\",\"roomUuid\":\"" + room + "\"}"))

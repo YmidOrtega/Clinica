@@ -18,6 +18,7 @@ import com.ClinicaDeYmid.admissions_service.domain.Location;
 import com.ClinicaDeYmid.admissions_service.domain.ServiceType;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReference;
 import com.ClinicaDeYmid.admissions_service.domain.patient.PatientReferences;
+import com.ClinicaDeYmid.admissions_service.domain.StayType;
 import com.ClinicaDeYmid.admissions_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.admissions_service.support.TestSequence;
 import com.ClinicaDeYmid.admissions_service.support.StubbedServices;
@@ -161,7 +162,7 @@ class AdmissionLifecycleIT extends IntegrationTest {
         int index = TestSequence.next();
         Location where = catalogue.defineLocation("Piso cama " + index);
         return bedCommands.installBed("Cama " + index,
-                bedCommands.openRoom("Hab " + index, where.uuid()).uuid()).uuid();
+                bedCommands.openRoom("Hab " + index, where.uuid(), StayType.GENERAL_WARD).uuid()).uuid();
     }
 
     private UUID aPatient() {

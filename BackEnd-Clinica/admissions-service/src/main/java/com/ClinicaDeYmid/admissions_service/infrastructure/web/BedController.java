@@ -16,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,7 +45,7 @@ class BedController {
     @PreAuthorize(Access.MANAGE_BEDS)
     @Operation(summary = "Abrir una habitación en una ubicación")
     ResponseEntity<RoomView> openRoom(@Valid @RequestBody BedRequests.RoomOpening request) {
-        Room room = commands.openRoom(request.name(), request.locationUuid());
+        Room room = commands.openRoom(request.name(), request.locationUuid(), request.stayType());
         return ResponseEntity.created(URI.create(BASE_PATH + "/rooms/" + room.uuid()))
                 .eTag(EntityTags.of(room.version()))
                 .body(RoomView.from(room));
@@ -72,6 +73,17 @@ class BedController {
                                         @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                         @Valid @RequestBody BedRequests.Reason request) {
         Room room = commands.retireRoom(uuid, EntityTags.requiredVersion(ifMatch), request.reason());
+        return ResponseEntity.ok().eTag(EntityTags.of(room.version())).body(RoomView.from(room));
+    }
+
+    @PutMapping("/rooms/{uuid}/stay-type")
+    @PreAuthorize(Access.MANAGE_BEDS)
+    @Operation(summary = "Cambiar el tipo de estancia de una habitación",
+            description = "Rige para las camas que se asignen desde ahora; facturación cobra la estancia según este tipo")
+    ResponseEntity<RoomView> changeStayType(@PathVariable UUID uuid,
+                                            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                            @Valid @RequestBody BedRequests.StayTypeChange request) {
+        Room room = commands.changeStayType(uuid, EntityTags.requiredVersion(ifMatch), request.stayType());
         return ResponseEntity.ok().eTag(EntityTags.of(room.version())).body(RoomView.from(room));
     }
 

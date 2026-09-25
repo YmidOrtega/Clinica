@@ -46,6 +46,10 @@ public class Room {
     @Column(name = "name", nullable = false, length = 60)
     private String name;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "stay_type", nullable = false, length = 30)
+    private StayType stayType;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "location_id", nullable = false, updatable = false)
     private Location location;
@@ -79,16 +83,30 @@ public class Room {
     protected Room() {
     }
 
-    public static Room open(String name, Location location) {
+    public static Room open(String name, Location location, StayType stayType) {
         Room room = new Room();
         room.uuid = UUID.randomUUID();
         room.name = DomainRules.requiredText(name, "name", 60);
+        room.stayType = DomainRules.required(stayType, "stayType");
         room.location = DomainRules.required(location, "location");
         if (!location.status().usable()) {
             throw new AdmissionsException.RetiredLocation();
         }
         room.statusCode = CatalogueStatus.Code.ACTIVE;
         return room;
+    }
+
+    public boolean changeStayType(StayType newType) {
+        StayType type = DomainRules.required(newType, "stayType");
+        if (type == stayType) {
+            return false;
+        }
+        stayType = type;
+        return true;
+    }
+
+    public StayType stayType() {
+        return stayType;
     }
 
     public boolean rename(String newName) {
