@@ -17,7 +17,16 @@ public enum StaffPermission {
     ADMISSIONS_DISCHARGE("admissions:discharge"),
     ADMISSIONS_CANCEL("admissions:cancel"),
     ADMISSIONS_MANAGE_BEDS("admissions:manage-beds"),
-    ADMISSIONS_OVERRIDE_COVERAGE("admissions:override-coverage");
+    ADMISSIONS_OVERRIDE_COVERAGE("admissions:override-coverage"),
+    BILLING_READ("billing:read"),
+    BILLING_SELL("billing:sell"),
+    BILLING_PRICE_MANUALLY("billing:price-manually"),
+    BILLING_INVOICE("billing:invoice"),
+    BILLING_VOID("billing:void"),
+    BILLING_COLLECT("billing:collect"),
+    BILLING_FILE("billing:file"),
+    BILLING_GLOSSES("billing:glosses"),
+    BILLING_MANAGE_CONFIG("billing:manage-config");
 
     private final String code;
 
