@@ -19,6 +19,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.util.UUID;
 
@@ -278,6 +279,18 @@ class PatientApiIT {
                 .andExpect(jsonPath("$.content.length()").value(1));
 
         as("CONTRACTING", post("/api/v1/patients").content(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void billingReadsThePatientItInvoicesButDoesNotRegisterOrChangeIt() throws Exception {
+        String uuid = register(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula()));
+
+        as("BILLING", MockMvcRequestBuilders.get("/api/v1/patients/" + uuid))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.uuid").value(uuid));
+
+        as("BILLING", post("/api/v1/patients").content(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula())))
                 .andExpect(status().isForbidden());
     }
 
