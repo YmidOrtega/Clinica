@@ -4,7 +4,12 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record LinePrice(PriceOrigin origin, BigDecimal unitPrice, BigDecimal lineTotal, UUID referenceUuid,
-                        String referenceCode) {
+                        String referenceCode, SurgicalDetail surgical) {
+
+    public LinePrice(PriceOrigin origin, BigDecimal unitPrice, BigDecimal lineTotal, UUID referenceUuid,
+                     String referenceCode) {
+        this(origin, unitPrice, lineTotal, referenceUuid, referenceCode, null);
+    }
 
     public LinePrice {
         DomainRules.required(origin, "origin");
@@ -14,6 +19,9 @@ public record LinePrice(PriceOrigin origin, BigDecimal unitPrice, BigDecimal lin
             throw new BillingException.InvalidData("unitPrice", "no puede ser negativo");
         }
         referenceCode = DomainRules.optionalText(referenceCode, "referenceCode", 40);
+        if ((origin == PriceOrigin.SURGICAL_LIQUIDATION) != (surgical != null)) {
+            throw new BillingException.InvalidData("surgical", "solo una liquidación quirúrgica trae componentes");
+        }
     }
 
     public static LinePrice unpriced() {

@@ -62,6 +62,9 @@ spring:
           contracting-service:
             connect-timeout: 1000
             read-timeout: 3000
+          practitioners-service:
+            connect-timeout: 1000
+            read-timeout: 3000
     circuitbreaker:
       resilience4j:
         disable-time-limiter: true

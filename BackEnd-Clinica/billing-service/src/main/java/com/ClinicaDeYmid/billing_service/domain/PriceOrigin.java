@@ -5,6 +5,7 @@ public enum PriceOrigin {
     PACKAGE(false),
     CONTRACT_EXCEPTION(true),
     TARIFF_MANUAL(true),
+    SURGICAL_LIQUIDATION(true),
     CAPITATION(false),
     GLOBAL_BUDGET(false),
     UNPRICED(false),

@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.billing_service.application.sale;
 
 import com.ClinicaDeYmid.billing_service.domain.PriceOrigin;
+import com.ClinicaDeYmid.billing_service.domain.SurgicalDetail;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,7 +25,14 @@ public sealed interface QuoteLookup {
     }
 
     record Service(String cupsCode, int quantity, BigDecimal unitPrice, BigDecimal lineTotal, PriceOrigin origin,
-                   UUID referenceUuid, String referenceCode, boolean authorizationRequired) {
+                   UUID referenceUuid, String referenceCode, boolean authorizationRequired, boolean surgical,
+                   SurgicalDetail detail) {
+
+        public Service(String cupsCode, int quantity, BigDecimal unitPrice, BigDecimal lineTotal, PriceOrigin origin,
+                       UUID referenceUuid, String referenceCode, boolean authorizationRequired) {
+            this(cupsCode, quantity, unitPrice, lineTotal, origin, referenceUuid, referenceCode, authorizationRequired,
+                    false, null);
+        }
     }
 
     record Package(UUID uuid, String code, String name, BigDecimal price) {

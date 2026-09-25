@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.billing_service.application.context.EpisodeDirectory;
 import com.ClinicaDeYmid.billing_service.application.context.EpisodeLookup;
 import com.ClinicaDeYmid.billing_service.domain.AuthorizationEvidence;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
+import com.ClinicaDeYmid.billing_service.domain.LineKind;
 import com.ClinicaDeYmid.billing_service.domain.LinePrice;
 import com.ClinicaDeYmid.billing_service.domain.PackageCharge;
 import com.ClinicaDeYmid.billing_service.domain.PricingTerms;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -54,38 +56,64 @@ public class SalePricing {
             return PricingTerms.withoutContract();
         }
         Set<UUID> requiring = new HashSet<>();
-        Map<LocalDate, List<SaleLine>> byDate = new TreeMap<>();
-        lines.forEach(line -> byDate.computeIfAbsent(line.serviceDate(), day -> new java.util.ArrayList<>()).add(line));
         Map<UUID, LinePrice> prices = new HashMap<>();
         Map<UUID, PackageCharge> packages = new LinkedHashMap<>();
+        Set<UUID> surgical = new HashSet<>();
         String contractNumber = null;
         UUID payer = null;
+        List<SaleLine> procedures = lines.stream().filter(line -> line.kind() == LineKind.PROCEDURE).toList();
+        if (!procedures.isEmpty()) {
+            QuoteLookup.Quoted quoted = require(quotes.surgicalQuote(contract.get(), procedures.getFirst().serviceDate(),
+                    procedures.stream().map(line -> new PriceQuotes.RequestedProcedure(line.service().cupsCode(),
+                            line.route())).toList()), procedures.size());
+            collect(quoted, procedures, prices, packages, requiring, surgical);
+            contractNumber = quoted.contractNumber();
+            payer = quoted.payerUuid();
+        }
+        Map<LocalDate, List<SaleLine>> byDate = new TreeMap<>();
+        lines.stream().filter(line -> line.kind() == LineKind.SERVICE)
+                .forEach(line -> byDate.computeIfAbsent(line.serviceDate(), day -> new ArrayList<>()).add(line));
         for (Map.Entry<LocalDate, List<SaleLine>> day : byDate.entrySet()) {
             List<SaleLine> served = day.getValue();
-            QuoteLookup.Quoted quoted = switch (quotes.quote(contract.get(), day.getKey(), served.stream()
-                    .map(line -> new PriceQuotes.Requested(line.service().cupsCode(), line.quantity())).toList())) {
-                case QuoteLookup.Quoted found -> found;
-                case QuoteLookup.Refused refused -> throw new BillingException.ContractCannotPrice(refused.detail());
-                case QuoteLookup.Unavailable ignored -> throw new BillingException.ContractingUnavailable();
-            };
-            if (quoted.services().size() != served.size()) {
-                throw new BillingException.ContractCannotPrice("la cotización no trajo un precio por cada servicio");
-            }
-            for (int index = 0; index < served.size(); index++) {
-                QuoteLookup.Service service = quoted.services().get(index);
-                prices.put(served.get(index).uuid(), new LinePrice(service.origin(), service.unitPrice(),
-                        service.lineTotal(), service.referenceUuid(), service.referenceCode()));
-                if (service.authorizationRequired()) {
-                    requiring.add(served.get(index).uuid());
-                }
-            }
-            quoted.packages().forEach(applied -> packages.putIfAbsent(applied.uuid(),
-                    new PackageCharge(applied.uuid(), applied.code(), applied.name(), applied.price())));
+            QuoteLookup.Quoted quoted = require(quotes.quote(contract.get(), day.getKey(), served.stream()
+                    .map(line -> new PriceQuotes.Requested(line.service().cupsCode(), line.quantity())).toList()),
+                    served.size());
+            collect(quoted, served, prices, packages, requiring, surgical);
             contractNumber = quoted.contractNumber();
             payer = quoted.payerUuid();
         }
         return new PricingTerms(contract.get(), contractNumber, payer, prices, List.copyOf(packages.values()),
-                requiring, evidenceOf(episode));
+                requiring, evidenceOf(episode), surgical);
+    }
+
+    private static QuoteLookup.Quoted require(QuoteLookup lookup, int expected) {
+        QuoteLookup.Quoted quoted = switch (lookup) {
+            case QuoteLookup.Quoted found -> found;
+            case QuoteLookup.Refused refused -> throw new BillingException.ContractCannotPrice(refused.detail());
+            case QuoteLookup.Unavailable ignored -> throw new BillingException.ContractingUnavailable();
+        };
+        if (quoted.services().size() != expected) {
+            throw new BillingException.ContractCannotPrice("la cotización no trajo un precio por cada servicio");
+        }
+        return quoted;
+    }
+
+    private static void collect(QuoteLookup.Quoted quoted, List<SaleLine> lines, Map<UUID, LinePrice> prices,
+                                Map<UUID, PackageCharge> packages, Set<UUID> requiring, Set<UUID> surgical) {
+        for (int index = 0; index < lines.size(); index++) {
+            QuoteLookup.Service service = quoted.services().get(index);
+            UUID line = lines.get(index).uuid();
+            prices.put(line, new LinePrice(service.origin(), service.unitPrice(), service.lineTotal(),
+                    service.referenceUuid(), service.referenceCode(), service.detail()));
+            if (service.authorizationRequired()) {
+                requiring.add(line);
+            }
+            if (service.surgical()) {
+                surgical.add(line);
+            }
+        }
+        quoted.packages().forEach(applied -> packages.putIfAbsent(applied.uuid(),
+                new PackageCharge(applied.uuid(), applied.code(), applied.name(), applied.price())));
     }
 
     private static AuthorizationEvidence evidenceOf(EpisodeDetails episode) {

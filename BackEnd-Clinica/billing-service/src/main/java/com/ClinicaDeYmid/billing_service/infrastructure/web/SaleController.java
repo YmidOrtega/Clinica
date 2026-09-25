@@ -4,7 +4,6 @@ import com.ClinicaDeYmid.billing_service.application.sale.OpenedSale;
 import com.ClinicaDeYmid.billing_service.application.sale.SaleCommands;
 import com.ClinicaDeYmid.billing_service.application.sale.SaleQueries;
 import com.ClinicaDeYmid.billing_service.domain.Sale;
-import com.ClinicaDeYmid.billing_service.domain.SaleType;
 import com.ClinicaDeYmid.billing_service.infrastructure.web.SaleResponses.PreviewView;
 import com.ClinicaDeYmid.billing_service.infrastructure.web.SaleResponses.SaleView;
 import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
@@ -23,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
@@ -55,7 +55,7 @@ class SaleController {
     @Operation(summary = "Abrir una venta sobre el número de atención",
             description = "Por defecto trae como líneas los servicios de las autorizaciones vigentes del episodio")
     ResponseEntity<SaleView> open(@Valid @RequestBody SaleRequests.Opening request) {
-        OpenedSale opened = commands.open(request.admissionNumber(), SaleType.of(request.type()), request.preload());
+        OpenedSale opened = commands.open(request.admissionNumber(), request.toType(), request.preload());
         Sale sale = queries.sale(opened.sale().uuid());
         return ResponseEntity.created(URI.create(SALES + "/" + sale.uuid())).eTag(EntityTags.of(sale.version()))
                 .body(SaleView.from(sale, opened.notes()));
@@ -83,6 +83,30 @@ class SaleController {
                                     @Valid @RequestBody SaleRequests.Line request) {
         long version = EntityTags.requiredVersion(ifMatch);
         commands.charge(uuid, version, request.toRequest());
+        return tagged(uuid);
+    }
+
+    @PostMapping(SALES + "/{uuid}/procedures")
+    @PreAuthorize(Access.SELL)
+    @Operation(summary = "Cargar un procedimiento quirúrgico con su vía a una venta quirúrgica",
+            description = "Se cobra una vez, en la fecha de la cirugía; la vía decide el porcentaje de los adicionales")
+    ResponseEntity<SaleView> chargeProcedure(@PathVariable UUID uuid,
+                                             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                             @Valid @RequestBody SaleRequests.Procedure request) {
+        long version = EntityTags.requiredVersion(ifMatch);
+        commands.chargeProcedure(uuid, version, request.portfolioItemUuid(), request.cupsCode(), request.route());
+        return tagged(uuid);
+    }
+
+    @PutMapping(SALES + "/{uuid}/surgical-team")
+    @PreAuthorize(Access.SELL)
+    @Operation(summary = "Definir el equipo quirúrgico por rol",
+            description = "Cada profesional se valida en el directorio y queda como foto en la venta")
+    ResponseEntity<SaleView> assignTeam(@PathVariable UUID uuid,
+                                        @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                        @Valid @RequestBody SaleRequests.Team request) {
+        long version = EntityTags.requiredVersion(ifMatch);
+        commands.assignTeam(uuid, version, request.toAssignments());
         return tagged(uuid);
     }
 

@@ -15,6 +15,8 @@ import com.ClinicaDeYmid.billing_service.domain.Sale;
 import com.ClinicaDeYmid.billing_service.domain.SaleLine;
 import com.ClinicaDeYmid.billing_service.domain.SaleType;
 import com.ClinicaDeYmid.billing_service.domain.Sales;
+import com.ClinicaDeYmid.billing_service.domain.SurgicalRole;
+import com.ClinicaDeYmid.billing_service.domain.TeamMember;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,16 +41,19 @@ public class SaleCommands {
     private final EpisodeDirectory episodes;
     private final PortfolioCatalogue portfolio;
     private final SalePricing pricing;
+    private final PractitionerDirectory practitioners;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public SaleCommands(EpisodeAccounts accounts, Sales sales, EpisodeDirectory episodes, PortfolioCatalogue portfolio,
-                        SalePricing pricing, TransactionOperations transactions, Clock clock) {
+                        SalePricing pricing, PractitionerDirectory practitioners, TransactionOperations transactions,
+                        Clock clock) {
         this.accounts = accounts;
         this.sales = sales;
         this.episodes = episodes;
         this.portfolio = portfolio;
         this.pricing = pricing;
+        this.practitioners = practitioners;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -57,7 +62,8 @@ public class SaleCommands {
         EpisodeAccount found = accounts.findByAdmissionNumber(admissionNumber)
                 .orElseThrow(BillingException.AccountNotFound::new);
         List<String> notes = new ArrayList<>();
-        List<PlannedLine> planned = preloadAuthorized ? authorizedLines(found.admissionUuid(), notes) : List.of();
+        List<PlannedLine> planned = preloadAuthorized && type instanceof SaleType.NonSurgical
+                ? authorizedLines(found.admissionUuid(), notes) : List.of();
         LocalDate today = LocalDate.now(clock);
         Sale opened = transactions.execute(status -> {
             EpisodeAccount account = accounts.lockByAdmission(found.admissionUuid())
@@ -76,6 +82,33 @@ public class SaleCommands {
         LocalDate serviceDate = request.serviceDate() == null ? LocalDate.now(clock) : request.serviceDate();
         return modify(saleUuid, expectedVersion,
                 sale -> sale.charge(service, request.quantity(), serviceDate, new LineOrigin.Manual(), clock));
+    }
+
+    public Sale chargeProcedure(UUID saleUuid, long expectedVersion, UUID portfolioItemUuid, String cupsCode,
+                                String route) {
+        ChargedService service = resolve(new LineRequest(portfolioItemUuid, cupsCode, 1, null));
+        return modify(saleUuid, expectedVersion,
+                sale -> sale.chargeProcedure(service, route, new LineOrigin.Manual(), clock));
+    }
+
+    public Sale assignTeam(UUID saleUuid, long expectedVersion, List<TeamAssignment> assignments) {
+        List<TeamMember> members = assignments.stream().map(this::member).toList();
+        Sale assigned = modify(saleUuid, expectedVersion, sale -> sale.assignTeam(members, clock));
+        log.info("Surgical team of sale {} set to {} members", assigned.number(), members.size());
+        return assigned;
+    }
+
+    private TeamMember member(TeamAssignment assignment) {
+        return switch (practitioners.practitioner(assignment.practitionerUuid())) {
+            case PractitionerLookup.Found found when found.attends() -> new TeamMember(assignment.role(),
+                    assignment.practitionerUuid(), found.fullName(), found.registrationNumber());
+            case PractitionerLookup.Found ignored -> throw new BillingException.PractitionerNotAvailable();
+            case PractitionerLookup.NotFound ignored -> throw new BillingException.PractitionerNotAvailable();
+            case PractitionerLookup.Unavailable ignored -> throw new BillingException.PractitionersUnavailable();
+        };
+    }
+
+    public record TeamAssignment(SurgicalRole role, UUID practitionerUuid) {
     }
 
     public Sale removeLine(UUID saleUuid, long expectedVersion, UUID lineUuid, String reason) {
