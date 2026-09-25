@@ -269,6 +269,7 @@ public class SaleLine {
         return switch (originCode) {
             case MANUAL -> new LineOrigin.Manual();
             case AUTHORIZED -> new LineOrigin.Authorized(authorizationUuid, authorizationNumber);
+            case STAY -> new LineOrigin.Stay();
         };
     }
 

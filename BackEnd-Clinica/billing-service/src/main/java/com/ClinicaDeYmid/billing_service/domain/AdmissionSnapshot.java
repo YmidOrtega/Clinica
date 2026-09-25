@@ -14,7 +14,16 @@ public record AdmissionSnapshot(
         UUID configurationServiceUuid,
         Instant occurredAt,
         DischargeType discharge,
-        String reason) {
+        String reason,
+        UUID bedUuid,
+        StayType bedStayType) {
+
+    public AdmissionSnapshot(UUID admissionUuid, String admissionNumber, long admissionVersion, UUID patientUuid,
+                             AdmissionKind kind, Status status, UUID configurationServiceUuid, Instant occurredAt,
+                             DischargeType discharge, String reason) {
+        this(admissionUuid, admissionNumber, admissionVersion, patientUuid, kind, status, configurationServiceUuid,
+                occurredAt, discharge, reason, null, null);
+    }
 
     public enum Status {
         REGISTERED,

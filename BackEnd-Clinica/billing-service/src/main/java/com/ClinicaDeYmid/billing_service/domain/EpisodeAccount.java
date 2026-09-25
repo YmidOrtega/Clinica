@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.billing_service.domain;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -8,6 +9,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -18,6 +21,9 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Entity
@@ -83,6 +89,10 @@ public class EpisodeAccount {
     @Column(name = "status_changed_at")
     private Instant statusChangedAt;
 
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
+    @OrderBy("startedAt")
+    private List<StaySegment> staySegments = new ArrayList<>();
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -115,6 +125,7 @@ public class EpisodeAccount {
             return false;
         }
         admissionVersion = snapshot.admissionVersion();
+        trackBed(snapshot);
         patientUuid = snapshot.patientUuid();
         kind = snapshot.kind();
         admissionStatus = snapshot.status();
@@ -127,6 +138,27 @@ public class EpisodeAccount {
             }
         }
         return true;
+    }
+
+    private void trackBed(AdmissionSnapshot snapshot) {
+        Optional<StaySegment> open = staySegments.stream().filter(StaySegment::open).findFirst();
+        if (open.isPresent() && snapshot.occurredAt().isBefore(open.get().startedAt())) {
+            return;
+        }
+        boolean sameBed = open.isPresent() && open.get().bedUuid().equals(snapshot.bedUuid())
+                && open.get().stayType() == snapshot.bedStayType();
+        if (sameBed) {
+            return;
+        }
+        open.ifPresent(segment -> segment.end(snapshot.occurredAt()));
+        if (snapshot.bedUuid() != null && snapshot.status() != AdmissionSnapshot.Status.DISCHARGED
+                && snapshot.status() != AdmissionSnapshot.Status.CANCELLED) {
+            staySegments.add(StaySegment.begin(this, snapshot.bedUuid(), snapshot.bedStayType(), snapshot.occurredAt()));
+        }
+    }
+
+    public List<StaySegment> staySegments() {
+        return List.copyOf(staySegments);
     }
 
     public AccountStatus status() {

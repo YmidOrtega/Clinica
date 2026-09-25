@@ -31,6 +31,17 @@ class AdmissionEventMapperTest {
     }
 
     @Test
+    void readsTheBedAndItsStayType() {
+        UUID bed = UUID.randomUUID();
+        String event = AdmissionEvents.bedAssigned(admission, "ADM-2026-000321", 2, bed, "ICU_ADULT");
+
+        assertThat(com.ClinicaDeYmid.billing_service.support.ProducerContract.ADMISSION_EVENTS.breaches(event)).isEmpty();
+        AdmissionSnapshot snapshot = AdmissionEventMapper.toSnapshot(event).orElseThrow();
+        assertThat(snapshot.bedUuid()).isEqualTo(bed);
+        assertThat(snapshot.bedStayType()).isEqualTo(com.ClinicaDeYmid.billing_service.domain.StayType.ICU_ADULT);
+    }
+
+    @Test
     void keepsTheReasonOnlyWhenTheAdmissionIsCancelled() {
         assertThat(AdmissionEventMapper.toSnapshot(
                 AdmissionEvents.cancelled(admission, "ADM-2026-000321", 1, "Duplicado")).orElseThrow().reason())

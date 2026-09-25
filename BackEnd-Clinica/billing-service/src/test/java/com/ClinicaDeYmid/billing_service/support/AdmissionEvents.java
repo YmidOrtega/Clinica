@@ -5,7 +5,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public final class AdmissionEvents {
 
-    private static final AtomicInteger SEQUENCE = new AtomicInteger();
+    private static final AtomicInteger SEQUENCE =
+            new AtomicInteger(100_000 + java.util.concurrent.ThreadLocalRandom.current().nextInt(700_000));
     private static final String SERVICE = "0f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f";
     private static final String PATIENT = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
 
@@ -13,11 +14,16 @@ public final class AdmissionEvents {
     }
 
     public static String nextNumber() {
-        return "ADM-2026-%06d".formatted(SEQUENCE.incrementAndGet() + (int) (System.nanoTime() % 400000) + 100000);
+        return "ADM-2026-%06d".formatted(SEQUENCE.incrementAndGet());
     }
 
     public static String registered(UUID admission, String number, long version) {
         return event("AdmissionRegistered", admission, number, version, "INPATIENT", "REGISTERED", "");
+    }
+
+    public static String bedAssigned(UUID admission, String number, long version, UUID bed, String stayType) {
+        return event("AdmissionBedAssigned", admission, number, version, "INPATIENT", "ACTIVE",
+                ", \"bedUuid\": \"" + bed + "\"", ", \"bedUuid\": \"" + bed + "\", \"bedStayType\": \"" + stayType + "\"");
     }
 
     public static String phaseChanged(UUID admission, String number, long version, String kind) {
@@ -37,12 +43,17 @@ public final class AdmissionEvents {
 
     private static String event(String type, UUID admission, String number, long version, String kind, String status,
                                 String extra) {
+        return event(type, admission, number, version, kind, status, extra, "");
+    }
+
+    private static String event(String type, UUID admission, String number, long version, String kind, String status,
+                                String extra, String admissionExtra) {
         return """
                 {"eventId": "%s", "type": "%s", "schemaVersion": 1, "occurredAt": "2026-09-25T15:00:00Z",
                  "admissionUuid": "%s", "admissionVersion": %d,
                  "data": {"admission": {"uuid": "%s", "number": "%s", "patientUuid": "%s", "kind": "%s",
-                          "status": "%s", "configurationServiceUuid": "%s", "coverage": "COVERED"}%s}}
+                          "status": "%s", "configurationServiceUuid": "%s", "coverage": "COVERED"%s}%s}}
                 """.formatted(UUID.randomUUID(), type, admission, version, admission, number, PATIENT, kind, status,
-                SERVICE, extra);
+                SERVICE, admissionExtra, extra);
     }
 }

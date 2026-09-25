@@ -84,6 +84,10 @@ public class Sale {
     private List<TeamMember> surgicalTeam;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "origin", nullable = false, updatable = false, length = 20)
+    private Origin origin;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private SaleStatus.Code statusCode;
 
@@ -146,6 +150,17 @@ public class Sale {
     protected Sale() {
     }
 
+    public enum Origin {
+        MANUAL,
+        STAY
+    }
+
+    public static Sale openStay(EpisodeAccount account, int sequence) {
+        Sale sale = open(account, sequence, new SaleType.NonSurgical());
+        sale.origin = Origin.STAY;
+        return sale;
+    }
+
     public static Sale open(EpisodeAccount account, int sequence, SaleType type) {
         DomainRules.required(account, "account");
         if (!account.status().acceptsCharges()) {
@@ -165,6 +180,7 @@ public class Sale {
             sale.surgicalTeam = List.of();
         }
         sale.statusCode = SaleStatus.Code.DRAFT;
+        sale.origin = Origin.MANUAL;
         return sale;
     }
 
@@ -398,6 +414,10 @@ public class Sale {
 
     public String number() {
         return number;
+    }
+
+    public Origin origin() {
+        return origin;
     }
 
     public SaleType type() {

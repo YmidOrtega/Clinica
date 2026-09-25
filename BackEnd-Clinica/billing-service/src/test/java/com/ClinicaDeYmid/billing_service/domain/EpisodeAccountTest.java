@@ -82,6 +82,29 @@ class EpisodeAccountTest {
                 REGISTERED_AT, null, null))).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void followsTheBedsOfTheEpisodeAsStaySegments() {
+        UUID ward = UUID.randomUUID();
+        UUID icu = UUID.randomUUID();
+        EpisodeAccount account = EpisodeAccount.open(snapshot(0, AdmissionSnapshot.Status.REGISTERED, REGISTERED_AT));
+
+        account.follow(withBed(1, ward, StayType.GENERAL_WARD, REGISTERED_AT.plusSeconds(3_600)));
+        account.follow(withBed(1, ward, StayType.GENERAL_WARD, REGISTERED_AT.plusSeconds(3_600)));
+        account.follow(withBed(2, icu, StayType.ICU_ADULT, REGISTERED_AT.plusSeconds(90_000)));
+        account.follow(discharged(3));
+
+        assertThat(account.staySegments()).extracting(StaySegment::stayType)
+                .containsExactly(StayType.GENERAL_WARD, StayType.ICU_ADULT);
+        assertThat(account.staySegments().get(0).endedAt()).isEqualTo(REGISTERED_AT.plusSeconds(90_000));
+        assertThat(account.staySegments().get(1).endedAt()).isEqualTo(DISCHARGED_AT);
+        assertThat(account.staySegments()).noneMatch(StaySegment::open);
+    }
+
+    private static AdmissionSnapshot withBed(long version, UUID bed, StayType type, Instant at) {
+        return new AdmissionSnapshot(ADMISSION, "ADM-2026-000123", version, UUID.randomUUID(), AdmissionKind.INPATIENT,
+                AdmissionSnapshot.Status.ACTIVE, UUID.randomUUID(), at, null, null, bed, type);
+    }
+
     private static AdmissionSnapshot discharged(long version) {
         return new AdmissionSnapshot(ADMISSION, "ADM-2026-000123", version, UUID.randomUUID(), AdmissionKind.INPATIENT,
                 AdmissionSnapshot.Status.DISCHARGED, UUID.randomUUID(), DISCHARGED_AT, DischargeType.MEDICAL, null);
