@@ -63,6 +63,13 @@ services:
          - SWAGGER_UI_ENABLED=true
          - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
 
+   billing-service:
+      ports:
+         - "127.0.0.1:8095-8096:8082"
+      environment:
+         - SWAGGER_UI_ENABLED=true
+         - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
+
    clinical-history-service:
       ports:
          - "127.0.0.1:8091-8092:8089"
