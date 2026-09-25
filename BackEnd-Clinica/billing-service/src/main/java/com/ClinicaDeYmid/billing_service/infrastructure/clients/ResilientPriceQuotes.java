@@ -55,7 +55,7 @@ class ResilientPriceQuotes implements PriceQuotes {
                 quote.services() == null ? List.of() : quote.services().stream()
                         .map(service -> new QuoteLookup.Service(service.cupsCode(), service.quantity(),
                                 service.unitPrice(), service.lineTotal(), PriceOrigin.valueOf(service.origin()),
-                                service.referenceUuid(), service.referenceCode()))
+                                service.referenceUuid(), service.referenceCode(), service.authorizationRequired()))
                         .toList(),
                 quote.packages() == null ? List.of() : quote.packages().stream()
                         .map(applied -> new QuoteLookup.Package(applied.uuid(), applied.code(), applied.name(),

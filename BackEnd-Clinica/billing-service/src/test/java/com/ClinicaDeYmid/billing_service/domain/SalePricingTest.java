@@ -78,7 +78,7 @@ class SalePricingTest {
         SaleLine rare = charge(sale, "999001", 3);
         PricingTerms terms = terms(Map.of(rare.uuid(), LinePrice.unpriced()), List.of());
 
-        assertThat(sale.price(terms).pending()).containsExactly(rare);
+        assertThat(sale.price(terms, NOW.getZone()).pending()).containsExactly(rare);
         assertThatThrownBy(() -> sale.confirm(terms, NOW))
                 .isInstanceOf(BillingException.UnpricedLines.class)
                 .hasMessageContaining("999001");
@@ -99,7 +99,7 @@ class SalePricingTest {
         sale.priceManually(consultation.uuid(), new BigDecimal("99999"), "Se creyó sin tarifa", NOW);
 
         PricedSale priced = sale.price(terms(Map.of(consultation.uuid(),
-                priced(PriceOrigin.TARIFF_MANUAL, "45000.00", 1)), List.of()));
+                priced(PriceOrigin.TARIFF_MANUAL, "45000.00", 1)), List.of()), NOW.getZone());
 
         assertThat(priced.lines().get(consultation.uuid()).origin()).isEqualTo(PriceOrigin.TARIFF_MANUAL);
     }
@@ -109,7 +109,7 @@ class SalePricingTest {
         Sale sale = draft();
         SaleLine consultation = charge(sale, "890201", 1);
 
-        assertThat(sale.price(PricingTerms.withoutContract()).pending()).containsExactly(consultation);
+        assertThat(sale.price(PricingTerms.withoutContract(), NOW.getZone()).pending()).containsExactly(consultation);
     }
 
     @Test

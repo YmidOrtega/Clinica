@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.web;
 
+import com.ClinicaDeYmid.billing_service.domain.AuthorizationCheck;
 import com.ClinicaDeYmid.billing_service.domain.ChargedService;
 import com.ClinicaDeYmid.billing_service.domain.LineOrigin;
 import com.ClinicaDeYmid.billing_service.domain.LinePrice;
@@ -57,20 +58,20 @@ final class SaleResponses {
     record LineView(UUID uuid, int position, UUID portfolioItemUuid, String cupsCode, String clinicCode,
                     String description, String category, int quantity, LocalDate serviceDate, OriginView origin,
                     boolean removed, Instant removedAt, String removalReason, ManualPriceView manualPrice,
-                    PriceView price) {
+                    PriceView price, AuthorizationCheck authorization) {
 
         static LineView from(SaleLine line) {
-            return from(line, line.price().orElse(null));
+            return from(line, line.price().orElse(null), null);
         }
 
-        static LineView from(SaleLine line, LinePrice price) {
+        static LineView from(SaleLine line, LinePrice price, AuthorizationCheck authorization) {
             ChargedService service = line.service();
             return new LineView(line.uuid(), line.position(), service.portfolioItemUuid(), service.cupsCode(),
                     service.clinicCode(), service.description(), service.category(), line.quantity(),
                     line.serviceDate(), OriginView.from(line.origin()), line.removed(), line.removedAt(),
                     line.removalReason(), line.manualUnitPrice()
                     .map(unit -> new ManualPriceView(unit, line.manualPriceReason())).orElse(null),
-                    PriceView.from(price));
+                    PriceView.from(price), authorization);
         }
     }
 
@@ -86,15 +87,17 @@ final class SaleResponses {
     }
 
     record PreviewView(UUID saleUuid, String number, UUID contractUuid, String contractNumber, boolean complete,
-                       List<String> unpricedCups, List<LineView> lines, List<PackageCharge> packages,
-                       BigDecimal linesTotal, BigDecimal packagesTotal, BigDecimal total) {
+                       List<String> unpricedCups, List<String> unauthorizedCups, List<LineView> lines,
+                       List<PackageCharge> packages, BigDecimal linesTotal, BigDecimal packagesTotal,
+                       BigDecimal total) {
 
         static PreviewView from(Sale sale, PricedSale priced) {
             return new PreviewView(sale.uuid(), sale.number(), priced.terms().contractUuid(),
                     priced.terms().contractNumber(), priced.complete(),
                     priced.pending().stream().map(line -> line.service().cupsCode()).distinct().toList(),
-                    sale.activeLines().stream().map(line -> LineView.from(line, priced.lines().get(line.uuid())))
-                            .toList(),
+                    priced.unauthorized().stream().map(line -> line.service().cupsCode()).distinct().toList(),
+                    sale.activeLines().stream().map(line -> LineView.from(line, priced.lines().get(line.uuid()),
+                            priced.authorizations().get(line.uuid()))).toList(),
                     priced.terms().packages(), priced.linesTotal(), priced.packagesTotal(), priced.total());
         }
     }

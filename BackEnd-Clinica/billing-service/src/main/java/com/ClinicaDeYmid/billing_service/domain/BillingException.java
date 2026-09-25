@@ -262,4 +262,21 @@ public sealed abstract class BillingException extends DomainException {
                     "Contratación no pudo tasar la venta con el contrato del episodio: " + detail);
         }
     }
+
+    public static final class LinesWithoutAuthorization extends BillingException {
+
+        private final java.util.List<String> cupsCodes;
+
+        public LinesWithoutAuthorization(java.util.List<String> cupsCodes) {
+            super(ErrorCategory.RULE_VIOLATION, "SALE_HAS_UNAUTHORIZED_LINES",
+                    "El contrato exige autorización previa para " + String.join(", ", cupsCodes)
+                            + " y el episodio no tiene una autorización vigente que los cubra; registra la "
+                            + "autorización en admisiones o retira esas líneas");
+            this.cupsCodes = java.util.List.copyOf(cupsCodes);
+        }
+
+        public java.util.List<String> cupsCodes() {
+            return cupsCodes;
+        }
+    }
 }

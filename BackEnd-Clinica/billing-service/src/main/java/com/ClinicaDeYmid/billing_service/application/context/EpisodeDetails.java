@@ -16,7 +16,11 @@ public record EpisodeDetails(
         Phase currentPhase,
         Attending attending,
         Coverage coverage,
-        List<Authorization> authorizations) {
+        List<Authorization> authorizations,
+        List<PhasePeriod> phases) {
+
+    public record PhasePeriod(String kind, Instant startedAt, Instant endedAt) {
+    }
 
     public record Phase(UUID configurationServiceUuid, String configurationServiceName, Instant startedAt) {
     }
@@ -34,5 +38,6 @@ public record EpisodeDetails(
 
     public EpisodeDetails {
         authorizations = List.copyOf(authorizations);
+        phases = phases == null ? List.of() : List.copyOf(phases);
     }
 }

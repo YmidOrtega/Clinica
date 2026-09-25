@@ -23,7 +23,11 @@ interface AdmissionsClient {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record EpisodePayload(UUID uuid, String number, UUID patientUuid, String cause, String kind, Status status,
-                          Phase currentPhase, Attending attending, Coverage coverage) {
+                          Phase currentPhase, List<PhasePeriod> phases, Attending attending, Coverage coverage) {
+
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        record PhasePeriod(String kind, Instant startedAt, Instant endedAt) {
+        }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         record Status(String code) {
