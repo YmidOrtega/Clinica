@@ -24,7 +24,7 @@ public sealed interface QuoteLookup {
     }
 
     record Service(String cupsCode, int quantity, BigDecimal unitPrice, BigDecimal lineTotal, PriceOrigin origin,
-                   UUID referenceUuid, String referenceCode) {
+                   UUID referenceUuid, String referenceCode, boolean authorizationRequired) {
     }
 
     record Package(UUID uuid, String code, String name, BigDecimal price) {

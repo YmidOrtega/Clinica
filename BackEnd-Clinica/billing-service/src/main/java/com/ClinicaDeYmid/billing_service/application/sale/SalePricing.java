@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.billing_service.application.sale;
 import com.ClinicaDeYmid.billing_service.application.context.EpisodeDetails;
 import com.ClinicaDeYmid.billing_service.application.context.EpisodeDirectory;
 import com.ClinicaDeYmid.billing_service.application.context.EpisodeLookup;
+import com.ClinicaDeYmid.billing_service.domain.AuthorizationEvidence;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.LinePrice;
 import com.ClinicaDeYmid.billing_service.domain.PackageCharge;
@@ -14,10 +15,12 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
@@ -26,6 +29,7 @@ public class SalePricing {
 
     static final String COVERED = "COVERED";
     static final String UNKNOWN = "UNKNOWN";
+    static final String EMERGENCY = "EMERGENCY";
 
     private final EpisodeDirectory episodes;
     private final PriceQuotes quotes;
@@ -44,10 +48,12 @@ public class SalePricing {
     }
 
     public PricingTerms termsFor(UUID admissionUuid, List<SaleLine> lines) {
-        Optional<UUID> contract = contractOf(admissionUuid);
+        EpisodeDetails episode = episodeOf(admissionUuid);
+        Optional<UUID> contract = contractOf(episode);
         if (contract.isEmpty() || lines.isEmpty()) {
             return PricingTerms.withoutContract();
         }
+        Set<UUID> requiring = new HashSet<>();
         Map<LocalDate, List<SaleLine>> byDate = new TreeMap<>();
         lines.forEach(line -> byDate.computeIfAbsent(line.serviceDate(), day -> new java.util.ArrayList<>()).add(line));
         Map<UUID, LinePrice> prices = new HashMap<>();
@@ -69,21 +75,41 @@ public class SalePricing {
                 QuoteLookup.Service service = quoted.services().get(index);
                 prices.put(served.get(index).uuid(), new LinePrice(service.origin(), service.unitPrice(),
                         service.lineTotal(), service.referenceUuid(), service.referenceCode()));
+                if (service.authorizationRequired()) {
+                    requiring.add(served.get(index).uuid());
+                }
             }
             quoted.packages().forEach(applied -> packages.putIfAbsent(applied.uuid(),
                     new PackageCharge(applied.uuid(), applied.code(), applied.name(), applied.price())));
             contractNumber = quoted.contractNumber();
             payer = quoted.payerUuid();
         }
-        return new PricingTerms(contract.get(), contractNumber, payer, prices, List.copyOf(packages.values()));
+        return new PricingTerms(contract.get(), contractNumber, payer, prices, List.copyOf(packages.values()),
+                requiring, evidenceOf(episode));
     }
 
-    private Optional<UUID> contractOf(UUID admissionUuid) {
-        EpisodeDetails episode = switch (episodes.episode(admissionUuid)) {
+    private static AuthorizationEvidence evidenceOf(EpisodeDetails episode) {
+        return new AuthorizationEvidence(
+                episode.authorizations().stream()
+                        .map(granted -> new AuthorizationEvidence.Grant(granted.uuid(), granted.number(),
+                                granted.validFrom(), granted.validTo(), granted.authorizedItems(),
+                                granted.coversEverything()))
+                        .toList(),
+                episode.phases().stream()
+                        .filter(phase -> EMERGENCY.equals(phase.kind()) && phase.startedAt() != null)
+                        .map(phase -> new AuthorizationEvidence.EmergencyPeriod(phase.startedAt(), phase.endedAt()))
+                        .toList());
+    }
+
+    private EpisodeDetails episodeOf(UUID admissionUuid) {
+        return switch (episodes.episode(admissionUuid)) {
             case EpisodeLookup.Found found -> found.episode();
             case EpisodeLookup.NotFound ignored -> throw new BillingException.EpisodeUnknownToAdmissions();
             case EpisodeLookup.Unavailable ignored -> throw new BillingException.AdmissionsUnavailable();
         };
+    }
+
+    private Optional<UUID> contractOf(EpisodeDetails episode) {
         EpisodeDetails.Coverage coverage = episode.coverage();
         if (coverage != null && UNKNOWN.equals(coverage.status())) {
             throw new BillingException.CoveragePending();

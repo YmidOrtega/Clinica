@@ -61,7 +61,7 @@ interface ContractingClient {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record QuotedService(String cupsCode, int quantity, BigDecimal unitPrice, BigDecimal lineTotal, String origin,
-                         UUID referenceUuid, String referenceCode) {
+                         UUID referenceUuid, String referenceCode, boolean authorizationRequired) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

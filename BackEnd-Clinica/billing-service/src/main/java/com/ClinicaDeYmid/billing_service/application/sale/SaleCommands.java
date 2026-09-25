@@ -106,7 +106,7 @@ public class SaleCommands {
 
     public PricedSale preview(UUID saleUuid) {
         Sale sale = sales.findByUuid(saleUuid).orElseThrow(BillingException.SaleNotFound::new);
-        return sale.price(pricing.termsFor(sale));
+        return sale.price(pricing.termsFor(sale), clock.getZone());
     }
 
     private Sale current(UUID saleUuid, long expectedVersion) {

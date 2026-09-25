@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
@@ -190,10 +191,12 @@ public class Sale {
         editedAt = Instant.now(clock);
     }
 
-    public PricedSale price(PricingTerms terms) {
+    public PricedSale price(PricingTerms terms, ZoneId zone) {
         DomainRules.required(terms, "terms");
         Map<UUID, LinePrice> prices = new LinkedHashMap<>();
+        Map<UUID, AuthorizationCheck> checks = new LinkedHashMap<>();
         List<SaleLine> pending = new ArrayList<>();
+        List<SaleLine> unauthorized = new ArrayList<>();
         BigDecimal linesSum = Money.ZERO;
         for (SaleLine line : activeLines()) {
             LinePrice price = line.priceFrom(terms.quoted().get(line.uuid()));
@@ -202,11 +205,17 @@ public class Sale {
             if (price.pending()) {
                 pending.add(line);
             }
+            AuthorizationCheck check = terms.authorizations()
+                    .check(line, terms.requiringAuthorization().contains(line.uuid()), zone);
+            checks.put(line.uuid(), check);
+            if (check.blocks()) {
+                unauthorized.add(line);
+            }
         }
         BigDecimal packagesSum = terms.packages().stream().map(PackageCharge::price)
                 .reduce(Money.ZERO, BigDecimal::add);
-        return new PricedSale(terms, prices, pending, Money.of(linesSum), Money.of(packagesSum),
-                Money.of(linesSum.add(packagesSum)));
+        return new PricedSale(terms, prices, pending, checks, unauthorized, Money.of(linesSum),
+                Money.of(packagesSum), Money.of(linesSum.add(packagesSum)));
     }
 
     public void requireConfirmable() {
@@ -223,8 +232,12 @@ public class Sale {
 
     public void confirm(PricingTerms terms, Clock clock) {
         requireConfirmable();
-        PricedSale priced = price(terms);
-        if (!priced.complete()) {
+        PricedSale priced = price(terms, clock.getZone());
+        if (!priced.unauthorized().isEmpty()) {
+            throw new BillingException.LinesWithoutAuthorization(priced.unauthorized().stream()
+                    .map(line -> line.service().cupsCode()).distinct().toList());
+        }
+        if (!priced.pending().isEmpty()) {
             throw new BillingException.UnpricedLines(priced.pending().stream()
                     .map(line -> line.service().cupsCode()).distinct().toList());
         }

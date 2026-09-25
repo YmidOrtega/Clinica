@@ -10,6 +10,7 @@ import org.springframework.cloud.client.circuitbreaker.CircuitBreaker;
 import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -63,6 +64,9 @@ class ResilientEpisodeDirectory implements EpisodeDirectory {
                 episode.coverage() == null ? null : new EpisodeDetails.Coverage(episode.coverage().status(),
                         episode.coverage().payerUuid(), episode.coverage().contractUuid(),
                         episode.coverage().contractNumber(), episode.coverage().detail()),
-                authorizations));
+                authorizations,
+                episode.phases() == null ? List.of() : episode.phases().stream()
+                        .map(phase -> new EpisodeDetails.PhasePeriod(phase.kind(), phase.startedAt(), phase.endedAt()))
+                        .toList()));
     }
 }
