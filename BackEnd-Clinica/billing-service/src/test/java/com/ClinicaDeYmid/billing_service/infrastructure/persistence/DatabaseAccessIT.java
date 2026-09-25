@@ -34,6 +34,12 @@ class DatabaseAccessIT {
     private static final String REVISION_ROW = "INSERT INTO billing_history.revisions (revised_at, revised_by) "
             + "VALUES (NOW(6), '3f2504e0-4f89-11d3-9a0c-0305e82c3301')";
 
+    private static final String ISSUER_ROW = "INSERT INTO issuer (uuid, version, nit, verification_digit, person_type, "
+            + "legal_name, tax_scheme, tax_responsibilities, address_line, municipality_code, city_name, department_name, "
+            + "email, phone, health_provider_code, environment, created_at, updated_at) VALUES ('%s', 0, '800197268', 4, "
+            + "'LEGAL_ENTITY', 'Clínica de Ymid S.A.S.', 'NOT_APPLICABLE', 'O-13', 'Calle 10 # 43-20', '05001', 'Medellín', "
+            + "'Antioquia', 'facturacion@clinica.co', '6044441234', '050010123401', 'TEST', NOW(6), NOW(6))";
+
     @Container
     static final MySQLContainer<?> MYSQL = withSecretFiles(new MySQLContainer<>(SharedMySql.IMAGE)
             .withCopyFileToContainer(MountableFile.forHostPath("docker/mysql-init/01-create-users.sh", 0755),
@@ -72,6 +78,26 @@ class DatabaseAccessIT {
 
         assertDenied(() -> app.update("UPDATE billing_history.revisions SET revised_by = NULL"));
         assertDenied(() -> app.update("DELETE FROM billing_history.revisions"));
+    }
+
+    @Test
+    void theDatabaseHoldsASingleIssuer() {
+        app.update(ISSUER_ROW.formatted("3f6c1b2a-7d4e-4a5b-9c8d-1e2f3a4b5c6d"));
+
+        assertThatThrownBy(() -> app.update(ISSUER_ROW.formatted("6f0d2c1e-8b7a-4c3d-9e2f-1a0b9c8d7e6f")))
+                .extracting(failure -> NestedExceptionUtils.getMostSpecificCause(failure).getMessage())
+                .asString()
+                .contains("uk_issuer_singleton");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "DELETE FROM issuer",
+            "DELETE FROM numbering_resolutions",
+            "DELETE FROM numbering_counters"
+    })
+    void applicationUserNeverDeletesTheIssuerOrItsNumbering(String statement) {
+        assertDenied(() -> app.update(statement));
     }
 
     @ParameterizedTest
