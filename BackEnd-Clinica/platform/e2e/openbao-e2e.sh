@@ -4,7 +4,7 @@ set -eu
 PROJECT="${COMPOSE_PROJECT:-clinica}"
 TOOLS_IMAGE=clinica/openbao-tools:2.6.2
 NODES="openbao-1 openbao-2 openbao-3"
-CLIENT_KEYS="api-gateway-client patient-service-client clinical-history-service-client contracting-service-client admissions-service-client"
+CLIENT_KEYS="api-gateway-client patient-service-client clinical-history-service-client contracting-service-client admissions-service-client billing-service-client"
 DIR=$(cd "$(dirname "$0")" && pwd)
 PATIENT_URL="${PATIENT_URL:-http://$(docker compose -p "$PROJECT" port --index 1 patient-service 8081 2>/dev/null)}"
 CLINICAL_URL="${CLINICAL_URL:-http://$(docker compose -p "$PROJECT" port --index 1 clinical-history-service 8089 2>/dev/null)}"
@@ -157,6 +157,24 @@ status=0
 bao_as openbao_approle_admissions "bao write transit/sign/clinical-seal input=aGVsbG8= > /dev/null 2>&1" || status=$?
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "admissions-service firmó con el sello clínico"
 ok "admissions-service lee solo su secreto y firma solo con su clave"
+status=0
+bao_as openbao_approle_billing "bao kv get -mount=secret admissions/db/app > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "billing-service leyó un secreto de admissions-service"
+bao_as openbao_approle_billing "bao kv get -mount=secret billing/db/app > /dev/null && bao kv get -mount=secret -field=pkcs12 billing/dian/certificate > /dev/null" \
+  || fail "billing-service no lee su base de datos o su certificado DIAN"
+bao_as openbao_approle_billing "bao write -field=signature transit/sign/billing-service-client input=aGVsbG8= hash_algorithm=sha2-256 > /dev/null \
+  && bao write -field=signature transit/sign/billing-seal input=aGVsbG8= hash_algorithm=sha2-256 > /dev/null" \
+  || fail "billing-service no firma sus aserciones o sus facturas"
+status=0
+bao_as openbao_approle_billing "bao write transit/sign/admissions-seal input=aGVsbG8= > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "billing-service firmó con el sello de admisiones"
+status=0
+bao_as openbao_approle_admissions "bao kv get -mount=secret billing/dian/certificate > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "admissions-service leyó el certificado DIAN"
+status=0
+bao_as openbao_approle_agent "bao kv get -mount=secret billing/dian/certificate > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "el agente de infraestructura leyó el certificado DIAN"
+ok "billing-service lee solo sus secretos y firma solo con sus claves; nadie más ve el certificado DIAN"
 
 step "Ningún secreto en la configuración de los contenedores"
 secrets=$(bao_root "for path in patient/db/root patient/db/app patient/db/migrator patient/db/debezium clinical/db/root clinical/db/app clinical/db/migrator clinical/db/debezium clinical/storage/root auth/db/root auth/db/app auth/db/migrator auth/db/debezium gateway/redis; do bao kv get -mount=secret -field=password \$path; echo; done; bao kv get -mount=secret -field=secret-key clinical/storage/attachments")

@@ -7,7 +7,7 @@ BOOTSTRAP_DIR=/openbao/bootstrap
 POLICIES_DIR=/openbao/policies
 CREDENTIALS_DIR=/openbao/approle
 NODES="openbao-1 openbao-2 openbao-3"
-APPROLES="patient-service clinical-history-service auth-service api-gateway contracting-service practitioners-service admissions-service infra-agent"
+APPROLES="patient-service clinical-history-service auth-service api-gateway contracting-service practitioners-service admissions-service billing-service infra-agent"
 
 random_secret() {
   openssl rand -base64 36 | tr -d '/+=\n' | cut -c1-40
@@ -89,6 +89,8 @@ transit_key clinical-history-service-client ecdsa-p256
 transit_key contracting-service-client ecdsa-p256
 transit_key admissions-service-client ecdsa-p256
 transit_key admissions-seal ecdsa-p256
+transit_key billing-service-client ecdsa-p256
+transit_key billing-seal ecdsa-p256
 
 if ! bao auth list -format=json | jq -e 'has("approle/")' > /dev/null; then
   bao auth enable approle
@@ -120,7 +122,24 @@ seed() {
   echo "Seeded secret/$path"
 }
 
-for service in patient clinical contracting practitioners admissions; do
+seed_self_signed_dian_certificate() {
+  if bao kv get -mount=secret billing/dian/certificate > /dev/null 2>&1; then
+    return
+  fi
+  work=$(mktemp -d)
+  password=$(random_secret)
+  openssl req -x509 -newkey rsa:2048 -sha256 -days 730 -nodes \
+    -subj "/C=CO/O=Clinica de Ymid/CN=Clinica de Ymid Habilitacion DIAN" \
+    -keyout "$work/key.pem" -out "$work/certificate.pem" 2> /dev/null
+  openssl pkcs12 -export -name billing-dian -inkey "$work/key.pem" -in "$work/certificate.pem" \
+    -passout "pass:$password" -out "$work/certificate.p12"
+  bao kv put -mount=secret -cas=0 billing/dian/certificate \
+    pkcs12="$(openssl base64 -A -in "$work/certificate.p12")" password="$password" > /dev/null
+  rm -rf "$work"
+  echo "Seeded secret/billing/dian/certificate (self-signed)"
+}
+
+for service in patient clinical contracting practitioners admissions billing; do
   seed "$service/db/root" password="$(random_secret)"
   seed "$service/db/migrator" username="${service}_migrator" password="$(random_secret)"
   seed "$service/db/app" username="${service}_app" password="$(random_secret)"
@@ -132,6 +151,7 @@ seed auth/db/app username="auth_app" password="$(random_secret)"
 seed auth/db/debezium username="auth_debezium" password="$(random_secret)"
 seed auth/bootstrap super-admin-email="superadmin@clinica.local" super-admin-name="Administración Inicial"
 seed gateway/redis password="$(random_secret)"
+seed_self_signed_dian_certificate
 seed clinical/storage/root username="clinical-storage-admin" password="$(random_secret)"
 seed clinical/storage/attachments access-key="clinical-history-app" secret-key="$(random_secret)"
 
