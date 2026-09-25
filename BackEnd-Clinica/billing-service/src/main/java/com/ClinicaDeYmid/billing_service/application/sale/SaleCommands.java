@@ -7,8 +7,11 @@ import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.ChargedService;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccounts;
+import com.ClinicaDeYmid.billing_service.domain.FeeAgreementTerms;
 import com.ClinicaDeYmid.billing_service.domain.LineOrigin;
 import com.ClinicaDeYmid.billing_service.domain.LinePrice;
+import com.ClinicaDeYmid.billing_service.domain.PractitionerFee;
+import com.ClinicaDeYmid.billing_service.domain.PractitionerFees;
 import com.ClinicaDeYmid.billing_service.domain.PricedSale;
 import com.ClinicaDeYmid.billing_service.domain.PricingTerms;
 import com.ClinicaDeYmid.billing_service.domain.Sale;
@@ -27,7 +30,10 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -42,18 +48,22 @@ public class SaleCommands {
     private final PortfolioCatalogue portfolio;
     private final SalePricing pricing;
     private final PractitionerDirectory practitioners;
+    private final FeeAgreements feeAgreements;
+    private final PractitionerFees fees;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public SaleCommands(EpisodeAccounts accounts, Sales sales, EpisodeDirectory episodes, PortfolioCatalogue portfolio,
-                        SalePricing pricing, PractitionerDirectory practitioners, TransactionOperations transactions,
-                        Clock clock) {
+                        SalePricing pricing, PractitionerDirectory practitioners, FeeAgreements feeAgreements,
+                        PractitionerFees fees, TransactionOperations transactions, Clock clock) {
         this.accounts = accounts;
         this.sales = sales;
         this.episodes = episodes;
         this.portfolio = portfolio;
         this.pricing = pricing;
         this.practitioners = practitioners;
+        this.feeAgreements = feeAgreements;
+        this.fees = fees;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -119,7 +129,17 @@ public class SaleCommands {
         Sale current = current(saleUuid, expectedVersion);
         current.requireConfirmable();
         PricingTerms terms = pricing.termsFor(current);
-        Sale confirmed = modify(saleUuid, expectedVersion, sale -> sale.confirm(terms, clock));
+        Map<UUID, Optional<FeeAgreementTerms>> agreements = agreementsOf(current);
+        Sale confirmed = transactions.execute(status -> {
+            Sale sale = current(saleUuid, expectedVersion);
+            sale.confirm(terms, clock);
+            Sale saved = sales.save(sale);
+            List<PractitionerFee> owed = fees.saveAll(PractitionerFee.owedFor(saved, agreements));
+            if (!owed.isEmpty()) {
+                log.info("Sale {} owes {} practitioner fees", saved.number(), owed.size());
+            }
+            return saved;
+        });
         log.info("Sale {} confirmed with {} lines for {}", confirmed.number(), confirmed.activeLines().size(),
                 confirmed.settlement().map(Sale.Settlement::total).orElse(null));
         return confirmed;
@@ -142,6 +162,16 @@ public class SaleCommands {
         return sale.price(pricing.termsFor(sale), clock.getZone());
     }
 
+    private Map<UUID, Optional<FeeAgreementTerms>> agreementsOf(Sale sale) {
+        if (!(sale.type() instanceof SaleType.Surgical surgical)) {
+            return Map.of();
+        }
+        Map<UUID, Optional<FeeAgreementTerms>> agreements = new HashMap<>();
+        sale.surgicalTeam().forEach(member -> agreements.put(member.practitionerUuid(),
+                feeAgreements.inForce(member.practitionerUuid(), surgical.performedOn())));
+        return agreements;
+    }
+
     private Sale current(UUID saleUuid, long expectedVersion) {
         Sale sale = sales.findByUuid(saleUuid).orElseThrow(BillingException.SaleNotFound::new);
         if (sale.version() != expectedVersion) {
@@ -151,7 +181,15 @@ public class SaleCommands {
     }
 
     public Sale cancel(UUID saleUuid, long expectedVersion, String reason) {
-        Sale cancelled = modify(saleUuid, expectedVersion, sale -> sale.cancel(reason, clock));
+        Sale cancelled = transactions.execute(status -> {
+            Sale sale = current(saleUuid, expectedVersion);
+            sale.cancel(reason, clock);
+            Sale saved = sales.save(sale);
+            List<PractitionerFee> owed = fees.findBySale(saleUuid);
+            owed.forEach(fee -> fee.voidBecause("La venta " + saved.number() + " fue anulada: " + reason));
+            fees.saveAll(owed);
+            return saved;
+        });
         log.info("Sale {} cancelled", cancelled.number());
         return cancelled;
     }
