@@ -106,6 +106,12 @@ clinica:
           assertion-key: ${AUTH_ADMISSIONS_SERVICE_CLIENT_KEY:admissions-service-client}
           access-token-ttl: 30m
           exchange-audiences: patient-service, practitioners-service, contracting-service
+        billing-service:
+          grant-types: client_credentials, urn:ietf:params:oauth:grant-type:token-exchange
+          scopes: openid, profile, contracting.read
+          assertion-key: ${AUTH_BILLING_SERVICE_CLIENT_KEY:billing-service-client}
+          access-token-ttl: 30m
+          exchange-audiences: admissions-service, contracting-service, practitioners-service, patient-service
     frontend:
       activation-url: ${AUTH_ACTIVATION_URL:http://localhost:4321/activar-cuenta}
       password-reset-url: ${AUTH_PASSWORD_RESET_URL:http://localhost:4321/restablecer-contrasena}
