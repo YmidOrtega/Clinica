@@ -134,4 +134,95 @@ public sealed abstract class BillingException extends DomainException {
                     "Admisiones no reconoce el episodio de esta cuenta");
         }
     }
+
+    public static final class AccountClosedForCharges extends BillingException {
+        public AccountClosedForCharges(AccountStatus.Code status) {
+            super(ErrorCategory.RULE_VIOLATION, "ACCOUNT_CLOSED_FOR_CHARGES",
+                    "La cuenta está " + (status == AccountStatus.Code.VOIDED ? "anulada" : "cerrada")
+                            + " y ya no admite cargos");
+        }
+    }
+
+    public static final class TooManySales extends BillingException {
+        public TooManySales(int maximum) {
+            super(ErrorCategory.RULE_VIOLATION, "TOO_MANY_SALES",
+                    "Una cuenta no puede tener más de " + maximum + " ventas");
+        }
+    }
+
+    public static final class TooManyLines extends BillingException {
+        public TooManyLines(int maximum) {
+            super(ErrorCategory.RULE_VIOLATION, "TOO_MANY_LINES",
+                    "Una venta no puede tener más de " + maximum + " líneas");
+        }
+    }
+
+    public static final class SaleNotFound extends BillingException {
+        public SaleNotFound() {
+            super(ErrorCategory.NOT_FOUND, "SALE_NOT_FOUND", "No se encontró la venta solicitada");
+        }
+    }
+
+    public static final class LineNotFound extends BillingException {
+        public LineNotFound() {
+            super(ErrorCategory.NOT_FOUND, "SALE_LINE_NOT_FOUND", "La venta no tiene esa línea");
+        }
+    }
+
+    public static final class LineAlreadyRemoved extends BillingException {
+        public LineAlreadyRemoved() {
+            super(ErrorCategory.RULE_VIOLATION, "SALE_LINE_ALREADY_REMOVED", "Esa línea ya fue retirada de la venta");
+        }
+    }
+
+    public static final class SaleNotEditable extends BillingException {
+        public SaleNotEditable(SaleStatus.Code status) {
+            super(ErrorCategory.RULE_VIOLATION, "SALE_NOT_EDITABLE",
+                    "Solo se pueden cambiar las líneas de una venta en borrador; esta está "
+                            + (status == SaleStatus.Code.CONFIRMED ? "confirmada" : "anulada"));
+        }
+    }
+
+    public static final class EmptySale extends BillingException {
+        public EmptySale() {
+            super(ErrorCategory.RULE_VIOLATION, "SALE_WITHOUT_LINES", "No se puede confirmar una venta sin líneas");
+        }
+    }
+
+    public static final class InvalidSaleTransition extends BillingException {
+        public InvalidSaleTransition(SaleStatus.Code current, SaleStatus.Code target) {
+            super(ErrorCategory.RULE_VIOLATION, "SALE_INVALID_TRANSITION",
+                    "Una venta " + label(current) + " no puede quedar " + label(target));
+        }
+
+        private static String label(SaleStatus.Code code) {
+            return switch (code) {
+                case DRAFT -> "en borrador";
+                case CONFIRMED -> "confirmada";
+                case CANCELLED -> "anulada";
+            };
+        }
+    }
+
+    public static final class ServiceNotOffered extends BillingException {
+        public ServiceNotOffered(String cupsCode) {
+            super(ErrorCategory.RULE_VIOLATION, "SERVICE_NOT_OFFERED",
+                    "El servicio " + cupsCode + " no está activo en el portafolio de la clínica");
+        }
+    }
+
+    public static final class AmbiguousService extends BillingException {
+        public AmbiguousService(String cupsCode) {
+            super(ErrorCategory.CONFLICT, "AMBIGUOUS_SERVICE",
+                    "El código CUPS " + cupsCode + " corresponde a varios servicios del portafolio; indica cuál con "
+                            + "portfolioItemUuid");
+        }
+    }
+
+    public static final class ContractingUnavailable extends BillingException {
+        public ContractingUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "CONTRACTING_UNAVAILABLE",
+                    "Contratación no responde; sin el portafolio no se puede cargar el servicio, intenta de nuevo");
+        }
+    }
 }

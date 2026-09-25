@@ -31,7 +31,7 @@ class EpisodeAccountTest {
         assertThat(account.follow(discharged(3))).isTrue();
 
         assertThat(account.status()).isEqualTo(new AccountStatus.Frozen(DischargeType.MEDICAL, DISCHARGED_AT));
-        assertThat(account.status().acceptsCharges()).isFalse();
+        assertThat(account.status().acceptsCharges()).isTrue();
         assertThat(account.admissionVersion()).isEqualTo(3);
     }
 
@@ -44,6 +44,7 @@ class EpisodeAccountTest {
                 "Paciente registrado por error"));
 
         assertThat(account.status()).isEqualTo(new AccountStatus.Voided("Paciente registrado por error", DISCHARGED_AT));
+        assertThat(account.status().acceptsCharges()).isFalse();
     }
 
     @Test

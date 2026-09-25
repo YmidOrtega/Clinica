@@ -35,6 +35,6 @@ public sealed interface AccountStatus {
     }
 
     default boolean acceptsCharges() {
-        return this instanceof Open;
+        return !(this instanceof Voided);
     }
 }
