@@ -45,7 +45,7 @@ class StaffAuthoritiesTest {
     void humanResourcesOnlyReachesTheDirectory() {
         assertThat(StaffRole.HUMAN_RESOURCES.permissions()).containsExactlyInAnyOrder(
                 StaffPermission.PRACTITIONERS_READ, StaffPermission.PRACTITIONERS_MANAGE,
-                StaffPermission.PRACTITIONERS_MANAGE_FEES);
+                StaffPermission.PRACTITIONERS_MANAGE_FEES, StaffPermission.PRACTITIONERS_READ_FEES);
     }
 
     @Test
@@ -113,6 +113,13 @@ class StaffAuthoritiesTest {
         assertThat(StaffRole.BILLING.permissions()).doesNotContain(
                 StaffPermission.PRACTITIONERS_MANAGE, StaffPermission.PRACTITIONERS_MANAGE_FEES,
                 StaffPermission.CONTRACTING_MANAGE_TARIFFS, StaffPermission.CONTRACTING_MANAGE_CONTRACTS);
+    }
+
+    @Test
+    void billingReadsTheFeesItOwesButNeverAgreesThem() {
+        assertThat(rolesHolding(StaffPermission.PRACTITIONERS_READ_FEES)).containsExactlyInAnyOrder(
+                StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.HUMAN_RESOURCES, StaffRole.BILLING);
+        assertThat(rolesHolding(StaffPermission.PRACTITIONERS_MANAGE_FEES)).doesNotContain(StaffRole.BILLING);
     }
 
     @Test

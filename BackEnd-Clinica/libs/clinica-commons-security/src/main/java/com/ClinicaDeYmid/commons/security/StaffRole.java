@@ -21,6 +21,7 @@ public enum StaffRole {
             StaffPermission.CONTRACTING_QUOTE_PRICES,
             StaffPermission.ADMISSIONS_READ,
             StaffPermission.PRACTITIONERS_READ,
+            StaffPermission.PRACTITIONERS_READ_FEES,
             StaffPermission.BILLING_READ,
             StaffPermission.BILLING_SELL,
             StaffPermission.BILLING_PRICE_MANUALLY,
@@ -33,7 +34,8 @@ public enum StaffRole {
     HUMAN_RESOURCES(EnumSet.of(
             StaffPermission.PRACTITIONERS_READ,
             StaffPermission.PRACTITIONERS_MANAGE,
-            StaffPermission.PRACTITIONERS_MANAGE_FEES)),
+            StaffPermission.PRACTITIONERS_MANAGE_FEES,
+            StaffPermission.PRACTITIONERS_READ_FEES)),
     RECEPTIONIST(EnumSet.of(
             StaffPermission.CONTRACTING_READ,
             StaffPermission.ADMISSIONS_READ,
