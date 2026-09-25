@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @FeignClient(name = "practitioners-service")
@@ -12,6 +16,17 @@ interface PractitionersClient {
 
     @GetMapping("/api/v1/practitioners/{uuid}")
     PractitionerPayload practitioner(@PathVariable("uuid") UUID uuid);
+
+    @GetMapping("/api/v1/practitioners/{uuid}/fee-agreements/in-force")
+    FeeAgreementPayload feesInForce(@PathVariable("uuid") UUID uuid, @RequestParam("on") LocalDate on);
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record FeeAgreementPayload(UUID uuid, String basis, List<ProcedureFee> procedures) {
+
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        record ProcedureFee(String serviceCode, BigDecimal amount) {
+        }
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record PractitionerPayload(UUID uuid, String fullName, Registration registration, Status status) {

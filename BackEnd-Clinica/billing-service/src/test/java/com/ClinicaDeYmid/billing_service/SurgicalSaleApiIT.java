@@ -74,6 +74,47 @@ class SurgicalSaleApiIT extends IntegrationTest {
         assertThat(jdbc.queryForObject("""
                 SELECT JSON_LENGTH(l.components) FROM sale_lines l JOIN sales s ON s.id = l.sale_id
                 WHERE s.uuid = ? AND l.position = 1""", Integer.class, sale)).isEqualTo(3);
+
+        as("BILLING", get(SALES + "/" + sale + "/practitioner-fees"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$[?(@.cupsCode == '514201' && @.role == 'SURGEON')].amount").value(900000.00))
+                .andExpect(jsonPath("$[?(@.cupsCode == '514201' && @.role == 'SURGEON')].status").value("PAYABLE"))
+                .andExpect(jsonPath("$[?(@.cupsCode == '530101' && @.role == 'SURGEON')].status").value("UNAGREED"))
+                .andExpect(jsonPath("$[?(@.role == 'ANESTHESIOLOGIST')].status").value(
+                        org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("UNAGREED"))));
+        as("BILLING", get("/api/v1/billing/practitioner-fees").param("practitionerUuid", SURGEON)
+                .param("status", "PAYABLE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].saleNumber").isNotEmpty())
+                .andExpect(jsonPath("$[0].practitionerName").value("Ana María Cirujana"));
+
+        change("BILLING", post(SALES + "/" + sale + "/cancellation"), 5, "{\"reason\":\"Cirugía reprogramada\"}")
+                .andExpect(status().isOk());
+        as("BILLING", get(SALES + "/" + sale + "/practitioner-fees"))
+                .andExpect(jsonPath("$[*].status").value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("VOIDED"))))
+                .andExpect(jsonPath("$[0].statusReason").value(org.hamcrest.Matchers.containsString("Cirugía reprogramada")));
+    }
+
+    @Test
+    void withoutThePractitionersDirectoryTheSurgeryIsNotConfirmed() throws Exception {
+        String sale = surgicalSale();
+        change("BILLING", post(SALES + "/" + sale + "/procedures"), 0,
+                "{\"portfolioItemUuid\":\"" + CHOLECYSTECTOMY + "\",\"route\":\"abdominal\"}").andExpect(status().isOk());
+        change("BILLING", post(SALES + "/" + sale + "/procedures"), 1,
+                "{\"portfolioItemUuid\":\"" + HERNIA + "\",\"route\":\"abdominal\"}").andExpect(status().isOk());
+        change("BILLING", put(SALES + "/" + sale + "/surgical-team"), 2, """
+                {"members":[{"role":"SURGEON","practitionerUuid":"%s"},
+                            {"role":"ANESTHESIOLOGIST","practitionerUuid":"%s"}]}"""
+                .formatted(SURGEON, ANESTHESIOLOGIST)).andExpect(status().isOk());
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching("/api/v1/practitioners/.*/fee-agreements/in-force"))
+                .willReturn(serverError()));
+
+        change("BILLING", post(SALES + "/" + sale + "/confirmation"), 3, null)
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("PRACTITIONERS_UNAVAILABLE"));
+        as("BILLING", get(SALES + "/" + sale)).andExpect(jsonPath("$.status.code").value("DRAFT"));
     }
 
     @Test
@@ -161,6 +202,13 @@ class SurgicalSaleApiIT extends IntegrationTest {
         portfolio(SUTURE_KIT, "891501", "Kit de sutura");
         practitioner(SURGEON, "Ana María Cirujana", true);
         practitioner(ANESTHESIOLOGIST, "Luis Anestesiólogo", true);
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/practitioners/" + SURGEON + "/fee-agreements/in-force")).willReturn(okJson("""
+                {"uuid":"%s","basis":"PER_PROCEDURE","procedures":[{"serviceCode":"514201","amount":900000.00}]}"""
+                .formatted(UUID.randomUUID()))));
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/practitioners/" + ANESTHESIOLOGIST + "/fee-agreements/in-force"))
+                .willReturn(com.github.tomakehurst.wiremock.client.WireMock.noContent()));
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(
                 urlPathEqualTo("/api/v1/price-quotes/surgical")).willReturn(okJson("""
                 {"contractUuid":"%1$s","contractNumber":"CT-QX","payerUuid":"%2$s","procedures":[
