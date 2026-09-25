@@ -19,7 +19,7 @@ interface EpisodeAccountJpaRepository extends JpaRepository<EpisodeAccount, Long
     @Query("select a from EpisodeAccount a where a.admissionUuid = :admissionUuid")
     Optional<EpisodeAccount> lockByAdmissionUuid(@Param("admissionUuid") UUID admissionUuid);
 
-    @Query("select a from EpisodeAccount a where a.admissionNumber = :number")
+    @Query("select distinct a from EpisodeAccount a left join fetch a.staySegments where a.admissionNumber = :number")
     Optional<EpisodeAccount> findByAdmissionNumber(@Param("number") String number);
 
     @Query("select a from EpisodeAccount a where a.statusCode = :status order by a.statusChangedAt, a.openedAt")

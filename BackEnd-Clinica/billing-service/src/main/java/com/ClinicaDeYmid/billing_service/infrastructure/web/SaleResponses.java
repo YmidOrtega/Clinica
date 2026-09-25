@@ -42,6 +42,7 @@ final class SaleResponses {
                 case LineOrigin.Manual ignored -> new OriginView(LineOrigin.Code.MANUAL, null, null);
                 case LineOrigin.Authorized authorized -> new OriginView(LineOrigin.Code.AUTHORIZED,
                         authorized.authorizationUuid(), authorized.authorizationNumber());
+                case LineOrigin.Stay ignored -> new OriginView(LineOrigin.Code.STAY, null, null);
             };
         }
     }
@@ -117,7 +118,8 @@ final class SaleResponses {
         }
     }
 
-    record SaleView(UUID uuid, String number, String admissionNumber, SaleType.Code type, SurgeryView surgery,
+    record SaleView(UUID uuid, String number, String admissionNumber, SaleType.Code type, Sale.Origin origin,
+                    SurgeryView surgery,
                     StatusView status, List<LineView> lines, int activeLines, SettlementView settlement,
                     Instant createdAt, List<String> notes) {
 
@@ -127,7 +129,7 @@ final class SaleResponses {
 
         static SaleView from(Sale sale, List<String> notes) {
             return new SaleView(sale.uuid(), sale.number(), sale.account().admissionNumber(), sale.type().code(),
-                    SurgeryView.from(sale), StatusView.from(sale.status()), sale.lines().stream().map(LineView::from).toList(),
+                    sale.origin(), SurgeryView.from(sale), StatusView.from(sale.status()), sale.lines().stream().map(LineView::from).toList(),
                     sale.activeLines().size(), SettlementView.from(sale), sale.createdAt(), notes);
         }
     }

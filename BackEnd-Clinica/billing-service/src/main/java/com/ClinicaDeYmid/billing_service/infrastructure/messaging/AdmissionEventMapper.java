@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.billing_service.infrastructure.messaging;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionSnapshot;
 import com.ClinicaDeYmid.billing_service.domain.DischargeType;
+import com.ClinicaDeYmid.billing_service.domain.StayType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -41,7 +42,10 @@ final class AdmissionEventMapper {
                     UUID.fromString(required(admission, "configurationServiceUuid").asText()),
                     Instant.parse(required(event, "occurredAt").asText()),
                     optionalText(data, "discharge") == null ? null : DischargeType.valueOf(optionalText(data, "discharge")),
-                    "AdmissionCancelled".equals(type) ? optionalText(data, "reason") : null));
+                    "AdmissionCancelled".equals(type) ? optionalText(data, "reason") : null,
+                    optionalText(admission, "bedUuid") == null ? null : UUID.fromString(optionalText(admission, "bedUuid")),
+                    optionalText(admission, "bedStayType") == null ? null
+                            : StayType.valueOf(optionalText(admission, "bedStayType"))));
         } catch (MalformedAdmissionEventException ex) {
             throw ex;
         } catch (Exception ex) {

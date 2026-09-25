@@ -6,10 +6,14 @@ public sealed interface LineOrigin {
 
     enum Code {
         MANUAL,
-        AUTHORIZED
+        AUTHORIZED,
+        STAY
     }
 
     record Manual() implements LineOrigin {
+    }
+
+    record Stay() implements LineOrigin {
     }
 
     record Authorized(UUID authorizationUuid, String authorizationNumber) implements LineOrigin {
@@ -23,6 +27,7 @@ public sealed interface LineOrigin {
         return switch (this) {
             case Manual ignored -> Code.MANUAL;
             case Authorized ignored -> Code.AUTHORIZED;
+            case Stay ignored -> Code.STAY;
         };
     }
 }
