@@ -59,6 +59,14 @@ abstract class IntegrationTest {
         return mockMvc.perform(body == null ? prepared.content("{}") : prepared.content(body));
     }
 
+    protected ResultActions changeWithToken(String token, MockHttpServletRequestBuilder request, long version,
+                                           String body) throws Exception {
+        return mockMvc.perform(request.contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.IF_MATCH, "\"" + version + "\"")
+                .header(HttpHeaders.AUTHORIZATION, token)
+                .content(body == null ? "{}" : body));
+    }
+
     protected void forgetTheBillingSetup() {
         jdbc.update("DELETE FROM numbering_counters");
         jdbc.update("DELETE FROM numbering_resolutions");

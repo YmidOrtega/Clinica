@@ -12,11 +12,11 @@ import java.util.UUID;
 
 interface SaleJpaRepository extends JpaRepository<Sale, Long> {
 
-    @EntityGraph(attributePaths = {"account", "lines"})
+    @EntityGraph(attributePaths = {"account", "lines", "packages"})
     @Query("select s from Sale s where s.uuid = :uuid")
     Optional<Sale> findByUuid(@Param("uuid") UUID uuid);
 
-    @EntityGraph(attributePaths = {"account", "lines"})
+    @EntityGraph(attributePaths = {"account", "lines", "packages"})
     @Query("select distinct s from Sale s where s.account.uuid = :accountUuid order by s.sequence")
     List<Sale> findByAccount(@Param("accountUuid") UUID accountUuid);
 

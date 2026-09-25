@@ -8,7 +8,11 @@ import com.ClinicaDeYmid.billing_service.domain.ChargedService;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccounts;
 import com.ClinicaDeYmid.billing_service.domain.LineOrigin;
+import com.ClinicaDeYmid.billing_service.domain.LinePrice;
+import com.ClinicaDeYmid.billing_service.domain.PricedSale;
+import com.ClinicaDeYmid.billing_service.domain.PricingTerms;
 import com.ClinicaDeYmid.billing_service.domain.Sale;
+import com.ClinicaDeYmid.billing_service.domain.SaleLine;
 import com.ClinicaDeYmid.billing_service.domain.SaleType;
 import com.ClinicaDeYmid.billing_service.domain.Sales;
 import com.ClinicaDeYmid.commons.web.EntityTags;
@@ -17,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -33,15 +38,17 @@ public class SaleCommands {
     private final Sales sales;
     private final EpisodeDirectory episodes;
     private final PortfolioCatalogue portfolio;
+    private final SalePricing pricing;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public SaleCommands(EpisodeAccounts accounts, Sales sales, EpisodeDirectory episodes, PortfolioCatalogue portfolio,
-                        TransactionOperations transactions, Clock clock) {
+                        SalePricing pricing, TransactionOperations transactions, Clock clock) {
         this.accounts = accounts;
         this.sales = sales;
         this.episodes = episodes;
         this.portfolio = portfolio;
+        this.pricing = pricing;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -76,9 +83,38 @@ public class SaleCommands {
     }
 
     public Sale confirm(UUID saleUuid, long expectedVersion) {
-        Sale confirmed = modify(saleUuid, expectedVersion, sale -> sale.confirm(clock));
-        log.info("Sale {} confirmed with {} lines", confirmed.number(), confirmed.activeLines().size());
+        Sale current = current(saleUuid, expectedVersion);
+        current.requireConfirmable();
+        PricingTerms terms = pricing.termsFor(current);
+        Sale confirmed = modify(saleUuid, expectedVersion, sale -> sale.confirm(terms, clock));
+        log.info("Sale {} confirmed with {} lines for {}", confirmed.number(), confirmed.activeLines().size(),
+                confirmed.settlement().map(Sale.Settlement::total).orElse(null));
         return confirmed;
+    }
+
+    public Sale priceManually(UUID saleUuid, long expectedVersion, UUID lineUuid, BigDecimal unitPrice, String reason) {
+        Sale current = current(saleUuid, expectedVersion);
+        SaleLine line = current.line(lineUuid);
+        LinePrice quoted = pricing.termsFor(current.account().admissionUuid(), List.of(line)).quoted().get(lineUuid);
+        if (quoted != null && !quoted.pending()) {
+            throw new BillingException.LinePricedByContract();
+        }
+        Sale priced = modify(saleUuid, expectedVersion, sale -> sale.priceManually(lineUuid, unitPrice, reason, clock));
+        log.info("Line {} of sale {} priced manually at {}", lineUuid, priced.number(), unitPrice);
+        return priced;
+    }
+
+    public PricedSale preview(UUID saleUuid) {
+        Sale sale = sales.findByUuid(saleUuid).orElseThrow(BillingException.SaleNotFound::new);
+        return sale.price(pricing.termsFor(sale));
+    }
+
+    private Sale current(UUID saleUuid, long expectedVersion) {
+        Sale sale = sales.findByUuid(saleUuid).orElseThrow(BillingException.SaleNotFound::new);
+        if (sale.version() != expectedVersion) {
+            throw new EntityTags.StaleVersion();
+        }
+        return sale;
     }
 
     public Sale cancel(UUID saleUuid, long expectedVersion, String reason) {

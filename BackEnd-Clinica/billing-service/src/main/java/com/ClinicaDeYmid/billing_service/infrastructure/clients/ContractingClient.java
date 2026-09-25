@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,6 +43,29 @@ interface ContractingClient {
         boolean offered() {
             return status != null && status.offered();
         }
+    }
+
+    @PostMapping("/api/v1/price-quotes")
+    QuotePayload quote(@RequestBody QuoteRequest request);
+
+    record QuoteRequest(UUID contractUuid, LocalDate on, List<QuoteService> services) {
+    }
+
+    record QuoteService(String cupsCode, int quantity) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record QuotePayload(UUID contractUuid, String contractNumber, UUID payerUuid, List<QuotedService> services,
+                        List<QuotedPackage> packages) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record QuotedService(String cupsCode, int quantity, BigDecimal unitPrice, BigDecimal lineTotal, String origin,
+                         UUID referenceUuid, String referenceCode) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record QuotedPackage(UUID uuid, String code, String name, BigDecimal price) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

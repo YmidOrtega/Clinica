@@ -225,4 +225,41 @@ public sealed abstract class BillingException extends DomainException {
                     "Contratación no responde; sin el portafolio no se puede cargar el servicio, intenta de nuevo");
         }
     }
+
+    public static final class UnpricedLines extends BillingException {
+
+        private final java.util.List<String> cupsCodes;
+
+        public UnpricedLines(java.util.List<String> cupsCodes) {
+            super(ErrorCategory.RULE_VIOLATION, "SALE_HAS_UNPRICED_LINES",
+                    "El contrato no tiene tarifa para " + String.join(", ", cupsCodes)
+                            + "; pon un precio manual a esas líneas antes de confirmar");
+            this.cupsCodes = java.util.List.copyOf(cupsCodes);
+        }
+
+        public java.util.List<String> cupsCodes() {
+            return cupsCodes;
+        }
+    }
+
+    public static final class LinePricedByContract extends BillingException {
+        public LinePricedByContract() {
+            super(ErrorCategory.RULE_VIOLATION, "LINE_PRICED_BY_CONTRACT",
+                    "El contrato ya le da precio a ese servicio; el precio manual es solo para lo que no tiene tarifa");
+        }
+    }
+
+    public static final class CoveragePending extends BillingException {
+        public CoveragePending() {
+            super(ErrorCategory.RULE_VIOLATION, "COVERAGE_PENDING",
+                    "Admisiones todavía no resolvió la cobertura del episodio; sin contrato no se puede tasar la venta");
+        }
+    }
+
+    public static final class ContractCannotPrice extends BillingException {
+        public ContractCannotPrice(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_CANNOT_PRICE",
+                    "Contratación no pudo tasar la venta con el contrato del episodio: " + detail);
+        }
+    }
 }

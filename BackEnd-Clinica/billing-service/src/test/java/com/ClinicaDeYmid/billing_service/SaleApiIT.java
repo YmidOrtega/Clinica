@@ -108,9 +108,23 @@ class SaleApiIT extends IntegrationTest {
                 .andExpect(jsonPath("$.activeLines").value(1))
                 .andExpect(jsonPath("$.lines[0].removed").value(true));
 
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathMatching("/api/v1/admissions/episodes/[^/]+")).willReturn(okJson("""
+                {"uuid":"%s","number":"x","patientUuid":"%s","kind":"OUTPATIENT","status":{"code":"ACTIVE"},
+                 "coverage":{"status":"COVERED","contractUuid":"%s","contractNumber":"CT-1","payerUuid":"%s"}}"""
+                .formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()))));
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching(
+                        "/api/v1/admissions/episodes/[^/]+/authorizations")).willReturn(okJson("[]")));
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(
+                urlPathEqualTo("/api/v1/price-quotes")).willReturn(okJson("""
+                {"contractNumber":"CT-1","payerUuid":"%s","services":[{"cupsCode":"890201","quantity":1,
+                 "unitPrice":45000.00,"lineTotal":45000.00,"origin":"TARIFF_MANUAL","referenceCode":"ISS2001"}],
+                 "packages":[],"total":45000.00}""".formatted(UUID.randomUUID()))));
         change("BILLING", post(SALES + "/" + sale + "/confirmation"), 3, null)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status.code").value("CONFIRMED"));
+                .andExpect(jsonPath("$.status.code").value("CONFIRMED"))
+                .andExpect(jsonPath("$.settlement.total").value(45000.00));
         change("BILLING", post(SALES + "/" + sale + "/lines"), 4, "{\"cupsCode\":\"890201\",\"quantity\":1}")
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("SALE_NOT_EDITABLE"));
