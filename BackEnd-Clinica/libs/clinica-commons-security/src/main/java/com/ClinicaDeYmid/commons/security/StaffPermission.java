@@ -11,6 +11,7 @@ public enum StaffPermission {
     PRACTITIONERS_READ("practitioners:read"),
     PRACTITIONERS_MANAGE("practitioners:manage"),
     PRACTITIONERS_MANAGE_FEES("practitioners:manage-fees"),
+    PRACTITIONERS_READ_FEES("practitioners:read-fees"),
     ADMISSIONS_READ("admissions:read"),
     ADMISSIONS_ADMIT("admissions:admit"),
     ADMISSIONS_MOVE_BED("admissions:move-bed"),
