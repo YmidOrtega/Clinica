@@ -19,7 +19,17 @@ public enum StaffRole {
     BILLING(EnumSet.of(
             StaffPermission.CONTRACTING_READ,
             StaffPermission.CONTRACTING_QUOTE_PRICES,
-            StaffPermission.ADMISSIONS_READ)),
+            StaffPermission.ADMISSIONS_READ,
+            StaffPermission.PRACTITIONERS_READ,
+            StaffPermission.BILLING_READ,
+            StaffPermission.BILLING_SELL,
+            StaffPermission.BILLING_PRICE_MANUALLY,
+            StaffPermission.BILLING_INVOICE,
+            StaffPermission.BILLING_VOID,
+            StaffPermission.BILLING_COLLECT,
+            StaffPermission.BILLING_FILE,
+            StaffPermission.BILLING_GLOSSES,
+            StaffPermission.BILLING_MANAGE_CONFIG)),
     HUMAN_RESOURCES(EnumSet.of(
             StaffPermission.PRACTITIONERS_READ,
             StaffPermission.PRACTITIONERS_MANAGE,

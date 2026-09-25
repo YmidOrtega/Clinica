@@ -98,6 +98,24 @@ class StaffAuthoritiesTest {
     }
 
     @Test
+    void theWholeBillingCycleBelongsToBilling() {
+        EnumSet.allOf(StaffPermission.class).stream()
+                .filter(permission -> permission.code().startsWith("billing:"))
+                .forEach(permission -> assertThat(rolesHolding(permission)).containsExactlyInAnyOrder(
+                        StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.BILLING));
+    }
+
+    @Test
+    void billingReadsWhatItPricesWithoutManagingIt() {
+        assertThat(StaffRole.BILLING.permissions()).contains(
+                StaffPermission.ADMISSIONS_READ, StaffPermission.PRACTITIONERS_READ,
+                StaffPermission.CONTRACTING_QUOTE_PRICES);
+        assertThat(StaffRole.BILLING.permissions()).doesNotContain(
+                StaffPermission.PRACTITIONERS_MANAGE, StaffPermission.PRACTITIONERS_MANAGE_FEES,
+                StaffPermission.CONTRACTING_MANAGE_TARIFFS, StaffPermission.CONTRACTING_MANAGE_CONTRACTS);
+    }
+
+    @Test
     void permissionCodesAreUniqueAndNamespaced() {
         assertThat(EnumSet.allOf(StaffPermission.class).stream().map(StaffPermission::code).collect(Collectors.toSet()))
                 .hasSize(StaffPermission.values().length)
