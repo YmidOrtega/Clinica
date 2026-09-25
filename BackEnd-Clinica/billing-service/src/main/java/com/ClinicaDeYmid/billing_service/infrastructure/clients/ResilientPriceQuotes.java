@@ -2,7 +2,10 @@ package com.ClinicaDeYmid.billing_service.infrastructure.clients;
 
 import com.ClinicaDeYmid.billing_service.application.sale.PriceQuotes;
 import com.ClinicaDeYmid.billing_service.application.sale.QuoteLookup;
+import com.ClinicaDeYmid.billing_service.domain.ComponentCharge;
 import com.ClinicaDeYmid.billing_service.domain.PriceOrigin;
+import com.ClinicaDeYmid.billing_service.domain.SurgicalComponent;
+import com.ClinicaDeYmid.billing_service.domain.SurgicalDetail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
@@ -50,12 +53,54 @@ class ResilientPriceQuotes implements PriceQuotes {
         });
     }
 
+    @Override
+    public QuoteLookup surgicalQuote(UUID contractUuid, LocalDate on, List<RequestedProcedure> procedures) {
+        return circuitBreaker.run(() -> {
+            try {
+                return toQuoted(client.surgicalQuote(new ContractingClient.SurgicalQuoteRequest(contractUuid, on,
+                        procedures.stream().map(procedure -> new ContractingClient.QuoteProcedure(
+                                procedure.cupsCode(), procedure.route())).toList())));
+            } catch (FeignException.NotFound | FeignException.UnprocessableEntity | FeignException.BadRequest refused) {
+                log.warn("contracting-service refused the surgical quote of contract {} on {}: HTTP {}", contractUuid,
+                        on, refused.status());
+                return new QuoteLookup.Refused(detailOf(refused));
+            }
+        }, failure -> {
+            log.warn("contracting-service did not answer the surgical quote of contract {} ({})", contractUuid,
+                    failure.getClass().getSimpleName());
+            return new QuoteLookup.Unavailable();
+        });
+    }
+
+    private static QuoteLookup.Quoted toQuoted(ContractingClient.SurgicalQuotePayload quote) {
+        return new QuoteLookup.Quoted(quote.contractNumber(), quote.payerUuid(),
+                quote.procedures().stream().map(ResilientPriceQuotes::toService).toList(),
+                quote.packages() == null ? List.of() : quote.packages().stream()
+                        .map(applied -> new QuoteLookup.Package(applied.uuid(), applied.code(), applied.name(),
+                                applied.price()))
+                        .toList());
+    }
+
+    private static QuoteLookup.Service toService(ContractingClient.QuotedProcedure procedure) {
+        PriceOrigin origin = PriceOrigin.valueOf(procedure.origin());
+        SurgicalDetail detail = origin != PriceOrigin.SURGICAL_LIQUIDATION ? null
+                : new SurgicalDetail(procedure.order(), procedure.principal(), procedure.sameRoute(),
+                procedure.surgicalBasis(), procedure.components().stream()
+                .map(component -> new ComponentCharge(SurgicalComponent.valueOf(component.component()),
+                        component.fullValue(), component.percent(), component.amount()))
+                .toList());
+        return new QuoteLookup.Service(procedure.cupsCode(), 1, procedure.total(), procedure.total(), origin,
+                procedure.referenceUuid(), procedure.referenceCode(), procedure.authorizationRequired(),
+                origin == PriceOrigin.SURGICAL_LIQUIDATION, detail);
+    }
+
     private static QuoteLookup.Quoted toQuoted(ContractingClient.QuotePayload quote) {
         return new QuoteLookup.Quoted(quote.contractNumber(), quote.payerUuid(),
                 quote.services() == null ? List.of() : quote.services().stream()
                         .map(service -> new QuoteLookup.Service(service.cupsCode(), service.quantity(),
                                 service.unitPrice(), service.lineTotal(), PriceOrigin.valueOf(service.origin()),
-                                service.referenceUuid(), service.referenceCode(), service.authorizationRequired()))
+                                service.referenceUuid(), service.referenceCode(), service.authorizationRequired(),
+                                service.surgical(), null))
                         .toList(),
                 quote.packages() == null ? List.of() : quote.packages().stream()
                         .map(applied -> new QuoteLookup.Package(applied.uuid(), applied.code(), applied.name(),

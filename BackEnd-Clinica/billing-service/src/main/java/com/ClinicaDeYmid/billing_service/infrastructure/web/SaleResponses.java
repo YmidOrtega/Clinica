@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.billing_service.infrastructure.web;
 
 import com.ClinicaDeYmid.billing_service.domain.AuthorizationCheck;
 import com.ClinicaDeYmid.billing_service.domain.ChargedService;
+import com.ClinicaDeYmid.billing_service.domain.LineKind;
 import com.ClinicaDeYmid.billing_service.domain.LineOrigin;
 import com.ClinicaDeYmid.billing_service.domain.LinePrice;
 import com.ClinicaDeYmid.billing_service.domain.PackageCharge;
@@ -11,6 +12,8 @@ import com.ClinicaDeYmid.billing_service.domain.Sale;
 import com.ClinicaDeYmid.billing_service.domain.SaleLine;
 import com.ClinicaDeYmid.billing_service.domain.SaleStatus;
 import com.ClinicaDeYmid.billing_service.domain.SaleType;
+import com.ClinicaDeYmid.billing_service.domain.SurgicalDetail;
+import com.ClinicaDeYmid.billing_service.domain.TeamMember;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -44,19 +47,29 @@ final class SaleResponses {
     }
 
     record PriceView(PriceOrigin origin, BigDecimal unitPrice, BigDecimal lineTotal, boolean billablePerService,
-                     UUID referenceUuid, String referenceCode) {
+                     UUID referenceUuid, String referenceCode, SurgicalDetail surgical) {
 
         static PriceView from(LinePrice price) {
             return price == null ? null : new PriceView(price.origin(), price.unitPrice(), price.lineTotal(),
-                    price.origin().billablePerService(), price.referenceUuid(), price.referenceCode());
+                    price.origin().billablePerService(), price.referenceUuid(), price.referenceCode(),
+                    price.surgical());
+        }
+    }
+
+    record SurgeryView(LocalDate performedOn, List<TeamMember> team) {
+
+        static SurgeryView from(Sale sale) {
+            return sale.type() instanceof SaleType.Surgical surgical
+                    ? new SurgeryView(surgical.performedOn(), sale.surgicalTeam()) : null;
         }
     }
 
     record ManualPriceView(BigDecimal unitPrice, String reason) {
     }
 
-    record LineView(UUID uuid, int position, UUID portfolioItemUuid, String cupsCode, String clinicCode,
-                    String description, String category, int quantity, LocalDate serviceDate, OriginView origin,
+    record LineView(UUID uuid, int position, LineKind kind, String route, UUID portfolioItemUuid, String cupsCode,
+                    String clinicCode, String description, String category, int quantity, LocalDate serviceDate,
+                    OriginView origin,
                     boolean removed, Instant removedAt, String removalReason, ManualPriceView manualPrice,
                     PriceView price, AuthorizationCheck authorization) {
 
@@ -66,8 +79,8 @@ final class SaleResponses {
 
         static LineView from(SaleLine line, LinePrice price, AuthorizationCheck authorization) {
             ChargedService service = line.service();
-            return new LineView(line.uuid(), line.position(), service.portfolioItemUuid(), service.cupsCode(),
-                    service.clinicCode(), service.description(), service.category(), line.quantity(),
+            return new LineView(line.uuid(), line.position(), line.kind(), line.route(), service.portfolioItemUuid(),
+                    service.cupsCode(), service.clinicCode(), service.description(), service.category(), line.quantity(),
                     line.serviceDate(), OriginView.from(line.origin()), line.removed(), line.removedAt(),
                     line.removalReason(), line.manualUnitPrice()
                     .map(unit -> new ManualPriceView(unit, line.manualPriceReason())).orElse(null),
@@ -87,7 +100,8 @@ final class SaleResponses {
     }
 
     record PreviewView(UUID saleUuid, String number, UUID contractUuid, String contractNumber, boolean complete,
-                       List<String> unpricedCups, List<String> unauthorizedCups, List<LineView> lines,
+                       List<String> unpricedCups, List<String> unauthorizedCups, List<String> surgeriesOutOfPlace,
+                       List<LineView> lines,
                        List<PackageCharge> packages, BigDecimal linesTotal, BigDecimal packagesTotal,
                        BigDecimal total) {
 
@@ -96,15 +110,16 @@ final class SaleResponses {
                     priced.terms().contractNumber(), priced.complete(),
                     priced.pending().stream().map(line -> line.service().cupsCode()).distinct().toList(),
                     priced.unauthorized().stream().map(line -> line.service().cupsCode()).distinct().toList(),
+                    priced.misplacedSurgeries().stream().map(line -> line.service().cupsCode()).distinct().toList(),
                     sale.activeLines().stream().map(line -> LineView.from(line, priced.lines().get(line.uuid()),
                             priced.authorizations().get(line.uuid()))).toList(),
                     priced.terms().packages(), priced.linesTotal(), priced.packagesTotal(), priced.total());
         }
     }
 
-    record SaleView(UUID uuid, String number, String admissionNumber, SaleType.Code type, StatusView status,
-                    List<LineView> lines, int activeLines, SettlementView settlement, Instant createdAt,
-                    List<String> notes) {
+    record SaleView(UUID uuid, String number, String admissionNumber, SaleType.Code type, SurgeryView surgery,
+                    StatusView status, List<LineView> lines, int activeLines, SettlementView settlement,
+                    Instant createdAt, List<String> notes) {
 
         static SaleView from(Sale sale) {
             return from(sale, List.of());
@@ -112,7 +127,7 @@ final class SaleResponses {
 
         static SaleView from(Sale sale, List<String> notes) {
             return new SaleView(sale.uuid(), sale.number(), sale.account().admissionNumber(), sale.type().code(),
-                    StatusView.from(sale.status()), sale.lines().stream().map(LineView::from).toList(),
+                    SurgeryView.from(sale), StatusView.from(sale.status()), sale.lines().stream().map(LineView::from).toList(),
                     sale.activeLines().size(), SettlementView.from(sale), sale.createdAt(), notes);
         }
     }

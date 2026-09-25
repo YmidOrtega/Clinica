@@ -48,7 +48,31 @@ interface ContractingClient {
     @PostMapping("/api/v1/price-quotes")
     QuotePayload quote(@RequestBody QuoteRequest request);
 
+    @PostMapping("/api/v1/price-quotes/surgical")
+    SurgicalQuotePayload surgicalQuote(@RequestBody SurgicalQuoteRequest request);
+
     record QuoteRequest(UUID contractUuid, LocalDate on, List<QuoteService> services) {
+    }
+
+    record SurgicalQuoteRequest(UUID contractUuid, LocalDate on, List<QuoteProcedure> procedures) {
+    }
+
+    record QuoteProcedure(String cupsCode, String route) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record SurgicalQuotePayload(UUID contractUuid, String contractNumber, UUID payerUuid,
+                                List<QuotedProcedure> procedures, List<QuotedPackage> packages) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record QuotedProcedure(String cupsCode, String route, String origin, BigDecimal surgicalBasis, Integer order,
+                           boolean principal, boolean sameRoute, List<QuotedComponent> components, BigDecimal total,
+                           UUID referenceUuid, String referenceCode, boolean authorizationRequired) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record QuotedComponent(String component, BigDecimal fullValue, BigDecimal percent, BigDecimal amount) {
     }
 
     record QuoteService(String cupsCode, int quantity) {
@@ -61,7 +85,7 @@ interface ContractingClient {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record QuotedService(String cupsCode, int quantity, BigDecimal unitPrice, BigDecimal lineTotal, String origin,
-                         UUID referenceUuid, String referenceCode, boolean authorizationRequired) {
+                         UUID referenceUuid, String referenceCode, boolean authorizationRequired, boolean surgical) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -33,6 +33,7 @@ abstract class IntegrationTest {
         registry.add("spring.cloud.openfeign.client.config.admissions-service.url", StubbedServices::baseUrl);
         registry.add("spring.cloud.openfeign.client.config.patient-service.url", StubbedServices::baseUrl);
         registry.add("spring.cloud.openfeign.client.config.contracting-service.url", StubbedServices::baseUrl);
+        registry.add("spring.cloud.openfeign.client.config.practitioners-service.url", StubbedServices::baseUrl);
     }
 
     @BeforeEach

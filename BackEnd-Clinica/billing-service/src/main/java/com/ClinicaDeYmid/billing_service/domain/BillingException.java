@@ -279,4 +279,40 @@ public sealed abstract class BillingException extends DomainException {
             return cupsCodes;
         }
     }
+
+    public static final class ProcedureOutsideSurgicalSale extends BillingException {
+        public ProcedureOutsideSurgicalSale() {
+            super(ErrorCategory.RULE_VIOLATION, "PROCEDURE_OUTSIDE_SURGICAL_SALE",
+                    "Los procedimientos quirúrgicos y el equipo solo van en una venta quirúrgica");
+        }
+    }
+
+    public static final class SurgeryNeedsSurgicalSale extends BillingException {
+        public SurgeryNeedsSurgicalSale(java.util.List<String> cupsCodes) {
+            super(ErrorCategory.RULE_VIOLATION, "SURGERY_NEEDS_SURGICAL_SALE",
+                    "El manual liquida " + String.join(", ", cupsCodes) + " por componentes; cárgalos como "
+                            + "procedimiento de una venta quirúrgica");
+        }
+    }
+
+    public static final class SurgicalTeamIncomplete extends BillingException {
+        public SurgicalTeamIncomplete(java.util.Set<SurgicalRole> missing) {
+            super(ErrorCategory.RULE_VIOLATION, "SURGICAL_TEAM_INCOMPLETE",
+                    "La liquidación cobra honorarios de " + missing + " pero el equipo quirúrgico no los tiene");
+        }
+    }
+
+    public static final class PractitionerNotAvailable extends BillingException {
+        public PractitionerNotAvailable() {
+            super(ErrorCategory.RULE_VIOLATION, "PRACTITIONER_NOT_AVAILABLE",
+                    "Ese profesional no existe en el directorio o no está atendiendo");
+        }
+    }
+
+    public static final class PractitionersUnavailable extends BillingException {
+        public PractitionersUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "PRACTITIONERS_UNAVAILABLE",
+                    "El directorio de profesionales no responde; intenta de nuevo");
+        }
+    }
 }

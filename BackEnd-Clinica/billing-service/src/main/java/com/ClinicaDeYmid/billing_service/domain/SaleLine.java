@@ -22,6 +22,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -67,6 +68,13 @@ public class SaleLine {
     @Column(name = "quantity", nullable = false, updatable = false)
     private int quantity;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", nullable = false, updatable = false, length = 20)
+    private LineKind kind;
+
+    @Column(name = "route", updatable = false, length = 30)
+    private String route;
+
     @Column(name = "service_date", nullable = false, updatable = false)
     private LocalDate serviceDate;
 
@@ -104,6 +112,22 @@ public class SaleLine {
     @Column(name = "price_reference_code", length = 40)
     private String priceReferenceCode;
 
+    @Column(name = "surgical_order")
+    private Integer surgicalOrder;
+
+    @Column(name = "principal_procedure")
+    private Boolean principalProcedure;
+
+    @Column(name = "same_route")
+    private Boolean sameRoute;
+
+    @Column(name = "surgical_basis", precision = 9, scale = 2)
+    private BigDecimal surgicalBasis;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "components")
+    private List<ComponentCharge> components;
+
     @Column(name = "removed_at")
     private Instant removedAt;
 
@@ -121,6 +145,15 @@ public class SaleLine {
     protected SaleLine() {
     }
 
+    static SaleLine procedure(Sale sale, int position, ChargedService service, String route, LocalDate performedOn,
+                              LineOrigin origin) {
+        SaleLine line = charge(sale, position, service, 1, performedOn, origin);
+        line.kind = LineKind.PROCEDURE;
+        String normalized = DomainRules.optionalText(route, "route", 30);
+        line.route = normalized == null ? "UNICA" : normalized.toUpperCase(java.util.Locale.ROOT);
+        return line;
+    }
+
     static SaleLine charge(Sale sale, int position, ChargedService service, int quantity, LocalDate serviceDate,
                            LineOrigin origin) {
         if (quantity < 1 || quantity > MAXIMUM_QUANTITY) {
@@ -136,6 +169,7 @@ public class SaleLine {
         line.description = service.description();
         line.category = service.category();
         line.quantity = quantity;
+        line.kind = LineKind.SERVICE;
         line.serviceDate = DomainRules.required(serviceDate, "serviceDate");
         line.originCode = DomainRules.required(origin, "origin").code();
         if (origin instanceof LineOrigin.Authorized authorized) {
@@ -175,11 +209,20 @@ public class SaleLine {
         lineTotal = price.lineTotal();
         priceReferenceUuid = price.referenceUuid();
         priceReferenceCode = price.referenceCode();
+        if (price.surgical() != null) {
+            surgicalOrder = price.surgical().order();
+            principalProcedure = price.surgical().principal();
+            sameRoute = price.surgical().sameRoute();
+            surgicalBasis = price.surgical().basis();
+            components = price.surgical().components();
+        }
     }
 
     public Optional<LinePrice> price() {
         return priceOrigin == null ? Optional.empty()
-                : Optional.of(new LinePrice(priceOrigin, unitPrice, lineTotal, priceReferenceUuid, priceReferenceCode));
+                : Optional.of(new LinePrice(priceOrigin, unitPrice, lineTotal, priceReferenceUuid, priceReferenceCode,
+                priceOrigin == PriceOrigin.SURGICAL_LIQUIDATION ? new SurgicalDetail(surgicalOrder,
+                        principalProcedure, sameRoute, surgicalBasis, components) : null));
     }
 
     public Optional<BigDecimal> manualUnitPrice() {
@@ -208,6 +251,14 @@ public class SaleLine {
 
     public int quantity() {
         return quantity;
+    }
+
+    public LineKind kind() {
+        return kind;
+    }
+
+    public String route() {
+        return route;
     }
 
     public LocalDate serviceDate() {

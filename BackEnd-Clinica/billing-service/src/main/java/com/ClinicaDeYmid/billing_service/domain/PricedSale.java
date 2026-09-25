@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public record PricedSale(PricingTerms terms, Map<UUID, LinePrice> lines, List<SaleLine> pending,
                          Map<UUID, AuthorizationCheck> authorizations, List<SaleLine> unauthorized,
+                         List<SaleLine> misplacedSurgeries,
                          BigDecimal linesTotal, BigDecimal packagesTotal, BigDecimal total) {
 
     public PricedSale {
@@ -14,9 +15,10 @@ public record PricedSale(PricingTerms terms, Map<UUID, LinePrice> lines, List<Sa
         pending = List.copyOf(pending);
         authorizations = Map.copyOf(authorizations);
         unauthorized = List.copyOf(unauthorized);
+        misplacedSurgeries = List.copyOf(misplacedSurgeries);
     }
 
     public boolean complete() {
-        return pending.isEmpty() && unauthorized.isEmpty();
+        return pending.isEmpty() && unauthorized.isEmpty() && misplacedSurgeries.isEmpty();
     }
 }

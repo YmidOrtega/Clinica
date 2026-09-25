@@ -76,6 +76,13 @@ public class Sale {
     @Column(name = "type", nullable = false, updatable = false, length = 20)
     private SaleType.Code typeCode;
 
+    @Column(name = "surgery_performed_on", updatable = false)
+    private LocalDate surgeryPerformedOn;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "surgical_team")
+    private List<TeamMember> surgicalTeam;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private SaleStatus.Code statusCode;
@@ -153,6 +160,10 @@ public class Sale {
         sale.sequence = sequence;
         sale.number = account.admissionNumber() + "-V%02d".formatted(sequence);
         sale.typeCode = DomainRules.required(type, "type").code();
+        if (type instanceof SaleType.Surgical surgical) {
+            sale.surgeryPerformedOn = surgical.performedOn();
+            sale.surgicalTeam = List.of();
+        }
         sale.statusCode = SaleStatus.Code.DRAFT;
         return sale;
     }
@@ -176,6 +187,48 @@ public class Sale {
         activeLineCount++;
         editedAt = Instant.now(clock);
         return line;
+    }
+
+    public SaleLine chargeProcedure(ChargedService service, String route, LineOrigin origin, Clock clock) {
+        requireEditable();
+        if (!(type() instanceof SaleType.Surgical surgical)) {
+            throw new BillingException.ProcedureOutsideSurgicalSale();
+        }
+        DomainRules.required(service, "service");
+        if (surgical.performedOn().isAfter(LocalDate.now(clock))) {
+            throw new BillingException.InvalidData("performedOn", "la cirugía no puede ser posterior a hoy");
+        }
+        if (surgical.performedOn().isBefore(LocalDate.ofInstant(account.openedAt(), clock.getZone()))) {
+            throw new BillingException.InvalidData("performedOn", "la cirugía no puede ser anterior al ingreso del episodio");
+        }
+        if (lines.size() >= MAXIMUM_LINES) {
+            throw new BillingException.TooManyLines(MAXIMUM_LINES);
+        }
+        SaleLine line = SaleLine.procedure(this, lines.size() + 1, service, route, surgical.performedOn(), origin);
+        lines.add(line);
+        activeLineCount++;
+        editedAt = Instant.now(clock);
+        return line;
+    }
+
+    public void assignTeam(List<TeamMember> members, Clock clock) {
+        requireEditable();
+        if (!(type() instanceof SaleType.Surgical)) {
+            throw new BillingException.ProcedureOutsideSurgicalSale();
+        }
+        DomainRules.required(members, "members");
+        java.util.Set<SurgicalRole> roles = java.util.EnumSet.noneOf(SurgicalRole.class);
+        for (TeamMember member : members) {
+            if (!roles.add(member.role())) {
+                throw new BillingException.InvalidData("members", "el rol " + member.role() + " aparece dos veces");
+            }
+        }
+        surgicalTeam = List.copyOf(members);
+        editedAt = Instant.now(clock);
+    }
+
+    public List<TeamMember> surgicalTeam() {
+        return surgicalTeam == null ? List.of() : List.copyOf(surgicalTeam);
     }
 
     public void removeLine(UUID lineUuid, String reason, Clock clock) {
@@ -214,8 +267,31 @@ public class Sale {
         }
         BigDecimal packagesSum = terms.packages().stream().map(PackageCharge::price)
                 .reduce(Money.ZERO, BigDecimal::add);
-        return new PricedSale(terms, prices, pending, checks, unauthorized, Money.of(linesSum),
+        List<SaleLine> misplaced = type() instanceof SaleType.NonSurgical
+                ? activeLines().stream().filter(line -> terms.surgical().contains(line.uuid())).toList()
+                : activeLines().stream().filter(line -> line.kind() == LineKind.SERVICE
+                        && terms.surgical().contains(line.uuid())).toList();
+        pending.removeAll(misplaced);
+        return new PricedSale(terms, prices, pending, checks, unauthorized, misplaced, Money.of(linesSum),
                 Money.of(packagesSum), Money.of(linesSum.add(packagesSum)));
+    }
+
+    private void requireTeamFor(PricedSale priced) {
+        if (!(type() instanceof SaleType.Surgical)) {
+            return;
+        }
+        java.util.Set<SurgicalRole> present = java.util.EnumSet.noneOf(SurgicalRole.class);
+        surgicalTeam().forEach(member -> present.add(member.role()));
+        java.util.Set<SurgicalRole> needed = java.util.EnumSet.of(SurgicalRole.SURGEON);
+        priced.lines().values().stream()
+                .filter(price -> price.surgical() != null)
+                .flatMap(price -> price.surgical().components().stream())
+                .filter(charge -> charge.amount().signum() > 0)
+                .forEach(charge -> charge.component().performedBy().ifPresent(needed::add));
+        needed.removeAll(present);
+        if (!needed.isEmpty()) {
+            throw new BillingException.SurgicalTeamIncomplete(needed);
+        }
     }
 
     public void requireConfirmable() {
@@ -241,6 +317,11 @@ public class Sale {
             throw new BillingException.UnpricedLines(priced.pending().stream()
                     .map(line -> line.service().cupsCode()).distinct().toList());
         }
+        if (!priced.misplacedSurgeries().isEmpty()) {
+            throw new BillingException.SurgeryNeedsSurgicalSale(priced.misplacedSurgeries().stream()
+                    .map(line -> line.service().cupsCode()).distinct().toList());
+        }
+        requireTeamFor(priced);
         activeLines().forEach(line -> line.settle(priced.lines().get(line.uuid())));
         terms.packages().forEach(charge -> packages.add(SalePackage.of(this, charge)));
         contractUuid = terms.contractUuid();
@@ -320,7 +401,10 @@ public class Sale {
     }
 
     public SaleType type() {
-        return SaleType.of(typeCode);
+        return switch (typeCode) {
+            case NON_SURGICAL -> new SaleType.NonSurgical();
+            case SURGICAL -> new SaleType.Surgical(surgeryPerformedOn);
+        };
     }
 
     public EpisodeAccount account() {

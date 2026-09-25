@@ -8,6 +8,11 @@ public interface PriceQuotes {
 
     QuoteLookup quote(UUID contractUuid, LocalDate on, List<Requested> services);
 
+    QuoteLookup surgicalQuote(UUID contractUuid, LocalDate on, List<RequestedProcedure> procedures);
+
     record Requested(String cupsCode, int quantity) {
+    }
+
+    record RequestedProcedure(String cupsCode, String route) {
     }
 }
