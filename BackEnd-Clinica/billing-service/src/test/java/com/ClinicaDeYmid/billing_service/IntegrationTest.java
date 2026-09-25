@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,6 +20,9 @@ abstract class IntegrationTest {
 
     @Autowired
     protected MockMvc mockMvc;
+
+    @Autowired
+    protected JdbcTemplate jdbc;
 
     @DynamicPropertySource
     static void sharedProperties(DynamicPropertyRegistry registry) {
@@ -35,5 +39,19 @@ abstract class IntegrationTest {
         MockHttpServletRequestBuilder prepared = request.contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, JwtTestTokens.bearer(role));
         return mockMvc.perform(body == null ? prepared : prepared.content(body));
+    }
+
+    protected ResultActions change(String role, MockHttpServletRequestBuilder request, long version, String body)
+            throws Exception {
+        MockHttpServletRequestBuilder prepared = request.contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.IF_MATCH, "\"" + version + "\"")
+                .header(HttpHeaders.AUTHORIZATION, JwtTestTokens.bearer(role));
+        return mockMvc.perform(body == null ? prepared.content("{}") : prepared.content(body));
+    }
+
+    protected void forgetTheBillingSetup() {
+        jdbc.update("DELETE FROM numbering_counters");
+        jdbc.update("DELETE FROM numbering_resolutions");
+        jdbc.update("DELETE FROM issuer");
     }
 }
