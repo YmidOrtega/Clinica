@@ -5,6 +5,7 @@ public enum PriceOrigin {
     PACKAGE("Incluido en un paquete pactado"),
     CONTRACT_EXCEPTION("Precio pactado por fuera del manual"),
     TARIFF_MANUAL("Manual tarifario con el factor del contrato"),
+    SURGICAL_LIQUIDATION("Liquidación quirúrgica por componentes con el factor del contrato"),
     CAPITATION("Cubierto por la capitación"),
     GLOBAL_BUDGET("Cubierto por el presupuesto global"),
     UNPRICED("Sin tarifa para ese código");
@@ -20,6 +21,6 @@ public enum PriceOrigin {
     }
 
     public boolean billablePerService() {
-        return this == CONTRACT_EXCEPTION || this == TARIFF_MANUAL;
+        return this == CONTRACT_EXCEPTION || this == TARIFF_MANUAL || this == SURGICAL_LIQUIDATION;
     }
 }

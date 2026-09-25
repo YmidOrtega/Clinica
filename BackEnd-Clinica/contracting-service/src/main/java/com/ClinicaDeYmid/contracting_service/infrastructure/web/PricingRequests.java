@@ -34,4 +34,22 @@ final class PricingRequests {
             return services.stream().map(Service::toRequested).toList();
         }
     }
+
+    record Procedure(String cupsCode, String route) {
+
+        PricingQueries.RequestedProcedure toRequested() {
+            return new PricingQueries.RequestedProcedure(cupsCode, route);
+        }
+    }
+
+    record SurgicalQuote(@NotNull(message = REQUIRED) UUID contractUuid,
+                         @NotNull(message = REQUIRED) LocalDate on,
+                         @NotEmpty(message = "debe traer al menos un procedimiento")
+                         @Size(max = 20, message = "no puede superar 20 procedimientos por acto quirúrgico")
+                         @Valid List<Procedure> procedures) {
+
+        List<PricingQueries.RequestedProcedure> toRequested() {
+            return procedures.stream().map(Procedure::toRequested).toList();
+        }
+    }
 }

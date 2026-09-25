@@ -30,4 +30,8 @@ public interface TariffManuals {
     Optional<TariffItem> findItem(UUID manualVersionUuid, String cupsCode);
 
     List<TariffItem> itemsOf(UUID manualVersionUuid, int page, int size);
+
+    SurgicalRuleSet save(SurgicalRuleSet rules);
+
+    Optional<SurgicalRuleSet> surgicalRulesOf(UUID manualVersionUuid);
 }

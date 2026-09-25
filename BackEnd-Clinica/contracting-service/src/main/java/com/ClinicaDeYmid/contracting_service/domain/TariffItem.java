@@ -36,10 +36,18 @@ public class TariffItem {
     @Column(name = "value", nullable = false, updatable = false, precision = 15, scale = 4)
     private BigDecimal value;
 
+    @Column(name = "surgical_basis", updatable = false, precision = 9, scale = 2)
+    private BigDecimal surgicalBasis;
+
     protected TariffItem() {
     }
 
     public static TariffItem of(TariffManualVersion manualVersion, String cupsCode, String description, BigDecimal value) {
+        return of(manualVersion, cupsCode, description, value, null);
+    }
+
+    public static TariffItem of(TariffManualVersion manualVersion, String cupsCode, String description, BigDecimal value,
+                                BigDecimal surgicalBasis) {
         TariffItem item = new TariffItem();
         item.manualVersion = DomainRules.required(manualVersion, "manualVersion");
         manualVersion.requireEditable();
@@ -49,6 +57,10 @@ public class TariffItem {
         if (item.value.signum() < 0) {
             throw new ContractingException.InvalidData("value", "no puede ser negativo");
         }
+        if (surgicalBasis != null && surgicalBasis.signum() <= 0) {
+            throw new ContractingException.InvalidData("surgicalBasis", "debe ser mayor que cero");
+        }
+        item.surgicalBasis = surgicalBasis;
         return item;
     }
 
@@ -66,6 +78,14 @@ public class TariffItem {
 
     public BigDecimal value() {
         return value;
+    }
+
+    public BigDecimal surgicalBasis() {
+        return surgicalBasis;
+    }
+
+    public boolean surgical() {
+        return surgicalBasis != null;
     }
 
     public BigDecimal inPesos() {

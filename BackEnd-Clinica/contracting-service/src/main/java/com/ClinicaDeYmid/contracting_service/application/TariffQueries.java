@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.contracting_service.application;
 
 import com.ClinicaDeYmid.contracting_service.domain.ContractingException;
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalRuleSet;
 import com.ClinicaDeYmid.contracting_service.domain.TariffItem;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManual;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManualVersion;
@@ -45,6 +46,11 @@ public class TariffQueries {
 
     public TariffItem item(UUID versionUuid, String cupsCode) {
         return manuals.findItem(versionUuid, cupsCode).orElseThrow(ContractingException.TariffItemNotFound::new);
+    }
+
+    public SurgicalRuleSet surgicalRules(UUID versionUuid) {
+        version(versionUuid);
+        return manuals.surgicalRulesOf(versionUuid).orElseThrow(ContractingException.SurgicalRulesMissing::new);
     }
 
     public List<TariffItem> items(UUID versionUuid, int page, int size) {

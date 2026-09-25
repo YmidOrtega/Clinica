@@ -3,6 +3,10 @@ package com.ClinicaDeYmid.contracting_service.application;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import com.ClinicaDeYmid.contracting_service.domain.ContractingException;
 import com.ClinicaDeYmid.contracting_service.domain.PriceUnit;
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalBasis;
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalComponentRule;
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalRange;
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalRuleSet;
 import com.ClinicaDeYmid.contracting_service.domain.TariffItem;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManual;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManualVersion;
@@ -21,6 +25,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -83,10 +88,11 @@ public class TariffCommands {
                 throw new ContractingException.TariffVersionNotEditable("ya tiene tarifas cargadas");
             }
             List<TariffItem> items = entries.stream()
-                    .map(entry -> TariffItem.of(version, entry.cupsCode(), entry.description(), entry.value()))
+                    .map(entry -> TariffItem.of(version, entry.cupsCode(), entry.description(), entry.value(),
+                            entry.surgicalBasis()))
                     .toList();
             manuals.saveItems(items);
-            version.loaded(checksum, items.size());
+            version.loaded(checksum, items.size(), (int) items.stream().filter(TariffItem::surgical).count());
             log.info("Tariff version loaded: uuid={} items={} checksum={}", versionUuid, items.size(), checksum);
             return new Load(manuals.save(version), items.size(), false);
         });
@@ -122,16 +128,72 @@ public class TariffCommands {
                 .sorted(Comparator.comparing(Entry::cupsCode))
                 .forEach(entry -> canonical.append(entry.cupsCode()).append(FIELD_SEPARATOR)
                         .append(entry.description()).append(FIELD_SEPARATOR)
-                        .append(entry.value().stripTrailingZeros().toPlainString()).append(RECORD_SEPARATOR));
+                        .append(entry.value().stripTrailingZeros().toPlainString())
+                        .append(entry.surgicalBasis() == null ? ""
+                                : FIELD_SEPARATOR + entry.surgicalBasis().stripTrailingZeros().toPlainString())
+                        .append(RECORD_SEPARATOR));
+        return sha256(canonical.toString());
+    }
+
+    private static String sha256(String canonical) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8)));
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException(impossible);
         }
     }
 
-    public record Entry(String cupsCode, String description, BigDecimal value) {
+    public record Entry(String cupsCode, String description, BigDecimal value, BigDecimal surgicalBasis) {
+
+        public Entry(String cupsCode, String description, BigDecimal value) {
+            this(cupsCode, description, value, null);
+        }
+    }
+
+    public SurgicalRuleSet loadSurgicalRules(UUID versionUuid, SurgicalBasis basis,
+                                             List<SurgicalComponentRule.Definition> definitions, String actor) {
+        return transactions.execute(status -> {
+            TariffManualVersion version = version(versionUuid);
+            String checksum = surgicalChecksumOf(basis, definitions);
+            Optional<SurgicalRuleSet> loaded = manuals.surgicalRulesOf(versionUuid);
+            if (loaded.isPresent()) {
+                if (loaded.get().checksum().equals(checksum)) {
+                    return loaded.get();
+                }
+                throw new ContractingException.SurgicalRulesAlreadyLoaded();
+            }
+            SurgicalRuleSet rules = manuals.save(SurgicalRuleSet.load(version, basis, definitions, checksum, actor, clock));
+            version.surgicalRulesLoaded(checksum);
+            manuals.save(version);
+            log.info("Surgical rules loaded: version={} basis={} components={}", versionUuid, basis, definitions.size());
+            return rules;
+        });
+    }
+
+    static String surgicalChecksumOf(SurgicalBasis basis, List<SurgicalComponentRule.Definition> definitions) {
+        StringBuilder canonical = new StringBuilder(String.valueOf(basis)).append(RECORD_SEPARATOR);
+        definitions.stream()
+                .sorted(Comparator.comparing(definition -> String.valueOf(definition.component())))
+                .forEach(definition -> {
+                    canonical.append(definition.component()).append(FIELD_SEPARATOR).append(definition.mode())
+                            .append(FIELD_SEPARATOR).append(plain(definition.rate()))
+                            .append(FIELD_SEPARATOR).append(plain(definition.minimumBasis()))
+                            .append(FIELD_SEPARATOR).append(plain(definition.sameRoutePercent()))
+                            .append(FIELD_SEPARATOR).append(plain(definition.differentRoutePercent()));
+                    if (definition.ranges() != null) {
+                        definition.ranges().stream()
+                                .sorted(Comparator.comparing(SurgicalRange::from, Comparator.nullsFirst(Comparator.naturalOrder())))
+                                .forEach(range -> canonical.append(FIELD_SEPARATOR).append(plain(range.from()))
+                                        .append('-').append(plain(range.to())).append('=').append(plain(range.value())));
+                    }
+                    canonical.append(RECORD_SEPARATOR);
+                });
+        return sha256(canonical.toString());
+    }
+
+    private static String plain(BigDecimal value) {
+        return value == null ? "" : value.stripTrailingZeros().toPlainString();
     }
 
     public record Load(TariffManualVersion version, int loaded, boolean alreadyLoaded) {
