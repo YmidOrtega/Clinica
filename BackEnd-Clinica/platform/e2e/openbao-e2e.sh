@@ -4,6 +4,7 @@ set -eu
 PROJECT="${COMPOSE_PROJECT:-clinica}"
 TOOLS_IMAGE=clinica/openbao-tools:2.6.2
 NODES="openbao-1 openbao-2 openbao-3"
+CLIENT_KEYS="api-gateway-client patient-service-client clinical-history-service-client contracting-service-client admissions-service-client"
 DIR=$(cd "$(dirname "$0")" && pwd)
 PATIENT_URL="${PATIENT_URL:-http://$(docker compose -p "$PROJECT" port --index 1 patient-service 8081 2>/dev/null)}"
 CLINICAL_URL="${CLINICAL_URL:-http://$(docker compose -p "$PROJECT" port --index 1 clinical-history-service 8089 2>/dev/null)}"
@@ -114,6 +115,9 @@ bao_as openbao_approle_auth "bao kv get -mount=secret clinical/db/app > /dev/nul
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "auth-service leyó un secreto de clinical-history-service"
 bao_as openbao_approle_auth "bao kv get -mount=secret auth/db/app > /dev/null" || fail "auth-service no lee su secreto"
 ok "auth-service lee solo secret/auth/db"
+bao_as openbao_approle_auth "for key in $CLIENT_KEYS; do bao read transit/keys/\$key > /dev/null || exit 1; done" \
+  || fail "auth-service no lee la clave pública de algún cliente"
+ok "auth-service verifica las aserciones de todos los clientes"
 bao_as openbao_approle_auth "bao write -field=barcode totp/keys/staff-e2e generate=true issuer=Clinica account_name=e2e > /dev/null \
   && bao delete totp/keys/staff-e2e > /dev/null" || fail "auth-service no administra las claves TOTP del personal"
 status=0

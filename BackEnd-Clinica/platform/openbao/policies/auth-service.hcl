@@ -34,6 +34,10 @@ path "transit/keys/contracting-service-client" {
   capabilities = ["read"]
 }
 
+path "transit/keys/admissions-service-client" {
+  capabilities = ["read"]
+}
+
 path "totp/keys/staff-*" {
   capabilities = ["create", "update", "delete"]
 }
