@@ -25,6 +25,14 @@ public interface Contracts {
 
     Optional<ContractTariffException> exceptionFor(UUID contractUuid, String cupsCode, LocalDate date);
 
+    AuthorizationRequirement save(AuthorizationRequirement requirement);
+
+    Optional<AuthorizationRequirement> findRequirementByUuid(UUID uuid);
+
+    List<AuthorizationRequirement> requirementsOf(UUID contractUuid);
+
+    Optional<AuthorizationRequirement> requirementFor(UUID contractUuid, String cupsCode, LocalDate date);
+
     ContractPackage save(ContractPackage agreed);
 
     Optional<ContractPackage> findPackageByUuid(UUID uuid);

@@ -9,6 +9,7 @@ import com.ClinicaDeYmid.contracting_service.domain.Contract;
 import com.ClinicaDeYmid.contracting_service.infrastructure.web.ContractResponses.ContractView;
 import com.ClinicaDeYmid.contracting_service.infrastructure.web.ContractResponses.ExceptionView;
 import com.ClinicaDeYmid.contracting_service.infrastructure.web.ContractResponses.PackageView;
+import com.ClinicaDeYmid.contracting_service.infrastructure.web.ContractResponses.RequirementView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -158,6 +159,30 @@ class ContractController {
     ExceptionView revokeException(@PathVariable UUID exceptionUuid, @RequestBody ContractRequests.Revocation request) {
         recentAuthentication.require();
         return ExceptionView.from(commands.revokeException(exceptionUuid, request.from(), request.reason(), actor()));
+    }
+
+    @PostMapping("/{uuid}/authorization-requirements")
+    @PreAuthorize(Access.MANAGE_CONTRACTS)
+    @Operation(summary = "Exigir autorización previa del pagador para un servicio",
+            description = "Facturación bloquea ese servicio sin autorización, salvo lo prestado en urgencias")
+    RequirementView requireAuthorization(@PathVariable UUID uuid,
+                                         @RequestBody ContractRequests.AuthorizationRequirementRequest request) {
+        return RequirementView.from(commands.requireAuthorization(uuid, request.cupsCode(), request.validFrom(), actor()));
+    }
+
+    @GetMapping("/{uuid}/authorization-requirements")
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Listar los servicios que exigen autorización, vigentes y revocados")
+    List<RequirementView> requirements(@PathVariable UUID uuid) {
+        return queries.requirementsOf(uuid).stream().map(RequirementView::from).toList();
+    }
+
+    @PostMapping("/authorization-requirements/{requirementUuid}/revocation")
+    @PreAuthorize(Access.MANAGE_CONTRACTS)
+    @Operation(summary = "Dejar de exigir autorización para un servicio desde una fecha")
+    RequirementView revokeRequirement(@PathVariable UUID requirementUuid,
+                                      @RequestBody ContractRequests.Revocation request) {
+        return RequirementView.from(commands.revokeRequirement(requirementUuid, request.from(), request.reason(), actor()));
     }
 
     @PostMapping("/{uuid}/packages")

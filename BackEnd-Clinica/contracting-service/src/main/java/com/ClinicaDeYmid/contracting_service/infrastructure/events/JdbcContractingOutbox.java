@@ -57,6 +57,7 @@ class JdbcContractingOutbox implements ContractingEventOutbox {
         FundingAgreement funding = capitation.agreementInForce(contract.uuid(), LocalDate.now(clock)).orElse(null);
         ContractMessage message = ContractMessage.of(contract, change,
                 contracts.exceptionsOf(contract.uuid()), contracts.packagesOf(contract.uuid()), funding,
+                contracts.requirementsOf(contract.uuid()),
                 UUID.randomUUID(), occurredAt, MDC.get("traceId"));
         insert(message.eventId(), ContractMessage.AGGREGATE_TYPE, contract.uuid(), change, message, occurredAt);
     }

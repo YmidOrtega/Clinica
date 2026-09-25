@@ -232,4 +232,25 @@ public sealed abstract class ContractingException extends DomainException {
                     "Un contrato de modalidad " + modality.label() + " no tiene población capitada");
         }
     }
+
+    public static final class AuthorizationAlreadyRequired extends ContractingException {
+        public AuthorizationAlreadyRequired() {
+            super(ErrorCategory.CONFLICT, "AUTHORIZATION_ALREADY_REQUIRED",
+                    "El contrato ya exige autorización para ese servicio en esa fecha");
+        }
+    }
+
+    public static final class RequirementAlreadyRevoked extends ContractingException {
+        public RequirementAlreadyRevoked() {
+            super(ErrorCategory.RULE_VIOLATION, "AUTHORIZATION_REQUIREMENT_ALREADY_REVOKED",
+                    "El requisito de autorización ya fue revocado");
+        }
+    }
+
+    public static final class RequirementNotFound extends ContractingException {
+        public RequirementNotFound() {
+            super(ErrorCategory.NOT_FOUND, "AUTHORIZATION_REQUIREMENT_NOT_FOUND",
+                    "No se encontró el requisito de autorización del contrato");
+        }
+    }
 }

@@ -111,6 +111,32 @@ class ContractApiIT {
     }
 
     @Test
+    void listsTheServicesThatNeedAuthorizationAndRefusesToRequireOneTwice() throws Exception {
+        String contract = activeContract();
+
+        as("CONTRACTING", post("/api/v1/contracts/" + contract + "/authorization-requirements")
+                .content("{\"cupsCode\":\"871121\",\"validFrom\":\"2026-01-01\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cupsCode").value("871121"))
+                .andExpect(jsonPath("$.registeredBy").isNotEmpty());
+        as("CONTRACTING", post("/api/v1/contracts/" + contract + "/authorization-requirements")
+                .content("{\"cupsCode\":\"871121\",\"validFrom\":\"2026-04-01\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("AUTHORIZATION_ALREADY_REQUIRED"));
+        as("CONTRACTING", post("/api/v1/contracts/" + contract + "/authorization-requirements")
+                .content("{\"cupsCode\":\"87A121\",\"validFrom\":\"2026-01-01\"}"))
+                .andExpect(status().isBadRequest());
+        as("BILLING", post("/api/v1/contracts/" + contract + "/authorization-requirements")
+                .content("{\"cupsCode\":\"890201\",\"validFrom\":\"2026-01-01\"}"))
+                .andExpect(status().isForbidden());
+
+        as("BILLING", get("/api/v1/contracts/" + contract + "/authorization-requirements"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].cupsCode").value("871121"));
+    }
+
+    @Test
     void agreesAPackageWithItsIncludedServices() throws Exception {
         String contract = activeContract();
 

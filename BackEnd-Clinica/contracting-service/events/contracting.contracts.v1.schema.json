@@ -36,7 +36,9 @@
         "ContractTariffExceptionRegistered",
         "ContractTariffExceptionRevoked",
         "ContractPackageAgreed",
-        "ContractPackageRevoked"
+        "ContractPackageRevoked",
+        "ContractAuthorizationRequired",
+        "ContractAuthorizationRequirementRevoked"
       ]
     },
     "occurredAt": {
@@ -244,6 +246,33 @@
         "validFrom": {
           "type": "string",
           "format": "date"
+        }
+      }
+    },
+    "authorizationRequirements": {
+      "type": "array",
+      "description": "Services that need the payer's prior authorization, in force or scheduled. Revoked ones disappear.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "uuid",
+          "cupsCode",
+          "validFrom"
+        ],
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cupsCode": {
+            "type": "string",
+            "pattern": "^[0-9]{6,8}$"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date"
+          }
         }
       }
     }

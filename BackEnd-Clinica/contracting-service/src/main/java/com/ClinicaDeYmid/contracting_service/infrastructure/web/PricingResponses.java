@@ -41,12 +41,13 @@ final class PricingResponses {
 
     record ServiceView(String cupsCode, int quantity, BigDecimal unitPrice, BigDecimal lineTotal, PriceOrigin origin,
                        String originLabel, boolean billablePerService, String description, UUID referenceUuid,
-                       String referenceCode) {
+                       String referenceCode, boolean authorizationRequired) {
 
         static ServiceView from(PricedService service) {
             return new ServiceView(service.cupsCode(), service.quantity(), service.unitPrice(), service.lineTotal(),
                     service.origin(), service.origin().label(), service.origin().billablePerService(),
-                    service.description(), service.referenceUuid(), service.referenceCode());
+                    service.description(), service.referenceUuid(), service.referenceCode(),
+                    service.authorizationRequired());
         }
     }
 

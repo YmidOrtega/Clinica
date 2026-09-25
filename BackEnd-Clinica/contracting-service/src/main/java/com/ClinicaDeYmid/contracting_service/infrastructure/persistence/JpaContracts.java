@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.contracting_service.infrastructure.persistence;
 import com.ClinicaDeYmid.contracting_service.domain.Contract;
 import com.ClinicaDeYmid.contracting_service.domain.ContractPackage;
 import com.ClinicaDeYmid.contracting_service.domain.ContractStatus;
+import com.ClinicaDeYmid.contracting_service.domain.AuthorizationRequirement;
 import com.ClinicaDeYmid.contracting_service.domain.ContractTariffException;
 import com.ClinicaDeYmid.contracting_service.domain.Contracts;
 import org.springframework.stereotype.Repository;
@@ -17,13 +18,15 @@ class JpaContracts implements Contracts {
 
     private final ContractJpaRepository contracts;
     private final ContractTariffExceptionJpaRepository exceptions;
+    private final AuthorizationRequirementJpaRepository requirements;
     private final ContractPackageJpaRepository packages;
 
     JpaContracts(ContractJpaRepository contracts, ContractTariffExceptionJpaRepository exceptions,
-                 ContractPackageJpaRepository packages) {
+                 ContractPackageJpaRepository packages, AuthorizationRequirementJpaRepository requirements) {
         this.contracts = contracts;
         this.exceptions = exceptions;
         this.packages = packages;
+        this.requirements = requirements;
     }
 
     @Override
@@ -89,5 +92,25 @@ class JpaContracts implements Contracts {
     @Override
     public List<ContractPackage> packagesInForce(UUID contractUuid, LocalDate date) {
         return packages.findApplying(contractUuid, date);
+    }
+
+    @Override
+    public AuthorizationRequirement save(AuthorizationRequirement requirement) {
+        return requirements.saveAndFlush(requirement);
+    }
+
+    @Override
+    public Optional<AuthorizationRequirement> findRequirementByUuid(UUID uuid) {
+        return requirements.findByUuid(uuid);
+    }
+
+    @Override
+    public List<AuthorizationRequirement> requirementsOf(UUID contractUuid) {
+        return requirements.findByContract(contractUuid);
+    }
+
+    @Override
+    public Optional<AuthorizationRequirement> requirementFor(UUID contractUuid, String cupsCode, LocalDate date) {
+        return requirements.findApplying(contractUuid, cupsCode, date).stream().findFirst();
     }
 }

@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.contracting_service.infrastructure.events;
 
+import com.ClinicaDeYmid.contracting_service.domain.AuthorizationRequirement;
 import com.ClinicaDeYmid.contracting_service.domain.Contract;
 import com.ClinicaDeYmid.contracting_service.domain.ContractPackage;
 import com.ClinicaDeYmid.contracting_service.domain.ContractTariffException;
@@ -15,20 +16,31 @@ import java.util.UUID;
 record ContractMessage(UUID eventId, String type, Instant occurredAt, String traceId, UUID contractUuid,
                        PayerView payer, String number, String name, String modality, LocalDate validFrom,
                        LocalDate validTo, String status, long version, TariffTermsView tariffTerms,
-                       List<ExceptionView> tariffExceptions, List<PackageView> packages, FundingView funding) {
+                       List<ExceptionView> tariffExceptions, List<PackageView> packages, FundingView funding,
+                       List<RequirementView> authorizationRequirements) {
 
     static final String AGGREGATE_TYPE = "contracting.contracts";
 
     static ContractMessage of(Contract contract, String type, List<ContractTariffException> exceptions,
-                              List<ContractPackage> packages, FundingAgreement funding, UUID eventId,
-                              Instant occurredAt, String traceId) {
+                              List<ContractPackage> packages, FundingAgreement funding,
+                              List<AuthorizationRequirement> requirements, UUID eventId, Instant occurredAt,
+                              String traceId) {
         return new ContractMessage(eventId, type, occurredAt, traceId, contract.uuid(),
                 new PayerView(contract.payer().uuid(), contract.payer().nit().formatted(), contract.payer().socialReason()),
                 contract.number(), contract.name(), contract.modality().name(), contract.validFrom(), contract.validTo(),
                 contract.status().code().name(), contract.version(), TariffTermsView.from(contract),
                 exceptions.stream().filter(exception -> exception.revokedFrom() == null).map(ExceptionView::from).toList(),
                 packages.stream().filter(agreed -> agreed.revokedFrom() == null).map(PackageView::from).toList(),
-                FundingView.from(funding));
+                FundingView.from(funding),
+                requirements.stream().filter(requirement -> requirement.revokedFrom() == null)
+                        .map(RequirementView::from).toList());
+    }
+
+    record RequirementView(UUID uuid, String cupsCode, LocalDate validFrom) {
+
+        static RequirementView from(AuthorizationRequirement requirement) {
+            return new RequirementView(requirement.uuid(), requirement.cupsCode(), requirement.validFrom());
+        }
     }
 
     record PayerView(UUID uuid, String nit, String socialReason) {
