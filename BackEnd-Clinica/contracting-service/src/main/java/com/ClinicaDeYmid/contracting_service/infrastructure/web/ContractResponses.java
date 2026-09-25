@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.contracting_service.infrastructure.web;
 
+import com.ClinicaDeYmid.contracting_service.domain.AuthorizationRequirement;
 import com.ClinicaDeYmid.contracting_service.domain.Contract;
 import com.ClinicaDeYmid.contracting_service.domain.ContractModality;
 import com.ClinicaDeYmid.contracting_service.domain.ContractPackage;
@@ -53,6 +54,16 @@ final class ContractResponses {
                 case ContractStatus.Terminated terminated ->
                         new StatusView(status.code(), terminated.reason(), terminated.since(), false);
             };
+        }
+    }
+
+    record RequirementView(UUID uuid, UUID contractUuid, String cupsCode, LocalDate validFrom, LocalDate revokedFrom,
+                           String revocationReason, Instant registeredAt, String registeredBy) {
+
+        static RequirementView from(AuthorizationRequirement requirement) {
+            return new RequirementView(requirement.uuid(), requirement.contract().uuid(), requirement.cupsCode(),
+                    requirement.validFrom(), requirement.revokedFrom(), requirement.revocationReason(),
+                    requirement.registeredAt(), requirement.registeredBy());
         }
     }
 

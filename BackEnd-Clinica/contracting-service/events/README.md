@@ -5,7 +5,7 @@ cambio, y Debezium los publica en Kafka. El servicio no habla con Kafka.
 
 | Topic | Política | Clave | Qué lleva |
 |---|---|---|---|
-| `contracting.contracts.v1` | compactado | uuid del contrato | el estado completo del contrato tras cada cambio: pagador, vigencia, modalidad, estado, términos tarifarios, excepciones vigentes, paquetes vigentes y el acuerdo de capitación o presupuesto |
+| `contracting.contracts.v1` | compactado | uuid del contrato | el estado completo del contrato tras cada cambio: pagador, vigencia, modalidad, estado, términos tarifarios, excepciones vigentes, paquetes vigentes, servicios que exigen autorización previa y el acuerdo de capitación o presupuesto |
 | `contracting.tariffs.v1` | sin compactar, retención indefinida | uuid del manual | cada publicación o retiro de una versión de manual, con su unidad, el valor de la unidad, la cantidad de tarifas y la huella del contenido |
 
 El contrato va **compactado con estado completo** para que un consumidor que se conecte hoy reconstruya la

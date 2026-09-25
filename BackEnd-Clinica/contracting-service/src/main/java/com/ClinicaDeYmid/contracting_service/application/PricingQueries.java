@@ -51,7 +51,8 @@ public class PricingQueries {
         Map<UUID, ContractPackage> applied = new LinkedHashMap<>();
 
         for (Requested service : requested) {
-            priced.add(price(contract, date, service, packages, applied));
+            priced.add(price(contract, date, service, packages, applied).requiringAuthorization(
+                    contracts.requirementFor(contractUuid, service.cupsCode(), date).isPresent()));
         }
 
         List<AppliedPackage> appliedPackages = applied.values().stream()

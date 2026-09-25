@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.contracting_service.application;
 
+import com.ClinicaDeYmid.contracting_service.domain.AuthorizationRequirement;
 import com.ClinicaDeYmid.contracting_service.domain.Contract;
 import com.ClinicaDeYmid.contracting_service.domain.ContractPackage;
 import com.ClinicaDeYmid.contracting_service.domain.ContractTariffException;
@@ -37,6 +38,11 @@ public class ContractQueries {
     public List<ContractTariffException> exceptionsOf(UUID contractUuid) {
         get(contractUuid);
         return contracts.exceptionsOf(contractUuid);
+    }
+
+    public List<AuthorizationRequirement> requirementsOf(UUID contractUuid) {
+        get(contractUuid);
+        return contracts.requirementsOf(contractUuid);
     }
 
     public List<ContractPackage> packagesOf(UUID contractUuid) {

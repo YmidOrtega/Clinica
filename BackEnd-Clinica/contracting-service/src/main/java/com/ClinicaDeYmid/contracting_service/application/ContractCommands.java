@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.contracting_service.application;
 
 import com.ClinicaDeYmid.commons.web.EntityTags;
+import com.ClinicaDeYmid.contracting_service.domain.AuthorizationRequirement;
 import com.ClinicaDeYmid.contracting_service.domain.Contract;
 import com.ClinicaDeYmid.contracting_service.domain.ContractModality;
 import com.ClinicaDeYmid.contracting_service.domain.ContractPackage;
@@ -111,6 +112,32 @@ public class ContractCommands {
             exception.revoke(from, reason, actor, clock);
             ContractTariffException saved = contracts.save(exception);
             publish(saved.contract(), "ContractTariffExceptionRevoked");
+            return saved;
+        });
+    }
+
+    public AuthorizationRequirement requireAuthorization(UUID contractUuid, String cupsCode, LocalDate validFrom,
+                                                         String actor) {
+        return transactions.execute(status -> {
+            Contract contract = contract(contractUuid);
+            contracts.requirementFor(contractUuid, cupsCode, validFrom).ifPresent(current -> {
+                throw new ContractingException.AuthorizationAlreadyRequired();
+            });
+            AuthorizationRequirement saved = contracts.save(
+                    AuthorizationRequirement.register(contract, cupsCode, validFrom, actor, clock));
+            log.info("Authorization requirement registered: contract={} code={}", contractUuid, cupsCode);
+            publish(contract, "ContractAuthorizationRequired");
+            return saved;
+        });
+    }
+
+    public AuthorizationRequirement revokeRequirement(UUID requirementUuid, LocalDate from, String reason, String actor) {
+        return transactions.execute(status -> {
+            AuthorizationRequirement requirement = contracts.findRequirementByUuid(requirementUuid)
+                    .orElseThrow(ContractingException.RequirementNotFound::new);
+            requirement.revoke(from, reason, actor, clock);
+            AuthorizationRequirement saved = contracts.save(requirement);
+            publish(saved.contract(), "ContractAuthorizationRequirementRevoked");
             return saved;
         });
     }

@@ -101,6 +101,30 @@ class PricingApiIT {
     }
 
     @Test
+    void tellsWhichServicesNeedThePayersAuthorizationOnThatDate() throws Exception {
+        String contract = activeEventContract("1.0");
+        String body = stepUp(post("/api/v1/contracts/" + contract + "/authorization-requirements"),
+                "{\"cupsCode\":\"890201\",\"validFrom\":\"2026-02-01\"}")
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String requirement = com.jayway.jsonpath.JsonPath.read(body, "$.uuid");
+
+        as("BILLING", post("/api/v1/price-quotes").content(quoteFor(contract, "890201", 1)))
+                .andExpect(jsonPath("$.services[0].authorizationRequired").value(true));
+        as("BILLING", post("/api/v1/price-quotes").content(quoteFor(contract, "890201", 1).replace("2026-03-01", "2026-01-15")))
+                .andExpect(jsonPath("$.services[0].authorizationRequired").value(false));
+        as("BILLING", post("/api/v1/price-quotes").content(quoteFor(contract, "999999", 1)))
+                .andExpect(jsonPath("$.services[0].authorizationRequired").value(false));
+
+        stepUp(post("/api/v1/contracts/authorization-requirements/" + requirement + "/revocation"),
+                "{\"from\":\"2026-03-01\",\"reason\":\"El pagador liberó la consulta\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revokedFrom").value("2026-03-01"));
+        as("BILLING", post("/api/v1/price-quotes").content(quoteFor(contract, "890201", 1)))
+                .andExpect(jsonPath("$.services[0].authorizationRequired").value(false));
+    }
+
+    @Test
     void reportsServicesWithoutATariff() throws Exception {
         String contract = activeEventContract("1.0");
 

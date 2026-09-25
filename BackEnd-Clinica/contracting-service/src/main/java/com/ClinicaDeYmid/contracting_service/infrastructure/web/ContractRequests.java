@@ -38,6 +38,9 @@ final class ContractRequests {
     record PackageRequest(String code, String name, BigDecimal price, Set<String> includedCodes, LocalDate validFrom) {
     }
 
+    record AuthorizationRequirementRequest(String cupsCode, LocalDate validFrom) {
+    }
+
     record Revocation(LocalDate from, String reason) {
     }
 }
