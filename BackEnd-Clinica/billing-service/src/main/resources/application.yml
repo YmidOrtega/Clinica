@@ -50,6 +50,21 @@ spring:
   cloud:
     vault:
       enabled: false
+    openfeign:
+      client:
+        config:
+          admissions-service:
+            connect-timeout: 1000
+            read-timeout: 3000
+          patient-service:
+            connect-timeout: 1000
+            read-timeout: 3000
+          contracting-service:
+            connect-timeout: 1000
+            read-timeout: 3000
+    circuitbreaker:
+      resilience4j:
+        disable-time-limiter: true
 
 clinica:
   billing:

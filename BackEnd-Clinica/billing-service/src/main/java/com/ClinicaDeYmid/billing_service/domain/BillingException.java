@@ -120,4 +120,18 @@ public sealed abstract class BillingException extends DomainException {
                     "No hay una cuenta para ese número de atención; aparece cuando admisiones registra el episodio");
         }
     }
+
+    public static final class AdmissionsUnavailable extends BillingException {
+        public AdmissionsUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "ADMISSIONS_UNAVAILABLE",
+                    "Admisiones no responde; sin el episodio no se puede preparar la venta, intenta de nuevo");
+        }
+    }
+
+    public static final class EpisodeUnknownToAdmissions extends BillingException {
+        public EpisodeUnknownToAdmissions() {
+            super(ErrorCategory.NOT_FOUND, "EPISODE_UNKNOWN_TO_ADMISSIONS",
+                    "Admisiones no reconoce el episodio de esta cuenta");
+        }
+    }
 }
