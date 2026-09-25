@@ -102,6 +102,24 @@ class FeeAgreementApiIT {
     }
 
     @Test
+    void billingReadsTheFeesInForceButNeitherTheHistoryNorNewAgreements() throws Exception {
+        String uuid = register();
+        as("HUMAN_RESOURCES", post(path(uuid))
+                .content("{\"basis\":\"PER_PROCEDURE\",\"validFrom\":\"2026-01-01\",\"procedures\":["
+                        + "{\"serviceCode\":\"514201\",\"amount\":900000.00}]}"))
+                .andExpect(status().isCreated());
+
+        as("BILLING", get(path(uuid) + "/in-force?on=2026-03-15"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.procedures[0].amount").value(900000.00));
+        as("BILLING", get(path(uuid))).andExpect(status().isForbidden());
+        as("BILLING", post(path(uuid))
+                .content("{\"basis\":\"HOURLY\",\"amount\":85000.00,\"validFrom\":\"2026-02-01\"}"))
+                .andExpect(status().isForbidden());
+        as("DOCTOR", get(path(uuid) + "/in-force?on=2026-03-15")).andExpect(status().isForbidden());
+    }
+
+    @Test
     void demandsARecentSecondFactorAndTheFeesPermission() throws Exception {
         String uuid = register();
         String body = "{\"basis\":\"HOURLY\",\"amount\":85000.00,\"validFrom\":\"2026-01-01\"}";

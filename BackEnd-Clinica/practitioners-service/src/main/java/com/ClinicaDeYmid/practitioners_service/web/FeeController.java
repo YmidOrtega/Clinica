@@ -57,8 +57,9 @@ class FeeController {
     }
 
     @GetMapping("/in-force")
-    @PreAuthorize(Access.MANAGE_FEES)
-    @Operation(summary = "Honorarios vigentes en una fecha")
+    @PreAuthorize(Access.READ_FEES)
+    @Operation(summary = "Honorarios vigentes en una fecha",
+            description = "Facturación lo lee para calcular los honorarios por pagar de cada procedimiento")
     ResponseEntity<FeeResponses.AgreementView> inForce(@PathVariable UUID practitionerUuid,
                                                        @RequestParam(required = false)
                                                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate on) {
