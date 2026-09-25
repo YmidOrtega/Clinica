@@ -3,6 +3,8 @@ package com.ClinicaDeYmid.billing_service.support;
 import com.ClinicaDeYmid.commons.security.testing.SecurityTestTokens;
 import org.springframework.test.context.DynamicPropertyRegistry;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,5 +31,15 @@ public final class JwtTestTokens {
 
     public static String bearer(String role) {
         return SecurityTestTokens.staff(role, UUID.fromString(USERS.get(role))).bearer();
+    }
+
+    public static String bearerWithoutSecondFactor(String role) {
+        return SecurityTestTokens.staff(role, UUID.fromString(USERS.get(role))).withoutSecondFactor().bearer();
+    }
+
+    public static String bearerAuthenticatedLongAgo(String role) {
+        return SecurityTestTokens.staff(role, UUID.fromString(USERS.get(role)))
+                .authenticatedAt(Instant.now().minus(Duration.ofHours(12)))
+                .bearer();
     }
 }

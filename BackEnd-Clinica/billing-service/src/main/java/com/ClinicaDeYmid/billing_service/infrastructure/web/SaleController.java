@@ -5,12 +5,17 @@ import com.ClinicaDeYmid.billing_service.application.sale.SaleCommands;
 import com.ClinicaDeYmid.billing_service.application.sale.SaleQueries;
 import com.ClinicaDeYmid.billing_service.domain.Sale;
 import com.ClinicaDeYmid.billing_service.domain.SaleType;
+import com.ClinicaDeYmid.billing_service.infrastructure.web.SaleResponses.PreviewView;
 import com.ClinicaDeYmid.billing_service.infrastructure.web.SaleResponses.SaleView;
+import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
+import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,12 +38,16 @@ class SaleController {
 
     static final String SALES = "/api/v1/billing/sales";
 
+    private static final Logger log = LoggerFactory.getLogger(SaleController.class);
+
     private final SaleCommands commands;
     private final SaleQueries queries;
+    private final RecentAuthentication recentAuthentication;
 
-    SaleController(SaleCommands commands, SaleQueries queries) {
+    SaleController(SaleCommands commands, SaleQueries queries, RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
+        this.recentAuthentication = recentAuthentication;
     }
 
     @PostMapping(SALES)
@@ -87,9 +96,32 @@ class SaleController {
         return tagged(uuid);
     }
 
+    @PostMapping(SALES + "/{uuid}/lines/{lineUuid}/manual-price")
+    @PreAuthorize(Access.PRICE_MANUALLY)
+    @Operation(summary = "Poner precio a mano a un servicio que el contrato no tasa",
+            description = "Exige un segundo factor reciente y un motivo; solo vale para líneas sin tarifa")
+    ResponseEntity<SaleView> priceManually(@PathVariable UUID uuid, @PathVariable UUID lineUuid,
+                                           @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                           @Valid @RequestBody SaleRequests.ManualPrice request) {
+        long version = EntityTags.requiredVersion(ifMatch);
+        AuthenticatedUser user = recentAuthentication.require();
+        log.info("Step-up accepted for a manual price: {} authenticated at {}", user.uuid(), user.authenticatedAt());
+        commands.priceManually(uuid, version, lineUuid, request.unitPrice(), request.reason());
+        return tagged(uuid);
+    }
+
+    @GetMapping(SALES + "/{uuid}/price-preview")
+    @PreAuthorize(Access.PREPARE_SALE)
+    @Operation(summary = "Ver cómo quedaría tasada la venta sin confirmarla",
+            description = "Consulta los precios del contrato del episodio a la fecha de cada servicio")
+    PreviewView preview(@PathVariable UUID uuid) {
+        return PreviewView.from(queries.sale(uuid), commands.preview(uuid));
+    }
+
     @PostMapping(SALES + "/{uuid}/confirmation")
     @PreAuthorize(Access.SELL)
-    @Operation(summary = "Confirmar la venta; sus líneas ya no cambian")
+    @Operation(summary = "Confirmar la venta con los precios del contrato; ya no cambia",
+            description = "Falla si alguna línea no tiene tarifa y tampoco precio manual")
     ResponseEntity<SaleView> confirm(@PathVariable UUID uuid,
                                      @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         commands.confirm(uuid, EntityTags.requiredVersion(ifMatch));

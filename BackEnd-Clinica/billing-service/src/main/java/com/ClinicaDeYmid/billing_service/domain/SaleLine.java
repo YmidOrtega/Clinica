@@ -19,8 +19,10 @@ import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 @Entity
@@ -79,6 +81,29 @@ public class SaleLine {
     @Column(name = "authorization_number", updatable = false, length = 40)
     private String authorizationNumber;
 
+    @Column(name = "manual_unit_price", precision = 14, scale = 2)
+    private BigDecimal manualUnitPrice;
+
+    @Column(name = "manual_price_reason", length = 500)
+    private String manualPriceReason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_origin", length = 20)
+    private PriceOrigin priceOrigin;
+
+    @Column(name = "unit_price", precision = 14, scale = 2)
+    private BigDecimal unitPrice;
+
+    @Column(name = "line_total", precision = 14, scale = 2)
+    private BigDecimal lineTotal;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "price_reference_uuid", length = 36)
+    private UUID priceReferenceUuid;
+
+    @Column(name = "price_reference_code", length = 40)
+    private String priceReferenceCode;
+
     @Column(name = "removed_at")
     private Instant removedAt;
 
@@ -126,6 +151,43 @@ public class SaleLine {
         }
         removalReason = DomainRules.requiredText(reason, "reason", 500);
         removedAt = now;
+    }
+
+    void setManualPrice(BigDecimal unitPrice, String reason) {
+        if (removed()) {
+            throw new BillingException.LineAlreadyRemoved();
+        }
+        manualUnitPrice = Money.positive(unitPrice, "unitPrice");
+        manualPriceReason = DomainRules.requiredText(reason, "reason", 500);
+    }
+
+    LinePrice priceFrom(LinePrice quoted) {
+        LinePrice found = quoted == null ? LinePrice.unpriced() : quoted;
+        if (found.pending() && manualUnitPrice != null) {
+            return LinePrice.manual(manualUnitPrice, quantity);
+        }
+        return found;
+    }
+
+    void settle(LinePrice price) {
+        priceOrigin = price.origin();
+        unitPrice = price.unitPrice();
+        lineTotal = price.lineTotal();
+        priceReferenceUuid = price.referenceUuid();
+        priceReferenceCode = price.referenceCode();
+    }
+
+    public Optional<LinePrice> price() {
+        return priceOrigin == null ? Optional.empty()
+                : Optional.of(new LinePrice(priceOrigin, unitPrice, lineTotal, priceReferenceUuid, priceReferenceCode));
+    }
+
+    public Optional<BigDecimal> manualUnitPrice() {
+        return Optional.ofNullable(manualUnitPrice);
+    }
+
+    public String manualPriceReason() {
+        return manualPriceReason;
     }
 
     public boolean removed() {

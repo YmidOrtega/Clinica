@@ -37,8 +37,8 @@ class SaleTest {
     void aDischargedEpisodeStillTakesLateCharges() {
         Sale sale = Sale.open(account(AdmissionSnapshot.Status.DISCHARGED), 1, new SaleType.NonSurgical());
 
-        sale.charge(CONSULTATION, 1, TODAY, new LineOrigin.Manual(), NOW);
-        sale.confirm(NOW);
+        SaleLine line = sale.charge(CONSULTATION, 1, TODAY, new LineOrigin.Manual(), NOW);
+        sale.confirm(tariff(line, "45000.00"), NOW);
 
         assertThat(sale.status()).isInstanceOf(SaleStatus.Confirmed.class);
     }
@@ -92,20 +92,22 @@ class SaleTest {
         SaleLine line = sale.charge(CONSULTATION, 1, TODAY, new LineOrigin.Manual(), NOW);
         sale.removeLine(line.uuid(), "Cargado por error", NOW);
 
-        assertThatThrownBy(() -> sale.confirm(NOW)).isInstanceOf(BillingException.EmptySale.class);
+        assertThatThrownBy(() -> sale.confirm(PricingTerms.withoutContract(), NOW))
+                .isInstanceOf(BillingException.EmptySale.class);
     }
 
     @Test
     void aConfirmedSaleNoLongerChangesButCanBeCancelledOnce() {
         Sale sale = draft();
         SaleLine line = sale.charge(CONSULTATION, 1, TODAY, new LineOrigin.Manual(), NOW);
-        sale.confirm(NOW);
+        sale.confirm(tariff(line, "45000.00"), NOW);
 
         assertThatThrownBy(() -> sale.charge(CONSULTATION, 1, TODAY, new LineOrigin.Manual(), NOW))
                 .isInstanceOf(BillingException.SaleNotEditable.class);
         assertThatThrownBy(() -> sale.removeLine(line.uuid(), "Tarde", NOW))
                 .isInstanceOf(BillingException.SaleNotEditable.class);
-        assertThatThrownBy(() -> sale.confirm(NOW)).isInstanceOf(BillingException.InvalidSaleTransition.class);
+        assertThatThrownBy(() -> sale.confirm(tariff(line, "45000.00"), NOW))
+                .isInstanceOf(BillingException.InvalidSaleTransition.class);
 
         sale.cancel("El paciente no recibió el servicio", NOW);
 
@@ -117,6 +119,13 @@ class SaleTest {
     void anAccountHoldsAtMostNinetyNineSales() {
         assertThatThrownBy(() -> Sale.open(account(AdmissionSnapshot.Status.ACTIVE), 100, new SaleType.NonSurgical()))
                 .isInstanceOf(BillingException.TooManySales.class);
+    }
+
+    private static PricingTerms tariff(SaleLine line, String unitPrice) {
+        java.math.BigDecimal unit = new java.math.BigDecimal(unitPrice);
+        return new PricingTerms(UUID.randomUUID(), "CT-1", UUID.randomUUID(), java.util.Map.of(line.uuid(),
+                new LinePrice(PriceOrigin.TARIFF_MANUAL, unit, Money.times(unit, line.quantity()), null, "ISS2001")),
+                java.util.List.of());
     }
 
     private static Sale draft() {
