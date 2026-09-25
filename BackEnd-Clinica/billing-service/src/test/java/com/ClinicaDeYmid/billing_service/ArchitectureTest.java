@@ -22,7 +22,6 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule layersOnlyDependInward = layeredArchitecture()
             .consideringOnlyDependenciesInLayers()
-            .withOptionalLayers(true)
             .layer("Domain").definedBy("..billing_service.domain..")
             .layer("Application").definedBy("..billing_service.application..")
             .layer("Infrastructure").definedBy("..billing_service.infrastructure..")
