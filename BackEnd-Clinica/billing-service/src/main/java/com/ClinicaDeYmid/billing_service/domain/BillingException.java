@@ -113,4 +113,11 @@ public sealed abstract class BillingException extends DomainException {
                     "La resolución activa ya usó todo su rango de numeración");
         }
     }
+
+    public static final class AccountNotFound extends BillingException {
+        public AccountNotFound() {
+            super(ErrorCategory.NOT_FOUND, "ACCOUNT_NOT_FOUND",
+                    "No hay una cuenta para ese número de atención; aparece cuando admisiones registra el episodio");
+        }
+    }
 }

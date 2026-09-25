@@ -35,6 +35,18 @@ spring:
         jdbc:
           time_zone: UTC
       org.hibernate.envers.default_catalog: billing_history
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: billing-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        allow.auto.create.topics: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   cloud:
     vault:
       enabled: false
@@ -42,6 +54,8 @@ spring:
 clinica:
   billing:
     time-zone: America/Bogota
+    admission-events:
+      enabled: ${BILLING_ADMISSION_EVENTS_ENABLED:true}
   security:
     jwt:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
