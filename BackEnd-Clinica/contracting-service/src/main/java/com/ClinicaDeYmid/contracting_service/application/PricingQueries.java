@@ -9,6 +9,9 @@ import com.ClinicaDeYmid.contracting_service.domain.Contracts;
 import com.ClinicaDeYmid.contracting_service.domain.ContractingException;
 import com.ClinicaDeYmid.contracting_service.domain.PriceOrigin;
 import com.ClinicaDeYmid.contracting_service.domain.PricedService;
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalComponent;
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalLiquidation;
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalRuleSet;
 import com.ClinicaDeYmid.contracting_service.domain.TariffItem;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManualVersion;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManuals;
@@ -19,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +105,9 @@ public class PricingQueries {
             return PricedService.covered(code, quantity, PriceOrigin.UNPRICED, PriceOrigin.UNPRICED.label(), null, null);
         }
         return manuals.findItem(version.uuid(), code)
-                .map(item -> fromManual(contract, version, item, quantity))
+                .map(item -> item.surgical()
+                        ? PricedService.surgicalProcedure(code, quantity, item.description())
+                        : fromManual(contract, version, item, quantity))
                 .orElseGet(() -> PricedService.covered(code, quantity, PriceOrigin.UNPRICED,
                         PriceOrigin.UNPRICED.label(), null, null));
     }
@@ -114,6 +120,100 @@ public class PricingQueries {
 
     private TariffManualVersion tariffVersion(Contract contract) {
         return contract.tariffVersion();
+    }
+
+    public SurgicalQuote surgicalQuote(UUID contractUuid, LocalDate date, List<RequestedProcedure> requested) {
+        Contract contract = contracts.findByUuid(contractUuid).orElseThrow(ContractingException.ContractNotFound::new);
+        contract.requireInForceOn(date);
+        if (requested.isEmpty()) {
+            throw new ContractingException.InvalidData("procedures", "debe traer al menos un procedimiento");
+        }
+        List<ContractPackage> packages = contracts.packagesInForce(contractUuid, date);
+        Map<UUID, ContractPackage> applied = new LinkedHashMap<>();
+        QuotedProcedure[] quoted = new QuotedProcedure[requested.size()];
+        List<SurgicalLiquidation.Procedure> toLiquidate = new ArrayList<>();
+        TariffManualVersion version = contract.tariffVersion();
+
+        for (int index = 0; index < requested.size(); index++) {
+            RequestedProcedure procedure = requested.get(index);
+            boolean authorization = contracts.requirementFor(contractUuid, procedure.cupsCode(), date).isPresent();
+            Optional<TariffItem> item = version == null || contract.modality() == ContractModality.CAPITATION
+                    || contract.modality() == ContractModality.GLOBAL_BUDGET
+                    ? Optional.empty() : manuals.findItem(version.uuid(), procedure.cupsCode());
+            if (item.isPresent() && item.get().surgical() && !coveredBeforeTheManual(contract, date, procedure, packages)) {
+                toLiquidate.add(new SurgicalLiquidation.Procedure(index, item.get(), procedure.route()));
+                continue;
+            }
+            PricedService priced = price(contract, date, new Requested(procedure.cupsCode(), 1), packages, applied);
+            quoted[index] = QuotedProcedure.single(procedure, priced, authorization);
+        }
+
+        SurgicalRuleSet rules = null;
+        if (!toLiquidate.isEmpty()) {
+            rules = manuals.surgicalRulesOf(version.uuid()).orElseThrow(ContractingException.SurgicalRulesMissing::new);
+            for (SurgicalLiquidation.Liquidated liquidated : SurgicalLiquidation.liquidate(rules, contract.tariffFactor(),
+                    toLiquidate)) {
+                RequestedProcedure procedure = requested.get(liquidated.requestIndex());
+                quoted[liquidated.requestIndex()] = QuotedProcedure.liquidated(procedure, liquidated, version,
+                        contracts.requirementFor(contractUuid, procedure.cupsCode(), date).isPresent());
+            }
+        }
+
+        List<AppliedPackage> appliedPackages = applied.values().stream()
+                .map(agreed -> new AppliedPackage(agreed.uuid(), agreed.code(), agreed.name(), agreed.price()))
+                .toList();
+        List<QuotedProcedure> procedures = List.of(quoted);
+        Map<SurgicalComponent, BigDecimal> byComponent = new EnumMap<>(SurgicalComponent.class);
+        procedures.forEach(procedure -> procedure.components().forEach(charge ->
+                byComponent.merge(charge.component(), charge.amount(), BigDecimal::add)));
+        BigDecimal total = procedures.stream().map(QuotedProcedure::total).reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(appliedPackages.stream().map(AppliedPackage::price).reduce(BigDecimal.ZERO, BigDecimal::add))
+                .setScale(2, RoundingMode.HALF_UP);
+        return new SurgicalQuote(contract, date, version, rules, procedures, appliedPackages, byComponent, total);
+    }
+
+    private boolean coveredBeforeTheManual(Contract contract, LocalDate date, RequestedProcedure procedure,
+                                           List<ContractPackage> packages) {
+        return packages.stream().anyMatch(agreed -> agreed.covers(procedure.cupsCode()))
+                || contracts.exceptionFor(contract.uuid(), procedure.cupsCode(), date).isPresent();
+    }
+
+    public record RequestedProcedure(String cupsCode, String route) {
+
+        public RequestedProcedure {
+            if (cupsCode == null || cupsCode.isBlank()) {
+                throw new ContractingException.InvalidData("cupsCode", "es obligatorio");
+            }
+            route = route == null || route.isBlank() ? "UNICA" : route.strip().toUpperCase(java.util.Locale.ROOT);
+            if (route.length() > 30) {
+                throw new ContractingException.InvalidData("route", "no puede superar 30 caracteres");
+            }
+        }
+    }
+
+    public record QuotedProcedure(String cupsCode, String route, String description, PriceOrigin origin,
+                                  BigDecimal basis, Integer order, boolean principal, boolean sameRoute,
+                                  List<SurgicalLiquidation.ComponentCharge> components, BigDecimal total,
+                                  UUID referenceUuid, String referenceCode, boolean authorizationRequired) {
+
+        static QuotedProcedure single(RequestedProcedure procedure, PricedService priced, boolean authorization) {
+            return new QuotedProcedure(procedure.cupsCode(), procedure.route(), priced.description(), priced.origin(),
+                    null, null, false, false, List.of(), priced.lineTotal(), priced.referenceUuid(),
+                    priced.referenceCode(), authorization);
+        }
+
+        static QuotedProcedure liquidated(RequestedProcedure procedure, SurgicalLiquidation.Liquidated liquidated,
+                                          TariffManualVersion version, boolean authorization) {
+            return new QuotedProcedure(procedure.cupsCode(), procedure.route(), liquidated.item().description(),
+                    PriceOrigin.SURGICAL_LIQUIDATION, liquidated.item().surgicalBasis(), liquidated.order(),
+                    liquidated.principal(), liquidated.sameRoute(), liquidated.components(), liquidated.total(),
+                    version.uuid(), version.manual().code(), authorization);
+        }
+    }
+
+    public record SurgicalQuote(Contract contract, LocalDate date, TariffManualVersion tariffVersion,
+                                SurgicalRuleSet rules, List<QuotedProcedure> procedures, List<AppliedPackage> packages,
+                                Map<SurgicalComponent, BigDecimal> componentTotals, BigDecimal total) {
     }
 
     public record Requested(String cupsCode, int quantity) {

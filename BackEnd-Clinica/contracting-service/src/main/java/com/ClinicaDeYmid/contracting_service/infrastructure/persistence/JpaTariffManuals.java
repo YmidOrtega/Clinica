@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.contracting_service.infrastructure.persistence;
 
+import com.ClinicaDeYmid.contracting_service.domain.SurgicalRuleSet;
 import com.ClinicaDeYmid.contracting_service.domain.TariffItem;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManual;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManualVersion;
@@ -19,12 +20,14 @@ class JpaTariffManuals implements TariffManuals {
     private final TariffManualJpaRepository manuals;
     private final TariffManualVersionJpaRepository versions;
     private final TariffItemJpaRepository items;
+    private final SurgicalRuleSetJpaRepository surgicalRules;
 
     JpaTariffManuals(TariffManualJpaRepository manuals, TariffManualVersionJpaRepository versions,
-                     TariffItemJpaRepository items) {
+                     TariffItemJpaRepository items, SurgicalRuleSetJpaRepository surgicalRules) {
         this.manuals = manuals;
         this.versions = versions;
         this.items = items;
+        this.surgicalRules = surgicalRules;
     }
 
     @Override
@@ -86,5 +89,15 @@ class JpaTariffManuals implements TariffManuals {
     @Override
     public List<TariffItem> itemsOf(UUID manualVersionUuid, int page, int size) {
         return items.findByVersion(manualVersionUuid, PageRequest.of(page, size));
+    }
+
+    @Override
+    public SurgicalRuleSet save(SurgicalRuleSet rules) {
+        return surgicalRules.saveAndFlush(rules);
+    }
+
+    @Override
+    public Optional<SurgicalRuleSet> surgicalRulesOf(UUID manualVersionUuid) {
+        return surgicalRules.findByVersion(manualVersionUuid);
     }
 }

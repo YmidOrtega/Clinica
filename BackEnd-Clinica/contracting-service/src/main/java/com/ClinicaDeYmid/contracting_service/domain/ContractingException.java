@@ -253,4 +253,26 @@ public sealed abstract class ContractingException extends DomainException {
                     "No se encontró el requisito de autorización del contrato");
         }
     }
+
+    public static final class SurgicalRulesDoNotCover extends ContractingException {
+        public SurgicalRulesDoNotCover(SurgicalComponent component, java.math.BigDecimal basis) {
+            super(ErrorCategory.RULE_VIOLATION, "SURGICAL_RULES_DO_NOT_COVER",
+                    "Las reglas quirúrgicas del manual no tienen un rango de " + component.label().toLowerCase()
+                            + " para la base " + basis.stripTrailingZeros().toPlainString());
+        }
+    }
+
+    public static final class SurgicalRulesMissing extends ContractingException {
+        public SurgicalRulesMissing() {
+            super(ErrorCategory.RULE_VIOLATION, "SURGICAL_RULES_MISSING",
+                    "La versión del manual tiene procedimientos quirúrgicos pero no sus reglas de liquidación");
+        }
+    }
+
+    public static final class SurgicalRulesAlreadyLoaded extends ContractingException {
+        public SurgicalRulesAlreadyLoaded() {
+            super(ErrorCategory.CONFLICT, "SURGICAL_RULES_ALREADY_LOADED",
+                    "La versión ya tiene otras reglas quirúrgicas; abre una versión nueva para cambiarlas");
+        }
+    }
 }

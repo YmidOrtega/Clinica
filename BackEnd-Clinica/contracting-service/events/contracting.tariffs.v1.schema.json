@@ -85,6 +85,16 @@
     "sourceChecksum": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "surgicalItemCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Tariff items that carry a surgical basis and are liquidated by component."
+    },
+    "surgicalRulesChecksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the surgical liquidation rules of the version; absent when it has none."
     }
   }
 }

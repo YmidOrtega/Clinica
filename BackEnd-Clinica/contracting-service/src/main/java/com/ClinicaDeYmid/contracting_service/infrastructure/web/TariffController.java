@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.contracting_service.infrastructure.web;
 
+import com.ClinicaDeYmid.commons.security.CurrentUser;
 import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import com.ClinicaDeYmid.contracting_service.application.TariffCommands;
@@ -7,6 +8,7 @@ import com.ClinicaDeYmid.contracting_service.application.TariffQueries;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManual;
 import com.ClinicaDeYmid.contracting_service.domain.TariffManualVersion;
 import com.ClinicaDeYmid.contracting_service.infrastructure.web.TariffResponses.ItemView;
+import com.ClinicaDeYmid.contracting_service.infrastructure.web.TariffResponses.SurgicalRulesView;
 import com.ClinicaDeYmid.contracting_service.infrastructure.web.TariffResponses.LoadView;
 import com.ClinicaDeYmid.contracting_service.infrastructure.web.TariffResponses.ManualView;
 import com.ClinicaDeYmid.contracting_service.infrastructure.web.TariffResponses.VersionView;
@@ -43,11 +45,14 @@ class TariffController {
     private final TariffCommands commands;
     private final TariffQueries queries;
     private final RecentAuthentication recentAuthentication;
+    private final CurrentUser currentUser;
 
-    TariffController(TariffCommands commands, TariffQueries queries, RecentAuthentication recentAuthentication) {
+    TariffController(TariffCommands commands, TariffQueries queries, RecentAuthentication recentAuthentication,
+                     CurrentUser currentUser) {
         this.commands = commands;
         this.queries = queries;
         this.recentAuthentication = recentAuthentication;
+        this.currentUser = currentUser;
     }
 
     @PostMapping
@@ -124,6 +129,24 @@ class TariffController {
     @Operation(summary = "Consultar la tarifa de un código CUPS en una versión")
     ItemView item(@PathVariable UUID versionUuid, @PathVariable String cupsCode) {
         return ItemView.from(queries.item(versionUuid, cupsCode));
+    }
+
+    @PostMapping("/versions/{versionUuid}/surgical-rules")
+    @PreAuthorize(Access.MANAGE_TARIFFS)
+    @Operation(summary = "Cargar las reglas de liquidación quirúrgica de una versión en borrador",
+            description = "Una regla por componente: tasa por unidad de la base o tabla por rangos, base mínima y "
+                    + "porcentajes para procedimientos adicionales por la misma vía o por otra. Idempotente por huella")
+    SurgicalRulesView loadSurgicalRules(@PathVariable UUID versionUuid,
+                                        @Valid @RequestBody TariffRequests.SurgicalRules request) {
+        return SurgicalRulesView.from(commands.loadSurgicalRules(versionUuid, request.basis(), request.toDefinitions(),
+                currentUser.get().map(user -> user.uuid().toString()).orElse(null)));
+    }
+
+    @GetMapping("/versions/{versionUuid}/surgical-rules")
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Consultar las reglas de liquidación quirúrgica de una versión")
+    SurgicalRulesView surgicalRules(@PathVariable UUID versionUuid) {
+        return SurgicalRulesView.from(queries.surgicalRules(versionUuid));
     }
 
     @PostMapping("/versions/{versionUuid}/activation")

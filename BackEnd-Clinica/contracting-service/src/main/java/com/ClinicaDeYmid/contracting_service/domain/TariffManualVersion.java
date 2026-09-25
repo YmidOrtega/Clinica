@@ -76,6 +76,12 @@ public class TariffManualVersion {
     @Column(name = "item_count", nullable = false)
     private int itemCount;
 
+    @Column(name = "surgical_item_count", nullable = false)
+    private int surgicalItemCount;
+
+    @Column(name = "surgical_rules_checksum", length = 64)
+    private String surgicalRulesChecksum;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -108,6 +114,10 @@ public class TariffManualVersion {
     }
 
     public void loaded(String checksum, int loadedItems) {
+        loaded(checksum, loadedItems, 0);
+    }
+
+    public void loaded(String checksum, int loadedItems, int loadedSurgicalItems) {
         requireEditable();
         sourceChecksum = DomainRules.matching(DomainRules.lower(DomainRules.requiredText(checksum, "checksum", 64)),
                 CHECKSUM, "checksum");
@@ -115,11 +125,20 @@ public class TariffManualVersion {
             throw new ContractingException.InvalidData("items", "debe traer al menos una tarifa");
         }
         itemCount = loadedItems;
+        surgicalItemCount = loadedSurgicalItems;
+    }
+
+    public void surgicalRulesLoaded(String checksum) {
+        requireEditable();
+        surgicalRulesChecksum = DomainRules.requiredText(checksum, "checksum", 64);
     }
 
     public void activate(Clock clock) {
         if (itemCount == 0) {
             throw new ContractingException.TariffVersionNotEditable("no tiene tarifas cargadas");
+        }
+        if (surgicalItemCount > 0 && surgicalRulesChecksum == null) {
+            throw new ContractingException.SurgicalRulesMissing();
         }
         applyStatus(status().activate(Instant.now(clock)));
     }
@@ -176,6 +195,14 @@ public class TariffManualVersion {
 
     public int itemCount() {
         return itemCount;
+    }
+
+    public int surgicalItemCount() {
+        return surgicalItemCount;
+    }
+
+    public String surgicalRulesChecksum() {
+        return surgicalRulesChecksum;
     }
 
     public Instant createdAt() {
