@@ -1,49 +1,115 @@
+server:
+  port: ${BILLING_SERVICE_PORT:8082}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
 spring:
   application:
     name: billing-service
+  config:
+    import: optional:configtree:/run/secrets/openbao/
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${BILLING_DB_URL:jdbc:mysql://localhost:3317/billing_db}
+    username: ${BILLING_DB_APP_USER:billing_app}
+    password: ${BILLING_DB_APP_PASSWORD:}
+    hikari:
+      pool-name: billing-service
+      maximum-pool-size: ${BILLING_DB_POOL_SIZE:15}
+      connection-timeout: 5000
   flyway:
-    location: classpath:db/migration/billing
+    locations: classpath:db/migration/billing
+    user: ${BILLING_DB_MIGRATOR_USER:billing_migrator}
+    password: ${BILLING_DB_MIGRATOR_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+      org.hibernate.envers.default_catalog: billing_history
+  cloud:
+    vault:
+      enabled: false
+
+clinica:
+  billing:
+    time-zone: America/Bogota
   security:
-    # Endpoints públicos adicionales
-    public-paths:
-      - /actuator/health
-      - /actuator/info
-      - /v3/api-docs/**
-      - /swagger-ui/**
-      - /swagger-ui.html
+    jwt:
+      jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
+      issuer: ${AUTH_ISSUER:http://localhost:8080/auth}
+      audiences: clinica-api, billing-service
+    client:
+      id: billing-service
+      token-uri: ${AUTH_TOKEN_URI:http://localhost:8086/oauth2/token}
+      assertion-key: ${BILLING_CLIENT_TRANSIT_KEY:billing-service-client}
+      audiences:
+        admissions-service: admissions-service
+        contracting-service: contracting-service
+        practitioners-service: practitioners-service
+        patient-service: patient-service
+    revocation:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
   instance:
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 5
-    lease-expiration-duration-in-seconds: 10
+    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:true}
 
-# Configuración de Swagger/OpenAPI
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+
 springdoc:
-  api-docs:
-    path: /v3/api-docs
   swagger-ui:
-    path: /swagger-ui.html
-    enabled: true
-    try-it-out-enabled: true
-    operations-sorter: method
-    tags-sorter: alpha
-    filter: true
-    doc-expansion: none
-  show-actuator: true
+    enabled: ${SWAGGER_UI_ENABLED:false}
 
-# Información de la API
-api:
-  version: 1.0.0
-  name: Billing Service API
-  description: Microservicio para la gestión de facturación
-  contact:
-    name: Development Team
-    email: dev@example.com
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
+
+---
+spring:
+  config:
+    activate:
+      on-profile: openbao
+    import:
+      - vault://secret/billing/db/migrator?prefix=billing.db.migrator.
+      - vault://secret/billing/db/app?prefix=billing.db.app.
+  cloud:
+    vault:
+      enabled: true
+      uri: ${OPENBAO_ADDR:https://openbao:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${approle.role-id}
+        secret-id: ${approle.secret-id}
+      ssl:
+        trust-store: file:/run/secrets/openbao-tls/ca.crt
+        trust-store-type: PEM
+  datasource:
+    username: ${billing.db.app.username}
+    password: ${billing.db.app.password}
+  flyway:
+    user: ${billing.db.migrator.username}
+    password: ${billing.db.migrator.password}
