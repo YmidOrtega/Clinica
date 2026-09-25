@@ -284,7 +284,7 @@ class AdmissionApiIT extends IntegrationTest {
                 "{\"name\":\"Piso cama " + index + "\"}").andReturn().getResponse().getContentAsString(), "$.uuid");
         String room = JsonPath.read(as("ADMIN", org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/api/v1/admissions/rooms"),
-                "{\"name\":\"Hab " + index + "\",\"locationUuid\":\"" + location + "\"}")
+                "{\"name\":\"Hab " + index + "\",\"locationUuid\":\"" + location + "\",\"stayType\":\"GENERAL_WARD\"}")
                 .andReturn().getResponse().getContentAsString(), "$.uuid");
         return JsonPath.read(as("ADMIN", org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/api/v1/admissions/beds"),

@@ -5,6 +5,7 @@ import com.ClinicaDeYmid.admissions_service.domain.Bed;
 import com.ClinicaDeYmid.admissions_service.domain.BedStatus;
 import com.ClinicaDeYmid.admissions_service.domain.Location;
 import com.ClinicaDeYmid.admissions_service.domain.Room;
+import com.ClinicaDeYmid.admissions_service.domain.StayType;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -107,7 +108,7 @@ class BedStatusTest {
 
     @Test
     void aBedCannotBeInstalledInARetiredRoom() {
-        Room room = Room.open("301", Location.define("Piso 3"));
+        Room room = Room.open("301", Location.define("Piso 3"), StayType.GENERAL_WARD);
         room.retire("Remodelación", clock);
 
         assertThatThrownBy(() -> Bed.install("301-A", room)).isInstanceOf(AdmissionsException.RetiredRoom.class);
@@ -118,10 +119,10 @@ class BedStatusTest {
         Location location = Location.define("Piso 3");
         location.retire("Remodelación", clock);
 
-        assertThatThrownBy(() -> Room.open("301", location)).isInstanceOf(AdmissionsException.RetiredLocation.class);
+        assertThatThrownBy(() -> Room.open("301", location, StayType.GENERAL_WARD)).isInstanceOf(AdmissionsException.RetiredLocation.class);
     }
 
     private Bed bed() {
-        return Bed.install("301-A", Room.open("301", Location.define("Piso 3")));
+        return Bed.install("301-A", Room.open("301", Location.define("Piso 3"), StayType.GENERAL_WARD));
     }
 }

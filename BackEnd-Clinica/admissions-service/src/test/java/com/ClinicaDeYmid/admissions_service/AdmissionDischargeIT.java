@@ -191,7 +191,7 @@ class AdmissionDischargeIT extends IntegrationTest {
         String location = JsonPath.read(as("ADMIN", post(BASE + "/catalogue/locations"),
                 "{\"name\":\"Piso egreso " + index + "\"}").andReturn().getResponse().getContentAsString(), "$.uuid");
         String room = JsonPath.read(as("ADMIN", post(BASE + "/rooms"),
-                "{\"name\":\"Hab egreso " + index + "\",\"locationUuid\":\"" + location + "\"}")
+                "{\"name\":\"Hab egreso " + index + "\",\"locationUuid\":\"" + location + "\",\"stayType\":\"GENERAL_WARD\"}")
                 .andReturn().getResponse().getContentAsString(), "$.uuid");
         return JsonPath.read(as("ADMIN", post(BASE + "/beds"),
                 "{\"label\":\"Cama egreso " + index + "\",\"roomUuid\":\"" + room + "\"}")

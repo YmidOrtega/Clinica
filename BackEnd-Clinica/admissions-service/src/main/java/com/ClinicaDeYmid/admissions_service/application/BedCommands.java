@@ -9,6 +9,7 @@ import com.ClinicaDeYmid.admissions_service.domain.Location;
 import com.ClinicaDeYmid.admissions_service.domain.Locations;
 import com.ClinicaDeYmid.admissions_service.domain.Room;
 import com.ClinicaDeYmid.admissions_service.domain.Rooms;
+import com.ClinicaDeYmid.admissions_service.domain.StayType;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,14 +44,14 @@ public class BedCommands {
         this.clock = clock;
     }
 
-    public Room openRoom(String name, UUID locationUuid) {
+    public Room openRoom(String name, UUID locationUuid, StayType stayType) {
         return transactions.execute(status -> {
             Location location = locations.findByUuid(locationUuid)
                     .orElseThrow(AdmissionsException.LocationNotFound::new);
             rooms.findByNameAndLocation(name, locationUuid).ifPresent(other -> {
                 throw new AdmissionsException.NameAlreadyUsed("las habitaciones de esa ubicación");
             });
-            Room opened = rooms.save(Room.open(name, location));
+            Room opened = rooms.save(Room.open(name, location, stayType));
             log.info("Room opened: uuid={} location={}", opened.uuid(), locationUuid);
             return opened;
         });
@@ -58,6 +59,10 @@ public class BedCommands {
 
     public Room retireRoom(UUID uuid, long expectedVersion, String reason) {
         return modifyRoom(uuid, expectedVersion, room -> room.retire(reason, clock));
+    }
+
+    public Room changeStayType(UUID uuid, long expectedVersion, StayType stayType) {
+        return modifyRoom(uuid, expectedVersion, room -> room.changeStayType(stayType));
     }
 
     public Room restoreRoom(UUID uuid, long expectedVersion) {

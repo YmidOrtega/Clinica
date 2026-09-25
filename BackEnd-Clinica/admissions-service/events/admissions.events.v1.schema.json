@@ -251,6 +251,11 @@
           "type": "string",
           "format": "uuid"
         },
+        "bedStayType": {
+          "description": "Stay type of the room of the current bed; present only while the episode holds a bed.",
+          "enum": ["OBSERVATION", "GENERAL_WARD", "SHARED_ROOM", "PRIVATE_ROOM", "INTERMEDIATE_CARE", "ICU_ADULT",
+                   "ICU_PEDIATRIC", "ICU_NEONATAL"]
+        },
         "coverage": {
           "enum": ["COVERED", "NOT_COVERED", "UNKNOWN"]
         }

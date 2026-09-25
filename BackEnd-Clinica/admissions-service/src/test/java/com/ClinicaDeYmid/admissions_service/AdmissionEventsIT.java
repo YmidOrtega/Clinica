@@ -184,6 +184,8 @@ class AdmissionEventsIT {
                 .containsExactly("AdmissionRegistered", "AdmissionCoveragePending", "AdmissionBedAssigned",
                         "AdmissionBedReleased", "AdmissionDischarged");
         assertThat(JSON.readTree(events.get(2).value()).at("/data/bedUuid").asText()).isEqualTo(bed);
+        assertThat(JSON.readTree(events.get(2).value()).at("/data/admission/bedStayType").asText()).isEqualTo("ICU_ADULT");
+        assertThat(JSON.readTree(events.get(3).value()).at("/data/admission/bedStayType").isMissingNode()).isTrue();
         assertThat(JSON.readTree(events.get(4).value()).at("/data/discharge").asText()).isEqualTo("MEDICAL");
         assertThat(events).allSatisfy(record ->
                 assertThat(ProducerContract.ADMISSION_EVENTS.breaches(record.value())).isEmpty());
@@ -245,7 +247,7 @@ class AdmissionEventsIT {
         int index = TestSequence.next();
         Location location = catalogue.defineLocation("Piso eventos " + index);
         String room = JsonPath.read(mockMvc.perform(authorized(post("/api/v1/admissions/rooms"), "ADMIN")
-                        .content("{\"name\":\"Hab eventos " + index + "\",\"locationUuid\":\"" + location.uuid() + "\"}"))
+                        .content("{\"name\":\"Hab eventos " + index + "\",\"locationUuid\":\"" + location.uuid() + "\",\"stayType\":\"ICU_ADULT\"}"))
                 .andReturn().getResponse().getContentAsString(), "$.uuid");
         return JsonPath.read(mockMvc.perform(authorized(post("/api/v1/admissions/beds"), "ADMIN")
                         .content("{\"label\":\"Cama eventos " + index + "\",\"roomUuid\":\"" + room + "\"}"))

@@ -151,7 +151,7 @@ class BoardApiIT extends IntegrationTest {
     private String aBedIn(UUID location) throws Exception {
         int index = TestSequence.next();
         String room = JsonPath.read(as("ADMIN", post(BASE + "/rooms"),
-                "{\"name\":\"Hab tablero " + index + "\",\"locationUuid\":\"" + location + "\"}")
+                "{\"name\":\"Hab tablero " + index + "\",\"locationUuid\":\"" + location + "\",\"stayType\":\"GENERAL_WARD\"}")
                 .andReturn().getResponse().getContentAsString(), "$.uuid");
         return JsonPath.read(as("ADMIN", post(BASE + "/beds"),
                 "{\"label\":\"Cama tablero " + index + "\",\"roomUuid\":\"" + room + "\"}")

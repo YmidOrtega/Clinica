@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -49,6 +50,29 @@ class BedApiIT extends IntegrationTest {
         change("NURSE", post(BASE + "/beds/" + bed + "/cleaning-completion"), 2, null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status.code").value("AVAILABLE"));
+    }
+
+    @Test
+    void everyRoomSaysWhatKindOfStayItsBedsAreBilledAs() throws Exception {
+        String bed = aBed();
+        String room = JsonPath.read(as("NURSE", get(BASE + "/beds/" + bed)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.stayType").value("GENERAL_WARD"))
+                .andReturn().getResponse().getContentAsString(), "$.roomUuid");
+
+        change("ADMIN", put(BASE + "/rooms/" + room + "/stay-type"), 0, "{\"stayType\":\"INTERMEDIATE_CARE\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stayType").value("INTERMEDIATE_CARE"));
+        change("NURSE", put(BASE + "/rooms/" + room + "/stay-type"), 1, "{\"stayType\":\"ICU_ADULT\"}")
+                .andExpect(status().isForbidden());
+        as("NURSE", get(BASE + "/beds/" + bed)).andExpect(jsonPath("$.stayType").value("INTERMEDIATE_CARE"));
+    }
+
+    @Test
+    void aRoomCannotBeOpenedWithoutItsStayType() throws Exception {
+        String location = aLocation();
+
+        as("ADMIN", post(BASE + "/rooms").content("{\"name\":\"" + unique("Hab") + "\",\"locationUuid\":\"" + location + "\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -166,7 +190,7 @@ class BedApiIT extends IntegrationTest {
 
     private String aRoom(String location) throws Exception {
         return uuidOf(as("ADMIN", post(BASE + "/rooms")
-                .content("{\"name\":\"" + unique("Hab") + "\",\"locationUuid\":\"" + location + "\"}"))
+                .content("{\"name\":\"" + unique("Hab") + "\",\"locationUuid\":\"" + location + "\",\"stayType\":\"GENERAL_WARD\"}"))
                 .andReturn().getResponse().getContentAsString());
     }
 
