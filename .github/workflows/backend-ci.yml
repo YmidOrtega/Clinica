@@ -67,6 +67,7 @@ jobs:
           - contracting-service
           - practitioners-service
           - admissions-service
+          - billing-service
           - api-gateway
     steps:
       - uses: actions/checkout@v4
