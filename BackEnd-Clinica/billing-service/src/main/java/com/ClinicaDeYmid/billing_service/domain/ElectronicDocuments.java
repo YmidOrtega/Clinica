@@ -19,4 +19,6 @@ public interface ElectronicDocuments {
     List<UUID> awaitingDelivery(int limit);
 
     List<UUID> awaitingDianValidation(int limit);
+
+    List<UUID> awaitingAttachment(int limit);
 }

@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.dian;
 
 import com.ClinicaDeYmid.billing_service.application.DianDelivery;
+import com.ClinicaDeYmid.billing_service.application.DocumentAttachment;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -10,9 +11,11 @@ import org.springframework.stereotype.Component;
 class DianDeliveries {
 
     private final DianDelivery delivery;
+    private final DocumentAttachment attachment;
 
-    DianDeliveries(DianDelivery delivery) {
+    DianDeliveries(DianDelivery delivery, DocumentAttachment attachment) {
         this.delivery = delivery;
+        this.attachment = attachment;
     }
 
     @Scheduled(initialDelayString = "${clinica.billing.dian.delivery.delay:PT30S}",
@@ -20,5 +23,6 @@ class DianDeliveries {
     void deliverAndCheck() {
         delivery.deliverPending(20);
         delivery.checkPending(20);
+        attachment.attachPending(20);
     }
 }

@@ -42,4 +42,14 @@ interface ElectronicDocumentJpaRepository extends JpaRepository<ElectronicDocume
             where d.dianStatus = com.ClinicaDeYmid.billing_service.domain.DianStatus.AWAITING_VALIDATION
             order by d.dianStatusAt, d.id""")
     List<UUID> awaitingDianValidation(Pageable page);
+
+    @Query("""
+            select d.uuid from ElectronicDocument d
+            where d.dianStatus = com.ClinicaDeYmid.billing_service.domain.DianStatus.ACCEPTED
+              and exists (select f.id from DocumentFile f where f.document = d
+                  and f.kind = com.ClinicaDeYmid.billing_service.domain.DocumentFile.Kind.DIAN_APPLICATION_RESPONSE)
+              and not exists (select f.id from DocumentFile f where f.document = d
+                  and f.kind = com.ClinicaDeYmid.billing_service.domain.DocumentFile.Kind.ATTACHED_DOCUMENT)
+            order by d.dianStatusAt, d.id""")
+    List<UUID> awaitingAttachment(Pageable page);
 }

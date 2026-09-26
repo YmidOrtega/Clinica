@@ -489,4 +489,11 @@ public sealed abstract class BillingException extends DomainException {
             super(ErrorCategory.RULE_VIOLATION, "CONTRACT_NOT_REGISTERED_FOR_RIPS", detail);
         }
     }
+
+    public static final class AttachedDocumentNotReady extends BillingException {
+        public AttachedDocumentNotReady() {
+            super(ErrorCategory.NOT_FOUND, "ATTACHED_DOCUMENT_NOT_READY",
+                    "El documento adjunto solo existe cuando la DIAN aceptó el documento electrónico");
+        }
+    }
 }

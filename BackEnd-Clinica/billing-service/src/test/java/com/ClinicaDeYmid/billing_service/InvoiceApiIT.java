@@ -179,6 +179,18 @@ class InvoiceApiIT extends InvoicingIntegrationTest {
                 JOIN invoices i ON i.id = e.invoice_id
                 WHERE i.uuid = ? AND f.kind = 'DIAN_APPLICATION_RESPONSE'""", String.class, invoice))
                 .isEqualTo(DianSimulator.APPLICATION_RESPONSE);
+        String signedUbl = as("BILLING", get(INVOICES + "/" + invoice + "/ubl")).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        String container = as("BILLING", get(INVOICES + "/" + invoice + "/attached-document"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(container).contains("<AttachedDocument", "<cbc:DocumentType>Contenedor de Factura Electrónica",
+                "<![CDATA[" + signedUbl + "]]>", "<![CDATA[" + DianSimulator.APPLICATION_RESPONSE + "]]>",
+                "<cbc:ValidationResultCode>02</cbc:ValidationResultCode>");
+        assertThat(XadesVerification.verify(container, LocalDianSigningKey.SHARED.certificate().getPublicKey()).valid())
+                .isTrue();
+        assertThat(as("BILLING", get(INVOICES + "/" + invoice + "/attached-document")).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).isEqualTo(container);
         as("BILLING", post(INVOICES + "/" + invoice + "/dian-delivery"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("DOCUMENT_NOT_DELIVERABLE"));
@@ -229,6 +241,9 @@ class InvoiceApiIT extends InvoicingIntegrationTest {
                 .andExpect(jsonPath("$.dian.status").doesNotExist())
                 .andExpect(jsonPath("$.dian.attempts").value(1));
         as("BILLING", get(INVOICES + "/" + invoice + "/dian-verdicts")).andExpect(jsonPath("$.length()").value(0));
+        as("BILLING", get(INVOICES + "/" + invoice + "/attached-document"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ATTACHED_DOCUMENT_NOT_READY"));
     }
 
     @Test

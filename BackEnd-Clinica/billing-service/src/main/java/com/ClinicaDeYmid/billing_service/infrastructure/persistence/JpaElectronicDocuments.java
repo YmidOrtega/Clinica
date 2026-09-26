@@ -52,4 +52,9 @@ class JpaElectronicDocuments implements ElectronicDocuments {
     public List<UUID> awaitingDianValidation(int limit) {
         return repository.awaitingDianValidation(PageRequest.of(0, limit));
     }
+
+    @Override
+    public List<UUID> awaitingAttachment(int limit) {
+        return repository.awaitingAttachment(PageRequest.of(0, limit));
+    }
 }

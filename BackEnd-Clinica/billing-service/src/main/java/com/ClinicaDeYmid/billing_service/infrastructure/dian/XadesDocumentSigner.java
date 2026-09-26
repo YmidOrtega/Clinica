@@ -130,8 +130,8 @@ public class XadesDocumentSigner implements DocumentSigner {
     private static Element signatureSlot(Document document) {
         NodeList extensions = document.getDocumentElement()
                 .getElementsByTagNameNS(StaxUblWriter.EXT, "UBLExtension");
-        if (extensions.getLength() < 2) {
-            throw new IllegalArgumentException("The UBL has no UBLExtension for the signature after the DIAN one");
+        if (extensions.getLength() == 0) {
+            throw new IllegalArgumentException("The UBL has no UBLExtension for the signature");
         }
         NodeList contents = ((Element) extensions.item(extensions.getLength() - 1))
                 .getElementsByTagNameNS(StaxUblWriter.EXT, "ExtensionContent");

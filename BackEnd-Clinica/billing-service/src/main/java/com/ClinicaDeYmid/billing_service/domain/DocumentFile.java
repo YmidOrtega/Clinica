@@ -30,7 +30,8 @@ public class DocumentFile {
     public enum Kind {
         UBL_UNSIGNED,
         UBL_SIGNED,
-        DIAN_APPLICATION_RESPONSE
+        DIAN_APPLICATION_RESPONSE,
+        ATTACHED_DOCUMENT
     }
 
     @Id
