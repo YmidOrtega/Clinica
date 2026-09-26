@@ -105,6 +105,10 @@ clinica:
         delay: ${BILLING_MINISTRY_RETRY_DELAY:PT5M}
     filing:
       warning-business-days: ${BILLING_FILING_WARNING_BUSINESS_DAYS:5}
+      alerts:
+        cron: ${BILLING_FILING_ALERTS_CRON:0 0 6 * * *}
+    outbox:
+      retention: ${BILLING_OUTBOX_RETENTION:7d}
     seal:
       transit-key: ${BILLING_SEAL_TRANSIT_KEY:billing-seal}
     representations:
