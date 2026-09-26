@@ -542,6 +542,7 @@ services:
          PRACTITIONERS_DB_HOST: practitioners-db
          ADMISSIONS_DB_HOST: admissions-db
          ADMISSIONS_DB_NAME: ${ADMISSIONS_DB_NAME}
+         BILLING_DB_HOST: billing-db
       volumes:
          - kafka_connect_secrets:/run/secrets/kafka-connect:ro
       networks:
@@ -552,6 +553,7 @@ services:
          - contracting-data
          - practitioners-data
          - admissions-data
+         - billing-data
       healthcheck:
          test: ["CMD-SHELL", "curl -fs http://localhost:8083/connectors > /dev/null"]
          interval: 10s
@@ -578,6 +580,8 @@ services:
             condition: service_healthy
          admissions-db:
             condition: service_healthy
+         billing-db:
+            condition: service_healthy
       entrypoint: ["sh", "/register-connectors.sh"]
       volumes:
          - ./platform/kafka-connect/register-connectors.sh:/register-connectors.sh:ro
@@ -587,6 +591,7 @@ services:
          - ./contracting-service/debezium:/connectors/contracting-service:ro
          - ./practitioners-service/debezium:/connectors/practitioners-service:ro
          - ./admissions-service/debezium:/connectors/admissions-service:ro
+         - ./billing-service/debezium:/connectors/billing-service:ro
       networks:
          - kafka-net
 
