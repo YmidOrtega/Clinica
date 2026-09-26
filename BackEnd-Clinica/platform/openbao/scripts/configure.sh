@@ -122,21 +122,28 @@ seed() {
   echo "Seeded secret/$path"
 }
 
-seed_self_signed_dian_certificate() {
-  if bao kv get -mount=secret billing/dian/certificate > /dev/null 2>&1; then
+import_self_signed_dian_key() {
+  if bao read transit/keys/billing-dian > /dev/null 2>&1 && \
+     bao kv get -mount=secret billing/dian/certificate > /dev/null 2>&1; then
     return
   fi
   work=$(mktemp -d)
-  password=$(random_secret)
   openssl req -x509 -newkey rsa:2048 -sha256 -days 730 -nodes \
     -subj "/C=CO/O=Clinica de Ymid/CN=Clinica de Ymid Habilitacion DIAN" \
     -keyout "$work/key.pem" -out "$work/certificate.pem" 2> /dev/null
-  openssl pkcs12 -export -name billing-dian -inkey "$work/key.pem" -in "$work/certificate.pem" \
-    -passout "pass:$password" -out "$work/certificate.p12"
-  bao kv put -mount=secret -cas=0 billing/dian/certificate \
-    pkcs12="$(openssl base64 -A -in "$work/certificate.p12")" password="$password" > /dev/null
+  openssl pkcs8 -topk8 -nocrypt -inform PEM -outform DER -in "$work/key.pem" -out "$work/key.der"
+  bao read -field=public_key transit/wrapping_key > "$work/wrapping.pem"
+  openssl rand -out "$work/ephemeral.bin" 32
+  openssl pkeyutl -encrypt -pubin -inkey "$work/wrapping.pem" -in "$work/ephemeral.bin" -out "$work/ephemeral.wrapped" \
+    -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256
+  openssl enc -id-aes256-wrap-pad -iv A65959A6 -K "$(od -An -tx1 -v "$work/ephemeral.bin" | tr -d ' \n')" \
+    -in "$work/key.der" -out "$work/key.wrapped"
+  cat "$work/ephemeral.wrapped" "$work/key.wrapped" > "$work/ciphertext.bin"
+  bao write transit/keys/billing-dian/import ciphertext="$(openssl base64 -A -in "$work/ciphertext.bin")" \
+    type=rsa-2048 hash_function=SHA256 exportable=false > /dev/null
+  bao kv put -mount=secret billing/dian/certificate pem="$(cat "$work/certificate.pem")" > /dev/null
   rm -rf "$work"
-  echo "Seeded secret/billing/dian/certificate (self-signed)"
+  echo "Imported transit/keys/billing-dian and seeded secret/billing/dian/certificate (self-signed)"
 }
 
 for service in patient clinical contracting practitioners admissions billing; do
@@ -151,7 +158,7 @@ seed auth/db/app username="auth_app" password="$(random_secret)"
 seed auth/db/debezium username="auth_debezium" password="$(random_secret)"
 seed auth/bootstrap super-admin-email="superadmin@clinica.local" super-admin-name="Administración Inicial"
 seed gateway/redis password="$(random_secret)"
-seed_self_signed_dian_certificate
+import_self_signed_dian_key
 seed clinical/storage/root username="clinical-storage-admin" password="$(random_secret)"
 seed clinical/storage/attachments access-key="clinical-history-app" secret-key="$(random_secret)"
 
