@@ -51,6 +51,16 @@ personal en el motor `totp/`: crea, reemplaza y borra claves `totp/keys/staff-*`
 `totp/code/staff-*`. No puede leer ni listar las claves, así que los secretos TOTP solo salen de OpenBao
 una vez, en el QR del enrolamiento. El motor rechaza un código ya usado dentro de su ventana.
 
+`billing-service` firma las facturas y el sobre SOAP de la DIAN con `transit/billing-dian`, una clave RSA
+importada (BYOK) y no exportable, y lee el certificado público en `secret/billing/dian/certificate`
+(campo `pem`, hoja primero y luego la cadena). `configure.sh` importa uno autofirmado solo para desarrollo.
+El identificador y el PIN del software y el set de pruebas de habilitación los entrega el portal de la
+DIAN y se cargan a mano; sin ellos no se emite ni se envía:
+
+```sh
+bao kv put -mount=secret billing/dian/software software-id=<uuid> software-pin=<pin> test-set-id=<uuid>
+```
+
 | Clave transit (`transit/`) | Tipo           | Uso                                               |
 | -------------------------- | -------------- | ------------------------------------------------- |
 | `clinical-kek`             | `aes256-gcm96` | `clinical-history-service` cifra, descifra y lee versiones |
