@@ -37,4 +37,9 @@ class JpaRipsSubmissions implements RipsSubmissions {
     public List<UUID> pending(int limit) {
         return repository.pending(PageRequest.of(0, limit));
     }
+
+    @Override
+    public List<RipsSubmission> validatedOf(java.util.Collection<UUID> invoiceUuids) {
+        return invoiceUuids.isEmpty() ? List.of() : repository.validatedOf(invoiceUuids);
+    }
 }

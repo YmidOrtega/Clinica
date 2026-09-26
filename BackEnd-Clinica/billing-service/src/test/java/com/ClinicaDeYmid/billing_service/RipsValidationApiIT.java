@@ -1,10 +1,8 @@
 package com.ClinicaDeYmid.billing_service;
 
 import com.ClinicaDeYmid.billing_service.application.DianDelivery;
-import com.ClinicaDeYmid.billing_service.application.clinical.ClinicalFact;
 import com.ClinicaDeYmid.billing_service.application.clinical.ClinicalProjection;
 import com.ClinicaDeYmid.billing_service.application.rips.MinistryValidation;
-import com.ClinicaDeYmid.billing_service.support.DianSimulator;
 import com.ClinicaDeYmid.billing_service.support.MinistrySimulator;
 import com.ClinicaDeYmid.billing_service.support.StubbedServices;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
@@ -13,12 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
-import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -30,7 +24,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class RipsValidationApiIT extends InvoicingIntegrationTest {
 
-    private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
     private static final String SUBMIT = MinistrySimulator.PATH + "/api/PaquetesFevRips/CargarFevRips";
 
     @Autowired
@@ -145,7 +138,7 @@ class RipsValidationApiIT extends InvoicingIntegrationTest {
 
         Episode other = outpatient("COVERED");
         String notAccepted = issued(other, confirmedSale(other));
-        documentedCare(other);
+        documentedCare(clinical, other);
         as("BILLING", post(INVOICES + "/" + notAccepted + "/rips-validation"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ATTACHED_DOCUMENT_NOT_READY"));
@@ -163,27 +156,10 @@ class RipsValidationApiIT extends InvoicingIntegrationTest {
     private Accepted acceptedWithCompleteRips(String prefix) throws Exception {
         anActiveResolution(prefix);
         Episode episode = outpatient("COVERED");
-        String invoice = issued(episode, confirmedSale(episode));
-        documentedCare(episode);
-        DianSimulator.receivesTheTestSet("zip-" + prefix);
-        DianSimulator.doesNotKnowTheDocument();
-        delivery.deliverPending(50);
-        DianSimulator.validates("GetStatusZip");
-        delivery.checkPending(50);
-        String number = JsonPath.read(as("BILLING", get(INVOICES + "/" + invoice))
-                .andExpect(jsonPath("$.dian.status").value("ACCEPTED"))
-                .andReturn().getResponse().getContentAsString(), "$.number");
-        return new Accepted(invoice, number);
-    }
-
-    private void documentedCare(Episode episode) {
-        UUID encounter = UUID.randomUUID();
-        Instant opened = LocalDate.now(BOGOTA).atTime(9, 30).atZone(BOGOTA).toInstant();
-        clinical.follow(new ClinicalFact.EncounterOpened(encounter, episode.uuid(), UUID.randomUUID(), "OUTPATIENT",
-                opened, new ClinicalFact.CareSetting("328", "01", "01")));
-        clinical.follow(new ClinicalFact.NoteSigned(UUID.randomUUID(), encounter, episode.uuid(), "CONSULTATION",
-                opened.plusSeconds(600), "15", "38",
-                List.of(new ClinicalFact.CodedDiagnosis("I10X", "PRINCIPAL", "CONFIRMED_NEW"))));
+        String sale = confirmedSale(episode);
+        documentedCare(clinical, episode);
+        String invoice = acceptedInvoice(delivery, episode, sale);
+        return new Accepted(invoice, numberOf(invoice));
     }
 
     private record Accepted(String uuid, String number) {

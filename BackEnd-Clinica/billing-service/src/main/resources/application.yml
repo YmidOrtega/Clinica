@@ -103,6 +103,8 @@ clinica:
       read-timeout: 120s
       retries:
         delay: ${BILLING_MINISTRY_RETRY_DELAY:PT5M}
+    filing:
+      warning-business-days: ${BILLING_FILING_WARNING_BUSINESS_DAYS:5}
     seal:
       transit-key: ${BILLING_SEAL_TRANSIT_KEY:billing-seal}
     representations:

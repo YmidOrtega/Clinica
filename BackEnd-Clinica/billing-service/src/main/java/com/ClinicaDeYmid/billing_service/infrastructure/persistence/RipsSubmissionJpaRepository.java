@@ -26,4 +26,11 @@ interface RipsSubmissionJpaRepository extends JpaRepository<RipsSubmission, Long
             where s.status = com.ClinicaDeYmid.billing_service.domain.RipsSubmission.Status.PENDING
             order by s.lastAttemptAt, s.id""")
     List<UUID> pending(Pageable page);
+
+    @EntityGraph(attributePaths = {"invoice"})
+    @Query("""
+            select s from RipsSubmission s
+            where s.status = com.ClinicaDeYmid.billing_service.domain.RipsSubmission.Status.VALIDATED
+              and s.invoice.uuid in :invoices""")
+    List<RipsSubmission> validatedOf(@Param("invoices") java.util.Collection<UUID> invoices);
 }

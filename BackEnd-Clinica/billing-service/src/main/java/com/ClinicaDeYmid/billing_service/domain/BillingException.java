@@ -524,4 +524,42 @@ public sealed abstract class BillingException extends DomainException {
                     "Faltan las credenciales SISPRO del mecanismo único de validación");
         }
     }
+
+    public static final class FilingWithoutCuv extends BillingException {
+        public FilingWithoutCuv() {
+            super(ErrorCategory.RULE_VIOLATION, "FILING_WITHOUT_CUV",
+                    "Una factura solo se radica con el CUV del Ministerio de Salud; valida primero su RIPS");
+        }
+    }
+
+    public static final class NotFileable extends BillingException {
+        public NotFileable(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "NOT_FILEABLE", detail);
+        }
+    }
+
+    public static final class InvalidFilingDate extends BillingException {
+        public InvalidFilingDate(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "INVALID_FILING_DATE", detail);
+        }
+    }
+
+    public static final class AlreadyFiled extends BillingException {
+        public AlreadyFiled() {
+            super(ErrorCategory.CONFLICT, "ALREADY_FILED",
+                    "La factura ya tiene radicado; corrígelo en lugar de registrarlo de nuevo");
+        }
+    }
+
+    public static final class FilingNotFound extends BillingException {
+        public FilingNotFound() {
+            super(ErrorCategory.NOT_FOUND, "FILING_NOT_FOUND", "La factura aún no tiene radicado registrado");
+        }
+    }
+
+    public static final class FilingPackageNotReady extends BillingException {
+        public FilingPackageNotReady(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "FILING_PACKAGE_NOT_READY", detail);
+        }
+    }
 }
