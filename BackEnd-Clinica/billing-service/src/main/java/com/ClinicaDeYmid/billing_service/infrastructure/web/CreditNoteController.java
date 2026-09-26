@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.billing_service.infrastructure.web;
 import com.ClinicaDeYmid.billing_service.application.CreditNoteCommands;
 import com.ClinicaDeYmid.billing_service.application.CreditNoteQueries;
 import com.ClinicaDeYmid.billing_service.application.DianDelivery;
+import com.ClinicaDeYmid.billing_service.application.DocumentAttachment;
 import com.ClinicaDeYmid.billing_service.application.DocumentSigning;
 import com.ClinicaDeYmid.billing_service.domain.CreditConcept;
 import com.ClinicaDeYmid.billing_service.domain.CreditNote;
@@ -55,14 +56,17 @@ class CreditNoteController {
     private final CreditNoteQueries queries;
     private final DocumentSigning signing;
     private final DianDelivery delivery;
+    private final DocumentAttachment attachment;
     private final RecentAuthentication recentAuthentication;
 
     CreditNoteController(CreditNoteCommands commands, CreditNoteQueries queries, DocumentSigning signing,
-                         DianDelivery delivery, RecentAuthentication recentAuthentication) {
+                         DianDelivery delivery, DocumentAttachment attachment,
+                         RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
         this.signing = signing;
         this.delivery = delivery;
+        this.attachment = attachment;
         this.recentAuthentication = recentAuthentication;
     }
 
@@ -98,6 +102,17 @@ class CreditNoteController {
     @Operation(summary = "Consultar una nota crédito con sus líneas y su estado ante la DIAN")
     CreditNoteView note(@PathVariable UUID uuid) {
         return view(uuid);
+    }
+
+    @GetMapping(value = CREDIT_NOTES + "/{uuid}/attached-document", produces = MediaType.APPLICATION_XML_VALUE)
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Descargar el AttachedDocument firmado de la nota crédito aceptada por la DIAN",
+            description = "Contiene el UBL firmado y el ApplicationResponse de la DIAN; es lo que se entrega al "
+                    + "adquiriente y al Ministerio de Salud. Si aún no existe se genera al pedirlo")
+    ResponseEntity<String> attachedDocument(@PathVariable UUID uuid) {
+        DocumentFile file = attachment.attach(queries.electronicDocument(uuid).uuid());
+        return ResponseEntity.ok().eTag("\"" + file.sha256() + "\"").contentType(MediaType.APPLICATION_XML)
+                .body(file.content());
     }
 
     @GetMapping(value = CREDIT_NOTES + "/{uuid}/ubl", produces = MediaType.APPLICATION_XML_VALUE)

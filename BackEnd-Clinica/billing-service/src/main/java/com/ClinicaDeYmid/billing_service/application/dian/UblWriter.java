@@ -5,4 +5,6 @@ public interface UblWriter {
     String invoice(ElectronicInvoice invoice);
 
     String creditNote(ElectronicCreditNote note);
+
+    String attachedDocument(ElectronicAttachment attachment);
 }

@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.billing_service.infrastructure.web;
 import com.ClinicaDeYmid.billing_service.application.DianDelivery;
 import com.ClinicaDeYmid.billing_service.application.InvoiceCommands;
 import com.ClinicaDeYmid.billing_service.application.InvoiceQueries;
+import com.ClinicaDeYmid.billing_service.application.DocumentAttachment;
 import com.ClinicaDeYmid.billing_service.application.DocumentSigning;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
@@ -57,14 +58,16 @@ class InvoiceController {
     private final InvoiceQueries queries;
     private final DocumentSigning signing;
     private final DianDelivery delivery;
+    private final DocumentAttachment attachment;
     private final RecentAuthentication recentAuthentication;
 
     InvoiceController(InvoiceCommands commands, InvoiceQueries queries, DocumentSigning signing, DianDelivery delivery,
-                      RecentAuthentication recentAuthentication) {
+                      DocumentAttachment attachment, RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
         this.signing = signing;
         this.delivery = delivery;
+        this.attachment = attachment;
         this.recentAuthentication = recentAuthentication;
     }
 
@@ -138,6 +141,17 @@ class InvoiceController {
     List<VerdictView> verdicts(@PathVariable UUID uuid) {
         return queries.electronicDocument(uuid).map(document -> delivery.verdicts(document.uuid())).orElse(List.of())
                 .stream().map(VerdictView::from).toList();
+    }
+
+    @GetMapping(value = INVOICES + "/{uuid}/attached-document", produces = MediaType.APPLICATION_XML_VALUE)
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Descargar el AttachedDocument firmado de la factura aceptada por la DIAN",
+            description = "Contiene el UBL firmado y el ApplicationResponse de la DIAN; es lo que se entrega al "
+                    + "adquiriente y al Ministerio de Salud. Si aún no existe se genera al pedirlo")
+    ResponseEntity<String> attachedDocument(@PathVariable UUID uuid) {
+        DocumentFile file = attachment.attach(queries.requireElectronicDocument(uuid).uuid());
+        return ResponseEntity.ok().eTag("\"" + file.sha256() + "\"").contentType(MediaType.APPLICATION_XML)
+                .body(file.content());
     }
 
     @GetMapping(value = INVOICES + "/{uuid}/ubl", produces = MediaType.APPLICATION_XML_VALUE)

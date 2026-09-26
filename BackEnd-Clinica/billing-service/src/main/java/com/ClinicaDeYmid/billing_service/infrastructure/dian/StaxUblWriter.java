@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.dian;
 
+import com.ClinicaDeYmid.billing_service.application.dian.ElectronicAttachment;
 import com.ClinicaDeYmid.billing_service.application.dian.ElectronicCreditNote;
 import com.ClinicaDeYmid.billing_service.application.dian.ElectronicInvoice;
 import com.ClinicaDeYmid.billing_service.application.dian.UblWriter;
@@ -7,6 +8,7 @@ import com.ClinicaDeYmid.billing_service.domain.Buyer;
 import com.ClinicaDeYmid.billing_service.domain.CreditNote;
 import com.ClinicaDeYmid.billing_service.domain.CreditNoteLine;
 import com.ClinicaDeYmid.billing_service.domain.Cufe;
+import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
 import com.ClinicaDeYmid.billing_service.domain.HealthTerms;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceLine;
@@ -22,6 +24,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -33,6 +38,7 @@ class StaxUblWriter implements UblWriter {
 
     static final String INVOICE = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
     static final String CREDIT_NOTE = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2";
+    static final String ATTACHED_DOCUMENT = "urn:oasis:names:specification:ubl:schema:xsd:AttachedDocument-2";
     static final String CAC = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
     static final String CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
     static final String EXT = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2";
@@ -58,6 +64,8 @@ class StaxUblWriter implements UblWriter {
             "PERMISO_ESPECIAL_DE_PERMANENCIA", "47",
             "PERMISO_POR_PROTECCION_TEMPORAL", "48");
 
+    private static final ZoneOffset BOGOTA = ZoneOffset.ofHours(-5);
+
     private final XMLOutputFactory factory = XMLOutputFactory.newFactory();
 
     @Override
@@ -68,6 +76,11 @@ class StaxUblWriter implements UblWriter {
     @Override
     public String creditNote(ElectronicCreditNote electronic) {
         return written(xml -> write(xml, electronic));
+    }
+
+    @Override
+    public String attachedDocument(ElectronicAttachment attachment) {
+        return written(xml -> write(xml, attachment));
     }
 
     private interface Content {
@@ -214,6 +227,86 @@ class StaxUblWriter implements UblWriter {
         }
         xml.writeEndElement();
         xml.writeEndDocument();
+    }
+
+    private void write(XMLStreamWriter xml, ElectronicAttachment attachment) throws XMLStreamException {
+        boolean invoice = attachment.type() == ElectronicDocument.Type.INVOICE;
+        OffsetDateTime generated = attachment.generatedAt().atOffset(BOGOTA);
+        OffsetDateTime validated = attachment.validatedAt().atOffset(BOGOTA);
+        root(xml, ATTACHED_DOCUMENT, "AttachedDocument");
+        xml.writeStartElement(EXT, "UBLExtensions");
+        signatureSlot(xml);
+        xml.writeEndElement();
+
+        basic(xml, "UBLVersionID", "UBL 2.1");
+        basic(xml, "CustomizationID", "Documentos adjuntos");
+        basic(xml, "ProfileID", "Factura Electrónica de Venta");
+        basic(xml, "ProfileExecutionID", attachment.environment().dianCode());
+        basic(xml, "ID", attachment.containerId().toString());
+        basic(xml, "IssueDate", generated.toLocalDate().toString());
+        basic(xml, "IssueTime", Cufe.time(generated.toLocalTime().truncatedTo(ChronoUnit.SECONDS)));
+        basic(xml, "DocumentType", "Contenedor de Factura Electrónica");
+        basic(xml, "ParentDocumentID", attachment.number());
+
+        IssuerProfile profile = attachment.issuer().profile();
+        xml.writeStartElement(CAC, "SenderParty");
+        xml.writeStartElement(CAC, "PartyTaxScheme");
+        basic(xml, "RegistrationName", profile.legalName());
+        basic(xml, "CompanyID", attachment.issuer().nit().number(), "schemeAgencyID", "195", "schemeAgencyName",
+                DIAN_AGENCY, "schemeID", String.valueOf(attachment.issuer().nit().verificationDigit()), "schemeName",
+                NIT_SCHEME);
+        basic(xml, "TaxLevelCode", TaxResponsibility.joined(profile.taxResponsibilities()), "listName", "48");
+        taxScheme(xml, profile.taxScheme().dianCode(), profile.taxScheme().dianName());
+        xml.writeEndElement();
+        xml.writeEndElement();
+
+        Buyer receiver = attachment.receiver();
+        boolean payer = receiver.kind() == Buyer.Kind.PAYER;
+        xml.writeStartElement(CAC, "ReceiverParty");
+        xml.writeStartElement(CAC, "PartyTaxScheme");
+        basic(xml, "RegistrationName", receiver.name());
+        basic(xml, "CompanyID", Cufe.withoutVerificationDigit(receiver.documentNumber()), "schemeAgencyID", "195",
+                "schemeAgencyName", DIAN_AGENCY, "schemeName", payer ? NIT_SCHEME : documentType(receiver.documentType()));
+        basic(xml, "TaxLevelCode", "R-99-PN", "listName", "48");
+        taxScheme(xml, "ZZ", "No aplica");
+        xml.writeEndElement();
+        xml.writeEndElement();
+
+        embedded(xml, attachment.signedUbl());
+
+        xml.writeStartElement(CAC, "ParentDocumentLineReference");
+        basic(xml, "LineID", "1");
+        xml.writeStartElement(CAC, "DocumentReference");
+        basic(xml, "ID", attachment.number());
+        basic(xml, "UUID", attachment.documentKey(), "schemeName", invoice ? "CUFE-SHA384" : "CUDE-SHA384");
+        basic(xml, "IssueDate", attachment.issuedOn().toString());
+        basic(xml, "DocumentType", "ApplicationResponse");
+        embedded(xml, attachment.applicationResponse());
+        xml.writeStartElement(CAC, "ResultOfVerification");
+        basic(xml, "ValidatorID", "Unidad Especial Dirección de Impuestos y Aduanas Nacionales");
+        basic(xml, "ValidationResultCode", "02");
+        basic(xml, "ValidationDate", validated.toLocalDate().toString());
+        basic(xml, "ValidationTime", Cufe.time(validated.toLocalTime().truncatedTo(ChronoUnit.SECONDS)));
+        xml.writeEndElement();
+        xml.writeEndElement();
+        xml.writeEndElement();
+        xml.writeEndElement();
+        xml.writeEndDocument();
+    }
+
+    private void embedded(XMLStreamWriter xml, String document) throws XMLStreamException {
+        if (document.contains("]]>")) {
+            throw new IllegalStateException("An attached XML cannot contain a CDATA terminator");
+        }
+        xml.writeStartElement(CAC, "Attachment");
+        xml.writeStartElement(CAC, "ExternalReference");
+        basic(xml, "MimeCode", "text/xml");
+        basic(xml, "EncodingCode", "UTF-8");
+        xml.writeStartElement(CBC, "Description");
+        xml.writeCData(document);
+        xml.writeEndElement();
+        xml.writeEndElement();
+        xml.writeEndElement();
     }
 
     private void root(XMLStreamWriter xml, String namespace, String element) throws XMLStreamException {

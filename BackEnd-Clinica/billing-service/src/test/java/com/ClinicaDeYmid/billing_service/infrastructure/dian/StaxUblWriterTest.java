@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.dian;
 
 import com.ClinicaDeYmid.billing_service.application.dian.DianSoftware;
+import com.ClinicaDeYmid.billing_service.application.dian.ElectronicAttachment;
 import com.ClinicaDeYmid.billing_service.application.dian.ElectronicInvoice;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionKind;
@@ -11,6 +12,7 @@ import com.ClinicaDeYmid.billing_service.domain.Copayment;
 import com.ClinicaDeYmid.billing_service.domain.Cufe;
 import com.ClinicaDeYmid.billing_service.domain.DianEnvironment;
 import com.ClinicaDeYmid.billing_service.domain.DischargeType;
+import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.CoveragePlan;
@@ -156,6 +158,29 @@ class StaxUblWriterTest {
 
         assertThat(path.evaluate("/inv:Invoice/cbc:CustomizationID", document)).isEqualTo("SS-SinAporte");
         assertThat(path.evaluate("count(//cac:PrepaidPayment)", document)).isEqualTo("0");
+    }
+
+    @Test
+    void wrapsTheSignedDocumentAndTheDianResponseInAnAttachedDocument() throws Exception {
+        Fixture fixture = issued();
+        String signed = sampleUbl();
+        String response = "<ApplicationResponse xmlns=\"urn:oasis:names:specification:ubl:schema:xsd:ApplicationResponse-2\"/>";
+        ElectronicAttachment attachment = new ElectronicAttachment(UUID.randomUUID(), ElectronicDocument.Type.INVOICE,
+                fixture.invoice().number(), fixture.invoice().cufe(), fixture.invoice().issuedOn(), fixture.issuer(),
+                fixture.invoice().buyer(), signed, response, Instant.parse("2026-09-27T15:20:00Z"),
+                Instant.parse("2026-09-27T15:21:00Z"));
+
+        Document document = parse(new StaxUblWriter().attachedDocument(attachment));
+        XPath path = xpath();
+
+        assertThat(document.getDocumentElement().getNamespaceURI()).isEqualTo(StaxUblWriter.ATTACHED_DOCUMENT);
+        assertThat(path.evaluate("count(//ext:UBLExtension)", document)).isEqualTo("1");
+        assertThat(path.evaluate("/*/cbc:ParentDocumentID", document)).isEqualTo("SETP990000000");
+        assertThat(path.evaluate("/*/cac:Attachment/cac:ExternalReference/cbc:Description", document)).isEqualTo(signed);
+        assertThat(path.evaluate("//cac:DocumentReference/cac:Attachment//cbc:Description", document)).isEqualTo(response);
+        assertThat(path.evaluate("//cac:DocumentReference/cbc:UUID", document)).isEqualTo(fixture.invoice().cufe());
+        assertThat(path.evaluate("//cac:ResultOfVerification/cbc:ValidationTime", document)).isEqualTo("10:20:00-05:00");
+        assertThat(path.evaluate("//cac:ReceiverParty//cbc:CompanyID", document)).isEqualTo("900156264");
     }
 
     static String sampleUbl() {
