@@ -2,6 +2,8 @@ package com.ClinicaDeYmid.billing_service;
 
 import com.ClinicaDeYmid.billing_service.application.DianDelivery;
 import com.ClinicaDeYmid.billing_service.application.EpisodeAccountProjection;
+import com.ClinicaDeYmid.billing_service.application.clinical.ClinicalFact;
+import com.ClinicaDeYmid.billing_service.application.clinical.ClinicalProjection;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionSnapshot;
 import com.ClinicaDeYmid.billing_service.support.AdmissionEvents;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -157,5 +160,21 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
         delivery.checkPending(100);
         as("BILLING", get(INVOICES + "/" + invoice)).andExpect(jsonPath("$.dian.status").value("ACCEPTED"));
         return invoice;
+    }
+
+    protected static void documentedCare(ClinicalProjection clinical, Episode episode) {
+        ZoneId bogota = ZoneId.of("America/Bogota");
+        UUID encounter = UUID.randomUUID();
+        Instant opened = LocalDate.now(bogota).atTime(9, 30).atZone(bogota).toInstant();
+        clinical.follow(new ClinicalFact.EncounterOpened(encounter, episode.uuid(), UUID.randomUUID(), "OUTPATIENT",
+                opened, new ClinicalFact.CareSetting("328", "01", "01")));
+        clinical.follow(new ClinicalFact.NoteSigned(UUID.randomUUID(), encounter, episode.uuid(), "CONSULTATION",
+                opened.plusSeconds(600), "15", "38",
+                List.of(new ClinicalFact.CodedDiagnosis("I10X", "PRINCIPAL", "CONFIRMED_NEW"))));
+    }
+
+    protected String numberOf(String invoice) throws Exception {
+        return JsonPath.read(as("BILLING", get(INVOICES + "/" + invoice)).andReturn().getResponse()
+                .getContentAsString(), "$.number");
     }
 }

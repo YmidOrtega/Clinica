@@ -13,4 +13,6 @@ public interface RipsSubmissions {
     List<RipsSubmission> ofInvoice(UUID invoiceUuid);
 
     List<UUID> pending(int limit);
+
+    List<RipsSubmission> validatedOf(java.util.Collection<UUID> invoiceUuids);
 }

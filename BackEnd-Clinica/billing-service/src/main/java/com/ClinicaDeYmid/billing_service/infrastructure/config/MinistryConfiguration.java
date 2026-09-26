@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.config;
 
+import com.ClinicaDeYmid.billing_service.application.filing.FilingPolicy;
 import com.ClinicaDeYmid.billing_service.application.rips.MinistryValidator;
 import com.ClinicaDeYmid.billing_service.infrastructure.ministry.MinistryCredentials;
 import com.ClinicaDeYmid.billing_service.infrastructure.ministry.RestMinistryValidator;
@@ -15,6 +16,11 @@ import java.time.Duration;
 
 @Configuration(proxyBeanMethods = false)
 public class MinistryConfiguration {
+
+    @Bean
+    FilingPolicy filingPolicy(@Value("${clinica.billing.filing.warning-business-days}") int warningBusinessDays) {
+        return new FilingPolicy(warningBusinessDays);
+    }
 
     @Bean
     MinistryValidator ministryValidator(@Value("${clinica.billing.ministry.url}") String url,
