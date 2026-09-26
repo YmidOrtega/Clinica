@@ -5,7 +5,6 @@ import com.ClinicaDeYmid.billing_service.application.dian.RepresentationRenderer
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
 import com.ClinicaDeYmid.billing_service.domain.CreditNote;
 import com.ClinicaDeYmid.billing_service.domain.CreditNoteLine;
-import com.ClinicaDeYmid.billing_service.domain.Cufe;
 import com.ClinicaDeYmid.billing_service.domain.DianEnvironment;
 import com.ClinicaDeYmid.billing_service.domain.DianStatus;
 import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
@@ -138,7 +137,10 @@ class PdfRepresentationRenderer implements RepresentationRenderer {
                 pdf.field("Total de la nota", money(note.creditedPayable()));
             } else {
                 pdf.field("Subtotal", money(invoice.grossTotal()));
-                pdf.field("Copago o cuota moderadora recaudada", money(invoice.patientShare()));
+                for (Invoice shared : invoice.sharedPayments()) {
+                    pdf.field(shared.sharedPaymentKind().label() + " facturado al paciente en la factura "
+                            + shared.number(), money(shared.grossTotal()));
+                }
                 pdf.field("Total a pagar", money(invoice.payableTotal()));
                 if (invoice.creditedTotal().signum() > 0) {
                     pdf.field("Acreditado con notas crédito", money(invoice.creditedTotal()));

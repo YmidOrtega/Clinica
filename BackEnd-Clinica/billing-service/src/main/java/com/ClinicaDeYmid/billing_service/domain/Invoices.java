@@ -14,5 +14,9 @@ public interface Invoices {
 
     boolean liveFor(UUID accountUuid, UUID saleUuid);
 
+    List<Invoice> sharedPaymentsOf(UUID accountUuid);
+
+    Optional<Invoice> findByCollectionReference(String collectionReference);
+
 
 }

@@ -99,7 +99,8 @@ class CreditNoteTest {
                 .units().getFirst();
         Invoice invoice = Invoice.draft(unit, account,
                 new Buyer(Buyer.Kind.PAYER, UUID.randomUUID(), "NIT", "900156264-2", "Nueva EPS S.A."),
-                new HealthUser(UUID.randomUUID(), "CEDULA_DE_CIUDADANIA", "1098765432", "Ana María", "CONTRIBUTORY"));
+                new HealthUser(UUID.randomUUID(), "CEDULA_DE_CIUDADANIA", "1098765432", "Ana María", "CONTRIBUTORY"),
+                List.of(InvoiceTest.copaymentInvoiced(account, "35000", 990000000, NOW)));
         invoice.issue(new IssuedNumber(UUID.randomUUID(), "SETP", 990000001), NOW);
         return invoice;
     }

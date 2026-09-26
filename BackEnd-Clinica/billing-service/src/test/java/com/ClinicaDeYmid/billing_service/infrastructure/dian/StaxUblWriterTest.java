@@ -28,6 +28,7 @@ import com.ClinicaDeYmid.billing_service.domain.ResolutionTerms;
 import com.ClinicaDeYmid.billing_service.domain.Sale;
 import com.ClinicaDeYmid.billing_service.domain.SaleLine;
 import com.ClinicaDeYmid.billing_service.domain.SaleType;
+import com.ClinicaDeYmid.billing_service.domain.SharedPaymentKind;
 import com.ClinicaDeYmid.billing_service.domain.TaxResponsibility;
 import com.ClinicaDeYmid.billing_service.domain.TaxScheme;
 import org.junit.jupiter.api.Test;
@@ -80,6 +81,11 @@ class StaxUblWriterTest {
         assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='CODIGO_PRESTADOR']/inv:Value", document))
                 .isEqualTo("050010123401");
         assertThat(path.evaluate("//cac:PrepaidPayment/cbc:PaidAmount", document)).isEqualTo("35000.00");
+        assertThat(path.evaluate("//cac:PrepaidPayment/cbc:ID", document)).isEqualTo("SETP989999999");
+        assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='COPAGO']/inv:Value", document))
+                .isEqualTo("35000.00");
+        assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='CUOTA_MODERADORA']/inv:Value", document))
+                .isEqualTo("0.00");
         assertThat(path.evaluate("//cac:LegalMonetaryTotal/cbc:PayableAmount", document)).isEqualTo("10000.00");
         assertThat(path.evaluate("//cac:AccountingCustomerParty//cac:PartyIdentification/cbc:ID/@schemeID", document))
                 .isEqualTo("2");
@@ -127,9 +133,15 @@ class StaxUblWriterTest {
                 List.of()), NOW);
         AccountSummary.Unit unit = AccountSummary.of(account, List.of(sale), true, List.of(new Copayment(UUID.randomUUID(),
                 "AUT-1", new BigDecimal("35000"), null, null, Set.of(consultation), false)), List.of()).units().getFirst();
+        HealthUser ana = new HealthUser(UUID.randomUUID(), "CEDULA_DE_CIUDADANIA", "1098765432", "Ana María Restrepo",
+                "CONTRIBUTORY");
+        Invoice copayment = Invoice.sharedPayment(account, new Buyer(Buyer.Kind.PATIENT, ana.patientUuid(),
+                ana.documentType(), ana.documentNumber(), ana.name()), ana, SharedPaymentKind.COPAYMENT,
+                new BigDecimal("35000"), "AUT-1", "REC-1", "CT-1");
+        copayment.issue(new IssuedNumber(UUID.randomUUID(), "SETP", 989999999), NOW);
         Invoice invoice = Invoice.draft(unit, account,
-                new Buyer(Buyer.Kind.PAYER, UUID.randomUUID(), "NIT", "900156264-2", "Nueva EPS S.A."),
-                new HealthUser(UUID.randomUUID(), "CEDULA_DE_CIUDADANIA", "1098765432", "Ana María Restrepo", "CONTRIBUTORY"));
+                new Buyer(Buyer.Kind.PAYER, UUID.randomUUID(), "NIT", "900156264-2", "Nueva EPS S.A."), ana,
+                List.of(copayment));
         invoice.issue(new IssuedNumber(UUID.randomUUID(), "SETP", 990000000), NOW);
         String cufe = Cufe.of(invoice.cufeInput(issuer, resolution));
         invoice.identify(cufe, ElectronicInvoice.qrContent(invoice, issuer, cufe));

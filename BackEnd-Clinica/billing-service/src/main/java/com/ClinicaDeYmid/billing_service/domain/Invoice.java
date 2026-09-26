@@ -11,6 +11,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
@@ -31,15 +33,24 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Entity
 @Table(name = "invoices")
 @Audited
 @EntityListeners(AuditingEntityListener.class)
 public class Invoice {
+
+    public enum Purpose {
+        SERVICES,
+        SHARED_PAYMENT
+    }
+
+    private static final Pattern COLLECTION_REFERENCE = Pattern.compile("^[A-Za-z0-9-]{1,38}$");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,6 +63,10 @@ public class Invoice {
     @Version
     @Column(name = "version", nullable = false)
     private long version;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "purpose", nullable = false, updatable = false, length = 20)
+    private Purpose purpose = Purpose.SERVICES;
 
     @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -112,11 +127,31 @@ public class Invoice {
     @Column(name = "gross_total", nullable = false, updatable = false, precision = 14, scale = 2)
     private BigDecimal grossTotal;
 
-    @Column(name = "patient_share", nullable = false, updatable = false, precision = 14, scale = 2)
+    @Column(name = "patient_share", nullable = false, precision = 14, scale = 2)
     private BigDecimal patientShare;
 
-    @Column(name = "payable_total", nullable = false, updatable = false, precision = 14, scale = 2)
+    @Column(name = "payable_total", nullable = false, precision = 14, scale = 2)
     private BigDecimal payableTotal;
+
+    @Column(name = "expected_share", precision = 14, scale = 2)
+    private BigDecimal expectedShare;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "shared_payment_kind", updatable = false, length = 30)
+    private SharedPaymentKind sharedPaymentKind;
+
+    @Column(name = "authorization_number", updatable = false, length = 40)
+    private String authorizationNumber;
+
+    @Column(name = "collection_reference", updatable = false, length = 38)
+    private String collectionReference;
+
+    @NotAudited
+    @ManyToMany
+    @JoinTable(name = "invoice_shared_payments", joinColumns = @JoinColumn(name = "invoice_id"),
+            inverseJoinColumns = @JoinColumn(name = "shared_invoice_id"))
+    @OrderBy("id")
+    private Set<Invoice> sharedPayments = new LinkedHashSet<>();
 
     @Column(name = "credited_total", nullable = false, precision = 14, scale = 2)
     private BigDecimal creditedTotal = Money.ZERO;
@@ -163,7 +198,7 @@ public class Invoice {
     @NotAudited
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.PERSIST)
     @OrderBy("position")
-    private List<InvoiceLine> lines = new ArrayList<>();
+    private Set<InvoiceLine> lines = new LinkedHashSet<>();
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -185,6 +220,11 @@ public class Invoice {
     }
 
     public static Invoice draft(AccountSummary.Unit unit, EpisodeAccount account, Buyer buyer, HealthUser user) {
+        return draft(unit, account, buyer, user, List.of());
+    }
+
+    public static Invoice draft(AccountSummary.Unit unit, EpisodeAccount account, Buyer buyer, HealthUser user,
+                                List<Invoice> shared) {
         DomainRules.required(unit, "unit");
         if (!unit.ready()) {
             throw new BillingException.NotABillableUnit(unit.notReadyReason());
@@ -220,8 +260,8 @@ public class Invoice {
             invoice.patientShare = Money.ZERO;
             invoice.payableTotal = unit.total();
         } else {
-            invoice.patientShare = unit.patientShare();
-            invoice.payableTotal = unit.payerShare();
+            invoice.expectedShare = unit.patientShare();
+            invoice.deduct(shared);
         }
         invoice.patientShareSource = unit.shareSource();
         int position = 1;
@@ -241,9 +281,82 @@ public class Invoice {
         return unit.kind() == AccountSummary.UnitKind.ACCOUNT ? "A:" + account.uuid() : "S:" + unit.saleUuid();
     }
 
+    public static Invoice sharedPayment(EpisodeAccount account, Buyer patient, HealthUser user, SharedPaymentKind kind,
+                                        BigDecimal amount, String authorizationNumber, String collectionReference,
+                                        String contractNumber) {
+        DomainRules.required(patient, "patient");
+        if (patient.kind() != Buyer.Kind.PATIENT) {
+            throw new IllegalArgumentException("A shared payment is invoiced to the patient");
+        }
+        Invoice invoice = new Invoice();
+        invoice.uuid = UUID.randomUUID();
+        invoice.purpose = Purpose.SHARED_PAYMENT;
+        invoice.account = DomainRules.required(account, "account");
+        invoice.unitKind = AccountSummary.UnitKind.ACCOUNT;
+        invoice.collectionReference = DomainRules.requiredPattern(collectionReference, "collectionReference",
+                COLLECTION_REFERENCE, "debe tener de 1 a 38 letras, dígitos o guiones");
+        invoice.unitKey = "P:" + invoice.collectionReference;
+        invoice.sharedPaymentKind = DomainRules.required(kind, "kind");
+        invoice.authorizationNumber = authorizationNumber == null || authorizationNumber.isBlank() ? null
+                : DomainRules.requiredText(authorizationNumber, "authorizationNumber", 40);
+        invoice.buyerKind = patient.kind();
+        invoice.buyerReference = patient.reference();
+        invoice.buyerDocumentType = patient.documentType();
+        invoice.buyerDocumentNumber = patient.documentNumber();
+        invoice.buyerName = patient.name();
+        DomainRules.required(user, "user");
+        invoice.patientUuid = user.patientUuid();
+        invoice.patientDocumentType = user.documentType();
+        invoice.patientDocumentNumber = user.documentNumber();
+        invoice.patientName = user.name();
+        invoice.patientHealthRegime = user.healthRegime();
+        invoice.contractNumber = contractNumber;
+        invoice.grossTotal = Money.positive(amount, "amount");
+        invoice.patientShare = Money.ZERO;
+        invoice.payableTotal = invoice.grossTotal;
+        invoice.patientShareSource = AccountSummary.ShareSource.PRIVATE;
+        invoice.lines.add(InvoiceLine.sharedPayment(invoice, kind, invoice.authorizationNumber, invoice.grossTotal));
+        invoice.statusCode = InvoiceStatus.Code.DRAFT;
+        return invoice;
+    }
+
+    public void deduct(List<Invoice> shared) {
+        if (purpose != Purpose.SERVICES || buyerKind != Buyer.Kind.PAYER) {
+            throw new IllegalStateException("Only an invoice of services to a payer deducts shared payments");
+        }
+        if (statusCode != null && statusCode != InvoiceStatus.Code.DRAFT) {
+            throw new IllegalStateException("The shared payments of an issued invoice never change");
+        }
+        BigDecimal invoiced = Money.ZERO;
+        for (Invoice payment : shared) {
+            if (payment.purpose != Purpose.SHARED_PAYMENT || !(payment.status() instanceof InvoiceStatus.Issued)
+                    || !payment.account.uuid().equals(account.uuid())) {
+                throw new IllegalArgumentException("Only issued shared payments of the same account are deducted");
+            }
+            invoiced = invoiced.add(payment.grossTotal);
+        }
+        invoiced = Money.of(invoiced);
+        if (invoiced.compareTo(expectedShare) > 0) {
+            throw new BillingException.SharedPaymentExceedsExpected(invoiced, expectedShare);
+        }
+        if (invoiced.compareTo(grossTotal) > 0) {
+            throw new BillingException.SharedPaymentExceedsExpected(invoiced, grossTotal);
+        }
+        if (!new LinkedHashSet<>(shared).equals(sharedPayments)) {
+            sharedPayments.clear();
+            sharedPayments.addAll(shared);
+        }
+        patientShare = invoiced;
+        payableTotal = Money.of(grossTotal.subtract(invoiced));
+    }
+
+    public BigDecimal shareShortfall() {
+        return expectedShare == null ? Money.ZERO : Money.of(expectedShare.subtract(patientShare).max(Money.ZERO));
+    }
+
     public boolean stillMatches(AccountSummary.Unit unit) {
         return keyOf(account, unit).equals(unitKey) && unit.total().compareTo(grossTotal) == 0
-                && (buyerKind == Buyer.Kind.PATIENT || unit.patientShare().compareTo(patientShare) == 0);
+                && (buyerKind == Buyer.Kind.PATIENT || unit.patientShare().compareTo(expectedShare) == 0);
     }
 
     public void issue(IssuedNumber issued, Clock clock) {
@@ -342,6 +455,35 @@ public class Invoice {
 
     public UUID uuid() {
         return uuid;
+    }
+
+    public Purpose purpose() {
+        return purpose;
+    }
+
+    public SharedPaymentKind sharedPaymentKind() {
+        return sharedPaymentKind;
+    }
+
+    public String authorizationNumber() {
+        return authorizationNumber;
+    }
+
+    public String collectionReference() {
+        return collectionReference;
+    }
+
+    public BigDecimal expectedShare() {
+        return expectedShare;
+    }
+
+    public List<Invoice> sharedPayments() {
+        return List.copyOf(sharedPayments);
+    }
+
+    public BigDecimal sharedPaymentOf(SharedPaymentKind kind) {
+        return Money.of(sharedPayments.stream().filter(payment -> payment.sharedPaymentKind == kind)
+                .map(Invoice::grossTotal).reduce(Money.ZERO, BigDecimal::add));
     }
 
     public long version() {

@@ -13,6 +13,7 @@ import com.ClinicaDeYmid.billing_service.domain.InvoiceLine;
 import com.ClinicaDeYmid.billing_service.domain.Issuer;
 import com.ClinicaDeYmid.billing_service.domain.IssuerProfile;
 import com.ClinicaDeYmid.billing_service.domain.ResolutionTerms;
+import com.ClinicaDeYmid.billing_service.domain.SharedPaymentKind;
 import com.ClinicaDeYmid.billing_service.domain.TaxResponsibility;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.util.EnumMap;
 import java.util.Map;
 
 @Component
@@ -88,7 +90,7 @@ class StaxUblWriter implements UblWriter {
         xml.writeStartElement(EXT, "UBLExtensions");
         dianExtension(xml, electronic);
         signatureSlot(xml);
-        healthExtension(xml, invoice, issuer, invoice.patientShare());
+        healthExtension(xml, invoice, issuer, sharesOf(invoice));
         xml.writeEndElement();
 
         basic(xml, "UBLVersionID", "UBL 2.1");
@@ -106,11 +108,11 @@ class StaxUblWriter implements UblWriter {
         supplier(xml, issuer);
         customer(xml, invoice.buyer());
         paymentMeans(xml, invoice);
-        if (invoice.patientShare().signum() > 0) {
+        for (Invoice shared : invoice.sharedPayments()) {
             xml.writeStartElement(CAC, "PrepaidPayment");
-            basic(xml, "ID", "COPAGO");
-            amount(xml, "PaidAmount", invoice.patientShare());
-            basic(xml, "ReceivedDate", invoice.issuedOn().toString());
+            basic(xml, "ID", shared.number());
+            amount(xml, "PaidAmount", shared.grossTotal());
+            basic(xml, "ReceivedDate", shared.issuedOn().toString());
             xml.writeEndElement();
         }
         xml.writeStartElement(CAC, "LegalMonetaryTotal");
@@ -145,7 +147,8 @@ class StaxUblWriter implements UblWriter {
         xml.writeEndElement();
         xml.writeEndElement();
         signatureSlot(xml);
-        healthExtension(xml, invoice, issuer, note.creditedShare());
+        healthExtension(xml, invoice, issuer, note.creditedShare().signum() > 0 ? sharesOf(invoice)
+                : new EnumMap<>(SharedPaymentKind.class));
         xml.writeEndElement();
 
         basic(xml, "UBLVersionID", "UBL 2.1");
@@ -176,11 +179,13 @@ class StaxUblWriter implements UblWriter {
         supplier(xml, issuer);
         customer(xml, invoice.buyer());
         if (note.creditedShare().signum() > 0) {
-            xml.writeStartElement(CAC, "PrepaidPayment");
-            basic(xml, "ID", "COPAGO");
-            amount(xml, "PaidAmount", note.creditedShare());
-            basic(xml, "ReceivedDate", invoice.issuedOn().toString());
-            xml.writeEndElement();
+            for (Invoice shared : invoice.sharedPayments()) {
+                xml.writeStartElement(CAC, "PrepaidPayment");
+                basic(xml, "ID", shared.number());
+                amount(xml, "PaidAmount", shared.grossTotal());
+                basic(xml, "ReceivedDate", shared.issuedOn().toString());
+                xml.writeEndElement();
+            }
         }
         xml.writeStartElement(CAC, "LegalMonetaryTotal");
         amount(xml, "LineExtensionAmount", note.creditedGross());
@@ -284,8 +289,16 @@ class StaxUblWriter implements UblWriter {
         text(xml, STS, "QRCode", qrContent);
     }
 
-    private void healthExtension(XMLStreamWriter xml, Invoice invoice, Issuer issuer, BigDecimal share)
-            throws XMLStreamException {
+    private static Map<SharedPaymentKind, BigDecimal> sharesOf(Invoice invoice) {
+        Map<SharedPaymentKind, BigDecimal> shares = new EnumMap<>(SharedPaymentKind.class);
+        for (SharedPaymentKind kind : SharedPaymentKind.values()) {
+            shares.put(kind, invoice.sharedPaymentOf(kind));
+        }
+        return shares;
+    }
+
+    private void healthExtension(XMLStreamWriter xml, Invoice invoice, Issuer issuer,
+                                 Map<SharedPaymentKind, BigDecimal> shares) throws XMLStreamException {
         HealthUser user = invoice.user();
         xml.writeStartElement(EXT, "UBLExtension");
         xml.writeStartElement(EXT, "ExtensionContent");
@@ -302,8 +315,9 @@ class StaxUblWriter implements UblWriter {
         if (invoice.contractNumber() != null) {
             information(xml, "NUMERO_CONTRATO", invoice.contractNumber());
         }
-        information(xml, "COPAGO", Cufe.amount(share));
-        information(xml, "PAGOS_COMPARTIDOS", Cufe.amount(share));
+        for (SharedPaymentKind kind : SharedPaymentKind.values()) {
+            information(xml, kind.healthField(), Cufe.amount(shares.getOrDefault(kind, BigDecimal.ZERO)));
+        }
         xml.writeEndElement();
         xml.writeEndElement();
         xml.writeEndElement();
@@ -398,7 +412,11 @@ class StaxUblWriter implements UblWriter {
         basic(xml, "Description", line.description());
         xml.writeStartElement(CAC, "StandardItemIdentification");
         basic(xml, "ID", line.code(), "schemeID", "999", "schemeName",
-                line.kind() == InvoiceLine.Kind.PACKAGE ? "Paquete" : "CUPS");
+                switch (line.kind()) {
+                    case PACKAGE -> "Paquete";
+                    case SHARED_PAYMENT -> "Pago compartido";
+                    case SERVICE -> "CUPS";
+                });
         xml.writeEndElement();
         xml.writeEndElement();
         xml.writeStartElement(CAC, "Price");

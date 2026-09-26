@@ -49,11 +49,26 @@ class InvoiceApiIT extends InvoicingIntegrationTest {
                 .andExpect(jsonPath("$.buyer.documentNumber").value("900156264-2"))
                 .andExpect(jsonPath("$.user.documentNumber").value("1098765432"))
                 .andExpect(jsonPath("$.grossTotal").value(45000.00))
-                .andExpect(jsonPath("$.patientShare").value(35000.00))
-                .andExpect(jsonPath("$.payableTotal").value(10000.00))
+                .andExpect(jsonPath("$.expectedShare").value(35000.00))
+                .andExpect(jsonPath("$.patientShare").value(0))
+                .andExpect(jsonPath("$.payableTotal").value(45000.00))
+                .andExpect(jsonPath("$.shareShortfall").value(35000.00))
                 .andExpect(jsonPath("$.lines[0].code").value("890201"))
                 .andReturn().getResponse().getContentAsString();
         String invoice = JsonPath.read(body, "$.uuid");
+
+        String copayment = copaymentCollected(episode, "35000");
+        as("BILLING", get(INVOICES + "/" + copayment))
+                .andExpect(jsonPath("$.purpose").value("SHARED_PAYMENT"))
+                .andExpect(jsonPath("$.sharedPaymentKind").value("MODERATING_FEE"))
+                .andExpect(jsonPath("$.authorizationNumber").value("AUT-778899"))
+                .andExpect(jsonPath("$.status.code").value("ISSUED"))
+                .andExpect(jsonPath("$.number").value("SETP990000000"))
+                .andExpect(jsonPath("$.buyer.kind").value("PATIENT"))
+                .andExpect(jsonPath("$.buyer.documentNumber").value("1098765432"))
+                .andExpect(jsonPath("$.payableTotal").value(35000.00))
+                .andExpect(jsonPath("$.lines[0].kind").value("SHARED_PAYMENT"))
+                .andExpect(jsonPath("$.signedAt").exists());
 
         as("BILLING", post(INVOICES), drafting(episode, sale))
                 .andExpect(status().isConflict())
@@ -64,27 +79,37 @@ class InvoiceApiIT extends InvoicingIntegrationTest {
 
         changeWithToken(JwtTestTokens.bearerWithoutSecondFactor("BILLING"), post(INVOICES + "/" + invoice + "/issuance"),
                 0, null).andExpect(status().isUnauthorized());
-        change("BILLING", post(INVOICES + "/" + invoice + "/issuance"), 0, null)
+        String issuedVersion = change("BILLING", post(INVOICES + "/" + invoice + "/issuance"), 0, null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status.code").value("ISSUED"))
-                .andExpect(jsonPath("$.number").value("SETP990000000"))
+                .andExpect(jsonPath("$.number").value("SETP990000001"))
+                .andExpect(jsonPath("$.patientShare").value(35000.00))
+                .andExpect(jsonPath("$.payableTotal").value(10000.00))
+                .andExpect(jsonPath("$.shareShortfall").value(0))
+                .andExpect(jsonPath("$.sharedPayments[0].number").value("SETP990000000"))
                 .andExpect(jsonPath("$.issuedOn").value(TODAY.toString()))
                 .andExpect(jsonPath("$.cufe").value(org.hamcrest.Matchers.matchesPattern("^[0-9a-f]{96}$")))
-                .andExpect(jsonPath("$.qrContent").value(org.hamcrest.Matchers.containsString("NumFac: SETP990000000")))
-                .andExpect(jsonPath("$.signedAt").exists());
+                .andExpect(jsonPath("$.qrContent").value(org.hamcrest.Matchers.containsString("NumFac: SETP990000001")))
+                .andExpect(jsonPath("$.signedAt").exists())
+                .andReturn().getResponse().getHeader("ETag");
         String ubl = as("BILLING", get(INVOICES + "/" + invoice + "/ubl"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("<cbc:ID>SETP990000000</cbc:ID>")))
+                        .string(org.hamcrest.Matchers.containsString("<cbc:ID>SETP990000001</cbc:ID>")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString(
+                                "<cac:PrepaidPayment><cbc:ID>SETP990000000</cbc:ID>")))
                 .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         assertThat(XadesVerification.verify(ubl, LocalDianSigningKey.SHARED.certificate().getPublicKey()).valid())
                 .isTrue();
-        change("BILLING", post(INVOICES + "/" + invoice + "/discard"), 1, "{\"reason\":\"Tarde\"}")
+        change("BILLING", post(INVOICES + "/" + invoice + "/discard"),
+                Long.parseLong(issuedVersion.replace("\"", "")), "{\"reason\":\"Tarde\"}")
                 .andExpect(status().isUnprocessableEntity());
 
         as("BILLING", get("/api/v1/billing/accounts/" + episode.number() + "/invoices"))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].number").value("SETP990000000"));
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[1].number").value("SETP990000000"))
+                .andExpect(jsonPath("$[0].number").value("SETP990000001"));
     }
 
     @Test

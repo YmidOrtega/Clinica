@@ -36,4 +36,14 @@ class JpaInvoices implements Invoices {
     public boolean liveFor(UUID accountUuid, UUID saleUuid) {
         return repository.liveFor(accountUuid, saleUuid);
     }
+
+    @Override
+    public List<Invoice> sharedPaymentsOf(UUID accountUuid) {
+        return repository.sharedPaymentsOf(accountUuid);
+    }
+
+    @Override
+    public Optional<Invoice> findByCollectionReference(String collectionReference) {
+        return repository.findByCollectionReference(collectionReference);
+    }
 }
