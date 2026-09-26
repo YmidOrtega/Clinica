@@ -29,7 +29,12 @@ interface PractitionersClient {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record PractitionerPayload(UUID uuid, String fullName, Registration registration, Status status) {
+    record PractitionerPayload(UUID uuid, String fullName, Registration registration, Status status,
+                               Document document) {
+
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        record Document(String type, String number) {
+        }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         record Registration(String number) {

@@ -18,18 +18,24 @@ interface PatientRegistryClient {
     UnidentifiedPayload findUnidentified(@PathVariable("uuid") UUID uuid);
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record RegisteredPayload(UUID uuid, Document document, Demographics demographics, Affiliation affiliation) {
+    record RegisteredPayload(UUID uuid, Document document, Demographics demographics, Affiliation affiliation,
+                             Residence residence) {
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         record Document(String type, String number) {
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
-        record Demographics(String firstNames, String lastNames, LocalDate birthDate, String sex) {
+        record Demographics(String firstNames, String lastNames, LocalDate birthDate, String sex,
+                            String countryOfOriginCode) {
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
-        record Affiliation(String regime) {
+        record Affiliation(String regime, String affiliateType) {
+        }
+
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        record Residence(String municipalityCode, String zone) {
         }
     }
 

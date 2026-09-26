@@ -43,6 +43,9 @@ public class InvoiceLine {
     @Column(name = "kind", nullable = false, updatable = false, length = 20)
     private Kind kind;
 
+    @Column(name = "line_origin", updatable = false, length = 20)
+    private String origin;
+
     @Column(name = "sale_number", updatable = false, length = 20)
     private String saleNumber;
 
@@ -84,6 +87,11 @@ public class InvoiceLine {
         invoiced.position = position;
         invoiced.kind = Kind.SERVICE;
         invoiced.saleNumber = sale.number();
+        invoiced.origin = switch (line.origin()) {
+            case LineOrigin.Manual ignored -> "MANUAL";
+            case LineOrigin.Stay ignored -> "STAY";
+            case LineOrigin.Authorized ignored -> "AUTHORIZED";
+        };
         invoiced.saleLineUuid = line.uuid();
         invoiced.code = line.service().cupsCode();
         invoiced.description = line.service().description();
@@ -125,6 +133,10 @@ public class InvoiceLine {
         invoiced.lineTotal = charge.price();
         invoiced.priceOrigin = PriceOrigin.PACKAGE.name();
         return invoiced;
+    }
+
+    public boolean stay() {
+        return "STAY".equals(origin);
     }
 
     public int position() {
