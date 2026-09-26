@@ -61,6 +61,24 @@ class TransitClientIT {
     }
 
     @Test
+    void signsWithAnImportedRsaKeyUsingPkcs1v15() throws Exception {
+        java.security.KeyPairGenerator generator = java.security.KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        java.security.KeyPair pair = generator.generateKeyPair();
+        String key = OpenBaoTestContainer.importRsaKey("imported-" + java.util.UUID.randomUUID().toString().substring(0, 8),
+                pair.getPrivate());
+        byte[] input = "<ds:SignedInfo/>".getBytes(StandardCharsets.UTF_8);
+
+        byte[] signature = transit.signPkcs1v15(new KeyVersion(key, 1), input);
+
+        Signature verifier = Signature.getInstance("SHA256withRSA");
+        verifier.initVerify(pair.getPublic());
+        verifier.update(input);
+        assertThat(verifier.verify(signature)).isTrue();
+        assertThat(transit.key(key).type()).isEqualTo("rsa-2048");
+    }
+
+    @Test
     void describesTheVersionsAndPublicKeysOfAKey() {
         String key = OpenBaoTestContainer.createKey("seal", "ecdsa-p256");
         OpenBaoTestContainer.rotate(key);
