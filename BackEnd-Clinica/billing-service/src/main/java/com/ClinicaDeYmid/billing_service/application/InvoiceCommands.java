@@ -7,25 +7,15 @@ import com.ClinicaDeYmid.billing_service.application.context.PatientLookup;
 import com.ClinicaDeYmid.billing_service.application.context.PayerDirectory;
 import com.ClinicaDeYmid.billing_service.application.context.PayerLookup;
 import com.ClinicaDeYmid.billing_service.application.dian.DianSoftware;
-import com.ClinicaDeYmid.billing_service.application.dian.ElectronicInvoice;
-import com.ClinicaDeYmid.billing_service.application.dian.UblWriter;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
-import com.ClinicaDeYmid.billing_service.domain.Cufe;
-import com.ClinicaDeYmid.billing_service.domain.DocumentFile;
-import com.ClinicaDeYmid.billing_service.domain.DocumentFiles;
 import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
-import com.ClinicaDeYmid.billing_service.domain.ElectronicDocuments;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccounts;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.Invoices;
-import com.ClinicaDeYmid.billing_service.domain.Issuer;
-import com.ClinicaDeYmid.billing_service.domain.Issuers;
-import com.ClinicaDeYmid.billing_service.domain.NumberingResolution;
-import com.ClinicaDeYmid.billing_service.domain.NumberingResolutions;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -47,34 +38,22 @@ public class InvoiceCommands {
     private final AccountSummaries summaries;
     private final EpisodeAccounts accounts;
     private final Invoices invoices;
-    private final InvoiceNumbering numbering;
+    private final InvoiceIssuance issuance;
     private final PayerDirectory payers;
     private final PatientDirectory patients;
-    private final Issuers issuers;
-    private final NumberingResolutions resolutions;
-    private final ElectronicDocuments documents;
-    private final DocumentFiles files;
-    private final UblWriter ubl;
     private final DianSoftware software;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public InvoiceCommands(AccountSummaries summaries, EpisodeAccounts accounts, Invoices invoices,
-                           InvoiceNumbering numbering, PayerDirectory payers, PatientDirectory patients,
-                           Issuers issuers, NumberingResolutions resolutions, ElectronicDocuments documents,
-                           DocumentFiles files, UblWriter ubl, DianSoftware software,
-                           TransactionOperations transactions, Clock clock) {
+                           InvoiceIssuance issuance, PayerDirectory payers, PatientDirectory patients,
+                           DianSoftware software, TransactionOperations transactions, Clock clock) {
         this.summaries = summaries;
         this.accounts = accounts;
         this.invoices = invoices;
-        this.numbering = numbering;
+        this.issuance = issuance;
         this.payers = payers;
         this.patients = patients;
-        this.issuers = issuers;
-        this.resolutions = resolutions;
-        this.documents = documents;
-        this.files = files;
-        this.ubl = ubl;
         this.software = software;
         this.transactions = transactions;
         this.clock = clock;
@@ -97,7 +76,10 @@ public class InvoiceCommands {
             drafted = transactions.execute(status -> {
                 EpisodeAccount account = accounts.findByAdmissionNumber(admissionNumber)
                         .orElseThrow(BillingException.AccountNotFound::new);
-                return invoices.save(Invoice.draft(unit, account, buyer, user));
+                List<Invoice> shared = buyer.kind() == Buyer.Kind.PAYER
+                        ? SharedPaymentAllocation.forUnit(context.summary(), unit, invoices.sharedPaymentsOf(account.uuid()))
+                        : List.of();
+                return invoices.save(Invoice.draft(unit, account, buyer, user, shared));
             });
         } catch (DataIntegrityViolationException taken) {
             throw new BillingException.UnitAlreadyInvoiced();
@@ -118,17 +100,11 @@ public class InvoiceCommands {
         software.requireConfigured();
         ElectronicDocument issued = transactions.execute(status -> {
             Invoice invoice = current(invoiceUuid, expectedVersion);
-            invoice.issue(numbering.next(), clock);
-            Issuer issuer = issuers.find().orElseThrow(BillingException.IssuerNotConfigured::new);
-            NumberingResolution resolution = resolutions.findByUuid(invoice.resolutionUuid())
-                    .orElseThrow(BillingException.ResolutionNotFound::new);
-            String cufe = Cufe.of(invoice.cufeInput(issuer, resolution));
-            invoice.identify(cufe, ElectronicInvoice.qrContent(invoice, issuer, cufe));
-            Invoice saved = invoices.save(invoice);
-            ElectronicDocument document = documents.save(ElectronicDocument.ofInvoice(saved));
-            files.save(DocumentFile.of(document, DocumentFile.Kind.UBL_UNSIGNED,
-                    ubl.invoice(ElectronicInvoice.of(saved, issuer, resolution, software))));
-            return document;
+            if (invoice.buyer().kind() == Buyer.Kind.PAYER) {
+                invoice.deduct(SharedPaymentAllocation.forUnit(context.summary(), unit,
+                        invoices.sharedPaymentsOf(invoice.account().uuid())));
+            }
+            return issuance.issue(invoice);
         });
         log.info("Invoice {} issued for {} with total {}", issued.number(), current.account().admissionNumber(),
                 current.payableTotal());
@@ -183,7 +159,7 @@ public class InvoiceCommands {
         };
     }
 
-    private static Buyer patientAsBuyer(PatientDetails patient) {
+    static Buyer patientAsBuyer(PatientDetails patient) {
         if (!(patient instanceof PatientDetails.Registered registered)) {
             throw new BillingException.BuyerNotIdentified(
                     "Un paciente particular sin identificar no puede ser el adquiriente de la factura");
@@ -192,7 +168,7 @@ public class InvoiceCommands {
                 registered.firstNames() + " " + registered.lastNames());
     }
 
-    private static HealthUser userOf(PatientDetails patient) {
+    static HealthUser userOf(PatientDetails patient) {
         return switch (patient) {
             case PatientDetails.Registered registered -> new HealthUser(registered.uuid(), registered.documentType(),
                     registered.documentNumber(), registered.firstNames() + " " + registered.lastNames(),

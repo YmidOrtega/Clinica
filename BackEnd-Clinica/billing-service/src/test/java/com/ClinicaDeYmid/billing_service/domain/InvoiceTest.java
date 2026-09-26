@@ -29,7 +29,7 @@ class InvoiceTest {
         PackageCharge delivery = new PackageCharge(UUID.randomUUID(), "PAQ-1", "Paquete", new BigDecimal("100000"));
         AccountSummary.Unit unit = unitOf(account, delivery);
 
-        Invoice invoice = Invoice.draft(unit, account, EPS, ANA);
+        Invoice invoice = Invoice.draft(unit, account, EPS, ANA, List.of(copaymentInvoiced(account, "35000", 1, NOW)));
 
         assertThat(invoice.status()).isInstanceOf(InvoiceStatus.Draft.class);
         assertThat(invoice.number()).isNull();
@@ -39,6 +39,49 @@ class InvoiceTest {
         assertThat(invoice.patientShare()).isEqualByComparingTo("35000");
         assertThat(invoice.payableTotal()).isEqualByComparingTo("110000");
         assertThat(invoice.stillMatches(unit)).isTrue();
+    }
+
+    @Test
+    void deductsOnlyWhatWasInvoicedToThePatientAndNeverMoreThanExpected() {
+        EpisodeAccount account = account();
+        AccountSummary.Unit unit = unitOf(account, null);
+
+        Invoice uncollected = Invoice.draft(unit, account, EPS, ANA);
+        Invoice partly = Invoice.draft(unit, account, EPS, ANA, List.of(copaymentInvoiced(account, "20000", 2, NOW)));
+
+        assertThat(uncollected.patientShare()).isEqualByComparingTo("0");
+        assertThat(uncollected.payableTotal()).isEqualByComparingTo("45000");
+        assertThat(uncollected.shareShortfall()).isEqualByComparingTo("35000");
+        assertThat(partly.payableTotal()).isEqualByComparingTo("25000");
+        assertThat(partly.shareShortfall()).isEqualByComparingTo("15000");
+        assertThat(partly.sharedPaymentOf(SharedPaymentKind.COPAYMENT)).isEqualByComparingTo("20000");
+        assertThatThrownBy(() -> Invoice.draft(unit, account, EPS, ANA,
+                List.of(copaymentInvoiced(account, "30000", 3, NOW), copaymentInvoiced(account, "10000", 4, NOW))))
+                .isInstanceOf(BillingException.SharedPaymentExceedsExpected.class);
+        assertThatThrownBy(() -> Invoice.draft(unit, account, EPS, ANA,
+                List.of(Invoice.sharedPayment(account, new Buyer(Buyer.Kind.PATIENT, UUID.randomUUID(), "CEDULA_DE_CIUDADANIA",
+                        "1", "x"), ANA, SharedPaymentKind.COPAYMENT, BigDecimal.TEN, null, "REC-draft", null))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void aSharedPaymentIsAnInvoiceToThePatientWithASingleLine() {
+        Invoice shared = copaymentInvoiced(account(), "12000", 5, NOW);
+
+        assertThat(shared.purpose()).isEqualTo(Invoice.Purpose.SHARED_PAYMENT);
+        assertThat(shared.buyer().kind()).isEqualTo(Buyer.Kind.PATIENT);
+        assertThat(shared.payableTotal()).isEqualByComparingTo("12000");
+        assertThat(shared.lines()).singleElement().satisfies(line -> {
+            assertThat(line.kind()).isEqualTo(InvoiceLine.Kind.SHARED_PAYMENT);
+            assertThat(line.code()).isEqualTo("COPAGO");
+            assertThat(line.description()).contains("AUT-1");
+        });
+        assertThat(SharedPaymentKind.proposedFor("CONTRIBUTORY", AdmissionKind.OUTPATIENT))
+                .isEqualTo(SharedPaymentKind.MODERATING_FEE);
+        assertThat(SharedPaymentKind.proposedFor("CONTRIBUTORY", AdmissionKind.INPATIENT))
+                .isEqualTo(SharedPaymentKind.COPAYMENT);
+        assertThat(SharedPaymentKind.proposedFor("SUBSIDIZED", AdmissionKind.OUTPATIENT))
+                .isEqualTo(SharedPaymentKind.COPAYMENT);
     }
 
     @Test
@@ -108,5 +151,15 @@ class InvoiceTest {
         return EpisodeAccount.open(new AdmissionSnapshot(UUID.randomUUID(), "ADM-2026-000123", 1, UUID.randomUUID(),
                 AdmissionKind.INPATIENT, AdmissionSnapshot.Status.DISCHARGED, UUID.randomUUID(),
                 Instant.parse("2026-09-25T13:00:00Z"), DischargeType.MEDICAL, null));
+    }
+
+    static Invoice copaymentInvoiced(EpisodeAccount account, String amount, long consecutive, Clock clock) {
+        Invoice shared = Invoice.sharedPayment(account, new Buyer(Buyer.Kind.PATIENT, UUID.randomUUID(),
+                        "CEDULA_DE_CIUDADANIA", "1098765432", "Ana María Restrepo"),
+                new HealthUser(UUID.randomUUID(), "CEDULA_DE_CIUDADANIA", "1098765432", "Ana María Restrepo",
+                        "CONTRIBUTORY"), SharedPaymentKind.COPAYMENT, new BigDecimal(amount), "AUT-1",
+                "REC-" + consecutive, "CT-1");
+        shared.issue(new IssuedNumber(UUID.randomUUID(), "SETP", consecutive), clock);
+        return shared;
     }
 }

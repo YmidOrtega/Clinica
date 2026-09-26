@@ -12,11 +12,11 @@ import java.util.UUID;
 
 interface InvoiceJpaRepository extends JpaRepository<Invoice, Long> {
 
-    @EntityGraph(attributePaths = {"account", "lines"})
+    @EntityGraph(attributePaths = {"account", "lines", "sharedPayments"})
     @Query("select i from Invoice i where i.uuid = :uuid")
     Optional<Invoice> findByUuid(@Param("uuid") UUID uuid);
 
-    @EntityGraph(attributePaths = {"account", "lines"})
+    @EntityGraph(attributePaths = {"account", "lines", "sharedPayments"})
     @Query("select distinct i from Invoice i where i.account.uuid = :account order by i.createdAt, i.id")
     List<Invoice> findByAccount(@Param("account") UUID account);
 
@@ -28,4 +28,17 @@ interface InvoiceJpaRepository extends JpaRepository<Invoice, Long> {
               and (i.unitKind = com.ClinicaDeYmid.billing_service.domain.AccountSummary.UnitKind.ACCOUNT
                    or (:sale is not null and i.saleUuid = :sale))""")
     boolean liveFor(@Param("account") UUID account, @Param("sale") UUID sale);
+
+    @EntityGraph(attributePaths = {"account", "lines"})
+    @Query("""
+            select distinct i from Invoice i
+            where i.account.uuid = :account
+              and i.purpose = com.ClinicaDeYmid.billing_service.domain.Invoice.Purpose.SHARED_PAYMENT
+              and i.statusCode = com.ClinicaDeYmid.billing_service.domain.InvoiceStatus.Code.ISSUED
+            order by i.statusChangedAt, i.id""")
+    List<Invoice> sharedPaymentsOf(@Param("account") UUID account);
+
+    @EntityGraph(attributePaths = {"account", "lines"})
+    @Query("select i from Invoice i where i.collectionReference = :reference")
+    Optional<Invoice> findByCollectionReference(@Param("reference") String reference);
 }

@@ -25,6 +25,7 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
 
     static final String SALES = "/api/v1/billing/sales";
     static final String INVOICES = "/api/v1/billing/invoices";
+    static final String SHARED_PAYMENTS = "/api/v1/billing/shared-payments";
     static final String CONSULTATION = "2c1b0a9f-8e7d-4c6b-9a5f-4e3d2c1b0a9f";
     static final String PAYER = "7f3a1c2e-9b8d-4e6f-a5b4-c3d2e1f0a9b8";
     static final LocalDate TODAY = LocalDate.now(ZoneId.of("America/Bogota"));
@@ -47,7 +48,15 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
         return issued(episode, confirmedSale(episode));
     }
 
+    protected String copaymentCollected(Episode episode, String amount) throws Exception {
+        return JsonPath.read(as("BILLING", post(SHARED_PAYMENTS), """
+                {"admissionNumber":"%s","authorizationNumber":"AUT-778899","amount":%s,"collectionReference":"%s"}"""
+                .formatted(episode.number(), amount, UUID.randomUUID())).andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "$.invoiceUuid");
+    }
+
     protected String issued(Episode episode, String sale) throws Exception {
+        copaymentCollected(episode, "35000");
         String invoice = JsonPath.read(as("BILLING", post(INVOICES), drafting(episode, sale))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.uuid");
         change("BILLING", post(INVOICES + "/" + invoice + "/issuance"), 0, null)

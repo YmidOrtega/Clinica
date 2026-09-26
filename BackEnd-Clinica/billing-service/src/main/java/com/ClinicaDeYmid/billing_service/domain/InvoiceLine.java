@@ -24,7 +24,8 @@ public class InvoiceLine {
 
     public enum Kind {
         SERVICE,
-        PACKAGE
+        PACKAGE,
+        SHARED_PAYMENT
     }
 
     @Id
@@ -93,6 +94,22 @@ public class InvoiceLine {
         invoiced.serviceDate = line.serviceDate();
         invoiced.authorizationNumber = line.origin() instanceof LineOrigin.Authorized authorized
                 ? authorized.authorizationNumber() : null;
+        return invoiced;
+    }
+
+    static InvoiceLine sharedPayment(Invoice invoice, SharedPaymentKind kind, String authorizationNumber,
+                                     BigDecimal amount) {
+        InvoiceLine invoiced = new InvoiceLine();
+        invoiced.invoice = invoice;
+        invoiced.position = 1;
+        invoiced.kind = Kind.SHARED_PAYMENT;
+        invoiced.code = kind.healthField();
+        invoiced.description = kind.label() + (authorizationNumber == null ? " de servicios de salud"
+                : " · autorización " + authorizationNumber);
+        invoiced.quantity = 1;
+        invoiced.unitPrice = amount;
+        invoiced.lineTotal = amount;
+        invoiced.authorizationNumber = authorizationNumber;
         return invoiced;
     }
 

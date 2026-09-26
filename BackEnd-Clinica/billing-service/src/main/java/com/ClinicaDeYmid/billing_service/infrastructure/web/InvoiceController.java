@@ -215,22 +215,36 @@ class InvoiceController {
         }
     }
 
-    record InvoiceView(UUID uuid, String number, LocalDate issuedOn, String issuedTime, String cufe, String qrContent,
+    record SharedView(UUID invoiceUuid, String number, com.ClinicaDeYmid.billing_service.domain.SharedPaymentKind kind,
+                      BigDecimal amount) {
+
+        static SharedView from(Invoice shared) {
+            return new SharedView(shared.uuid(), shared.number(), shared.sharedPaymentKind(), shared.grossTotal());
+        }
+    }
+
+    record InvoiceView(UUID uuid, Invoice.Purpose purpose,
+                       com.ClinicaDeYmid.billing_service.domain.SharedPaymentKind sharedPaymentKind,
+                       String authorizationNumber, String number, LocalDate issuedOn, String issuedTime, String cufe, String qrContent,
                        Instant signedAt, DianView dian, UUID resolutionUuid, StatusView status,
                        String admissionNumber, AccountSummary.UnitKind unitKind, UUID saleUuid, Buyer buyer,
                        HealthUser user, UUID contractUuid, String contractNumber, BigDecimal grossTotal,
                        BigDecimal patientShare, AccountSummary.ShareSource patientShareSource, BigDecimal payableTotal,
+                       BigDecimal expectedShare, BigDecimal shareShortfall, List<SharedView> sharedPayments,
                        BigDecimal creditedTotal, List<LineView> lines, Instant createdAt) {
 
         static InvoiceView from(Invoice invoice, ElectronicDocument document) {
-            return new InvoiceView(invoice.uuid(), invoice.number(), invoice.issuedOn(),
+            return new InvoiceView(invoice.uuid(), invoice.purpose(), invoice.sharedPaymentKind(),
+                    invoice.authorizationNumber(), invoice.number(), invoice.issuedOn(),
                     invoice.issuedTime() == null ? null : com.ClinicaDeYmid.billing_service.domain.Cufe.time(invoice.issuedTime()),
                     invoice.cufe(), invoice.qrContent(), document == null ? null : document.signedAt(), DianView.from(document),
                     invoice.resolutionUuid(),
                     StatusView.from(invoice.status()), invoice.account().admissionNumber(), invoice.unitKind(),
                     invoice.saleUuid(), invoice.buyer(), invoice.user(), invoice.contractUuid(),
                     invoice.contractNumber(), invoice.grossTotal(), invoice.patientShare(),
-                    invoice.patientShareSource(), invoice.payableTotal(), invoice.creditedTotal(),
+                    invoice.patientShareSource(), invoice.payableTotal(), invoice.expectedShare(),
+                    invoice.shareShortfall(), invoice.sharedPayments().stream().map(SharedView::from).toList(),
+                    invoice.creditedTotal(),
                     invoice.lines().stream().map(LineView::from).toList(), invoice.createdAt());
         }
     }

@@ -454,4 +454,25 @@ public sealed abstract class BillingException extends DomainException {
                     "El sello institucional no está disponible; intenta de nuevo en un momento");
         }
     }
+
+    public static final class SharedPaymentExceedsExpected extends BillingException {
+        public SharedPaymentExceedsExpected(java.math.BigDecimal invoiced, java.math.BigDecimal expected) {
+            super(ErrorCategory.RULE_VIOLATION, "SHARED_PAYMENT_EXCEEDS_EXPECTED",
+                    "Al paciente se le facturaron " + Money.of(invoiced) + " de copagos o cuotas y la unidad solo espera "
+                            + Money.of(expected) + "; corrija el pago compartido antes de facturar al pagador");
+        }
+    }
+
+    public static final class SharedPaymentNotAccepted extends BillingException {
+        public SharedPaymentNotAccepted(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "SHARED_PAYMENT_NOT_ACCEPTED", detail);
+        }
+    }
+
+    public static final class CollectionReferenceReused extends BillingException {
+        public CollectionReferenceReused() {
+            super(ErrorCategory.CONFLICT, "COLLECTION_REFERENCE_REUSED",
+                    "Esa referencia de recaudo ya se facturó con otros datos");
+        }
+    }
 }
