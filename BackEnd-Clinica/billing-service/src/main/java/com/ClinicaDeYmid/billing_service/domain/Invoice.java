@@ -124,6 +124,27 @@ public class Invoice {
     @Column(name = "contract_number", updatable = false, length = 40)
     private String contractNumber;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_modality", updatable = false, length = 20)
+    private PaymentModality paymentModality;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "coverage_plan", updatable = false, length = 30)
+    private CoveragePlan coveragePlan;
+
+    @Column(name = "cucon", updatable = false, length = 64)
+    private String cucon;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "uncontracted_care", updatable = false, length = 40)
+    private UncontractedCare uncontractedCare;
+
+    @Column(name = "period_start")
+    private LocalDate periodStart;
+
+    @Column(name = "period_end")
+    private LocalDate periodEnd;
+
     @Column(name = "gross_total", nullable = false, updatable = false, precision = 14, scale = 2)
     private BigDecimal grossTotal;
 
@@ -219,12 +240,13 @@ public class Invoice {
     protected Invoice() {
     }
 
-    public static Invoice draft(AccountSummary.Unit unit, EpisodeAccount account, Buyer buyer, HealthUser user) {
-        return draft(unit, account, buyer, user, List.of());
+    public static Invoice draft(AccountSummary.Unit unit, EpisodeAccount account, Buyer buyer, HealthUser user,
+                                HealthTerms terms) {
+        return draft(unit, account, buyer, user, terms, List.of());
     }
 
     public static Invoice draft(AccountSummary.Unit unit, EpisodeAccount account, Buyer buyer, HealthUser user,
-                                List<Invoice> shared) {
+                                HealthTerms terms, List<Invoice> shared) {
         DomainRules.required(unit, "unit");
         if (!unit.ready()) {
             throw new BillingException.NotABillableUnit(unit.notReadyReason());
@@ -255,6 +277,11 @@ public class Invoice {
                     invoice.contractUuid = settled.contractUuid();
                     invoice.contractNumber = settled.contractNumber();
                 });
+        DomainRules.required(terms, "terms");
+        invoice.paymentModality = terms.modality();
+        invoice.coveragePlan = terms.coverage();
+        invoice.cucon = terms.cucon();
+        invoice.uncontractedCare = terms.uncontracted();
         invoice.grossTotal = unit.total();
         if (buyer.kind() == Buyer.Kind.PATIENT) {
             invoice.patientShare = Money.ZERO;
@@ -330,8 +357,8 @@ public class Invoice {
         BigDecimal invoiced = Money.ZERO;
         for (Invoice payment : shared) {
             if (payment.purpose != Purpose.SHARED_PAYMENT || !(payment.status() instanceof InvoiceStatus.Issued)
-                    || !payment.account.uuid().equals(account.uuid())) {
-                throw new IllegalArgumentException("Only issued shared payments of the same account are deducted");
+                    || !payment.account.uuid().equals(account.uuid()) || !payment.sharedPaymentKind.creditable()) {
+                throw new IllegalArgumentException("Only issued creditable shared payments of the same account are deducted");
             }
             invoiced = invoiced.add(payment.grossTotal);
         }
@@ -367,6 +394,23 @@ public class Invoice {
         resolutionUuid = issued.resolutionUuid();
         issuedOn = LocalDate.now(clock);
         issuedTime = java.time.LocalTime.now(clock).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+        List<LocalDate> served = lines.stream().map(InvoiceLine::serviceDate).filter(java.util.Objects::nonNull)
+                .sorted().toList();
+        periodStart = served.isEmpty() ? issuedOn : served.getFirst();
+        periodEnd = served.isEmpty() ? issuedOn : served.getLast();
+    }
+
+    public HealthTerms healthTerms() {
+        return paymentModality == null ? null
+                : new HealthTerms(paymentModality, coveragePlan, cucon, uncontractedCare);
+    }
+
+    public LocalDate periodStart() {
+        return periodStart;
+    }
+
+    public LocalDate periodEnd() {
+        return periodEnd;
     }
 
     public Cufe.Input cufeInput(Issuer issuer, NumberingResolution resolution) {

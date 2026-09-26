@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.billing_service.support.AdmissionEvents;
 import com.ClinicaDeYmid.billing_service.support.DianSimulator;
 import com.ClinicaDeYmid.billing_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.billing_service.support.LocalDianSigningKey;
+import com.ClinicaDeYmid.billing_service.support.StubbedServices;
 import com.ClinicaDeYmid.billing_service.support.XadesVerification;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,7 +99,7 @@ class InvoiceApiIT extends InvoicingIntegrationTest {
                         .string(org.hamcrest.Matchers.containsString("<cbc:ID>SETP990000001</cbc:ID>")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString(
-                                "<cac:PrepaidPayment><cbc:ID>SETP990000000</cbc:ID>")))
+                                "<cac:PrepaidPayment><cbc:ID schemeID=\"02\">1</cbc:ID>")))
                 .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         assertThat(XadesVerification.verify(ubl, LocalDianSigningKey.SHARED.certificate().getPublicKey()).valid())
                 .isTrue();
@@ -258,6 +259,7 @@ class InvoiceApiIT extends InvoicingIntegrationTest {
 
     @Test
     void aPrivatePatientIsTheBuyerAndPaysEverything() throws Exception {
+        anActiveResolution("SPRV");
         Episode episode = outpatient("NOT_COVERED");
         String opened = as("BILLING", post(SALES), "{\"admissionNumber\":\"" + episode.number()
                 + "\",\"type\":\"NON_SURGICAL\",\"preloadAuthorized\":false}")
@@ -270,12 +272,36 @@ class InvoiceApiIT extends InvoicingIntegrationTest {
                 "{\"unitPrice\":45000,\"reason\":\"Tarifa particular de la clínica\"}").andExpect(status().isOk());
         change("BILLING", post(SALES + "/" + sale + "/confirmation"), 2, null).andExpect(status().isOk());
 
-        as("BILLING", post(INVOICES), drafting(episode, sale))
+        String invoice = JsonPath.read(as("BILLING", post(INVOICES), drafting(episode, sale))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.buyer.kind").value("PATIENT"))
                 .andExpect(jsonPath("$.buyer.name").value("Ana María Restrepo Gómez"))
                 .andExpect(jsonPath("$.patientShare").value(0))
-                .andExpect(jsonPath("$.payableTotal").value(45000.00));
+                .andExpect(jsonPath("$.payableTotal").value(45000.00))
+                .andReturn().getResponse().getContentAsString(), "$.uuid");
+        change("BILLING", post(INVOICES + "/" + invoice + "/issuance"), 0, null).andExpect(status().isOk());
+
+        assertThat(as("BILLING", get(INVOICES + "/" + invoice + "/ubl")).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                .contains("<cbc:CustomizationID>SS-SinAporte",
+                        "<Name>COBERTURA_PLAN_BENEFICIOS</Name><Value schemeID=\"15\" schemeName=\"salud_cobertura.gc\">",
+                        "<Name>NUMERO_CONTRATO</Name><Value/>",
+                        "<Name>FACTURA_SIN_CONTRATO</Name><Value schemeID=\"07\" schemeName=\"salud_cobertura.gc\">");
+    }
+
+    @Test
+    void aPayerIsNotInvoicedUnderAContractWithoutItsSiifaRegistration() throws Exception {
+        Episode episode = outpatient("COVERED");
+        String sale = confirmedSale(episode);
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo("/api/v1/contracts/" + CONTRACT))
+                .willReturn(com.github.tomakehurst.wiremock.client.WireMock.okJson("""
+                        {"uuid":"%s","number":"CT-1","modality":"EVENT","coveragePlan":null,
+                         "coveragePlanCode":null,"cucon":null}""".formatted(CONTRACT))));
+
+        as("BILLING", post(INVOICES), drafting(episode, sale))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("CONTRACT_NOT_REGISTERED_FOR_RIPS"));
     }
 
     @Test

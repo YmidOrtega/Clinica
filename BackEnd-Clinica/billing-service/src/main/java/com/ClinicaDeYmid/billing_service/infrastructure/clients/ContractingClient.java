@@ -16,6 +16,13 @@ import java.util.UUID;
 @FeignClient(name = "contracting-service")
 interface ContractingClient {
 
+    @GetMapping("/api/v1/contracts/{uuid}")
+    ContractPayload contract(@PathVariable("uuid") UUID uuid);
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record ContractPayload(UUID uuid, String number, String modality, String coveragePlanCode, String cucon) {
+    }
+
     @GetMapping("/api/v1/payers/{uuid}")
     PayerPayload payer(@PathVariable("uuid") UUID uuid);
 

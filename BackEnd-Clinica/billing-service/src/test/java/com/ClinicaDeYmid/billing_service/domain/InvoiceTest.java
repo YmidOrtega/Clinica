@@ -22,6 +22,7 @@ class InvoiceTest {
     private static final Buyer EPS = new Buyer(Buyer.Kind.PAYER, UUID.randomUUID(), "NIT", "900156264-2", "Nueva EPS S.A.");
     private static final HealthUser ANA = new HealthUser(UUID.randomUUID(), "CEDULA_DE_CIUDADANIA", "1098765432",
             "Ana María Restrepo Gómez", "CONTRIBUTORY");
+    static final HealthTerms TERMS = HealthTerms.contracted(PaymentModality.EVENT, CoveragePlan.UPC_CONTRIBUTORY, "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1");
 
     @Test
     void aDraftFreezesTheLinesAndSplitsWhatThePayerAndThePatientOwe() {
@@ -29,7 +30,7 @@ class InvoiceTest {
         PackageCharge delivery = new PackageCharge(UUID.randomUUID(), "PAQ-1", "Paquete", new BigDecimal("100000"));
         AccountSummary.Unit unit = unitOf(account, delivery);
 
-        Invoice invoice = Invoice.draft(unit, account, EPS, ANA, List.of(copaymentInvoiced(account, "35000", 1, NOW)));
+        Invoice invoice = Invoice.draft(unit, account, EPS, ANA, TERMS, List.of(copaymentInvoiced(account, "35000", 1, NOW)));
 
         assertThat(invoice.status()).isInstanceOf(InvoiceStatus.Draft.class);
         assertThat(invoice.number()).isNull();
@@ -46,8 +47,8 @@ class InvoiceTest {
         EpisodeAccount account = account();
         AccountSummary.Unit unit = unitOf(account, null);
 
-        Invoice uncollected = Invoice.draft(unit, account, EPS, ANA);
-        Invoice partly = Invoice.draft(unit, account, EPS, ANA, List.of(copaymentInvoiced(account, "20000", 2, NOW)));
+        Invoice uncollected = Invoice.draft(unit, account, EPS, ANA, TERMS);
+        Invoice partly = Invoice.draft(unit, account, EPS, ANA, TERMS, List.of(copaymentInvoiced(account, "20000", 2, NOW)));
 
         assertThat(uncollected.patientShare()).isEqualByComparingTo("0");
         assertThat(uncollected.payableTotal()).isEqualByComparingTo("45000");
@@ -55,10 +56,10 @@ class InvoiceTest {
         assertThat(partly.payableTotal()).isEqualByComparingTo("25000");
         assertThat(partly.shareShortfall()).isEqualByComparingTo("15000");
         assertThat(partly.sharedPaymentOf(SharedPaymentKind.COPAYMENT)).isEqualByComparingTo("20000");
-        assertThatThrownBy(() -> Invoice.draft(unit, account, EPS, ANA,
+        assertThatThrownBy(() -> Invoice.draft(unit, account, EPS, ANA, TERMS,
                 List.of(copaymentInvoiced(account, "30000", 3, NOW), copaymentInvoiced(account, "10000", 4, NOW))))
                 .isInstanceOf(BillingException.SharedPaymentExceedsExpected.class);
-        assertThatThrownBy(() -> Invoice.draft(unit, account, EPS, ANA,
+        assertThatThrownBy(() -> Invoice.draft(unit, account, EPS, ANA, TERMS,
                 List.of(Invoice.sharedPayment(account, new Buyer(Buyer.Kind.PATIENT, UUID.randomUUID(), "CEDULA_DE_CIUDADANIA",
                         "1", "x"), ANA, SharedPaymentKind.COPAYMENT, BigDecimal.TEN, null, "REC-draft", null))))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -89,7 +90,7 @@ class InvoiceTest {
         EpisodeAccount account = account();
         Buyer patient = new Buyer(Buyer.Kind.PATIENT, ANA.patientUuid(), ANA.documentType(), ANA.documentNumber(), ANA.name());
 
-        Invoice invoice = Invoice.draft(unitOf(account, null), account, patient, ANA);
+        Invoice invoice = Invoice.draft(unitOf(account, null), account, patient, ANA, HealthTerms.privatePatient());
 
         assertThat(invoice.patientShare()).isEqualByComparingTo("0");
         assertThat(invoice.payableTotal()).isEqualByComparingTo(invoice.grossTotal());
@@ -98,7 +99,7 @@ class InvoiceTest {
     @Test
     void takesItsNumberOnlyWhenIssuedAndThenNeverChanges() {
         EpisodeAccount account = account();
-        Invoice invoice = Invoice.draft(unitOf(account, null), account, EPS, ANA);
+        Invoice invoice = Invoice.draft(unitOf(account, null), account, EPS, ANA, TERMS);
         UUID resolution = UUID.randomUUID();
 
         invoice.issue(new IssuedNumber(resolution, "SETP", 990000001), NOW);
@@ -119,7 +120,7 @@ class InvoiceTest {
                 "El paciente aún no tiene egreso", Money.ZERO, List.of(), List.of(), Money.ZERO, Money.ZERO,
                 AccountSummary.ShareSource.COPAYMENT, List.of(), null, Money.ZERO);
 
-        assertThatThrownBy(() -> Invoice.draft(notReady, account, EPS, ANA))
+        assertThatThrownBy(() -> Invoice.draft(notReady, account, EPS, ANA, TERMS))
                 .isInstanceOf(BillingException.NotABillableUnit.class)
                 .hasMessageContaining("egreso");
     }
@@ -127,7 +128,7 @@ class InvoiceTest {
     @Test
     void noticesWhenTheUnitChangedSinceTheDraft() {
         EpisodeAccount account = account();
-        Invoice invoice = Invoice.draft(unitOf(account, null), account, EPS, ANA);
+        Invoice invoice = Invoice.draft(unitOf(account, null), account, EPS, ANA, TERMS);
         PatientShareAdjustment adjustment = PatientShareAdjustment.of(account, null, BigDecimal.ZERO, "Exento");
 
         AccountSummary later = AccountSummary.of(account, unitOf(account, null).sales(), true, List.of(), List.of(adjustment));

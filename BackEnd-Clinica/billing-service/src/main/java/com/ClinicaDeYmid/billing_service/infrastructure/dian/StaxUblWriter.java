@@ -7,7 +7,7 @@ import com.ClinicaDeYmid.billing_service.domain.Buyer;
 import com.ClinicaDeYmid.billing_service.domain.CreditNote;
 import com.ClinicaDeYmid.billing_service.domain.CreditNoteLine;
 import com.ClinicaDeYmid.billing_service.domain.Cufe;
-import com.ClinicaDeYmid.billing_service.domain.HealthUser;
+import com.ClinicaDeYmid.billing_service.domain.HealthTerms;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceLine;
 import com.ClinicaDeYmid.billing_service.domain.Issuer;
@@ -22,7 +22,10 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -40,6 +43,8 @@ class StaxUblWriter implements UblWriter {
     static final String DIAN_NIT = "800197268";
     static final String NIT_SCHEME = "31";
     static final String CURRENCY = "COP";
+    static final String HEALTH_AUTHORITY = "url www.minsalud.gov.co";
+    static final String HEALTH_RESOLUTION = "Resolución 0948:2026";
 
     private static final Map<String, String> DOCUMENT_TYPES = Map.of(
             "NO_IDENTIFICADO", "AS",
@@ -87,14 +92,18 @@ class StaxUblWriter implements UblWriter {
         Issuer issuer = electronic.issuer();
         root(xml, INVOICE, "Invoice");
 
+        boolean collection = invoice.purpose() == Invoice.Purpose.SHARED_PAYMENT;
         xml.writeStartElement(EXT, "UBLExtensions");
         dianExtension(xml, electronic);
+        if (!collection) {
+            healthExtension(xml, invoice, issuer);
+        }
         signatureSlot(xml);
-        healthExtension(xml, invoice, issuer, sharesOf(invoice));
         xml.writeEndElement();
 
         basic(xml, "UBLVersionID", "UBL 2.1");
-        basic(xml, "CustomizationID", invoice.patientShare().signum() > 0 ? "SS-Recaudo" : "SS-SinAporte");
+        basic(xml, "CustomizationID", collection ? "SS-Recaudo"
+                : invoice.sharedPayments().isEmpty() ? "SS-SinAporte" : "SS-CUFE");
         basic(xml, "ProfileID", "DIAN 2.1: Factura Electrónica de Venta");
         basic(xml, "ProfileExecutionID", issuer.environment().dianCode());
         basic(xml, "ID", invoice.number());
@@ -104,17 +113,12 @@ class StaxUblWriter implements UblWriter {
         basic(xml, "InvoiceTypeCode", "01");
         basic(xml, "DocumentCurrencyCode", CURRENCY);
         basic(xml, "LineCountNumeric", String.valueOf(electronic.reportedLines().size()));
+        period(xml, invoice);
 
         supplier(xml, issuer);
         customer(xml, invoice.buyer());
         paymentMeans(xml, invoice);
-        for (Invoice shared : invoice.sharedPayments()) {
-            xml.writeStartElement(CAC, "PrepaidPayment");
-            basic(xml, "ID", shared.number());
-            amount(xml, "PaidAmount", shared.grossTotal());
-            basic(xml, "ReceivedDate", shared.issuedOn().toString());
-            xml.writeEndElement();
-        }
+        prepaidPayments(xml, invoice);
         xml.writeStartElement(CAC, "LegalMonetaryTotal");
         amount(xml, "LineExtensionAmount", invoice.grossTotal());
         amount(xml, "TaxExclusiveAmount", BigDecimal.ZERO);
@@ -146,9 +150,10 @@ class StaxUblWriter implements UblWriter {
         xml.writeEndElement();
         xml.writeEndElement();
         xml.writeEndElement();
+        if (invoice.purpose() != Invoice.Purpose.SHARED_PAYMENT) {
+            healthExtension(xml, invoice, issuer);
+        }
         signatureSlot(xml);
-        healthExtension(xml, invoice, issuer, note.creditedShare().signum() > 0 ? sharesOf(invoice)
-                : new EnumMap<>(SharedPaymentKind.class));
         xml.writeEndElement();
 
         basic(xml, "UBLVersionID", "UBL 2.1");
@@ -163,6 +168,7 @@ class StaxUblWriter implements UblWriter {
         basic(xml, "Note", note.reason());
         basic(xml, "DocumentCurrencyCode", CURRENCY);
         basic(xml, "LineCountNumeric", String.valueOf(note.lines().size()));
+        period(xml, invoice);
         xml.writeStartElement(CAC, "DiscrepancyResponse");
         basic(xml, "ReferenceID", invoice.number());
         basic(xml, "ResponseCode", note.concept().dianCode());
@@ -179,13 +185,7 @@ class StaxUblWriter implements UblWriter {
         supplier(xml, issuer);
         customer(xml, invoice.buyer());
         if (note.creditedShare().signum() > 0) {
-            for (Invoice shared : invoice.sharedPayments()) {
-                xml.writeStartElement(CAC, "PrepaidPayment");
-                basic(xml, "ID", shared.number());
-                amount(xml, "PaidAmount", shared.grossTotal());
-                basic(xml, "ReceivedDate", shared.issuedOn().toString());
-                xml.writeEndElement();
-            }
+            prepaidPayments(xml, invoice);
         }
         xml.writeStartElement(CAC, "LegalMonetaryTotal");
         amount(xml, "LineExtensionAmount", note.creditedGross());
@@ -289,34 +289,60 @@ class StaxUblWriter implements UblWriter {
         text(xml, STS, "QRCode", qrContent);
     }
 
-    private static Map<SharedPaymentKind, BigDecimal> sharesOf(Invoice invoice) {
-        Map<SharedPaymentKind, BigDecimal> shares = new EnumMap<>(SharedPaymentKind.class);
-        for (SharedPaymentKind kind : SharedPaymentKind.values()) {
-            shares.put(kind, invoice.sharedPaymentOf(kind));
-        }
-        return shares;
+    private void period(XMLStreamWriter xml, Invoice invoice) throws XMLStreamException {
+        xml.writeStartElement(CAC, "InvoicePeriod");
+        basic(xml, "StartDate", invoice.periodStart().toString());
+        basic(xml, "EndDate", invoice.periodEnd().toString());
+        xml.writeEndElement();
     }
 
-    private void healthExtension(XMLStreamWriter xml, Invoice invoice, Issuer issuer,
-                                 Map<SharedPaymentKind, BigDecimal> shares) throws XMLStreamException {
-        HealthUser user = invoice.user();
+    private void prepaidPayments(XMLStreamWriter xml, Invoice invoice) throws XMLStreamException {
+        Map<SharedPaymentKind, List<Invoice>> byConcept = new EnumMap<>(SharedPaymentKind.class);
+        for (Invoice shared : invoice.sharedPayments()) {
+            byConcept.computeIfAbsent(shared.sharedPaymentKind(), kind -> new ArrayList<>()).add(shared);
+        }
+        int id = 1;
+        for (Map.Entry<SharedPaymentKind, List<Invoice>> concept : byConcept.entrySet()) {
+            if (!concept.getKey().creditable()) {
+                throw new IllegalStateException("A " + concept.getKey() + " cannot be credited to the payer");
+            }
+            xml.writeStartElement(CAC, "PrepaidPayment");
+            basic(xml, "ID", String.valueOf(id++), "schemeID", concept.getKey().collectionConcept());
+            amount(xml, "PaidAmount", concept.getValue().stream().map(Invoice::grossTotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add));
+            basic(xml, "ReceivedDate", concept.getValue().stream().map(Invoice::issuedOn)
+                    .max(Comparator.naturalOrder()).orElseThrow().toString());
+            xml.writeEndElement();
+        }
+    }
+
+    private void healthExtension(XMLStreamWriter xml, Invoice invoice, Issuer issuer) throws XMLStreamException {
+        HealthTerms terms = invoice.healthTerms();
+        if (terms == null) {
+            throw new IllegalStateException("The invoice " + invoice.number() + " has no health terms");
+        }
         xml.writeStartElement(EXT, "UBLExtension");
         xml.writeStartElement(EXT, "ExtensionContent");
         xml.writeStartElement("CustomTagGeneral");
+        simple(xml, "Name", "Responsable");
+        simple(xml, "Value", HEALTH_AUTHORITY);
+        simple(xml, "Name", "Tipo, identificador:año del acto administrativo");
+        simple(xml, "Value", HEALTH_RESOLUTION);
         xml.writeStartElement("Interoperabilidad");
         xml.writeStartElement("Group");
         xml.writeAttribute("schemeName", "Sector Salud");
         xml.writeStartElement("Collection");
         xml.writeAttribute("schemeName", "Usuario");
-        information(xml, "CODIGO_PRESTADOR", issuer.profile().healthProviderCode());
-        information(xml, "TIPO_DOCUMENTO_IDENTIFICACION", documentType(user.documentType()));
-        information(xml, "NUMERO_DOCUMENTO_IDENTIFICACION", user.documentNumber());
-        information(xml, "NOMBRE_USUARIO", user.name());
-        if (invoice.contractNumber() != null) {
-            information(xml, "NUMERO_CONTRATO", invoice.contractNumber());
-        }
-        for (SharedPaymentKind kind : SharedPaymentKind.values()) {
-            information(xml, kind.healthField(), Cufe.amount(shares.getOrDefault(kind, BigDecimal.ZERO)));
+        information(xml, "CODIGO_PRESTADOR", issuer.profile().healthProviderCode().substring(0, 10));
+        information(xml, "MODALIDAD_PAGO", terms.modality().label(), "salud_modalidad_pago.gc",
+                terms.modality().sisproCode());
+        information(xml, "COBERTURA_PLAN_BENEFICIOS", terms.coverage().label(), "salud_cobertura.gc",
+                terms.coverage().sisproCode());
+        information(xml, "NUMERO_CONTRATO", terms.cucon() == null ? "" : terms.cucon());
+        information(xml, "NUMERO_POLIZA", "");
+        if (terms.uncontracted() != null) {
+            information(xml, "FACTURA_SIN_CONTRATO", terms.uncontracted().label(), "salud_cobertura.gc",
+                    terms.uncontracted().sisproCode());
         }
         xml.writeEndElement();
         xml.writeEndElement();
@@ -452,14 +478,23 @@ class StaxUblWriter implements UblWriter {
         xml.writeEndElement();
     }
 
-    private void information(XMLStreamWriter xml, String name, String value) throws XMLStreamException {
+    private void information(XMLStreamWriter xml, String name, String value, String... scheme)
+            throws XMLStreamException {
         xml.writeStartElement("AdditionalInformation");
-        xml.writeStartElement("Name");
-        xml.writeCharacters(name);
-        xml.writeEndElement();
+        simple(xml, "Name", name);
         xml.writeStartElement("Value");
+        if (scheme.length == 2) {
+            xml.writeAttribute("schemeName", scheme[0]);
+            xml.writeAttribute("schemeID", scheme[1]);
+        }
         xml.writeCharacters(value);
         xml.writeEndElement();
+        xml.writeEndElement();
+    }
+
+    private void simple(XMLStreamWriter xml, String element, String value) throws XMLStreamException {
+        xml.writeStartElement(element);
+        xml.writeCharacters(value);
         xml.writeEndElement();
     }
 

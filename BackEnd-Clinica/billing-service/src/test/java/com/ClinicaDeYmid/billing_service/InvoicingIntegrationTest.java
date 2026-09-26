@@ -29,6 +29,8 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
     static final String PRACTITIONER = "0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e";
     static final String CONSULTATION = "2c1b0a9f-8e7d-4c6b-9a5f-4e3d2c1b0a9f";
     static final String PAYER = "7f3a1c2e-9b8d-4e6f-a5b4-c3d2e1f0a9b8";
+    static final String CONTRACT = "3c9d2e1f-6a5b-4c7d-8e9f-0a1b2c3d4e5f";
+    static final String CUCON = "5f0e2b7c9a1d4e3f8b6a0c2d4e6f8a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f";
     static final LocalDate TODAY = LocalDate.now(ZoneId.of("America/Bogota"));
 
     @Autowired
@@ -118,8 +120,12 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
     protected static void stubEpisode(UUID admission, String number, String coverage) {
         String coverageJson = "NOT_COVERED".equals(coverage)
                 ? "{\"status\":\"NOT_COVERED\"}"
-                : "{\"status\":\"" + coverage + "\",\"contractUuid\":\"" + UUID.randomUUID()
+                : "{\"status\":\"" + coverage + "\",\"contractUuid\":\"" + CONTRACT
                         + "\",\"contractNumber\":\"CT-1\",\"payerUuid\":\"" + PAYER + "\"}";
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/contracts/" + CONTRACT)).willReturn(okJson("""
+                {"uuid":"%s","number":"CT-1","modality":"EVENT","coveragePlan":"UPC_CONTRIBUTORY",
+                 "coveragePlanCode":"16","cucon":"%s"}""".formatted(CONTRACT, CUCON))));
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
                 urlPathEqualTo("/api/v1/admissions/episodes/" + admission)).willReturn(okJson("""
                 {"uuid":"%s","number":"%s","kind":"OUTPATIENT","status":{"code":"ACTIVE"},"coverage":%s,

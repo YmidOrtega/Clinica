@@ -483,4 +483,10 @@ public sealed abstract class BillingException extends DomainException {
                             + "de la factura al pagador");
         }
     }
+
+    public static final class ContractNotRegisteredForRips extends BillingException {
+        public ContractNotRegisteredForRips(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "CONTRACT_NOT_REGISTERED_FOR_RIPS", detail);
+        }
+    }
 }

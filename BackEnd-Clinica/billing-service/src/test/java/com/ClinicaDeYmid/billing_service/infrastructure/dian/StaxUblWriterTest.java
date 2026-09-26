@@ -13,6 +13,9 @@ import com.ClinicaDeYmid.billing_service.domain.DianEnvironment;
 import com.ClinicaDeYmid.billing_service.domain.DischargeType;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
+import com.ClinicaDeYmid.billing_service.domain.CoveragePlan;
+import com.ClinicaDeYmid.billing_service.domain.HealthTerms;
+import com.ClinicaDeYmid.billing_service.domain.PaymentModality;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.IssuedNumber;
 import com.ClinicaDeYmid.billing_service.domain.Issuer;
@@ -58,6 +61,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StaxUblWriterTest {
 
     private static final Clock NOW = Clock.fixed(Instant.parse("2026-09-27T15:15:30Z"), ZoneId.of("America/Bogota"));
+    private static final String CUCON = "5f0e2b7c9a1d4e3f8b6a0c2d4e6f8a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f";
     private static final String KEY = "fc8eac422eba16e22ffd8c6f94b3f40a6e38162c";
 
     @Test
@@ -72,20 +76,40 @@ class StaxUblWriterTest {
         assertThat(path.evaluate("/inv:Invoice/cbc:ID", document)).isEqualTo("SETP990000000");
         assertThat(path.evaluate("/inv:Invoice/cbc:UUID/@schemeName", document)).isEqualTo("CUFE-SHA384");
         assertThat(path.evaluate("/inv:Invoice/cbc:IssueTime", document)).isEqualTo("10:15:30-05:00");
-        assertThat(path.evaluate("/inv:Invoice/cbc:CustomizationID", document)).isEqualTo("SS-Recaudo");
+        assertThat(path.evaluate("/inv:Invoice/cbc:CustomizationID", document)).isEqualTo("SS-CUFE");
+        assertThat(path.evaluate("/inv:Invoice/cac:InvoicePeriod/cbc:StartDate", document)).isEqualTo("2026-09-26");
+        assertThat(path.evaluate("/inv:Invoice/cac:InvoicePeriod/cbc:EndDate", document)).isEqualTo("2026-09-26");
         assertThat(path.evaluate("/inv:Invoice/cbc:LineCountNumeric", document)).isEqualTo("1");
         assertThat(path.evaluate("count(/inv:Invoice/cac:InvoiceLine)", document)).isEqualTo("1");
         assertThat(path.evaluate("//sts:InvoiceAuthorization", document)).isEqualTo("18760000001");
         assertThat(path.evaluate("//sts:SoftwareSecurityCode", document)).isEqualTo(
                 "04b857d859779f7f2f0ca928b921a6b580d48f6045b9174d4f3f7f3da19454fca7a0b177f25219b9d716324628330adc");
+        assertThat(path.evaluate("count(//ext:UBLExtension)", document)).isEqualTo("3");
+        assertThat(path.evaluate("//ext:UBLExtension[2]//inv:CustomTagGeneral/inv:Value[2]", document))
+                .isEqualTo("Resolución 0948:2026");
+        assertThat(path.evaluate("//ext:UBLExtension[3]/ext:ExtensionContent", document)).isEmpty();
+        assertThat(path.evaluate("//inv:Collection/inv:AdditionalInformation/inv:Name", document))
+                .isEqualTo("CODIGO_PRESTADOR");
         assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='CODIGO_PRESTADOR']/inv:Value", document))
-                .isEqualTo("050010123401");
+                .isEqualTo("0500101234");
+        assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='MODALIDAD_PAGO']/inv:Value/@schemeID", document))
+                .isEqualTo("04");
+        assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='MODALIDAD_PAGO']/inv:Value/@schemeName",
+                document)).isEqualTo("salud_modalidad_pago.gc");
+        assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='COBERTURA_PLAN_BENEFICIOS']/inv:Value/@schemeID",
+                document)).isEqualTo("16");
+        assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='NUMERO_CONTRATO']/inv:Value", document))
+                .isEqualTo(CUCON);
+        assertThat(path.evaluate("count(//inv:AdditionalInformation[inv:Name='FACTURA_SIN_CONTRATO'])", document))
+                .isEqualTo("0");
+        assertThat(path.evaluate("count(//inv:AdditionalInformation[inv:Name='COPAGO'])", document)).isEqualTo("0");
+        assertThat(path.evaluate("count(//inv:AdditionalInformation[inv:Name='NUMERO_DOCUMENTO_IDENTIFICACION'])",
+                document)).isEqualTo("0");
+        assertThat(path.evaluate("count(//cac:PrepaidPayment)", document)).isEqualTo("1");
+        assertThat(path.evaluate("//cac:PrepaidPayment/cbc:ID", document)).isEqualTo("1");
+        assertThat(path.evaluate("//cac:PrepaidPayment/cbc:ID/@schemeID", document)).isEqualTo("01");
         assertThat(path.evaluate("//cac:PrepaidPayment/cbc:PaidAmount", document)).isEqualTo("35000.00");
-        assertThat(path.evaluate("//cac:PrepaidPayment/cbc:ID", document)).isEqualTo("SETP989999999");
-        assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='COPAGO']/inv:Value", document))
-                .isEqualTo("35000.00");
-        assertThat(path.evaluate("//inv:AdditionalInformation[inv:Name='CUOTA_MODERADORA']/inv:Value", document))
-                .isEqualTo("0.00");
+        assertThat(path.evaluate("//cac:LegalMonetaryTotal/cbc:PrepaidAmount", document)).isEqualTo("35000.00");
         assertThat(path.evaluate("//cac:LegalMonetaryTotal/cbc:PayableAmount", document)).isEqualTo("10000.00");
         assertThat(path.evaluate("//cac:AccountingCustomerParty//cac:PartyIdentification/cbc:ID/@schemeID", document))
                 .isEqualTo("2");
@@ -104,6 +128,36 @@ class StaxUblWriterTest {
                 .contains("https://catalogo-vpfe-hab.dian.gov.co/document/searchqr?documentkey=" + recomputed);
     }
 
+    @Test
+    void aSharedPaymentInvoiceIsACollectionWithoutTheHealthExtension() throws Exception {
+        Fixture fixture = issued();
+        Invoice copayment = fixture.invoice().sharedPayments().getFirst();
+        String cufe = Cufe.of(copayment.cufeInput(fixture.issuer(), fixture.resolution()));
+        copayment.identify(cufe, ElectronicInvoice.qrContent(copayment, fixture.issuer(), cufe));
+
+        Document document = parse(new StaxUblWriter().invoice(ElectronicInvoice.of(copayment, fixture.issuer(),
+                fixture.resolution(), new DianSoftware("56f2ae4e-9812-4fad-9255-643406bbb1a1", "12345", null))));
+        XPath path = xpath();
+
+        assertThat(path.evaluate("/inv:Invoice/cbc:CustomizationID", document)).isEqualTo("SS-Recaudo");
+        assertThat(path.evaluate("count(//ext:UBLExtension)", document)).isEqualTo("2");
+        assertThat(path.evaluate("count(//inv:CustomTagGeneral)", document)).isEqualTo("0");
+        assertThat(path.evaluate("count(//cac:PrepaidPayment)", document)).isEqualTo("0");
+        assertThat(path.evaluate("/inv:Invoice/cac:InvoicePeriod/cbc:StartDate", document)).isEqualTo("2026-09-27");
+    }
+
+    @Test
+    void anInvoiceWithoutSharedPaymentsCreditsNothingToThePayer() throws Exception {
+        Fixture fixture = issued(false);
+
+        Document document = parse(new StaxUblWriter().invoice(ElectronicInvoice.of(fixture.invoice(), fixture.issuer(),
+                fixture.resolution(), new DianSoftware("56f2ae4e-9812-4fad-9255-643406bbb1a1", "12345", null))));
+        XPath path = xpath();
+
+        assertThat(path.evaluate("/inv:Invoice/cbc:CustomizationID", document)).isEqualTo("SS-SinAporte");
+        assertThat(path.evaluate("count(//cac:PrepaidPayment)", document)).isEqualTo("0");
+    }
+
     static String sampleUbl() {
         Fixture fixture = issued();
         return new StaxUblWriter().invoice(ElectronicInvoice.of(fixture.invoice(), fixture.issuer(),
@@ -111,6 +165,10 @@ class StaxUblWriterTest {
     }
 
     private static Fixture issued() {
+        return issued(true);
+    }
+
+    private static Fixture issued(boolean collected) {
         Issuer issuer = Issuer.configure(new Nit("800197268", 4), new IssuerProfile(PersonType.LEGAL_ENTITY,
                 "Clínica de Ymid S.A.S.", "Clínica de Ymid", TaxScheme.NOT_APPLICABLE,
                 Set.of(TaxResponsibility.LARGE_TAXPAYER), "Calle 10 # 43-20", "05001", "Medellín", "Antioquia", null,
@@ -141,7 +199,8 @@ class StaxUblWriterTest {
         copayment.issue(new IssuedNumber(UUID.randomUUID(), "SETP", 989999999), NOW);
         Invoice invoice = Invoice.draft(unit, account,
                 new Buyer(Buyer.Kind.PAYER, UUID.randomUUID(), "NIT", "900156264-2", "Nueva EPS S.A."), ana,
-                List.of(copayment));
+                HealthTerms.contracted(PaymentModality.EVENT, CoveragePlan.UPC_CONTRIBUTORY, CUCON),
+                collected ? List.of(copayment) : List.of());
         invoice.issue(new IssuedNumber(UUID.randomUUID(), "SETP", 990000000), NOW);
         String cufe = Cufe.of(invoice.cufeInput(issuer, resolution));
         invoice.identify(cufe, ElectronicInvoice.qrContent(invoice, issuer, cufe));
@@ -157,7 +216,7 @@ class StaxUblWriterTest {
     private static XPath xpath() {
         XPath path = XPathFactory.newInstance().newXPath();
         Map<String, String> namespaces = Map.of("inv", StaxUblWriter.INVOICE, "cac", StaxUblWriter.CAC,
-                "cbc", StaxUblWriter.CBC, "sts", StaxUblWriter.STS);
+                "cbc", StaxUblWriter.CBC, "sts", StaxUblWriter.STS, "ext", StaxUblWriter.EXT);
         path.setNamespaceContext(new NamespaceContext() {
             @Override
             public String getNamespaceURI(String prefix) {
