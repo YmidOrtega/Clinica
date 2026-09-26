@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.contracting_service.infrastructure.web;
 import com.ClinicaDeYmid.contracting_service.domain.AuthorizationRequirement;
 import com.ClinicaDeYmid.contracting_service.domain.Contract;
 import com.ClinicaDeYmid.contracting_service.domain.ContractModality;
+import com.ClinicaDeYmid.contracting_service.domain.CoveragePlan;
 import com.ClinicaDeYmid.contracting_service.domain.ContractPackage;
 import com.ClinicaDeYmid.contracting_service.domain.ContractStatus;
 import com.ClinicaDeYmid.contracting_service.domain.ContractTariffException;
@@ -19,14 +20,17 @@ final class ContractResponses {
     }
 
     record ContractView(UUID uuid, long version, UUID payerUuid, String payerNit, String payerName, String number,
-                        String name, ContractModality modality, String modalityLabel, LocalDate validFrom,
+                        String name, ContractModality modality, String modalityLabel, CoveragePlan coveragePlan,
+                        String coveragePlanCode, String cucon, LocalDate validFrom,
                         LocalDate validTo, TariffTermsView tariffTerms, StatusView status, Instant createdAt,
                         Instant updatedAt) {
 
         static ContractView from(Contract contract) {
             return new ContractView(contract.uuid(), contract.version(), contract.payer().uuid(),
                     contract.payer().nit().formatted(), contract.payer().socialReason(), contract.number(),
-                    contract.name(), contract.modality(), contract.modality().label(), contract.validFrom(),
+                    contract.name(), contract.modality(), contract.modality().label(), contract.coveragePlan(),
+                    contract.coveragePlan() == null ? null : contract.coveragePlan().sisproCode(), contract.cucon(),
+                    contract.validFrom(),
                     contract.validTo(), TariffTermsView.from(contract), StatusView.from(contract.status()),
                     contract.createdAt(), contract.updatedAt());
         }

@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.contracting_service.infrastructure.web;
 
 import com.ClinicaDeYmid.contracting_service.domain.ContractModality;
+import com.ClinicaDeYmid.contracting_service.domain.CoveragePlan;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -24,6 +25,9 @@ final class ContractRequests {
     }
 
     record Rename(String name) {
+    }
+
+    record RipsRegistration(CoveragePlan coveragePlan, String cucon) {
     }
 
     record Validity(LocalDate validTo) {

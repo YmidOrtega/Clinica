@@ -131,6 +131,11 @@ class ContractingEventsIT {
                 "{\"code\":\"PAQ-" + SEQUENCE.incrementAndGet() + "\",\"name\":\"Paquete de atención\",\"price\":150000,"
                         + "\"includedCodes\":[\"890201\",\"903841\"],\"validFrom\":\"2026-01-01\"}")
                 .andExpect(status().isOk());
+        stepUp(put("/api/v1/contracts/" + contract + "/rips-registration"), 2L,
+                "{\"coveragePlan\":\"UPC_CONTRIBUTORY\",\"cucon\":\"" + "ab".repeat(32) + "\"}")
+                .andExpect(status().isOk());
+        assertThat(eventsOf(contract)).extracting(row -> row.get("type")).contains("ContractRipsRegistered");
+        assertThat(payloadOf(eventsOf(contract).getLast()).get("coveragePlan").asText()).isEqualTo("UPC_CONTRIBUTORY");
 
         JsonSchema contractsSchema = schema("contracting.contracts.v1.schema.json");
         JsonSchema tariffsSchema = schema("contracting.tariffs.v1.schema.json");

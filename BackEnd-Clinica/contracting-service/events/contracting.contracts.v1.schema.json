@@ -38,7 +38,8 @@
         "ContractPackageAgreed",
         "ContractPackageRevoked",
         "ContractAuthorizationRequired",
-        "ContractAuthorizationRequirementRevoked"
+        "ContractAuthorizationRequirementRevoked",
+        "ContractRipsRegistered"
       ]
     },
     "occurredAt": {
@@ -87,6 +88,16 @@
         "CAPITATION",
         "GLOBAL_BUDGET"
       ]
+    },
+    "coveragePlan": {
+      "type": ["string", "null"],
+      "enum": [null, "MAXIMUM_BUDGET", "UNINSURED_VEHICLE_EPS", "SOAT_POLICY", "ARL", "ADRES", "PUBLIC_HEALTH",
+        "TERRITORIAL_ENTITY", "MIGRANT_EMERGENCY", "COMPLEMENTARY_PLAN", "PREPAID_MEDICINE", "HEALTH_POLICY",
+        "SPECIAL_REGIME", "PRISON_FUND", "PRIVATE", "UPC_CONTRIBUTORY", "UPC_SUBSIDIZED"]
+    },
+    "cucon": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
     },
     "validFrom": {
       "type": "string",

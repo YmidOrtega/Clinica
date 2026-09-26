@@ -14,7 +14,8 @@ import java.util.Set;
 import java.util.UUID;
 
 record ContractMessage(UUID eventId, String type, Instant occurredAt, String traceId, UUID contractUuid,
-                       PayerView payer, String number, String name, String modality, LocalDate validFrom,
+                       PayerView payer, String number, String name, String modality, String coveragePlan,
+                       String cucon, LocalDate validFrom,
                        LocalDate validTo, String status, long version, TariffTermsView tariffTerms,
                        List<ExceptionView> tariffExceptions, List<PackageView> packages, FundingView funding,
                        List<RequirementView> authorizationRequirements) {
@@ -27,7 +28,9 @@ record ContractMessage(UUID eventId, String type, Instant occurredAt, String tra
                               String traceId) {
         return new ContractMessage(eventId, type, occurredAt, traceId, contract.uuid(),
                 new PayerView(contract.payer().uuid(), contract.payer().nit().formatted(), contract.payer().socialReason()),
-                contract.number(), contract.name(), contract.modality().name(), contract.validFrom(), contract.validTo(),
+                contract.number(), contract.name(), contract.modality().name(),
+                contract.coveragePlan() == null ? null : contract.coveragePlan().name(), contract.cucon(),
+                contract.validFrom(), contract.validTo(),
                 contract.status().code().name(), contract.version(), TariffTermsView.from(contract),
                 exceptions.stream().filter(exception -> exception.revokedFrom() == null).map(ExceptionView::from).toList(),
                 packages.stream().filter(agreed -> agreed.revokedFrom() == null).map(PackageView::from).toList(),

@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 public class Contract {
 
     private static final Pattern NUMBER = Pattern.compile("^[A-Z0-9][A-Z0-9./-]{1,39}$");
+    private static final Pattern CUCON = Pattern.compile("^[0-9a-f]{64}$");
     private static final BigDecimal MINIMUM_FACTOR = new BigDecimal("0.1000");
     private static final BigDecimal MAXIMUM_FACTOR = new BigDecimal("10.0000");
 
@@ -65,6 +66,13 @@ public class Contract {
     @Enumerated(EnumType.STRING)
     @Column(name = "modality", nullable = false, updatable = false, length = 20)
     private ContractModality modality;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "coverage_plan", length = 30)
+    private CoveragePlan coveragePlan;
+
+    @Column(name = "cucon", length = 64)
+    private String cucon;
 
     @Column(name = "valid_from", nullable = false)
     private LocalDate validFrom;
@@ -136,6 +144,23 @@ public class Contract {
         }
         tariffVersion = agreed;
         tariffFactor = requireFactor(factor);
+    }
+
+    public void registerForRips(CoveragePlan plan, String code) {
+        if (statusCode == ContractStatus.Code.TERMINATED) {
+            throw new ContractingException.InvalidContractTransition(statusCode, statusCode);
+        }
+        coveragePlan = DomainRules.required(plan, "coveragePlan");
+        cucon = code == null || code.isBlank() ? null
+                : DomainRules.matching(code.strip().toLowerCase(java.util.Locale.ROOT), CUCON, "cucon");
+    }
+
+    public CoveragePlan coveragePlan() {
+        return coveragePlan;
+    }
+
+    public String cucon() {
+        return cucon;
     }
 
     public void rename(String newName) {
