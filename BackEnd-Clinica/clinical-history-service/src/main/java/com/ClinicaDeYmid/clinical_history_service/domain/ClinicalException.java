@@ -91,6 +91,20 @@ public sealed abstract class ClinicalException extends DomainException {
         }
     }
 
+    public static final class UnknownRipsCode extends ClinicalException {
+        public UnknownRipsCode(String field, String code) {
+            super(ErrorCategory.INVALID_INPUT, "UNKNOWN_RIPS_CODE",
+                    "El código '" + code + "' del campo '" + field + "' no existe en las tablas de referencia de RIPS");
+        }
+    }
+
+    public static final class ServiceNotHabilitated extends ClinicalException {
+        public ServiceNotHabilitated(String serviceCode, String modality) {
+            super(ErrorCategory.RULE_VIOLATION, "SERVICE_NOT_HABILITATED",
+                    "El servicio " + serviceCode + " no está habilitado en la modalidad " + modality);
+        }
+    }
+
     public static final class TerminologyUnavailable extends ClinicalException {
         public TerminologyUnavailable() {
             super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "TERMINOLOGY_NOT_ACTIVE",

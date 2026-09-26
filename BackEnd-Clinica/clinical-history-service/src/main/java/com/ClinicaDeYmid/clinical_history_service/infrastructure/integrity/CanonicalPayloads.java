@@ -101,6 +101,13 @@ final class CanonicalPayloads {
         payload.put("type", encounter.type().name());
         payload.put("admissionUuid", encounter.admissionUuid() == null ? null : encounter.admissionUuid().toString());
         payload.put("admissionVerified", encounter.admissionVerified());
+        if (encounter.careSetting() != null) {
+            Map<String, Object> setting = new TreeMap<>();
+            setting.put("serviceCode", encounter.careSetting().serviceCode());
+            setting.put("modality", encounter.careSetting().modality());
+            setting.put("serviceGroup", encounter.careSetting().serviceGroup());
+            payload.put("careSetting", setting);
+        }
         payload.put("openedAt", instant(encounter.openedAt()));
         payload.put("openedBy", clinician(encounter.openedBy()));
         return payload;

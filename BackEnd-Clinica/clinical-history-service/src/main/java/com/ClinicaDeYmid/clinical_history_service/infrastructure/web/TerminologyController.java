@@ -1,5 +1,10 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.web;
 
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PutMapping;
+import com.ClinicaDeYmid.clinical_history_service.domain.terminology.RipsCatalog;
+import com.ClinicaDeYmid.clinical_history_service.application.terminology.CareClassification;
 import com.ClinicaDeYmid.clinical_history_service.domain.terminology.Concept;
 import com.ClinicaDeYmid.clinical_history_service.domain.terminology.ConceptCatalog;
 import com.ClinicaDeYmid.clinical_history_service.domain.terminology.TerminologyRelease;
@@ -34,8 +39,11 @@ class TerminologyController {
     private final ConceptCatalog catalog;
     private final Cie10Importer importer;
     private final CurrentUser currentUser;
+    private final CareClassification classification;
 
-    TerminologyController(ConceptCatalog catalog, Cie10Importer importer, CurrentUser currentUser) {
+    TerminologyController(ConceptCatalog catalog, Cie10Importer importer, CurrentUser currentUser,
+                          CareClassification classification) {
+        this.classification = classification;
         this.catalog = catalog;
         this.importer = importer;
         this.currentUser = currentUser;
@@ -50,6 +58,29 @@ class TerminologyController {
     List<Concept> search(@RequestParam("q") @Size(min = 2, max = 60, message = "debe tener entre 2 y 60 caracteres") String query,
                          @RequestParam(defaultValue = "20") int limit) {
         return catalog.search(query, Math.clamp(limit, 1, 50));
+    }
+
+    @GetMapping("/terminology/rips/{table}")
+    @PreAuthorize(Access.CLINICAL_STAFF)
+    @Operation(summary = "Tabla de referencia de RIPS: finalidad, causa, modalidad, grupo o servicio REPS",
+            description = "Cargadas de SISPRO; valores de table: PURPOSE, CAUSE, MODALITY, SERVICE_GROUP, SERVICE")
+    List<RipsCatalog.ReferenceCode> ripsCodes(@PathVariable RipsCatalog.Table table) {
+        return classification.codes(table);
+    }
+
+    @GetMapping("/terminology/habilitated-services")
+    @PreAuthorize(Access.CLINICAL_STAFF)
+    @Operation(summary = "Servicios REPS habilitados por modalidad, para abrir atenciones")
+    List<RipsCatalog.HabilitatedService> habilitatedServices() {
+        return classification.habilitatedServices();
+    }
+
+    @PutMapping("/admin/terminology/habilitated-services")
+    @PreAuthorize(Access.MANAGE_CATALOGS)
+    @Operation(summary = "Habilitar o retirar un servicio REPS en una modalidad",
+            description = "Debe coincidir con lo inscrito en el REPS; solo los servicios activos se pueden usar al abrir atenciones")
+    List<RipsCatalog.HabilitatedService> habilitate(@Valid @RequestBody ClinicalRequests.Habilitation request) {
+        return classification.habilitate(request.serviceCode(), request.modality(), request.active(), actor());
     }
 
     @GetMapping("/admin/terminology/cie10/releases")

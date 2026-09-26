@@ -613,6 +613,64 @@ class ClinicalRecordApiIT {
     }
 
     @Test
+    void classifiesCareForRipsAgainstTheReferenceTablesAndPublishesIt() throws Exception {
+        Staff admin = new Staff("SUPER_ADMIN");
+        UUID patient = activePatient();
+        doctor.perform(put(BASE + "/admin/terminology/habilitated-services")
+                        .content("{\"serviceCode\": \"328\", \"modality\": \"01\", \"active\": true}"))
+                .andExpect(status().isForbidden());
+        admin.perform(put(BASE + "/admin/terminology/habilitated-services")
+                        .content("{\"serviceCode\": \"328\", \"modality\": \"01\", \"active\": true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.serviceCode == '328' && @.modality == '01')].serviceGroup").value("01"));
+        doctor.perform(get(BASE + "/terminology/rips/PURPOSE"))
+                .andExpect(jsonPath("$.length()").value(34))
+                .andExpect(jsonPath("$[?(@.code == '15')].name").value("DIAGNOSTICO"));
+
+        doctor.perform(post(BASE + "/encounters").content(careRequest(patient, "328", "06")))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("SERVICE_NOT_HABILITATED"));
+        doctor.perform(post(BASE + "/encounters").content(careRequest(patient, "9999", "01")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNKNOWN_RIPS_CODE"));
+        String encounter = JsonPath.read(doctor.perform(post(BASE + "/encounters").content(careRequest(patient, "328", "01")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.careSetting.serviceCode").value("328"))
+                .andExpect(jsonPath("$.careSetting.modality").value("01"))
+                .andExpect(jsonPath("$.careSetting.serviceGroup").value("01"))
+                .andReturn().getResponse().getContentAsString(), "$.id");
+
+        startDraftRequest(doctor, encounter, """
+                {"content": {"type": "CONSULTATION", "specialty": "Medicina general", "reason": "Control", "findings": "Sano",
+                             "recommendations": "Nada", "careReason": {"purpose": "99", "cause": "38"},
+                             "diagnoses": [{"code": "I10X", "role": "PRINCIPAL", "type": "CONFIRMED_NEW"}]}}""")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNKNOWN_RIPS_CODE"));
+        String note = signedNote(doctor, encounter, """
+                {"content": {"type": "CONSULTATION", "specialty": "Medicina general", "reason": "Control", "findings": "Sano",
+                             "recommendations": "Nada", "careReason": {"purpose": "15", "cause": "38"},
+                             "diagnoses": [{"code": "I10X", "role": "PRINCIPAL", "type": "CONFIRMED_NEW"}]}}""");
+
+        doctor.perform(get(BASE + "/notes/" + note))
+                .andExpect(jsonPath("$.content.careReason.purpose").value("15"))
+                .andExpect(jsonPath("$.content.careReason.cause").value("38"));
+        List<JsonNode> events = rootJdbc.queryForList("""
+                SELECT payload FROM clinical_outbox.outbox_events WHERE aggregatetype = 'clinical.encounters' AND aggregateid = ?
+                ORDER BY created_at""", String.class, patient.toString()).stream().map(ClinicalRecordApiIT::json).toList();
+        assertThat(events.get(0).path("data").path("careSetting").path("serviceGroup").asText()).isEqualTo("01");
+        assertThat(events.get(1).path("data").path("careReason").path("purpose").asText()).isEqualTo("15");
+        assertThat(events).allSatisfy(event ->
+                assertThat(AccessAuditContract.encounterEventViolations(event.toString())).isEmpty());
+        new Staff("ADMIN").perform(get(BASE + "/patients/" + patient + "/integrity"))
+                .andExpect(jsonPath("$.verified").value(true));
+    }
+
+    private static String careRequest(UUID patient, String serviceCode, String modality) {
+        return "{\"patientUuid\": \"" + patient + "\", \"type\": \"OUTPATIENT\", \"careSetting\": {\"serviceCode\": \""
+                + serviceCode + "\", \"modality\": \"" + modality + "\"}}";
+    }
+
+    @Test
     void onlySuperAdminsSeeAndRotateTheEncryptionKeys() throws Exception {
         String encounter = openEncounter(nurse, activePatient(), "EMERGENCY");
         signedNote(nurse, encounter, TRIAGE);

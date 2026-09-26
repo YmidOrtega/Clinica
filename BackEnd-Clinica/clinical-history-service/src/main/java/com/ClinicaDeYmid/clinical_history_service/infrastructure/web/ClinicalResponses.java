@@ -46,10 +46,11 @@ final class ClinicalResponses {
     }
 
     record EncounterView(UUID id, UUID patientUuid, String type, UUID admissionUuid, boolean admissionVerified,
+                         com.ClinicaDeYmid.clinical_history_service.domain.encounter.CareSetting careSetting,
                          Instant openedAt, ClinicianView openedBy, EncounterStatusView status) {
         static EncounterView from(Encounter encounter) {
             return new EncounterView(encounter.id(), encounter.patientUuid(), encounter.type().name(),
-                    encounter.admissionUuid(), encounter.admissionVerified(),
+                    encounter.admissionUuid(), encounter.admissionVerified(), encounter.careSetting(),
                     encounter.openedAt(), ClinicianView.from(encounter.openedBy()), EncounterStatusView.from(encounter.status()));
         }
     }

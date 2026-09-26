@@ -11,6 +11,7 @@ import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessAction;
 import com.ClinicaDeYmid.clinical_history_service.domain.access.AccessBasis;
 import com.ClinicaDeYmid.clinical_history_service.domain.access.CareTeams;
 import com.ClinicaDeYmid.clinical_history_service.domain.clinician.Clinician;
+import com.ClinicaDeYmid.clinical_history_service.domain.encounter.CareSetting;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterClosure;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterStatus;
@@ -60,12 +61,18 @@ public class EncounterCommands {
     }
 
     public Encounter open(UUID patientUuid, EncounterType type, UUID admissionUuid, Clinician clinician) {
+        return open(patientUuid, type, admissionUuid, null, clinician);
+    }
+
+    public Encounter open(UUID patientUuid, EncounterType type, UUID admissionUuid, CareSetting careSetting,
+                          Clinician clinician) {
         PatientReference patient = switch (patients.find(patientUuid)) {
             case PatientLookup.Found found -> found.patient();
             case PatientLookup.NotFound notFound -> throw new ClinicalException.PatientNotFound();
             case PatientLookup.Unavailable unavailable -> throw new ClinicalException.PatientRegistryUnavailable();
         };
-        Encounter encounter = Encounter.open(patient, type, admissionUuid, verified(admissionUuid), clinician, clock);
+        Encounter encounter = Encounter.open(patient, type, admissionUuid, verified(admissionUuid), careSetting,
+                clinician, clock);
         transactions.executeWithoutResult(status -> {
             sealing.record(new LedgerEntry.EncounterOpened(encounter));
             encounters.add(encounter);

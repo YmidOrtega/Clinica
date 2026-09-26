@@ -82,6 +82,24 @@
     }
   },
   "$defs": {
+    "careSetting": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["serviceCode", "modality", "serviceGroup"],
+      "properties": {
+        "serviceCode": { "type": "string", "pattern": "^[0-9]{3,4}$" },
+        "modality": { "type": "string", "pattern": "^0[1-9]$" },
+        "serviceGroup": { "type": "string", "pattern": "^0[1-5]$" }
+      }
+    },
+    "careReason": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "purpose": { "type": ["string", "null"], "pattern": "^[0-9]{2}$" },
+        "cause": { "type": ["string", "null"], "pattern": "^[0-9]{2}$" }
+      }
+    },
     "person": {
       "type": "object",
       "additionalProperties": false,
@@ -181,6 +199,9 @@
               },
               "admissionVerified": {
                 "type": "boolean"
+              },
+              "careSetting": {
+                "$ref": "#/$defs/careSetting"
               }
             }
           }
@@ -248,6 +269,9 @@
                 "items": {
                   "$ref": "#/$defs/diagnosis"
                 }
+              },
+              "careReason": {
+                "$ref": "#/$defs/careReason"
               },
               "amendsNoteId": {
                 "type": [

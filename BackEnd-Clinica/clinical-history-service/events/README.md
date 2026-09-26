@@ -42,6 +42,11 @@ futuros de órdenes y prescripción.
 
 - `diagnoses` lleva los códigos CIE-10 también de notas restringidas (facturación y RIPS los necesitan);
   `restricted: true` avisa a los consumidores que deben aplicar sus propias restricciones de acceso.
+- `EncounterOpened` trae `careSetting` (`serviceCode` REPS, `modality` y `serviceGroup`) y las notas con
+  diagnóstico traen `careReason` (`purpose` y `cause`), con códigos de las tablas de referencia de RIPS de
+  SISPRO. Son opcionales: las atenciones y notas anteriores no los tienen y facturación debe tratarlos como
+  ausentes. La causa puede ser sensible (por ejemplo, sospecha de violencia) y se aplica la misma cautela que
+  con `diagnoses` de notas restringidas.
 - `chain` publica la cabeza de la cadena después de cada hecho. Guardarla fuera del servicio permite
   detectar que alguien borró los últimos registros de un paciente, algo que la cadena por sí sola no
   puede detectar.
