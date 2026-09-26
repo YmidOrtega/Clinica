@@ -8,10 +8,22 @@ import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.OAEPParameterSpec;
+import javax.crypto.spec.PSource;
 import java.io.IOException;
 import java.net.URI;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.MGF1ParameterSpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -50,6 +62,36 @@ public final class OpenBaoTestContainer {
     public static String createKey(String prefix, String type) {
         String name = prefix + "-" + UUID.randomUUID().toString().substring(0, 8);
         bao("write", "-f", "transit/keys/" + name, "type=" + type);
+        return name;
+    }
+
+    public static synchronized String importRsaKey(String name, PrivateKey key) {
+        if (exec("read", "transit/keys/" + name).getExitCode() == 0) {
+            return name;
+        }
+        VaultTemplate vault = template();
+        String wrappingPem = (String) vault.read("transit/wrapping_key").getRequiredData().get("public_key");
+        try {
+            PublicKey wrapping = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.getDecoder()
+                    .decode(wrappingPem.replaceAll("-----[A-Z ]+-----", "").replaceAll("\\s", ""))));
+            KeyGenerator generator = KeyGenerator.getInstance("AES");
+            generator.init(256);
+            SecretKey ephemeral = generator.generateKey();
+            Cipher oaep = Cipher.getInstance("RSA/ECB/OAEPPadding");
+            oaep.init(Cipher.ENCRYPT_MODE, wrapping, new OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256,
+                    PSource.PSpecified.DEFAULT));
+            byte[] wrappedEphemeral = oaep.doFinal(ephemeral.getEncoded());
+            Cipher kwp = Cipher.getInstance("AES/KWP/NoPadding");
+            kwp.init(Cipher.WRAP_MODE, ephemeral);
+            byte[] wrappedKey = kwp.wrap(key);
+            byte[] ciphertext = new byte[wrappedEphemeral.length + wrappedKey.length];
+            System.arraycopy(wrappedEphemeral, 0, ciphertext, 0, wrappedEphemeral.length);
+            System.arraycopy(wrappedKey, 0, ciphertext, wrappedEphemeral.length, wrappedKey.length);
+            vault.write("transit/keys/" + name + "/import", Map.of("ciphertext", Base64.getEncoder().encodeToString(ciphertext),
+                    "type", "rsa-2048", "hash_function", "SHA256", "exportable", false));
+        } catch (GeneralSecurityException impossible) {
+            throw new IllegalStateException("Cannot wrap the key for OpenBao", impossible);
+        }
         return name;
     }
 

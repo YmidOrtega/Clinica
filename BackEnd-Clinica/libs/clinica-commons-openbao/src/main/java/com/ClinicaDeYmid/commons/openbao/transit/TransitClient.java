@@ -52,6 +52,16 @@ public class TransitClient {
         return format.decode(requireVersion(signature, key));
     }
 
+    public byte[] signPkcs1v15(KeyVersion key, byte[] input) {
+        Map<String, Object> data = write("sign/" + key.keyName(), Map.of(
+                "input", base64(input),
+                "hash_algorithm", "sha2-256",
+                "signature_algorithm", "pkcs1v15",
+                "key_version", key.version()));
+        String signature = (String) data.get("signature");
+        return Base64.getDecoder().decode(requireVersion(signature, key));
+    }
+
     public TransitKey key(String name) {
         Map<String, Object> data = call(HttpMethod.GET, "keys/" + name, null);
         Map<Integer, String> publicKeys = new HashMap<>();
