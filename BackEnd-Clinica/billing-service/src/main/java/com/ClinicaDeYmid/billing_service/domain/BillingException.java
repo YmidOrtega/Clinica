@@ -321,4 +321,58 @@ public sealed abstract class BillingException extends DomainException {
             super(ErrorCategory.RULE_VIOLATION, "NOT_A_BILLABLE_UNIT", detail);
         }
     }
+
+    public static final class InvoiceNotFound extends BillingException {
+        public InvoiceNotFound() {
+            super(ErrorCategory.NOT_FOUND, "INVOICE_NOT_FOUND", "No se encontró la factura solicitada");
+        }
+    }
+
+    public static final class InvalidInvoiceTransition extends BillingException {
+        public InvalidInvoiceTransition(InvoiceStatus.Code current, InvoiceStatus.Code target) {
+            super(ErrorCategory.RULE_VIOLATION, "INVOICE_INVALID_TRANSITION",
+                    "Una factura " + current + " no puede pasar a " + target);
+        }
+    }
+
+    public static final class UnitAlreadyInvoiced extends BillingException {
+        public UnitAlreadyInvoiced() {
+            super(ErrorCategory.CONFLICT, "UNIT_ALREADY_INVOICED",
+                    "Esa unidad ya tiene una factura en borrador o emitida");
+        }
+    }
+
+    public static final class InvoiceOutdated extends BillingException {
+        public InvoiceOutdated() {
+            super(ErrorCategory.RULE_VIOLATION, "INVOICE_OUTDATED",
+                    "La cuenta cambió desde que se preparó el borrador; descártalo y prepara uno nuevo");
+        }
+    }
+
+    public static final class SaleAlreadyInvoiced extends BillingException {
+        public SaleAlreadyInvoiced() {
+            super(ErrorCategory.RULE_VIOLATION, "SALE_ALREADY_INVOICED",
+                    "La venta ya está en una factura; se corrige con nota crédito");
+        }
+    }
+
+    public static final class BuyerNotIdentified extends BillingException {
+        public BuyerNotIdentified(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "BUYER_NOT_IDENTIFIED", detail);
+        }
+    }
+
+    public static final class AccountAlreadyInvoiced extends BillingException {
+        public AccountAlreadyInvoiced() {
+            super(ErrorCategory.RULE_VIOLATION, "ACCOUNT_ALREADY_INVOICED",
+                    "La cuenta ya tiene una factura en borrador o emitida; descarta el borrador o usa una nota");
+        }
+    }
+
+    public static final class PatientsUnavailable extends BillingException {
+        public PatientsUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "PATIENTS_UNAVAILABLE",
+                    "El directorio de pacientes no responde; sin el paciente no se prepara la factura");
+        }
+    }
 }

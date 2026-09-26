@@ -46,6 +46,10 @@ public class AccountSummaries {
     }
 
     public AccountSummary summarize(String admissionNumber) {
+        return context(admissionNumber).summary();
+    }
+
+    public Context context(String admissionNumber) {
         EpisodeAccount found = accountOf(admissionNumber);
         EpisodeDetails episode = episodeOf(found);
         boolean covered = episode.coverage() != null && !NOT_COVERED.equals(episode.coverage().status());
@@ -54,11 +58,15 @@ public class AccountSummaries {
                         authorization.copayment(), authorization.validFrom(), authorization.validTo(),
                         authorization.authorizedItems(), authorization.coversEverything()))
                 .toList();
-        return transactions.execute(status -> {
+        AccountSummary summary = transactions.execute(status -> {
             EpisodeAccount account = accountOf(admissionNumber);
             return AccountSummary.of(account, sales.findByAccount(account.uuid()), covered, copayments,
                     adjustments.findByAccount(account.uuid()));
         });
+        return new Context(summary, episode);
+    }
+
+    public record Context(AccountSummary summary, EpisodeDetails episode) {
     }
 
     public PatientShareAdjustment adjust(String admissionNumber, UUID saleUuid, BigDecimal amount, String reason) {
