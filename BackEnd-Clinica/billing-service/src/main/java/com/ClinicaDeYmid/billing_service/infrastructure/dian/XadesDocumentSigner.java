@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.dian;
 
-import com.ClinicaDeYmid.billing_service.application.dian.InvoiceSigner;
+import com.ClinicaDeYmid.billing_service.application.dian.DocumentSigner;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -19,7 +19,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-public class XadesInvoiceSigner implements InvoiceSigner {
+public class XadesDocumentSigner implements DocumentSigner {
 
     public static final String POLICY_IDENTIFIER =
             "https://facturaelectronica.dian.gov.co/politicadefirma/v2/politicadefirmav2.pdf";
@@ -38,7 +38,7 @@ public class XadesInvoiceSigner implements InvoiceSigner {
     private final DianSigningKey key;
     private final ZoneId zone;
 
-    public XadesInvoiceSigner(DianSigningKey key, ZoneId zone) {
+    public XadesDocumentSigner(DianSigningKey key, ZoneId zone) {
         this.key = key;
         this.zone = zone;
     }

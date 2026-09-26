@@ -70,13 +70,13 @@ public class DianSoapEnvelope {
         Element signedInfo = XmlSupport.child(signature, StaxUblWriter.DS, "ds:SignedInfo");
         exclusive(XmlSupport.child(signedInfo, StaxUblWriter.DS, "ds:CanonicalizationMethod"), SIGNED_INFO_PREFIXES);
         XmlSupport.child(signedInfo, StaxUblWriter.DS, "ds:SignatureMethod")
-                .setAttribute("Algorithm", XadesInvoiceSigner.RSA_SHA256);
+                .setAttribute("Algorithm", XadesDocumentSigner.RSA_SHA256);
         Element reference = XmlSupport.child(signedInfo, StaxUblWriter.DS, "ds:Reference");
         reference.setAttribute("URI", "#ID-" + id);
         Element transforms = XmlSupport.child(reference, StaxUblWriter.DS, "ds:Transforms");
         exclusive(XmlSupport.child(transforms, StaxUblWriter.DS, "ds:Transform"), TO_PREFIXES);
         XmlSupport.child(reference, StaxUblWriter.DS, "ds:DigestMethod")
-                .setAttribute("Algorithm", XadesInvoiceSigner.SHA256);
+                .setAttribute("Algorithm", XadesDocumentSigner.SHA256);
         Element digest = XmlSupport.child(reference, StaxUblWriter.DS, "ds:DigestValue");
         Element signatureValue = XmlSupport.child(signature, StaxUblWriter.DS, "ds:SignatureValue");
         Element keyInfo = XmlSupport.child(signature, StaxUblWriter.DS, "ds:KeyInfo");

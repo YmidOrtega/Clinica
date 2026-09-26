@@ -24,11 +24,11 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class XadesInvoiceSignerTest {
+class XadesDocumentSignerTest {
 
     private static final Instant SIGNED_AT = Instant.parse("2026-09-27T15:16:02.250Z");
     private static final LocalDianSigningKey KEY = LocalDianSigningKey.SHARED;
-    private static final XadesInvoiceSigner SIGNER = new XadesInvoiceSigner(KEY, ZoneId.of("America/Bogota"));
+    private static final XadesDocumentSigner SIGNER = new XadesDocumentSigner(KEY, ZoneId.of("America/Bogota"));
 
     @Test
     void envelopsAnXadesEpesSignatureThatVerifiesOverTheWholeInvoice() throws Exception {
@@ -91,7 +91,7 @@ class XadesInvoiceSignerTest {
         KeyPair keys = TestCertificates.rsaKeyPair();
         X509Certificate expired = TestCertificates.selfSigned(keys, "Vencido", Instant.parse("2024-01-01T00:00:00Z"),
                 Instant.parse("2025-01-01T00:00:00Z"));
-        XadesInvoiceSigner signer = new XadesInvoiceSigner(new DianSigningKey() {
+        XadesDocumentSigner signer = new XadesDocumentSigner(new DianSigningKey() {
             @Override
             public List<X509Certificate> certificateChain() {
                 return List.of(expired);

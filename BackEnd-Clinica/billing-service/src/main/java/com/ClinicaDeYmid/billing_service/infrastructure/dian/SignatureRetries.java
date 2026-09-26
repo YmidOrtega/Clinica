@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.dian;
 
-import com.ClinicaDeYmid.billing_service.application.InvoiceSigning;
+import com.ClinicaDeYmid.billing_service.application.DocumentSigning;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "clinica.billing.dian.signature-retries.enabled", havingValue = "true", matchIfMissing = true)
 class SignatureRetries {
 
-    private final InvoiceSigning signing;
+    private final DocumentSigning signing;
 
-    SignatureRetries(InvoiceSigning signing) {
+    SignatureRetries(DocumentSigning signing) {
         this.signing = signing;
     }
 

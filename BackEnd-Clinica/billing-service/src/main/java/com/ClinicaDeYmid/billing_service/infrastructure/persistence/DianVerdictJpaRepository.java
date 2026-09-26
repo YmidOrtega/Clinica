@@ -10,6 +10,6 @@ import java.util.UUID;
 
 interface DianVerdictJpaRepository extends JpaRepository<DianVerdict, Long> {
 
-    @Query("select v from DianVerdict v where v.invoice.uuid = :invoice order by v.receivedAt, v.id")
-    List<DianVerdict> ofInvoice(@Param("invoice") UUID invoice);
+    @Query("select v from DianVerdict v where v.document.uuid = :document order by v.receivedAt, v.id")
+    List<DianVerdict> ofDocument(@Param("document") UUID document);
 }

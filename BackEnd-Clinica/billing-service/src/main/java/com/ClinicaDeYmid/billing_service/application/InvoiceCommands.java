@@ -13,12 +13,14 @@ import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
 import com.ClinicaDeYmid.billing_service.domain.Cufe;
+import com.ClinicaDeYmid.billing_service.domain.DocumentFile;
+import com.ClinicaDeYmid.billing_service.domain.DocumentFiles;
+import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
+import com.ClinicaDeYmid.billing_service.domain.ElectronicDocuments;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccounts;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
-import com.ClinicaDeYmid.billing_service.domain.InvoiceDocument;
-import com.ClinicaDeYmid.billing_service.domain.InvoiceDocuments;
 import com.ClinicaDeYmid.billing_service.domain.Invoices;
 import com.ClinicaDeYmid.billing_service.domain.Issuer;
 import com.ClinicaDeYmid.billing_service.domain.Issuers;
@@ -50,7 +52,8 @@ public class InvoiceCommands {
     private final PatientDirectory patients;
     private final Issuers issuers;
     private final NumberingResolutions resolutions;
-    private final InvoiceDocuments documents;
+    private final ElectronicDocuments documents;
+    private final DocumentFiles files;
     private final UblWriter ubl;
     private final DianSoftware software;
     private final TransactionOperations transactions;
@@ -58,8 +61,9 @@ public class InvoiceCommands {
 
     public InvoiceCommands(AccountSummaries summaries, EpisodeAccounts accounts, Invoices invoices,
                            InvoiceNumbering numbering, PayerDirectory payers, PatientDirectory patients,
-                           Issuers issuers, NumberingResolutions resolutions, InvoiceDocuments documents,
-                           UblWriter ubl, DianSoftware software, TransactionOperations transactions, Clock clock) {
+                           Issuers issuers, NumberingResolutions resolutions, ElectronicDocuments documents,
+                           DocumentFiles files, UblWriter ubl, DianSoftware software,
+                           TransactionOperations transactions, Clock clock) {
         this.summaries = summaries;
         this.accounts = accounts;
         this.invoices = invoices;
@@ -69,6 +73,7 @@ public class InvoiceCommands {
         this.issuers = issuers;
         this.resolutions = resolutions;
         this.documents = documents;
+        this.files = files;
         this.ubl = ubl;
         this.software = software;
         this.transactions = transactions;
@@ -102,7 +107,7 @@ public class InvoiceCommands {
         return drafted;
     }
 
-    public Invoice issue(UUID invoiceUuid, long expectedVersion) {
+    public ElectronicDocument issue(UUID invoiceUuid, long expectedVersion) {
         Invoice current = current(invoiceUuid, expectedVersion);
         AccountSummaries.Context context = summaries.context(current.account().admissionNumber());
         requireResolved(context.episode());
@@ -111,7 +116,7 @@ public class InvoiceCommands {
             throw new BillingException.InvoiceOutdated();
         }
         software.requireConfigured();
-        Invoice issued = transactions.execute(status -> {
+        ElectronicDocument issued = transactions.execute(status -> {
             Invoice invoice = current(invoiceUuid, expectedVersion);
             invoice.issue(numbering.next(), clock);
             Issuer issuer = issuers.find().orElseThrow(BillingException.IssuerNotConfigured::new);
@@ -120,12 +125,13 @@ public class InvoiceCommands {
             String cufe = Cufe.of(invoice.cufeInput(issuer, resolution));
             invoice.identify(cufe, ElectronicInvoice.qrContent(invoice, issuer, cufe));
             Invoice saved = invoices.save(invoice);
-            documents.save(InvoiceDocument.of(saved, InvoiceDocument.Kind.UBL_UNSIGNED,
+            ElectronicDocument document = documents.save(ElectronicDocument.ofInvoice(saved));
+            files.save(DocumentFile.of(document, DocumentFile.Kind.UBL_UNSIGNED,
                     ubl.invoice(ElectronicInvoice.of(saved, issuer, resolution, software))));
-            return saved;
+            return document;
         });
-        log.info("Invoice {} issued for {} with total {}", issued.number(), issued.account().admissionNumber(),
-                issued.payableTotal());
+        log.info("Invoice {} issued for {} with total {}", issued.number(), current.account().admissionNumber(),
+                current.payableTotal());
         return issued;
     }
 

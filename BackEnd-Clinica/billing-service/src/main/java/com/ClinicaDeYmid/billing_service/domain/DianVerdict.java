@@ -42,8 +42,8 @@ public class DianVerdict {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "invoice_id", nullable = false, updatable = false)
-    private Invoice invoice;
+    @JoinColumn(name = "electronic_document_id", nullable = false, updatable = false)
+    private ElectronicDocument document;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "operation", nullable = false, updatable = false, length = 30)
@@ -74,14 +74,14 @@ public class DianVerdict {
     protected DianVerdict() {
     }
 
-    public static DianVerdict of(Invoice invoice, Operation operation, Outcome outcome, String statusCode,
+    public static DianVerdict of(ElectronicDocument document, Operation operation, Outcome outcome, String statusCode,
                                  String statusDescription, List<String> errors, Instant receivedAt) {
         DianVerdict verdict = new DianVerdict();
-        verdict.invoice = DomainRules.required(invoice, "invoice");
+        verdict.document = DomainRules.required(document, "document");
         verdict.operation = DomainRules.required(operation, "operation");
         verdict.outcome = DomainRules.required(outcome, "outcome");
-        verdict.fileName = invoice.dianFileName();
-        verdict.trackId = invoice.dianTrackId();
+        verdict.fileName = document.dianFileName();
+        verdict.trackId = document.dianTrackId();
         verdict.statusCode = truncated(statusCode, 10);
         verdict.statusDescription = truncated(statusDescription, 500);
         verdict.errors = errors == null || errors.isEmpty() ? null

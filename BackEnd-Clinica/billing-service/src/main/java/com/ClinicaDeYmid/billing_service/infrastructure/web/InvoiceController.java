@@ -3,14 +3,15 @@ package com.ClinicaDeYmid.billing_service.infrastructure.web;
 import com.ClinicaDeYmid.billing_service.application.DianDelivery;
 import com.ClinicaDeYmid.billing_service.application.InvoiceCommands;
 import com.ClinicaDeYmid.billing_service.application.InvoiceQueries;
-import com.ClinicaDeYmid.billing_service.application.InvoiceSigning;
+import com.ClinicaDeYmid.billing_service.application.DocumentSigning;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
 import com.ClinicaDeYmid.billing_service.domain.DianStatus;
 import com.ClinicaDeYmid.billing_service.domain.DianVerdict;
+import com.ClinicaDeYmid.billing_service.domain.DocumentFile;
+import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
-import com.ClinicaDeYmid.billing_service.domain.InvoiceDocument;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceLine;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceStatus;
 import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
@@ -40,6 +41,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -53,11 +55,11 @@ class InvoiceController {
 
     private final InvoiceCommands commands;
     private final InvoiceQueries queries;
-    private final InvoiceSigning signing;
+    private final DocumentSigning signing;
     private final DianDelivery delivery;
     private final RecentAuthentication recentAuthentication;
 
-    InvoiceController(InvoiceCommands commands, InvoiceQueries queries, InvoiceSigning signing, DianDelivery delivery,
+    InvoiceController(InvoiceCommands commands, InvoiceQueries queries, DocumentSigning signing, DianDelivery delivery,
                       RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
@@ -75,7 +77,7 @@ class InvoiceController {
         Invoice invoice = commands.draft(request.admissionNumber(), request.saleUuid());
         Invoice drafted = queries.invoice(invoice.uuid());
         return ResponseEntity.created(URI.create(INVOICES + "/" + drafted.uuid()))
-                .eTag(EntityTags.of(drafted.version())).body(InvoiceView.from(drafted));
+                .eTag(EntityTags.of(drafted.version())).body(InvoiceView.from(drafted, null));
     }
 
     @GetMapping(INVOICES + "/{uuid}")
@@ -89,7 +91,9 @@ class InvoiceController {
     @PreAuthorize(Access.READ)
     @Operation(summary = "Facturas de un episodio")
     List<InvoiceView> ofAccount(@PathVariable @Pattern(regexp = "^ADM-[0-9]{4}-[0-9]{6}$") String admissionNumber) {
-        return queries.ofAccount(admissionNumber).stream().map(InvoiceView::from).toList();
+        List<Invoice> invoices = queries.ofAccount(admissionNumber);
+        Map<UUID, ElectronicDocument> documents = queries.electronicDocuments(invoices);
+        return invoices.stream().map(invoice -> InvoiceView.from(invoice, documents.get(invoice.uuid()))).toList();
     }
 
     @PostMapping(INVOICES + "/{uuid}/issuance")
@@ -104,8 +108,8 @@ class InvoiceController {
         AuthenticatedUser user = recentAuthentication.require();
         log.info("Step-up accepted to issue invoice {}: {} authenticated at {}", uuid, user.uuid(),
                 user.authenticatedAt());
-        commands.issue(uuid, version);
-        signing.trySign(uuid);
+        ElectronicDocument issued = commands.issue(uuid, version);
+        signing.trySign(issued.uuid());
         return tagged(uuid);
     }
 
@@ -114,7 +118,7 @@ class InvoiceController {
     @Operation(summary = "Firmar con XAdES-EPES una factura emitida que quedó sin firma",
             description = "Idempotente: si ya está firmada la devuelve igual")
     ResponseEntity<InvoiceView> sign(@PathVariable UUID uuid) {
-        signing.sign(uuid);
+        signing.sign(queries.requireElectronicDocument(uuid).uuid());
         return tagged(uuid);
     }
 
@@ -124,7 +128,7 @@ class InvoiceController {
             description = "Las firmadas se envían solas en segundo plano; un rechazo por reglas no se reintenta solo y "
                     + "se reenvía aquí conservando el número. Si la DIAN no responde, queda en cola")
     ResponseEntity<InvoiceView> deliver(@PathVariable UUID uuid) {
-        delivery.sendNow(uuid);
+        delivery.sendNow(queries.requireElectronicDocument(uuid).uuid());
         return tagged(uuid);
     }
 
@@ -132,7 +136,8 @@ class InvoiceController {
     @PreAuthorize(Access.READ)
     @Operation(summary = "Respuestas de la DIAN a los envíos y consultas de una factura")
     List<VerdictView> verdicts(@PathVariable UUID uuid) {
-        return delivery.verdicts(uuid).stream().map(VerdictView::from).toList();
+        return queries.electronicDocument(uuid).map(document -> delivery.verdicts(document.uuid())).orElse(List.of())
+                .stream().map(VerdictView::from).toList();
     }
 
     @GetMapping(value = INVOICES + "/{uuid}/ubl", produces = MediaType.APPLICATION_XML_VALUE)
@@ -140,7 +145,7 @@ class InvoiceController {
     @Operation(summary = "Descargar el XML UBL 2.1 de una factura emitida",
             description = "Firmado con XAdES-EPES si ya se firmó (signedAt en la factura); si no, el documento sin firma")
     ResponseEntity<String> ubl(@PathVariable UUID uuid) {
-        InvoiceDocument document = queries.signedOrUnsigned(uuid);
+        DocumentFile document = queries.signedOrUnsigned(uuid);
         return ResponseEntity.ok().eTag("\"" + document.sha256() + "\"").contentType(MediaType.APPLICATION_XML)
                 .body(document.content());
     }
@@ -157,7 +162,8 @@ class InvoiceController {
 
     private ResponseEntity<InvoiceView> tagged(UUID uuid) {
         Invoice invoice = queries.invoice(uuid);
-        return ResponseEntity.ok().eTag(EntityTags.of(invoice.version())).body(InvoiceView.from(invoice));
+        return ResponseEntity.ok().eTag(EntityTags.of(invoice.version()))
+                .body(InvoiceView.from(invoice, queries.electronicDocument(uuid).orElse(null)));
     }
 
     record Drafting(@NotBlank @Pattern(regexp = "^ADM-[0-9]{4}-[0-9]{6}$") String admissionNumber, UUID saleUuid) {
@@ -189,9 +195,9 @@ class InvoiceController {
 
     record DianView(DianStatus status, Instant since, String fileName, String trackId, int attempts) {
 
-        static DianView from(Invoice invoice) {
-            return new DianView(invoice.dianStatus(), invoice.dianStatusAt(), invoice.dianFileName(),
-                    invoice.dianTrackId(), invoice.dianAttempts());
+        static DianView from(ElectronicDocument document) {
+            return document == null ? null : new DianView(document.dianStatus(), document.dianStatusAt(),
+                    document.dianFileName(), document.dianTrackId(), document.dianAttempts());
         }
     }
 
@@ -214,10 +220,11 @@ class InvoiceController {
                        BigDecimal patientShare, AccountSummary.ShareSource patientShareSource, BigDecimal payableTotal,
                        List<LineView> lines, Instant createdAt) {
 
-        static InvoiceView from(Invoice invoice) {
+        static InvoiceView from(Invoice invoice, ElectronicDocument document) {
             return new InvoiceView(invoice.uuid(), invoice.number(), invoice.issuedOn(),
                     invoice.issuedTime() == null ? null : com.ClinicaDeYmid.billing_service.domain.Cufe.time(invoice.issuedTime()),
-                    invoice.cufe(), invoice.qrContent(), invoice.signedAt(), DianView.from(invoice), invoice.resolutionUuid(),
+                    invoice.cufe(), invoice.qrContent(), document == null ? null : document.signedAt(), DianView.from(document),
+                    invoice.resolutionUuid(),
                     StatusView.from(invoice.status()), invoice.account().admissionNumber(), invoice.unitKind(),
                     invoice.saleUuid(), invoice.buyer(), invoice.user(), invoice.contractUuid(),
                     invoice.contractNumber(), invoice.grossTotal(), invoice.patientShare(),

@@ -383,9 +383,10 @@ public sealed abstract class BillingException extends DomainException {
         }
     }
 
-    public static final class InvoiceNotSignable extends BillingException {
-        public InvoiceNotSignable() {
-            super(ErrorCategory.RULE_VIOLATION, "INVOICE_NOT_SIGNABLE", "Solo se firma una factura emitida");
+    public static final class InvoiceNotIssued extends BillingException {
+        public InvoiceNotIssued() {
+            super(ErrorCategory.RULE_VIOLATION, "INVOICE_NOT_ISSUED",
+                    "La factura no se ha emitido; aún no es un documento electrónico");
         }
     }
 
@@ -402,9 +403,9 @@ public sealed abstract class BillingException extends DomainException {
         }
     }
 
-    public static final class InvoiceNotDeliverable extends BillingException {
-        public InvoiceNotDeliverable(String detail) {
-            super(ErrorCategory.RULE_VIOLATION, "INVOICE_NOT_DELIVERABLE", detail);
+    public static final class DocumentNotDeliverable extends BillingException {
+        public DocumentNotDeliverable(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "DOCUMENT_NOT_DELIVERABLE", detail);
         }
     }
 

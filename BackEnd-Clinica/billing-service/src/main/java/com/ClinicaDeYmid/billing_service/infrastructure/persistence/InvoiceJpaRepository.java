@@ -1,7 +1,6 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.persistence;
 
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -29,23 +28,4 @@ interface InvoiceJpaRepository extends JpaRepository<Invoice, Long> {
               and (i.unitKind = com.ClinicaDeYmid.billing_service.domain.AccountSummary.UnitKind.ACCOUNT
                    or (:sale is not null and i.saleUuid = :sale))""")
     boolean liveFor(@Param("account") UUID account, @Param("sale") UUID sale);
-
-    @Query("""
-            select i.uuid from Invoice i
-            where i.statusCode = com.ClinicaDeYmid.billing_service.domain.InvoiceStatus.Code.ISSUED
-              and i.signedAt is null
-            order by i.statusChangedAt, i.id""")
-    List<UUID> awaitingSignature(Pageable page);
-
-    @Query("""
-            select i.uuid from Invoice i
-            where i.signedAt is not null and i.dianStatus is null
-            order by i.statusChangedAt, i.id""")
-    List<UUID> awaitingDelivery(Pageable page);
-
-    @Query("""
-            select i.uuid from Invoice i
-            where i.dianStatus = com.ClinicaDeYmid.billing_service.domain.DianStatus.AWAITING_VALIDATION
-            order by i.dianStatusAt, i.id""")
-    List<UUID> awaitingDianValidation(Pageable page);
 }

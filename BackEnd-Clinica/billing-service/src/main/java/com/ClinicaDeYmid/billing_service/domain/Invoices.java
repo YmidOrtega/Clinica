@@ -14,9 +14,5 @@ public interface Invoices {
 
     boolean liveFor(UUID accountUuid, UUID saleUuid);
 
-    List<UUID> awaitingSignature(int limit);
 
-    List<UUID> awaitingDelivery(int limit);
-
-    List<UUID> awaitingDianValidation(int limit);
 }

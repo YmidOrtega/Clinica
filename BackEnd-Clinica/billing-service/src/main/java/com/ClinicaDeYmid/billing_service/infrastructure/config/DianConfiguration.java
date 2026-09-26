@@ -2,14 +2,14 @@ package com.ClinicaDeYmid.billing_service.infrastructure.config;
 
 import com.ClinicaDeYmid.billing_service.application.dian.DianGateway;
 import com.ClinicaDeYmid.billing_service.application.dian.DianSoftware;
-import com.ClinicaDeYmid.billing_service.application.dian.InvoiceSigner;
+import com.ClinicaDeYmid.billing_service.application.dian.DocumentSigner;
 import com.ClinicaDeYmid.billing_service.domain.DianEnvironment;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.DianSigningKey;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.DianSoapEnvelope;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.SoapDianGateway;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.TransitDianSigningKey;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.UnavailableDianSigningKey;
-import com.ClinicaDeYmid.billing_service.infrastructure.dian.XadesInvoiceSigner;
+import com.ClinicaDeYmid.billing_service.infrastructure.dian.XadesDocumentSigner;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitClient;
 import com.ClinicaDeYmid.commons.openbao.transit.TransitProperties;
 import org.slf4j.Logger;
@@ -77,7 +77,7 @@ public class DianConfiguration {
     }
 
     @Bean
-    InvoiceSigner invoiceSigner(DianSigningKey key, @Value("${clinica.billing.time-zone}") ZoneId zone) {
-        return new XadesInvoiceSigner(key, zone);
+    DocumentSigner invoiceSigner(DianSigningKey key, @Value("${clinica.billing.time-zone}") ZoneId zone) {
+        return new XadesDocumentSigner(key, zone);
     }
 }

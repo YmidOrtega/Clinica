@@ -7,5 +7,5 @@ public interface DianVerdicts {
 
     DianVerdict save(DianVerdict verdict);
 
-    List<DianVerdict> ofInvoice(UUID invoiceUuid);
+    List<DianVerdict> ofDocument(UUID documentUuid);
 }

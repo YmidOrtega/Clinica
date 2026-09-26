@@ -23,7 +23,7 @@ class DianPackageTest {
 
     @Test
     void zipsTheSignedInvoiceUnderItsXmlName() throws Exception {
-        DianPackage pack = DianPackage.of("0800197268000260000001a", "<Invoice>á</Invoice>");
+        DianPackage pack = DianPackage.of("fv", "0800197268000260000001a", "<Invoice>á</Invoice>");
 
         assertThat(pack.zipName()).isEqualTo("z0800197268000260000001a.zip");
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(pack.zip()), StandardCharsets.UTF_8)) {

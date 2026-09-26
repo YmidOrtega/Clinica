@@ -29,7 +29,7 @@ class TransitDianSigningKeyIT {
         X509Certificate certificate = certificate(keys);
         String path = provision(keys, certificate);
 
-        String signed = new XadesInvoiceSigner(key(path), ZoneId.of("America/Bogota"))
+        String signed = new XadesDocumentSigner(key(path), ZoneId.of("America/Bogota"))
                 .sign(StaxUblWriterTest.sampleUbl(), Instant.now());
 
         XadesVerification.Result result = XadesVerification.verify(signed, certificate.getPublicKey());
