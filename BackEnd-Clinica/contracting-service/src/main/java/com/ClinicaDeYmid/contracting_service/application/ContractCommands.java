@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.contracting_service.application;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import com.ClinicaDeYmid.contracting_service.domain.AuthorizationRequirement;
 import com.ClinicaDeYmid.contracting_service.domain.Contract;
+import com.ClinicaDeYmid.contracting_service.domain.CoveragePlan;
 import com.ClinicaDeYmid.contracting_service.domain.ContractModality;
 import com.ClinicaDeYmid.contracting_service.domain.ContractPackage;
 import com.ClinicaDeYmid.contracting_service.domain.ContractTariffException;
@@ -65,6 +66,10 @@ public class ContractCommands {
                     .orElseThrow(ContractingException.TariffVersionNotFound::new);
             contract.agreeTariff(version, factor);
         });
+    }
+
+    public Contract registerForRips(UUID uuid, long expectedVersion, CoveragePlan plan, String cucon) {
+        return modify(uuid, expectedVersion, "ContractRipsRegistered", contract -> contract.registerForRips(plan, cucon));
     }
 
     public Contract rename(UUID uuid, long expectedVersion, String name) {

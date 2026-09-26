@@ -67,6 +67,26 @@ class ContractApiIT {
     }
 
     @Test
+    void registersTheCoveragePlanAndTheCuconThatTheInvoiceReports() throws Exception {
+        String contract = draftContract(registerPayer(), "CAPITATION");
+
+        stepUp(put("/api/v1/contracts/" + contract + "/rips-registration"), 0L,
+                "{\"coveragePlan\":\"UPC_SUBSIDIZED\",\"cucon\":\"XYZ\"}")
+                .andExpect(status().isBadRequest());
+        stepUp(put("/api/v1/contracts/" + contract + "/rips-registration"), 0L,
+                "{\"coveragePlan\":\"UPC_SUBSIDIZED\",\"cucon\":\"" + "AB".repeat(32) + "\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coveragePlan").value("UPC_SUBSIDIZED"))
+                .andExpect(jsonPath("$.coveragePlanCode").value("17"))
+                .andExpect(jsonPath("$.cucon").value("ab".repeat(32)));
+        as("BILLING", get("/api/v1/contracts/" + contract))
+                .andExpect(jsonPath("$.coveragePlanCode").value("17"));
+        as("BILLING", put("/api/v1/contracts/" + contract + "/rips-registration").header("If-Match", "\"1\"")
+                .contentType("application/json").content("{\"coveragePlan\":\"PRIVATE\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void refusesToActivateWithoutTariffTerms() throws Exception {
         String contract = draftContract(registerPayer(), "EVENT");
 

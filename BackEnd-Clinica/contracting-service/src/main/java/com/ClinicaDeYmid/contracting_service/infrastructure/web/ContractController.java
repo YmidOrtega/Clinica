@@ -91,6 +91,17 @@ class ContractController {
                 request.factor()));
     }
 
+    @PutMapping("/{uuid}/rips-registration")
+    @PreAuthorize(Access.MANAGE_CONTRACTS)
+    @Operation(summary = "Registrar la cobertura o plan de beneficios del contrato y su CUCON del SIIFA",
+            description = "La factura de salud y los RIPS los reportan; el CUCON es opcional hasta que el SIIFA lo expida")
+    ResponseEntity<ContractView> registerForRips(@PathVariable UUID uuid,
+                                                 @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                                 @RequestBody ContractRequests.RipsRegistration request) {
+        return respond(commands.registerForRips(uuid, EntityTags.requiredVersion(ifMatch), request.coveragePlan(),
+                request.cucon()));
+    }
+
     @PutMapping("/{uuid}/name")
     @PreAuthorize(Access.MANAGE_CONTRACTS)
     @Operation(summary = "Corregir el nombre del contrato")
