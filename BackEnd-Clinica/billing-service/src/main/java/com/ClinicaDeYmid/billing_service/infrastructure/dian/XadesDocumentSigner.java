@@ -131,9 +131,9 @@ public class XadesDocumentSigner implements DocumentSigner {
         NodeList extensions = document.getDocumentElement()
                 .getElementsByTagNameNS(StaxUblWriter.EXT, "UBLExtension");
         if (extensions.getLength() < 2) {
-            throw new IllegalArgumentException("The UBL has no second UBLExtension for the signature");
+            throw new IllegalArgumentException("The UBL has no UBLExtension for the signature after the DIAN one");
         }
-        NodeList contents = ((Element) extensions.item(1))
+        NodeList contents = ((Element) extensions.item(extensions.getLength() - 1))
                 .getElementsByTagNameNS(StaxUblWriter.EXT, "ExtensionContent");
         if (contents.getLength() != 1 || contents.item(0).hasChildNodes()) {
             throw new IllegalArgumentException("The signature slot of the UBL is not empty");

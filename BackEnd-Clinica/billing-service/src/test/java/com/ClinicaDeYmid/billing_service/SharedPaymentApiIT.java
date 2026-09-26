@@ -77,11 +77,13 @@ class SharedPaymentApiIT extends InvoicingIntegrationTest {
     }
 
     @Test
-    void thePayerInvoiceReportsEachKindInItsOwnHealthField() throws Exception {
+    void thePayerInvoiceCreditsWhatWasCollectedGroupedByConcept() throws Exception {
         anActiveResolution("SPD");
         Episode episode = outpatient("COVERED");
         String sale = confirmedSale(episode);
-        as("BILLING", post(SHARED_PAYMENTS), collection(episode, "AUT-778899", "35000", UUID.randomUUID().toString(),
+        as("BILLING", post(SHARED_PAYMENTS), collection(episode, "AUT-778899", "20000", UUID.randomUUID().toString(),
+                "COPAYMENT")).andExpect(status().isCreated());
+        as("BILLING", post(SHARED_PAYMENTS), collection(episode, "AUT-778899", "15000", UUID.randomUUID().toString(),
                 "COPAYMENT")).andExpect(status().isCreated());
         String invoice = JsonPath.read(as("BILLING", post(INVOICES), drafting(episode, sale))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.uuid");
@@ -90,8 +92,12 @@ class SharedPaymentApiIT extends InvoicingIntegrationTest {
         String ubl = as("BILLING", get(INVOICES + "/" + invoice + "/ubl")).andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8);
 
-        assertThat(ubl).contains("<Name>COPAGO</Name><Value>35000.00</Value>",
-                "<Name>CUOTA_MODERADORA</Name><Value>0.00</Value>", "<cbc:CustomizationID>SS-Recaudo");
+        assertThat(ubl).contains("<cbc:CustomizationID>SS-CUFE",
+                "<cac:PrepaidPayment><cbc:ID schemeID=\"01\">1</cbc:ID><cbc:PaidAmount currencyID=\"COP\">35000.00",
+                "<cbc:PrepaidAmount currencyID=\"COP\">35000.00",
+                "<Name>MODALIDAD_PAGO</Name><Value schemeID=\"04\" schemeName=\"salud_modalidad_pago.gc\">Pago por evento",
+                "<Name>NUMERO_CONTRATO</Name><Value>" + CUCON + "</Value>")
+                .doesNotContain("<cbc:ID schemeID=\"01\">2</cbc:ID>", "<Name>COPAGO</Name>");
     }
 
     private static String collection(Episode episode, String authorization, String amount, String reference,

@@ -1,5 +1,8 @@
 package com.ClinicaDeYmid.billing_service.application;
 
+import com.ClinicaDeYmid.billing_service.application.context.ContractDirectory;
+import com.ClinicaDeYmid.billing_service.application.context.ContractLookup;
+import com.ClinicaDeYmid.billing_service.application.context.ContractTerms;
 import com.ClinicaDeYmid.billing_service.application.context.EpisodeDetails;
 import com.ClinicaDeYmid.billing_service.application.context.PatientDetails;
 import com.ClinicaDeYmid.billing_service.application.context.PatientDirectory;
@@ -10,12 +13,16 @@ import com.ClinicaDeYmid.billing_service.application.dian.DianSoftware;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
+import com.ClinicaDeYmid.billing_service.domain.CoveragePlan;
 import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccounts;
+import com.ClinicaDeYmid.billing_service.domain.HealthTerms;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.Invoices;
+import com.ClinicaDeYmid.billing_service.domain.PaymentModality;
+import com.ClinicaDeYmid.billing_service.domain.Sale;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,19 +48,21 @@ public class InvoiceCommands {
     private final InvoiceIssuance issuance;
     private final PayerDirectory payers;
     private final PatientDirectory patients;
+    private final ContractDirectory contracts;
     private final DianSoftware software;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public InvoiceCommands(AccountSummaries summaries, EpisodeAccounts accounts, Invoices invoices,
                            InvoiceIssuance issuance, PayerDirectory payers, PatientDirectory patients,
-                           DianSoftware software, TransactionOperations transactions, Clock clock) {
+                           ContractDirectory contracts, DianSoftware software, TransactionOperations transactions, Clock clock) {
         this.summaries = summaries;
         this.accounts = accounts;
         this.invoices = invoices;
         this.issuance = issuance;
         this.payers = payers;
         this.patients = patients;
+        this.contracts = contracts;
         this.software = software;
         this.transactions = transactions;
         this.clock = clock;
@@ -71,6 +80,7 @@ public class InvoiceCommands {
         };
         Buyer buyer = covered(coverage) ? payerOf(coverage) : patientAsBuyer(patient);
         HealthUser user = userOf(patient);
+        HealthTerms terms = buyer.kind() == Buyer.Kind.PAYER ? contractedTerms(unit) : HealthTerms.privatePatient();
         Invoice drafted;
         try {
             drafted = transactions.execute(status -> {
@@ -79,7 +89,7 @@ public class InvoiceCommands {
                 List<Invoice> shared = buyer.kind() == Buyer.Kind.PAYER
                         ? SharedPaymentAllocation.forUnit(context.summary(), unit, invoices.sharedPaymentsOf(account.uuid()))
                         : List.of();
-                return invoices.save(Invoice.draft(unit, account, buyer, user, shared));
+                return invoices.save(Invoice.draft(unit, account, buyer, user, terms, shared));
             });
         } catch (DataIntegrityViolationException taken) {
             throw new BillingException.UnitAlreadyInvoiced();
@@ -147,6 +157,25 @@ public class InvoiceCommands {
                 .orElseThrow(() -> new BillingException.NotABillableUnit(saleUuid == null
                         ? "El episodio no tiene una cuenta para facturar completa; si es ambulatorio indica saleUuid"
                         : "Esa venta no es una unidad facturable de este episodio"));
+    }
+
+    private HealthTerms contractedTerms(AccountSummary.Unit unit) {
+        UUID contractUuid = unit.sales().stream().map(Sale::settlement).flatMap(java.util.Optional::stream)
+                .map(Sale.Settlement::contractUuid).filter(java.util.Objects::nonNull).findFirst()
+                .orElseThrow(() -> new BillingException.ContractNotRegisteredForRips(
+                        "La unidad no se liquidó con un contrato; no se puede facturar al pagador"));
+        ContractTerms contract = switch (contracts.contract(contractUuid)) {
+            case ContractLookup.Found found -> found.terms();
+            case ContractLookup.NotFound ignored -> throw new BillingException.ContractNotRegisteredForRips(
+                    "El contrato de la liquidación ya no está en contratación");
+            case ContractLookup.Unavailable ignored -> throw new BillingException.ContractingUnavailable();
+        };
+        CoveragePlan coverage = CoveragePlan.ofCode(contract.coveragePlanCode()).orElse(null);
+        if (coverage == null || contract.cucon() == null) {
+            throw new BillingException.ContractNotRegisteredForRips("El contrato " + contract.number()
+                    + " no tiene registrados la cobertura y el CUCON de SIIFA");
+        }
+        return HealthTerms.contracted(PaymentModality.valueOf(contract.modality()), coverage, contract.cucon());
     }
 
     private Buyer payerOf(EpisodeDetails.Coverage coverage) {

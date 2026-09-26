@@ -43,7 +43,7 @@ class XadesDocumentSignerTest {
 
         Document document = XadesVerification.parse(signed);
         XPath path = xpath();
-        String signature = "/inv:Invoice/ext:UBLExtensions/ext:UBLExtension[2]/ext:ExtensionContent/ds:Signature";
+        String signature = "/inv:Invoice/ext:UBLExtensions/ext:UBLExtension[3]/ext:ExtensionContent/ds:Signature";
         String properties = signature + "/ds:Object/xades:QualifyingProperties/xades:SignedProperties"
                 + "/xades:SignedSignatureProperties";
         assertThat(path.evaluate("count(" + signature + ")", document)).isEqualTo("1");

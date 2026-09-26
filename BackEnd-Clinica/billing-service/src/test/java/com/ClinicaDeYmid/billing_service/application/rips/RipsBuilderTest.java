@@ -12,6 +12,9 @@ import com.ClinicaDeYmid.billing_service.domain.ChargedService;
 import com.ClinicaDeYmid.billing_service.domain.Copayment;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
+import com.ClinicaDeYmid.billing_service.domain.CoveragePlan;
+import com.ClinicaDeYmid.billing_service.domain.HealthTerms;
+import com.ClinicaDeYmid.billing_service.domain.PaymentModality;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.IssuedNumber;
 import com.ClinicaDeYmid.billing_service.domain.Issuer;
@@ -146,7 +149,8 @@ class RipsBuilderTest {
                 "REC-1", "CT-1");
         fee.issue(new IssuedNumber(UUID.randomUUID(), "SETP", 990000000), NOW);
         Invoice invoice = Invoice.draft(unit, account,
-                new Buyer(Buyer.Kind.PAYER, UUID.randomUUID(), "NIT", "900156264-2", "Nueva EPS S.A."), ana, List.of(fee));
+                new Buyer(Buyer.Kind.PAYER, UUID.randomUUID(), "NIT", "900156264-2", "Nueva EPS S.A."), ana, HealthTerms.contracted(PaymentModality.EVENT, CoveragePlan.UPC_CONTRIBUTORY, "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"),
+                List.of(fee));
         invoice.issue(new IssuedNumber(UUID.randomUUID(), "SETP", 990000001), NOW);
         return new Fixture(invoice, account);
     }
