@@ -35,4 +35,11 @@ public sealed abstract class ApplicationException extends DomainException {
                     "Envía la cabecera If-Match con la versión del paciente que vas a modificar");
         }
     }
+
+    public static final class UnknownPlace extends ApplicationException {
+        public UnknownPlace(String field, String code) {
+            super(ErrorCategory.INVALID_INPUT, "UNKNOWN_PLACE_CODE",
+                    "El código '" + code + "' del campo '" + field + "' no existe en las tablas de SISPRO");
+        }
+    }
 }

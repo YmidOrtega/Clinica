@@ -69,6 +69,10 @@ public class Patient {
     @Column(name = "country_of_origin", nullable = false, length = 2)
     private String countryOfOrigin;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "country_of_origin_code", length = 3)
+    private String countryOfOriginCode;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "disability", nullable = false, length = 20)
     private Disability disability;
@@ -95,6 +99,7 @@ public class Patient {
     @Embedded
     @AttributeOverride(name = "department", column = @Column(name = "residence_department", nullable = false, length = 100))
     @AttributeOverride(name = "municipality", column = @Column(name = "residence_municipality", nullable = false, length = 100))
+    @AttributeOverride(name = "municipalityCode", column = @Column(name = "residence_municipality_code", length = 5))
     @AttributeOverride(name = "zone", column = @Column(name = "residence_zone", nullable = false, length = 10))
     @AttributeOverride(name = "address", column = @Column(name = "residence_address", nullable = false, length = 255))
     private Residence residence;
@@ -239,7 +244,7 @@ public class Patient {
     }
 
     public Demographics demographics() {
-        return new Demographics(name, birthDate, sex, countryOfOrigin, disability);
+        return new Demographics(name, birthDate, sex, countryOfOrigin, disability, countryOfOriginCode);
     }
 
     public UUID uuid() {
@@ -305,6 +310,7 @@ public class Patient {
         birthDate = demographics.birthDate();
         sex = demographics.sex();
         countryOfOrigin = demographics.countryOfOrigin();
+        countryOfOriginCode = demographics.countryOfOriginCode();
         disability = demographics.disability();
     }
 

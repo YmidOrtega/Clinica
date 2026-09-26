@@ -76,9 +76,9 @@ final class PatientRequests {
         }
     }
 
-    record ResidenceData(String department, String municipality, Zone zone, String address) {
+    record ResidenceData(String department, String municipality, String municipalityCode, Zone zone, String address) {
         Residence toDomain() {
-            return new Residence(department, municipality, zone, address);
+            return new Residence(department, municipality, municipalityCode, zone, address);
         }
     }
 

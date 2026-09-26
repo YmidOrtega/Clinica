@@ -18,6 +18,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.ClinicaDeYmid.patient_service.domain.Residence;
+
+import com.ClinicaDeYmid.patient_service.domain.Zone;
+
+import com.ClinicaDeYmid.patient_service.domain.Demographics;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -26,8 +32,36 @@ class PatientCommandsTest {
     private final InMemoryPatients patients = new InMemoryPatients();
     private final StubPayers payers = new StubPayers();
     private final RecordingOutbox outbox = new RecordingOutbox();
-    private final PatientCommands commands = new PatientCommands(patients, payers, outbox,
+    private final PatientCommands commands = new PatientCommands(patients, payers, new StubGeography(), outbox,
             TransactionOperations.withoutTransaction(), PatientFixtures.today());
+
+    @Test
+    void codesTheCountryOfOriginAndValidatesTheResidenceMunicipality() {
+        PatientRegistration base = PatientFixtures.adultRegistration();
+        Residence coded = new Residence("Santander", "Bucaramanga", "68001", Zone.URBAN, "Calle 45 # 27-10");
+
+        Patient patient = commands.register(new PatientRegistration(base.document(), base.demographics(), base.contact(),
+                base.emergencyContact(), base.affiliation(), coded));
+
+        assertThat(patient.demographics().countryOfOriginCode()).isEqualTo("170");
+        assertThat(patient.residence().municipalityCode()).isEqualTo("68001");
+        assertThatThrownBy(() -> commands.updateResidence(patient.uuid(), patient.version(),
+                new Residence("Santander", "Bucaramanga", "99999", Zone.URBAN, "Calle 45 # 27-10")))
+                .isInstanceOf(ApplicationException.UnknownPlace.class);
+        assertThatThrownBy(() -> new Residence("Santander", "Bucaramanga", "6800", Zone.URBAN, "Calle 1"))
+                .isInstanceOf(PatientException.InvalidData.class);
+    }
+
+    @Test
+    void refusesACountryOfOriginOutsideTheReferenceTable() {
+        PatientRegistration base = PatientFixtures.adultRegistration();
+        Demographics foreign = new Demographics(base.demographics().name(), base.demographics().birthDate(),
+                base.demographics().sex(), "ZZ", base.demographics().disability());
+
+        assertThatThrownBy(() -> commands.register(new PatientRegistration(base.document(), foreign, base.contact(),
+                base.emergencyContact(), base.affiliation(), base.residence())))
+                .isInstanceOf(ApplicationException.UnknownPlace.class);
+    }
 
     @Test
     void registersPatientsAfterValidatingTheirPayer() {
