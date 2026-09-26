@@ -58,7 +58,9 @@ class ArchitectureTest {
             .that().resideInAPackage("..billing_service..")
             .should().dependOnClassesThat().resideInAnyPackage("lombok..");
 
-    private static final Set<String> DELIBERATELY_PUBLIC = Set.of();
+    private static final Set<String> DELIBERATELY_PUBLIC = Set.of(
+            "com.ClinicaDeYmid.billing_service.infrastructure.web.RepresentationController.verifyPublicly",
+            "com.ClinicaDeYmid.billing_service.infrastructure.web.RepresentationController.sealKeys");
 
     private static final List<String> MAPPINGS = List.of(
             "org.springframework.web.bind.annotation.GetMapping",

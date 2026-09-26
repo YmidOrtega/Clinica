@@ -92,6 +92,11 @@ clinica:
       read-timeout: 60s
       delivery:
         delay: ${BILLING_DIAN_DELIVERY_DELAY:PT30S}
+    seal:
+      transit-key: ${BILLING_SEAL_TRANSIT_KEY:billing-seal}
+    representations:
+      public-checks-per-window: ${BILLING_PUBLIC_CHECKS_PER_WINDOW:20}
+      public-window: ${BILLING_PUBLIC_CHECK_WINDOW:1m}
   security:
     jwt:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
@@ -108,6 +113,15 @@ clinica:
         patient-service: patient-service
     revocation:
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+    public-paths:
+      - /actuator/health
+      - /actuator/health/**
+      - /actuator/info
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /api/v1/billing/seal-keys
+      - /api/v1/billing/graphic-representations/verification
 
 eureka:
   client:

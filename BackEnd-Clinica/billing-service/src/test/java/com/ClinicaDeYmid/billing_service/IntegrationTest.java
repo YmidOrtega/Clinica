@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.billing_service;
 import com.ClinicaDeYmid.billing_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.billing_service.support.LocalDianSignature;
 import com.ClinicaDeYmid.billing_service.support.LocalDianSigningKey;
+import com.ClinicaDeYmid.billing_service.support.LocalSeal;
 import com.ClinicaDeYmid.billing_service.support.SharedMySql;
 import com.ClinicaDeYmid.billing_service.support.StubbedServices;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +22,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(LocalDianSignature.class)
+@Import({LocalDianSignature.class, LocalSeal.class})
 abstract class IntegrationTest {
 
     @Autowired

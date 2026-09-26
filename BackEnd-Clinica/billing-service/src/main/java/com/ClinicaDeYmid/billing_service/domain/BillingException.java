@@ -440,4 +440,18 @@ public sealed abstract class BillingException extends DomainException {
             super(ErrorCategory.NOT_FOUND, "CREDIT_NOTE_NOT_FOUND", "No se encontró la nota crédito solicitada");
         }
     }
+
+    public static final class RepresentationNotFound extends BillingException {
+        public RepresentationNotFound() {
+            super(ErrorCategory.NOT_FOUND, "REPRESENTATION_NOT_FOUND",
+                    "No se encontró la representación gráfica solicitada");
+        }
+    }
+
+    public static final class SealUnavailable extends BillingException {
+        public SealUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "SEAL_UNAVAILABLE",
+                    "El sello institucional no está disponible; intenta de nuevo en un momento");
+        }
+    }
 }
