@@ -1,8 +1,11 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.dian;
 
+import com.ClinicaDeYmid.billing_service.application.dian.ElectronicCreditNote;
 import com.ClinicaDeYmid.billing_service.application.dian.ElectronicInvoice;
 import com.ClinicaDeYmid.billing_service.application.dian.UblWriter;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
+import com.ClinicaDeYmid.billing_service.domain.CreditNote;
+import com.ClinicaDeYmid.billing_service.domain.CreditNoteLine;
 import com.ClinicaDeYmid.billing_service.domain.Cufe;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
@@ -24,6 +27,7 @@ import java.util.Map;
 class StaxUblWriter implements UblWriter {
 
     static final String INVOICE = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
+    static final String CREDIT_NOTE = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2";
     static final String CAC = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
     static final String CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
     static final String EXT = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2";
@@ -51,10 +55,23 @@ class StaxUblWriter implements UblWriter {
 
     @Override
     public String invoice(ElectronicInvoice electronic) {
+        return written(xml -> write(xml, electronic));
+    }
+
+    @Override
+    public String creditNote(ElectronicCreditNote electronic) {
+        return written(xml -> write(xml, electronic));
+    }
+
+    private interface Content {
+        void write(XMLStreamWriter xml) throws XMLStreamException;
+    }
+
+    private String written(Content content) {
         StringWriter out = new StringWriter();
         try {
             XMLStreamWriter xml = factory.createXMLStreamWriter(out);
-            write(xml, electronic);
+            content.write(xml);
             xml.flush();
             xml.close();
         } catch (XMLStreamException impossible) {
@@ -66,29 +83,12 @@ class StaxUblWriter implements UblWriter {
     private void write(XMLStreamWriter xml, ElectronicInvoice electronic) throws XMLStreamException {
         Invoice invoice = electronic.invoice();
         Issuer issuer = electronic.issuer();
-        xml.writeStartDocument("UTF-8", "1.0");
-        xml.setDefaultNamespace(INVOICE);
-        xml.setPrefix("cac", CAC);
-        xml.setPrefix("cbc", CBC);
-        xml.setPrefix("ext", EXT);
-        xml.setPrefix("sts", STS);
-        xml.setPrefix("ds", DS);
-        xml.setPrefix("xades", XADES);
-        xml.writeStartElement(INVOICE, "Invoice");
-        xml.writeDefaultNamespace(INVOICE);
-        xml.writeNamespace("cac", CAC);
-        xml.writeNamespace("cbc", CBC);
-        xml.writeNamespace("ext", EXT);
-        xml.writeNamespace("sts", STS);
-        xml.writeNamespace("ds", DS);
-        xml.writeNamespace("xades", XADES);
+        root(xml, INVOICE, "Invoice");
 
         xml.writeStartElement(EXT, "UBLExtensions");
         dianExtension(xml, electronic);
-        xml.writeStartElement(EXT, "UBLExtension");
-        xml.writeEmptyElement(EXT, "ExtensionContent");
-        xml.writeEndElement();
-        healthExtension(xml, invoice, issuer);
+        signatureSlot(xml);
+        healthExtension(xml, invoice, issuer, invoice.patientShare());
         xml.writeEndElement();
 
         basic(xml, "UBLVersionID", "UBL 2.1");
@@ -129,6 +129,113 @@ class StaxUblWriter implements UblWriter {
         xml.writeEndDocument();
     }
 
+    private void write(XMLStreamWriter xml, ElectronicCreditNote electronic) throws XMLStreamException {
+        CreditNote note = electronic.note();
+        Invoice invoice = note.invoice();
+        Issuer issuer = electronic.issuer();
+        root(xml, CREDIT_NOTE, "CreditNote");
+
+        xml.writeStartElement(EXT, "UBLExtensions");
+        xml.writeStartElement(EXT, "UBLExtension");
+        xml.writeStartElement(EXT, "ExtensionContent");
+        xml.writeStartElement(STS, "DianExtensions");
+        softwareExtensions(xml, issuer, electronic.softwareId(), electronic.softwareSecurityCode(),
+                ElectronicCreditNote.qrContent(note, issuer));
+        xml.writeEndElement();
+        xml.writeEndElement();
+        xml.writeEndElement();
+        signatureSlot(xml);
+        healthExtension(xml, invoice, issuer, note.creditedShare());
+        xml.writeEndElement();
+
+        basic(xml, "UBLVersionID", "UBL 2.1");
+        basic(xml, "CustomizationID", "20");
+        basic(xml, "ProfileID", "DIAN 2.1: Nota Crédito de Factura Electrónica de Venta");
+        basic(xml, "ProfileExecutionID", issuer.environment().dianCode());
+        basic(xml, "ID", note.number());
+        basic(xml, "UUID", note.cude(), "schemeID", issuer.environment().dianCode(), "schemeName", "CUDE-SHA384");
+        basic(xml, "IssueDate", note.issuedOn().toString());
+        basic(xml, "IssueTime", Cufe.time(note.issuedTime()));
+        basic(xml, "CreditNoteTypeCode", "91");
+        basic(xml, "Note", note.reason());
+        basic(xml, "DocumentCurrencyCode", CURRENCY);
+        basic(xml, "LineCountNumeric", String.valueOf(note.lines().size()));
+        xml.writeStartElement(CAC, "DiscrepancyResponse");
+        basic(xml, "ReferenceID", invoice.number());
+        basic(xml, "ResponseCode", note.concept().dianCode());
+        basic(xml, "Description", note.reason());
+        xml.writeEndElement();
+        xml.writeStartElement(CAC, "BillingReference");
+        xml.writeStartElement(CAC, "InvoiceDocumentReference");
+        basic(xml, "ID", invoice.number());
+        basic(xml, "UUID", invoice.cufe(), "schemeName", "CUFE-SHA384");
+        basic(xml, "IssueDate", invoice.issuedOn().toString());
+        xml.writeEndElement();
+        xml.writeEndElement();
+
+        supplier(xml, issuer);
+        customer(xml, invoice.buyer());
+        if (note.creditedShare().signum() > 0) {
+            xml.writeStartElement(CAC, "PrepaidPayment");
+            basic(xml, "ID", "COPAGO");
+            amount(xml, "PaidAmount", note.creditedShare());
+            basic(xml, "ReceivedDate", invoice.issuedOn().toString());
+            xml.writeEndElement();
+        }
+        xml.writeStartElement(CAC, "LegalMonetaryTotal");
+        amount(xml, "LineExtensionAmount", note.creditedGross());
+        amount(xml, "TaxExclusiveAmount", BigDecimal.ZERO);
+        amount(xml, "TaxInclusiveAmount", note.creditedGross());
+        amount(xml, "PrepaidAmount", note.creditedShare());
+        amount(xml, "PayableAmount", note.creditedPayable());
+        xml.writeEndElement();
+
+        for (CreditNoteLine line : note.lines()) {
+            xml.writeStartElement(CAC, "CreditNoteLine");
+            basic(xml, "ID", String.valueOf(line.position()));
+            basic(xml, "CreditedQuantity", String.valueOf(line.quantity()), "unitCode", "94");
+            amount(xml, "LineExtensionAmount", line.lineTotal());
+            xml.writeStartElement(CAC, "Item");
+            basic(xml, "Description", line.description());
+            xml.writeStartElement(CAC, "StandardItemIdentification");
+            basic(xml, "ID", line.code(), "schemeID", "999", "schemeName", "CUPS");
+            xml.writeEndElement();
+            xml.writeEndElement();
+            xml.writeStartElement(CAC, "Price");
+            amount(xml, "PriceAmount", line.unitPrice());
+            basic(xml, "BaseQuantity", "1", "unitCode", "94");
+            xml.writeEndElement();
+            xml.writeEndElement();
+        }
+        xml.writeEndElement();
+        xml.writeEndDocument();
+    }
+
+    private void root(XMLStreamWriter xml, String namespace, String element) throws XMLStreamException {
+        xml.writeStartDocument("UTF-8", "1.0");
+        xml.setDefaultNamespace(namespace);
+        xml.setPrefix("cac", CAC);
+        xml.setPrefix("cbc", CBC);
+        xml.setPrefix("ext", EXT);
+        xml.setPrefix("sts", STS);
+        xml.setPrefix("ds", DS);
+        xml.setPrefix("xades", XADES);
+        xml.writeStartElement(namespace, element);
+        xml.writeDefaultNamespace(namespace);
+        xml.writeNamespace("cac", CAC);
+        xml.writeNamespace("cbc", CBC);
+        xml.writeNamespace("ext", EXT);
+        xml.writeNamespace("sts", STS);
+        xml.writeNamespace("ds", DS);
+        xml.writeNamespace("xades", XADES);
+    }
+
+    private void signatureSlot(XMLStreamWriter xml) throws XMLStreamException {
+        xml.writeStartElement(EXT, "UBLExtension");
+        xml.writeEmptyElement(EXT, "ExtensionContent");
+        xml.writeEndElement();
+    }
+
     private void dianExtension(XMLStreamWriter xml, ElectronicInvoice electronic) throws XMLStreamException {
         Invoice invoice = electronic.invoice();
         Issuer issuer = electronic.issuer();
@@ -150,6 +257,15 @@ class StaxUblWriter implements UblWriter {
         text(xml, STS, "To", String.valueOf(terms.rangeTo()));
         xml.writeEndElement();
         xml.writeEndElement();
+        softwareExtensions(xml, issuer, electronic.softwareId(), electronic.softwareSecurityCode(),
+                invoice.qrContent());
+        xml.writeEndElement();
+        xml.writeEndElement();
+        xml.writeEndElement();
+    }
+
+    private void softwareExtensions(XMLStreamWriter xml, Issuer issuer, String softwareId, String securityCode,
+                                    String qrContent) throws XMLStreamException {
         xml.writeStartElement(STS, "InvoiceSource");
         basic(xml, "IdentificationCode", "CO", "listAgencyID", "6", "listAgencyName",
                 "United Nations Economic Commission for Europe", "listSchemeURI",
@@ -158,21 +274,18 @@ class StaxUblWriter implements UblWriter {
         xml.writeStartElement(STS, "SoftwareProvider");
         text(xml, STS, "ProviderID", issuer.nit().number(), "schemeAgencyID", "195", "schemeAgencyName", DIAN_AGENCY,
                 "schemeID", String.valueOf(issuer.nit().verificationDigit()), "schemeName", NIT_SCHEME);
-        text(xml, STS, "SoftwareID", electronic.softwareId(), "schemeAgencyID", "195", "schemeAgencyName", DIAN_AGENCY);
+        text(xml, STS, "SoftwareID", softwareId, "schemeAgencyID", "195", "schemeAgencyName", DIAN_AGENCY);
         xml.writeEndElement();
-        text(xml, STS, "SoftwareSecurityCode", electronic.softwareSecurityCode(), "schemeAgencyID", "195",
-                "schemeAgencyName", DIAN_AGENCY);
+        text(xml, STS, "SoftwareSecurityCode", securityCode, "schemeAgencyID", "195", "schemeAgencyName", DIAN_AGENCY);
         xml.writeStartElement(STS, "AuthorizationProvider");
         text(xml, STS, "AuthorizationProviderID", DIAN_NIT, "schemeAgencyID", "195", "schemeAgencyName", DIAN_AGENCY,
                 "schemeID", "4", "schemeName", NIT_SCHEME);
         xml.writeEndElement();
-        text(xml, STS, "QRCode", invoice.qrContent());
-        xml.writeEndElement();
-        xml.writeEndElement();
-        xml.writeEndElement();
+        text(xml, STS, "QRCode", qrContent);
     }
 
-    private void healthExtension(XMLStreamWriter xml, Invoice invoice, Issuer issuer) throws XMLStreamException {
+    private void healthExtension(XMLStreamWriter xml, Invoice invoice, Issuer issuer, BigDecimal share)
+            throws XMLStreamException {
         HealthUser user = invoice.user();
         xml.writeStartElement(EXT, "UBLExtension");
         xml.writeStartElement(EXT, "ExtensionContent");
@@ -189,8 +302,8 @@ class StaxUblWriter implements UblWriter {
         if (invoice.contractNumber() != null) {
             information(xml, "NUMERO_CONTRATO", invoice.contractNumber());
         }
-        information(xml, "COPAGO", Cufe.amount(invoice.patientShare()));
-        information(xml, "PAGOS_COMPARTIDOS", Cufe.amount(invoice.patientShare()));
+        information(xml, "COPAGO", Cufe.amount(share));
+        information(xml, "PAGOS_COMPARTIDOS", Cufe.amount(share));
         xml.writeEndElement();
         xml.writeEndElement();
         xml.writeEndElement();

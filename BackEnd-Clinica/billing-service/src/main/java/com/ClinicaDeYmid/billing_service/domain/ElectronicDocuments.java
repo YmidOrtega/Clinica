@@ -12,6 +12,8 @@ public interface ElectronicDocuments {
 
     Optional<ElectronicDocument> ofInvoice(UUID invoiceUuid);
 
+    Optional<ElectronicDocument> ofCreditNote(UUID creditNoteUuid);
+
     List<UUID> awaitingSignature(int limit);
 
     List<UUID> awaitingDelivery(int limit);

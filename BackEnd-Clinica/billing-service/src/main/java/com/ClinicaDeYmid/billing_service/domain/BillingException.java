@@ -422,4 +422,22 @@ public sealed abstract class BillingException extends DomainException {
                     "Falta el identificador del set de pruebas de habilitación DIAN");
         }
     }
+
+    public static final class InvoiceNotCreditable extends BillingException {
+        public InvoiceNotCreditable(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "INVOICE_NOT_CREDITABLE", detail);
+        }
+    }
+
+    public static final class CreditExceedsInvoice extends BillingException {
+        public CreditExceedsInvoice(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "CREDIT_EXCEEDS_INVOICE", detail);
+        }
+    }
+
+    public static final class CreditNoteNotFound extends BillingException {
+        public CreditNoteNotFound() {
+            super(ErrorCategory.NOT_FOUND, "CREDIT_NOTE_NOT_FOUND", "No se encontró la nota crédito solicitada");
+        }
+    }
 }

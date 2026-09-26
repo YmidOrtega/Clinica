@@ -24,12 +24,16 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Entity
 @Table(name = "issuer")
 @Audited
 @EntityListeners(AuditingEntityListener.class)
 public class Issuer {
+
+    public static final String DEFAULT_CREDIT_NOTE_PREFIX = "NC";
+    private static final Pattern CREDIT_NOTE_PREFIX = Pattern.compile("^[A-Z0-9]{1,4}$");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -91,6 +95,9 @@ public class Issuer {
     @Column(name = "health_provider_code", nullable = false, length = 12)
     private String healthProviderCode;
 
+    @Column(name = "credit_note_prefix", nullable = false, length = 4)
+    private String creditNotePrefix = DEFAULT_CREDIT_NOTE_PREFIX;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "environment", nullable = false, length = 20)
     private DianEnvironment environment;
@@ -133,6 +140,20 @@ public class Issuer {
         }
         apply(profile);
         return true;
+    }
+
+    public boolean useCreditNotePrefix(String prefix) {
+        String accepted = DomainRules.requiredPattern(prefix, "prefix", CREDIT_NOTE_PREFIX,
+                "debe tener de 1 a 4 letras mayúsculas o dígitos");
+        if (accepted.equals(creditNotePrefix)) {
+            return false;
+        }
+        creditNotePrefix = accepted;
+        return true;
+    }
+
+    public String creditNotePrefix() {
+        return creditNotePrefix;
     }
 
     public void goToProduction(Clock clock) {

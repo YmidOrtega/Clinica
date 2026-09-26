@@ -53,6 +53,13 @@ public class IssuerCommands {
         });
     }
 
+    public Issuer useCreditNotePrefix(long expectedVersion, String prefix) {
+        return transactions.execute(status -> {
+            Issuer issuer = current(expectedVersion);
+            return issuer.useCreditNotePrefix(prefix) ? issuers.save(issuer) : issuer;
+        });
+    }
+
     public Issuer goToProduction(long expectedVersion) {
         return transactions.execute(status -> {
             Issuer issuer = current(expectedVersion);

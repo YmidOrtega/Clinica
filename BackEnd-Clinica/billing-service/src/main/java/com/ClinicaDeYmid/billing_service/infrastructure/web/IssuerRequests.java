@@ -38,4 +38,7 @@ final class IssuerRequests {
 
     private IssuerRequests() {
     }
+
+    record CreditNotePrefix(@NotBlank String prefix) {
+    }
 }

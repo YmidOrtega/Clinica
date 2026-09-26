@@ -66,6 +66,11 @@ public class ElectronicDocument {
     @JoinColumn(name = "invoice_id", nullable = false, updatable = false)
     private Invoice invoice;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_note_id", updatable = false)
+    private CreditNote creditNote;
+
     @Column(name = "number", nullable = false, updatable = false, length = 24)
     private String number;
 
@@ -111,6 +116,16 @@ public class ElectronicDocument {
             throw new IllegalStateException("Only an issued and identified invoice is an electronic document");
         }
         return of(Type.INVOICE, invoice, invoice.number(), invoice.cufe(), issued.at());
+    }
+
+    public static ElectronicDocument ofCreditNote(CreditNote note) {
+        DomainRules.required(note, "note");
+        if (note.cude() == null) {
+            throw new IllegalStateException("Only an identified credit note is an electronic document");
+        }
+        ElectronicDocument document = of(Type.CREDIT_NOTE, note.invoice(), note.number(), note.cude(), note.issuedAt());
+        document.creditNote = note;
+        return document;
     }
 
     static ElectronicDocument of(Type type, Invoice invoice, String number, String documentKey, Instant issuedAt) {
@@ -189,6 +204,10 @@ public class ElectronicDocument {
 
     public Invoice invoice() {
         return invoice;
+    }
+
+    public CreditNote creditNote() {
+        return creditNote;
     }
 
     public String number() {

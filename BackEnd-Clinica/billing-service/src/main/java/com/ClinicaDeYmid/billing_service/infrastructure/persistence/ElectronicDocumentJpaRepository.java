@@ -24,6 +24,10 @@ interface ElectronicDocumentJpaRepository extends JpaRepository<ElectronicDocume
               and d.type = com.ClinicaDeYmid.billing_service.domain.ElectronicDocument.Type.INVOICE""")
     Optional<ElectronicDocument> ofInvoice(@Param("invoice") UUID invoice);
 
+    @EntityGraph(attributePaths = {"invoice", "creditNote"})
+    @Query("select d from ElectronicDocument d where d.creditNote.uuid = :note")
+    Optional<ElectronicDocument> ofCreditNote(@Param("note") UUID note);
+
     @Query("select d.uuid from ElectronicDocument d where d.signedAt is null order by d.issuedAt, d.id")
     List<UUID> awaitingSignature(Pageable page);
 
