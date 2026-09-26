@@ -37,6 +37,11 @@ public final class JwtTestTokens {
         registry.add("clinica.billing.dian.test-set-id", () -> "7d1f9a3c-2b4e-4f6a-8c9d-0e1f2a3b4c5d");
         registry.add("clinica.billing.dian.urls.test", DianSimulator::url);
         registry.add("clinica.billing.dian.urls.production", DianSimulator::url);
+        registry.add("clinica.billing.ministry.url", MinistrySimulator::url);
+        registry.add("clinica.billing.ministry.document-type", () -> "CC");
+        registry.add("clinica.billing.ministry.document-number", () -> "80100200");
+        registry.add("clinica.billing.ministry.password", () -> "clave-de-prueba");
+        registry.add("clinica.billing.ministry.retries.enabled", () -> false);
     }
 
     public static String bearer(String role) {
