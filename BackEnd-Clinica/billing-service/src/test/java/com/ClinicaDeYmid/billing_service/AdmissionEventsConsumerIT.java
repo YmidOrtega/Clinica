@@ -6,7 +6,10 @@ import com.ClinicaDeYmid.billing_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.DischargeType;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
+import com.ClinicaDeYmid.billing_service.application.clinical.CareRecord;
+import com.ClinicaDeYmid.billing_service.application.clinical.ClinicalFacts;
 import com.ClinicaDeYmid.billing_service.support.AdmissionEvents;
+import com.ClinicaDeYmid.billing_service.support.ClinicalEvents;
 import com.ClinicaDeYmid.billing_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.billing_service.support.ProducerContract;
 import com.ClinicaDeYmid.billing_service.support.SharedMySql;
@@ -46,6 +49,7 @@ class AdmissionEventsConsumerIT {
 
     private static final String TOPIC = "admissions.events.v1";
     private static final String DLT = "admissions.events.v1.billing.dlt";
+    private static final String CLINICAL_TOPIC = "clinical.encounters.v1";
 
     private static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.1")
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
@@ -55,12 +59,15 @@ class AdmissionEventsConsumerIT {
     @Autowired
     private AccountQueries accounts;
 
+    @Autowired
+    private ClinicalFacts clinicalFacts;
+
     @BeforeAll
     static void startKafka() throws Exception {
         KAFKA.start();
         try (Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
             admin.createTopics(List.of(new NewTopic(TOPIC, 3, (short) 1)
-                    .configs(Map.of("cleanup.policy", "compact")))).all().get();
+                    .configs(Map.of("cleanup.policy", "compact")), new NewTopic(CLINICAL_TOPIC, 3, (short) 1))).all().get();
         }
         producer = new KafkaProducer<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
@@ -80,7 +87,37 @@ class AdmissionEventsConsumerIT {
         JwtTestTokens.register(registry);
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         registry.add("clinica.billing.admission-events.enabled", () -> true);
+        registry.add("clinica.billing.clinical-events.enabled", () -> true);
         registry.add("spring.kafka.admin.auto-create", () -> true);
+    }
+
+    @Test
+    void followsTheClinicalFactsOfAnEpisodeAndForgetsVoidedNotes() throws Exception {
+        UUID admission = UUID.randomUUID();
+        UUID patient = UUID.randomUUID();
+        UUID encounter = UUID.randomUUID();
+        UUID kept = UUID.randomUUID();
+        UUID voided = UUID.randomUUID();
+        List<String> events = List.of(
+                ClinicalEvents.encounterOpened(encounter, admission, patient, "2026-09-26T14:00:00.000001Z"),
+                ClinicalEvents.noteSigned(kept, encounter, admission, patient, "2026-09-26T14:10:00Z", "I10X"),
+                ClinicalEvents.noteSigned(voided, encounter, admission, patient, "2026-09-26T14:20:00Z", "J459"),
+                ClinicalEvents.noteVoided(voided, patient, "2026-09-26T14:30:00Z"));
+        assertThat(events).allSatisfy(event ->
+                assertThat(ProducerContract.CLINICAL_ENCOUNTERS.breaches(event)).isEmpty());
+
+        for (String event : events) {
+            producer.send(new ProducerRecord<>(CLINICAL_TOPIC, patient.toString(), event)).get();
+        }
+
+        await().atMost(Duration.ofSeconds(20)).ignoreExceptions().untilAsserted(() -> {
+            CareRecord care = clinicalFacts.ofAdmission(admission);
+            assertThat(care.encounters()).singleElement().satisfies(found ->
+                    assertThat(found.careSetting().serviceCode()).isEqualTo("328"));
+            assertThat(care.notes()).extracting(CareRecord.Note::id).containsExactly(kept);
+            assertThat(care.notes().getFirst().purpose()).isEqualTo("15");
+            assertThat(care.lastDiagnosed().orElseThrow().principal().orElseThrow().code()).isEqualTo("I10X");
+        });
     }
 
     @Test

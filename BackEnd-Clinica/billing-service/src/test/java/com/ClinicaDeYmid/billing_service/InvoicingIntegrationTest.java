@@ -26,6 +26,7 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
     static final String SALES = "/api/v1/billing/sales";
     static final String INVOICES = "/api/v1/billing/invoices";
     static final String SHARED_PAYMENTS = "/api/v1/billing/shared-payments";
+    static final String PRACTITIONER = "0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e";
     static final String CONSULTATION = "2c1b0a9f-8e7d-4c6b-9a5f-4e3d2c1b0a9f";
     static final String PAYER = "7f3a1c2e-9b8d-4e6f-a5b4-c3d2e1f0a9b8";
     static final LocalDate TODAY = LocalDate.now(ZoneId.of("America/Bogota"));
@@ -99,7 +100,15 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
                 urlPathEqualTo("/api/v1/patients/" + patient)).willReturn(okJson("""
                 {"uuid":"%s","document":{"type":"CEDULA_DE_CIUDADANIA","number":"1098765432"},
                  "demographics":{"firstNames":"Ana María","lastNames":"Restrepo Gómez","birthDate":"1990-04-12",
-                   "sex":"FEMALE"},"affiliation":{"regime":"CONTRIBUTORY"}}""".formatted(patient))));
+                   "sex":"FEMALE","countryOfOrigin":"CO","countryOfOriginCode":"170"},
+                 "affiliation":{"regime":"CONTRIBUTORY","affiliateType":"BENEFICIARY"},
+                 "residence":{"department":"Santander","municipality":"Bucaramanga","municipalityCode":"68001",
+                   "zone":"URBAN","address":"Calle 45 # 27-10"}}""".formatted(patient))));
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/practitioners/" + PRACTITIONER)).willReturn(okJson("""
+                {"uuid":"%s","fullName":"Paula Gómez","registration":{"number":"RM-1"},
+                 "status":{"code":"ACTIVE","attends":true},"document":{"type":"CEDULA_DE_CIUDADANIA","number":"80100200"}}"""
+                .formatted(PRACTITIONER))));
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
                 urlPathEqualTo("/api/v1/payers/" + PAYER)).willReturn(okJson("""
                 {"uuid":"%s","socialReason":"Nueva EPS S.A.","nit":"900156264-2","type":"EPS"}""".formatted(PAYER))));
@@ -113,8 +122,10 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
                         + "\",\"contractNumber\":\"CT-1\",\"payerUuid\":\"" + PAYER + "\"}";
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
                 urlPathEqualTo("/api/v1/admissions/episodes/" + admission)).willReturn(okJson("""
-                {"uuid":"%s","number":"%s","kind":"OUTPATIENT","status":{"code":"ACTIVE"},"coverage":%s}"""
-                .formatted(admission, number, coverageJson))));
+                {"uuid":"%s","number":"%s","kind":"OUTPATIENT","status":{"code":"ACTIVE"},"coverage":%s,
+                 "attending":{"practitionerUuid":"%s","fullName":"Paula Gómez","registrationNumber":"RM-1"},
+                 "phases":[{"kind":"OUTPATIENT","startedAt":"2026-09-01T13:00:00Z","endedAt":null}]}"""
+                .formatted(admission, number, coverageJson, PRACTITIONER))));
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
                 urlPathEqualTo("/api/v1/admissions/episodes/" + admission + "/authorizations")).willReturn(okJson("""
                 [{"uuid":"%s","number":"AUT-778899","type":"AMBULATORY_SERVICES","authorizedBy":"Nueva EPS",

@@ -42,7 +42,11 @@ class ResilientPatientDirectory implements PatientDirectory {
             return new PatientLookup.Found(new PatientDetails.Registered(patient.uuid(), patient.document().type(),
                     patient.document().number(), patient.demographics().firstNames(),
                     patient.demographics().lastNames(), patient.demographics().birthDate(),
-                    patient.demographics().sex(), patient.affiliation() == null ? null : patient.affiliation().regime()));
+                    patient.demographics().sex(), patient.affiliation() == null ? null : patient.affiliation().regime(),
+                    patient.affiliation() == null ? null : patient.affiliation().affiliateType(),
+                    patient.demographics().countryOfOriginCode(),
+                    patient.residence() == null ? null : patient.residence().municipalityCode(),
+                    patient.residence() == null ? null : patient.residence().zone()));
         } catch (FeignException.NotFound notRegistered) {
             try {
                 PatientRegistryClient.UnidentifiedPayload patient = client.findUnidentified(patientUuid);

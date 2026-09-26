@@ -74,6 +74,8 @@ clinica:
     time-zone: America/Bogota
     admission-events:
       enabled: ${BILLING_ADMISSION_EVENTS_ENABLED:true}
+    clinical-events:
+      enabled: ${BILLING_CLINICAL_EVENTS_ENABLED:true}
     pricing:
       private-contract-uuid: ${BILLING_PRIVATE_CONTRACT_UUID:}
     dian:

@@ -33,7 +33,9 @@ class ResilientPractitionerDirectory implements PractitionerDirectory {
                 PractitionersClient.PractitionerPayload found = client.practitioner(practitionerUuid);
                 return new PractitionerLookup.Found(found.fullName(),
                         found.registration() == null ? null : found.registration().number(),
-                        found.status() != null && found.status().attends());
+                        found.status() != null && found.status().attends(),
+                        found.document() == null ? null : found.document().type(),
+                        found.document() == null ? null : found.document().number());
             } catch (FeignException.NotFound missing) {
                 return new PractitionerLookup.NotFound();
             }

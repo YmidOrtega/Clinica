@@ -475,4 +475,12 @@ public sealed abstract class BillingException extends DomainException {
                     "Esa referencia de recaudo ya se facturó con otros datos");
         }
     }
+
+    public static final class RipsNotApplicable extends BillingException {
+        public RipsNotApplicable() {
+            super(ErrorCategory.RULE_VIOLATION, "RIPS_NOT_APPLICABLE",
+                    "La factura de un pago compartido al paciente no lleva RIPS propio; su valor se reporta en el RIPS "
+                            + "de la factura al pagador");
+        }
+    }
 }
