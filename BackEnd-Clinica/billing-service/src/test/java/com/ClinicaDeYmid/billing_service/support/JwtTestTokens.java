@@ -29,6 +29,7 @@ public final class JwtTestTokens {
         registry.add("spring.kafka.admin.auto-create", () -> false);
         registry.add("clinica.billing.dian.software-id", () -> "56f2ae4e-9812-4fad-9255-643406bbb1a1");
         registry.add("clinica.billing.dian.software-pin", () -> "12345");
+        registry.add("clinica.billing.dian.signature-retries.enabled", () -> false);
     }
 
     public static String bearer(String role) {

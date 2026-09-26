@@ -98,6 +98,12 @@ class StaxUblWriterTest {
                 .contains("https://catalogo-vpfe-hab.dian.gov.co/document/searchqr?documentkey=" + recomputed);
     }
 
+    static String sampleUbl() {
+        Fixture fixture = issued();
+        return new StaxUblWriter().invoice(ElectronicInvoice.of(fixture.invoice(), fixture.issuer(),
+                fixture.resolution(), new DianSoftware("56f2ae4e-9812-4fad-9255-643406bbb1a1", "12345")));
+    }
+
     private static Fixture issued() {
         Issuer issuer = Issuer.configure(new Nit("800197268", 4), new IssuerProfile(PersonType.LEGAL_ENTITY,
                 "Clínica de Ymid S.A.S.", "Clínica de Ymid", TaxScheme.NOT_APPLICABLE,

@@ -157,6 +157,9 @@ public class Invoice {
     @Column(name = "qr_content", length = 1000)
     private String qrContent;
 
+    @Column(name = "signed_at")
+    private Instant signedAt;
+
     @NotAudited
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.PERSIST)
     @OrderBy("position")
@@ -268,6 +271,20 @@ public class Invoice {
         }
         this.cufe = DomainRules.requiredText(cufe, "cufe", 96);
         this.qrContent = DomainRules.requiredText(qrContent, "qrContent", 1000);
+    }
+
+    public void sign(Instant at) {
+        if (!(status() instanceof InvoiceStatus.Issued)) {
+            throw new BillingException.InvoiceNotSignable();
+        }
+        if (signedAt != null) {
+            throw new IllegalStateException("An invoice is signed once");
+        }
+        signedAt = DomainRules.required(at, "signedAt");
+    }
+
+    public Instant signedAt() {
+        return signedAt;
     }
 
     public String cufe() {

@@ -1,12 +1,15 @@
 package com.ClinicaDeYmid.billing_service;
 
 import com.ClinicaDeYmid.billing_service.support.JwtTestTokens;
+import com.ClinicaDeYmid.billing_service.support.LocalDianSignature;
+import com.ClinicaDeYmid.billing_service.support.LocalDianSigningKey;
 import com.ClinicaDeYmid.billing_service.support.SharedMySql;
 import com.ClinicaDeYmid.billing_service.support.StubbedServices;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,6 +21,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(LocalDianSignature.class)
 abstract class IntegrationTest {
 
     @Autowired
@@ -39,6 +43,7 @@ abstract class IntegrationTest {
     @BeforeEach
     void resetStubbedServices() {
         StubbedServices.reset();
+        LocalDianSigningKey.SHARED.available(true);
     }
 
     protected ResultActions as(String role, MockHttpServletRequestBuilder request) throws Exception {

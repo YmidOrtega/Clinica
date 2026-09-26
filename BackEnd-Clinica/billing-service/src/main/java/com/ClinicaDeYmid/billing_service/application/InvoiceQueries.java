@@ -27,8 +27,10 @@ public class InvoiceQueries {
         this.documents = documents;
     }
 
-    public InvoiceDocument document(UUID invoiceUuid, InvoiceDocument.Kind kind) {
-        invoice(invoiceUuid);
+    public InvoiceDocument signedOrUnsigned(UUID invoiceUuid) {
+        Invoice invoice = invoice(invoiceUuid);
+        InvoiceDocument.Kind kind = invoice.signedAt() == null ? InvoiceDocument.Kind.UBL_UNSIGNED
+                : InvoiceDocument.Kind.UBL_SIGNED;
         return documents.find(invoiceUuid, kind).orElseThrow(BillingException.InvoiceNotFound::new);
     }
 

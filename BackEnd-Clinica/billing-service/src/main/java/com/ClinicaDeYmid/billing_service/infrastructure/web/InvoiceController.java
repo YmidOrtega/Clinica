@@ -2,6 +2,7 @@ package com.ClinicaDeYmid.billing_service.infrastructure.web;
 
 import com.ClinicaDeYmid.billing_service.application.InvoiceCommands;
 import com.ClinicaDeYmid.billing_service.application.InvoiceQueries;
+import com.ClinicaDeYmid.billing_service.application.InvoiceSigning;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
@@ -49,11 +50,14 @@ class InvoiceController {
 
     private final InvoiceCommands commands;
     private final InvoiceQueries queries;
+    private final InvoiceSigning signing;
     private final RecentAuthentication recentAuthentication;
 
-    InvoiceController(InvoiceCommands commands, InvoiceQueries queries, RecentAuthentication recentAuthentication) {
+    InvoiceController(InvoiceCommands commands, InvoiceQueries queries, InvoiceSigning signing,
+                      RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
+        this.signing = signing;
         this.recentAuthentication = recentAuthentication;
     }
 
@@ -86,7 +90,9 @@ class InvoiceController {
     @PostMapping(INVOICES + "/{uuid}/issuance")
     @PreAuthorize(Access.INVOICE)
     @Operation(summary = "Emitir la factura con el siguiente consecutivo de la resolución activa",
-            description = "Exige un segundo factor reciente; falla si la cuenta cambió desde el borrador")
+            description = "Exige un segundo factor reciente; falla si la cuenta cambió desde el borrador. "
+                    + "Intenta firmarla de inmediato; si el custodio de la firma no responde queda emitida sin firma "
+                    + "y se reintenta sola")
     ResponseEntity<InvoiceView> issue(@PathVariable UUID uuid,
                                       @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         long version = EntityTags.requiredVersion(ifMatch);
@@ -94,15 +100,25 @@ class InvoiceController {
         log.info("Step-up accepted to issue invoice {}: {} authenticated at {}", uuid, user.uuid(),
                 user.authenticatedAt());
         commands.issue(uuid, version);
+        signing.trySign(uuid);
+        return tagged(uuid);
+    }
+
+    @PostMapping(INVOICES + "/{uuid}/signature")
+    @PreAuthorize(Access.INVOICE)
+    @Operation(summary = "Firmar con XAdES-EPES una factura emitida que quedó sin firma",
+            description = "Idempotente: si ya está firmada la devuelve igual")
+    ResponseEntity<InvoiceView> sign(@PathVariable UUID uuid) {
+        signing.sign(uuid);
         return tagged(uuid);
     }
 
     @GetMapping(value = INVOICES + "/{uuid}/ubl", produces = MediaType.APPLICATION_XML_VALUE)
     @PreAuthorize(Access.READ)
-    @Operation(summary = "Descargar el XML UBL 2.1 de una factura emitida, sin firma",
-            description = "La firma XAdES llega al enviar a la DIAN; este es el documento exacto que se firmará")
+    @Operation(summary = "Descargar el XML UBL 2.1 de una factura emitida",
+            description = "Firmado con XAdES-EPES si ya se firmó (signedAt en la factura); si no, el documento sin firma")
     ResponseEntity<String> ubl(@PathVariable UUID uuid) {
-        InvoiceDocument document = queries.document(uuid, InvoiceDocument.Kind.UBL_UNSIGNED);
+        InvoiceDocument document = queries.signedOrUnsigned(uuid);
         return ResponseEntity.ok().eTag("\"" + document.sha256() + "\"").contentType(MediaType.APPLICATION_XML)
                 .body(document.content());
     }
@@ -152,7 +168,7 @@ class InvoiceController {
     }
 
     record InvoiceView(UUID uuid, String number, LocalDate issuedOn, String issuedTime, String cufe, String qrContent,
-                       UUID resolutionUuid, StatusView status,
+                       Instant signedAt, UUID resolutionUuid, StatusView status,
                        String admissionNumber, AccountSummary.UnitKind unitKind, UUID saleUuid, Buyer buyer,
                        HealthUser user, UUID contractUuid, String contractNumber, BigDecimal grossTotal,
                        BigDecimal patientShare, AccountSummary.ShareSource patientShareSource, BigDecimal payableTotal,
@@ -161,7 +177,7 @@ class InvoiceController {
         static InvoiceView from(Invoice invoice) {
             return new InvoiceView(invoice.uuid(), invoice.number(), invoice.issuedOn(),
                     invoice.issuedTime() == null ? null : com.ClinicaDeYmid.billing_service.domain.Cufe.time(invoice.issuedTime()),
-                    invoice.cufe(), invoice.qrContent(), invoice.resolutionUuid(),
+                    invoice.cufe(), invoice.qrContent(), invoice.signedAt(), invoice.resolutionUuid(),
                     StatusView.from(invoice.status()), invoice.account().admissionNumber(), invoice.unitKind(),
                     invoice.saleUuid(), invoice.buyer(), invoice.user(), invoice.contractUuid(),
                     invoice.contractNumber(), invoice.grossTotal(), invoice.patientShare(),

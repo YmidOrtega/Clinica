@@ -382,4 +382,23 @@ public sealed abstract class BillingException extends DomainException {
                     "Falta configurar el identificador y el PIN del software de facturación ante la DIAN");
         }
     }
+
+    public static final class InvoiceNotSignable extends BillingException {
+        public InvoiceNotSignable() {
+            super(ErrorCategory.RULE_VIOLATION, "INVOICE_NOT_SIGNABLE", "Solo se firma una factura emitida");
+        }
+    }
+
+    public static final class DianSignatureUnavailable extends BillingException {
+        public DianSignatureUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "DIAN_SIGNATURE_UNAVAILABLE",
+                    "El custodio de la clave de firma no responde; la factura sigue emitida y se firmará al reintentar");
+        }
+    }
+
+    public static final class DianCertificateInvalid extends BillingException {
+        public DianCertificateInvalid(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "DIAN_CERTIFICATE_INVALID", detail);
+        }
+    }
 }
