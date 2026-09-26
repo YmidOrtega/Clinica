@@ -21,8 +21,8 @@ public record DianPackage(String xmlName, String zipName, byte[] zip) {
                 + "%02d".formatted(year % 100) + "%08x".formatted(consecutive);
     }
 
-    public static DianPackage of(String baseName, String signedUbl) {
-        String xmlName = "fv" + baseName + ".xml";
+    public static DianPackage of(String filePrefix, String baseName, String signedUbl) {
+        String xmlName = filePrefix + baseName + ".xml";
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
             zip.putNextEntry(new ZipEntry(xmlName));

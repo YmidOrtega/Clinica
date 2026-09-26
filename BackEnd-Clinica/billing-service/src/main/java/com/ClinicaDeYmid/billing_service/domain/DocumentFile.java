@@ -23,9 +23,9 @@ import java.time.Instant;
 import java.util.HexFormat;
 
 @Entity
-@Table(name = "invoice_documents")
+@Table(name = "document_files")
 @EntityListeners(AuditingEntityListener.class)
-public class InvoiceDocument {
+public class DocumentFile {
 
     public enum Kind {
         UBL_UNSIGNED,
@@ -38,8 +38,8 @@ public class InvoiceDocument {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "invoice_id", nullable = false, updatable = false)
-    private Invoice invoice;
+    @JoinColumn(name = "electronic_document_id", nullable = false, updatable = false)
+    private ElectronicDocument document;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "kind", nullable = false, updatable = false, length = 30)
@@ -56,16 +56,16 @@ public class InvoiceDocument {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected InvoiceDocument() {
+    protected DocumentFile() {
     }
 
-    public static InvoiceDocument of(Invoice invoice, Kind kind, String content) {
-        InvoiceDocument document = new InvoiceDocument();
-        document.invoice = DomainRules.required(invoice, "invoice");
-        document.kind = DomainRules.required(kind, "kind");
-        document.content = DomainRules.required(content, "content");
-        document.sha256 = sha256(content);
-        return document;
+    public static DocumentFile of(ElectronicDocument document, Kind kind, String content) {
+        DocumentFile file = new DocumentFile();
+        file.document = DomainRules.required(document, "document");
+        file.kind = DomainRules.required(kind, "kind");
+        file.content = DomainRules.required(content, "content");
+        file.sha256 = sha256(content);
+        return file;
     }
 
     private static String sha256(String content) {

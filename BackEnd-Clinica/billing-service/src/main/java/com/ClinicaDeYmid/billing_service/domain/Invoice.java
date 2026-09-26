@@ -157,25 +157,6 @@ public class Invoice {
     @Column(name = "qr_content", length = 1000)
     private String qrContent;
 
-    @Column(name = "signed_at")
-    private Instant signedAt;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "dian_status", length = 30)
-    private DianStatus dianStatus;
-
-    @Column(name = "dian_status_at")
-    private Instant dianStatusAt;
-
-    @Column(name = "dian_file_name", length = 60)
-    private String dianFileName;
-
-    @Column(name = "dian_track_id", length = 100)
-    private String dianTrackId;
-
-    @Column(name = "dian_attempts", nullable = false)
-    private int dianAttempts;
-
     @NotAudited
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.PERSIST)
     @OrderBy("position")
@@ -287,84 +268,6 @@ public class Invoice {
         }
         this.cufe = DomainRules.requiredText(cufe, "cufe", 96);
         this.qrContent = DomainRules.requiredText(qrContent, "qrContent", 1000);
-    }
-
-    public void sign(Instant at) {
-        if (!(status() instanceof InvoiceStatus.Issued)) {
-            throw new BillingException.InvoiceNotSignable();
-        }
-        if (signedAt != null) {
-            throw new IllegalStateException("An invoice is signed once");
-        }
-        signedAt = DomainRules.required(at, "signedAt");
-    }
-
-    public Instant signedAt() {
-        return signedAt;
-    }
-
-    public void attemptDianDelivery(String fileName) {
-        if (signedAt == null || dianStatus != null) {
-            throw new BillingException.InvoiceNotDeliverable(
-                    "Solo se envía a la DIAN una factura firmada que no esté en validación, aceptada ni rechazada");
-        }
-        dianFileName = DomainRules.requiredText(fileName, "dianFileName", 60);
-        dianTrackId = null;
-        dianAttempts++;
-    }
-
-    public void awaitDianValidation(String trackId, Instant at) {
-        requireDelivering();
-        dianTrackId = DomainRules.requiredText(trackId, "dianTrackId", 100);
-        dianStatus = DianStatus.AWAITING_VALIDATION;
-        dianStatusAt = DomainRules.required(at, "at");
-    }
-
-    public void acceptedByDian(Instant at) {
-        requireDelivering();
-        dianStatus = DianStatus.ACCEPTED;
-        dianStatusAt = DomainRules.required(at, "at");
-    }
-
-    public void rejectedByDian(Instant at) {
-        requireDelivering();
-        dianStatus = DianStatus.REJECTED;
-        dianStatusAt = DomainRules.required(at, "at");
-    }
-
-    public void requeueForDian() {
-        if (dianStatus != DianStatus.REJECTED) {
-            throw new BillingException.InvoiceNotDeliverable("Solo se reenvía a la DIAN una factura rechazada");
-        }
-        dianStatus = null;
-        dianStatusAt = null;
-        dianTrackId = null;
-    }
-
-    private void requireDelivering() {
-        if (dianFileName == null || (dianStatus != null && dianStatus != DianStatus.AWAITING_VALIDATION)) {
-            throw new IllegalStateException("The invoice is not being delivered to the DIAN");
-        }
-    }
-
-    public DianStatus dianStatus() {
-        return dianStatus;
-    }
-
-    public Instant dianStatusAt() {
-        return dianStatusAt;
-    }
-
-    public String dianFileName() {
-        return dianFileName;
-    }
-
-    public String dianTrackId() {
-        return dianTrackId;
-    }
-
-    public int dianAttempts() {
-        return dianAttempts;
     }
 
     public String cufe() {

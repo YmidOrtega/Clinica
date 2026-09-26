@@ -11,10 +11,10 @@ import com.ClinicaDeYmid.billing_service.domain.DianFileCounters;
 import com.ClinicaDeYmid.billing_service.domain.DianStatus;
 import com.ClinicaDeYmid.billing_service.domain.DianVerdict;
 import com.ClinicaDeYmid.billing_service.domain.DianVerdicts;
-import com.ClinicaDeYmid.billing_service.domain.Invoice;
-import com.ClinicaDeYmid.billing_service.domain.InvoiceDocument;
-import com.ClinicaDeYmid.billing_service.domain.InvoiceDocuments;
-import com.ClinicaDeYmid.billing_service.domain.Invoices;
+import com.ClinicaDeYmid.billing_service.domain.DocumentFile;
+import com.ClinicaDeYmid.billing_service.domain.DocumentFiles;
+import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
+import com.ClinicaDeYmid.billing_service.domain.ElectronicDocuments;
 import com.ClinicaDeYmid.billing_service.domain.Issuer;
 import com.ClinicaDeYmid.billing_service.domain.Issuers;
 import org.slf4j.Logger;
@@ -26,29 +26,30 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 @Service
 public class DianDelivery {
 
     private static final Logger log = LoggerFactory.getLogger(DianDelivery.class);
 
-    private final Invoices invoices;
-    private final InvoiceDocuments documents;
+    private final ElectronicDocuments documents;
+    private final DocumentFiles files;
     private final DianVerdicts verdicts;
-    private final DianFileCounters files;
+    private final DianFileCounters counters;
     private final Issuers issuers;
     private final DianGateway dian;
     private final DianSoftware software;
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public DianDelivery(Invoices invoices, InvoiceDocuments documents, DianVerdicts verdicts, DianFileCounters files,
-                        Issuers issuers, DianGateway dian, DianSoftware software, TransactionOperations transactions,
-                        Clock clock) {
-        this.invoices = invoices;
+    public DianDelivery(ElectronicDocuments documents, DocumentFiles files, DianVerdicts verdicts,
+                        DianFileCounters counters, Issuers issuers, DianGateway dian, DianSoftware software,
+                        TransactionOperations transactions, Clock clock) {
         this.documents = documents;
-        this.verdicts = verdicts;
         this.files = files;
+        this.verdicts = verdicts;
+        this.counters = counters;
         this.issuers = issuers;
         this.dian = dian;
         this.software = software;
@@ -56,125 +57,127 @@ public class DianDelivery {
         this.clock = clock;
     }
 
-    public Invoice deliver(UUID invoiceUuid) {
-        Invoice invoice = invoice(invoiceUuid);
-        if (invoice.signedAt() == null || invoice.dianStatus() != null) {
-            throw new BillingException.InvoiceNotDeliverable(
-                    "Solo se envía a la DIAN una factura firmada que no esté en validación, aceptada ni rechazada");
+    public ElectronicDocument deliver(UUID documentUuid) {
+        ElectronicDocument document = document(documentUuid);
+        if (document.signedAt() == null || document.dianStatus() != null) {
+            throw new BillingException.DocumentNotDeliverable(
+                    "Solo se envía a la DIAN un documento firmado que no esté en validación, aceptado ni rechazado");
         }
         Issuer issuer = issuers.find().orElseThrow(BillingException.IssuerNotConfigured::new);
         DianEnvironment environment = issuer.environment();
         String testSetId = environment == DianEnvironment.TEST ? software.requireTestSetId() : null;
-        if (invoice.dianAttempts() > 0) {
-            DianAnswer earlier = dian.statusOfDocument(environment, invoice.cufe());
+        if (document.dianAttempts() > 0) {
+            DianAnswer earlier = dian.statusOfDocument(environment, document.documentKey());
             if (earlier.verdict() == DianAnswer.Verdict.ACCEPTED) {
-                return record(invoiceUuid, DianVerdict.Operation.STATUS_OF_DOCUMENT, earlier);
+                return record(documentUuid, DianVerdict.Operation.STATUS_OF_DOCUMENT, earlier);
             }
         }
-        String signed = documents.find(invoiceUuid, InvoiceDocument.Kind.UBL_SIGNED)
-                .orElseThrow(() -> new IllegalStateException("Signed invoice " + invoiceUuid + " has no signed UBL"))
+        String signed = files.find(documentUuid, DocumentFile.Kind.UBL_SIGNED)
+                .orElseThrow(() -> new IllegalStateException("Signed document " + documentUuid + " has no signed UBL"))
                 .content();
         DianPackage pack = transactions.execute(status -> {
-            Invoice current = invoice(invoiceUuid);
-            DianPackage built = DianPackage.of(DianPackage.baseName(issuer.nit(), LocalDate.now(clock).getYear(),
-                    files.next(LocalDate.now(clock).getYear())), signed);
+            ElectronicDocument current = document(documentUuid);
+            int year = LocalDate.now(clock).getYear();
+            DianPackage built = DianPackage.of(current.type().filePrefix(),
+                    DianPackage.baseName(issuer.nit(), year, counters.next(year)), signed);
             current.attemptDianDelivery(built.zipName());
-            invoices.save(current);
+            documents.save(current);
             return built;
         });
         if (environment == DianEnvironment.TEST) {
             DianReceipt receipt = dian.sendTestSet(environment, pack.zipName(), pack.zip(), testSetId);
             return transactions.execute(status -> {
-                Invoice current = invoice(invoiceUuid);
+                ElectronicDocument current = document(documentUuid);
                 if (receipt.received()) {
                     current.awaitDianValidation(receipt.trackId(), clock.instant());
                 } else {
                     current.rejectedByDian(clock.instant());
                 }
-                Invoice saved = invoices.save(current);
+                ElectronicDocument saved = documents.save(current);
                 verdicts.save(DianVerdict.of(saved, DianVerdict.Operation.SEND_TEST_SET,
                         receipt.received() ? DianVerdict.Outcome.RECEIVED : DianVerdict.Outcome.REJECTED, null, null,
                         receipt.errors(), clock.instant()));
-                log.info("Invoice {} sent to the DIAN test set as {}: {}", saved.number(), pack.zipName(),
+                log.info("{} {} sent to the DIAN test set as {}: {}", saved.type(), saved.number(), pack.zipName(),
                         saved.dianStatus());
                 return saved;
             });
         }
-        return record(invoiceUuid, DianVerdict.Operation.SEND_BILL, dian.sendBill(environment, pack.zipName(), pack.zip()));
+        return record(documentUuid, DianVerdict.Operation.SEND_BILL,
+                dian.sendBill(environment, pack.zipName(), pack.zip()));
     }
 
-    public Invoice checkValidation(UUID invoiceUuid) {
-        Invoice invoice = invoice(invoiceUuid);
-        if (invoice.dianStatus() != DianStatus.AWAITING_VALIDATION) {
-            return invoice;
+    public ElectronicDocument checkValidation(UUID documentUuid) {
+        ElectronicDocument document = document(documentUuid);
+        if (document.dianStatus() != DianStatus.AWAITING_VALIDATION) {
+            return document;
         }
         Issuer issuer = issuers.find().orElseThrow(BillingException.IssuerNotConfigured::new);
         if (issuer.environment() == DianEnvironment.TEST) {
-            return record(invoiceUuid, DianVerdict.Operation.STATUS_OF_ZIP,
-                    dian.statusOfZip(issuer.environment(), invoice.dianTrackId()));
+            return record(documentUuid, DianVerdict.Operation.STATUS_OF_ZIP,
+                    dian.statusOfZip(issuer.environment(), document.dianTrackId()));
         }
-        return record(invoiceUuid, DianVerdict.Operation.STATUS_OF_DOCUMENT,
-                dian.statusOfDocument(issuer.environment(), invoice.cufe()));
+        return record(documentUuid, DianVerdict.Operation.STATUS_OF_DOCUMENT,
+                dian.statusOfDocument(issuer.environment(), document.documentKey()));
     }
 
-    public Invoice sendNow(UUID invoiceUuid) {
-        return invoice(invoiceUuid).dianStatus() == DianStatus.REJECTED ? resend(invoiceUuid) : deliver(invoiceUuid);
+    public ElectronicDocument sendNow(UUID documentUuid) {
+        return document(documentUuid).dianStatus() == DianStatus.REJECTED ? resend(documentUuid) : deliver(documentUuid);
     }
 
-    public Invoice resend(UUID invoiceUuid) {
+    public ElectronicDocument resend(UUID documentUuid) {
         transactions.executeWithoutResult(status -> {
-            Invoice invoice = invoice(invoiceUuid);
-            invoice.requeueForDian();
-            invoices.save(invoice);
+            ElectronicDocument document = document(documentUuid);
+            document.requeueForDian();
+            documents.save(document);
         });
         try {
-            return deliver(invoiceUuid);
+            return deliver(documentUuid);
         } catch (BillingException.DianUnavailable unavailable) {
-            log.warn("Invoice {} requeued for the DIAN; the delivery will retry: {}", invoiceUuid,
+            log.warn("Electronic document {} requeued for the DIAN; the delivery will retry: {}", documentUuid,
                     unavailable.getMessage());
-            return invoice(invoiceUuid);
+            return document(documentUuid);
         }
     }
 
-    public List<DianVerdict> verdicts(UUID invoiceUuid) {
-        invoice(invoiceUuid);
-        return verdicts.ofInvoice(invoiceUuid);
+    public List<DianVerdict> verdicts(UUID documentUuid) {
+        document(documentUuid);
+        return verdicts.ofDocument(documentUuid);
     }
 
     public int deliverPending(int limit) {
-        return each(invoices.awaitingDelivery(limit), this::deliver, "delivered to the DIAN");
+        return each(documents.awaitingDelivery(limit), this::deliver, "delivered to the DIAN");
     }
 
     public int checkPending(int limit) {
-        return each(invoices.awaitingDianValidation(limit), this::checkValidation, "checked with the DIAN");
+        return each(documents.awaitingDianValidation(limit), this::checkValidation, "checked with the DIAN");
     }
 
-    private int each(List<UUID> pending, java.util.function.Function<UUID, Invoice> step, String done) {
+    private int each(List<UUID> pending, Function<UUID, ElectronicDocument> step, String done) {
         int handled = 0;
-        for (UUID invoiceUuid : pending) {
+        for (UUID documentUuid : pending) {
             try {
-                step.apply(invoiceUuid);
+                step.apply(documentUuid);
                 handled++;
             } catch (BillingException.DianUnavailable unavailable) {
-                log.warn("The DIAN is unavailable; {} of {} invoices {}", handled, pending.size(), done);
+                log.warn("The DIAN is unavailable; {} of {} electronic documents {}", handled, pending.size(), done);
                 return handled;
             } catch (RuntimeException failed) {
-                log.warn("Invoice {} could not be {}: {}", invoiceUuid, done, failed.getMessage());
+                log.warn("Electronic document {} could not be {}: {}", documentUuid, done, failed.getMessage());
             }
         }
         if (!pending.isEmpty()) {
-            log.info("{} of {} invoices {}", handled, pending.size(), done);
+            log.info("{} of {} electronic documents {}", handled, pending.size(), done);
         }
         return handled;
     }
 
-    private Invoice record(UUID invoiceUuid, DianVerdict.Operation operation, DianAnswer answer) {
+    private ElectronicDocument record(UUID documentUuid, DianVerdict.Operation operation, DianAnswer answer) {
         return transactions.execute(status -> {
-            Invoice current = invoice(invoiceUuid);
+            ElectronicDocument current = document(documentUuid);
             DianVerdict.Outcome outcome = switch (answer.verdict()) {
                 case PROCESSING -> {
                     if (current.dianStatus() == null) {
-                        current.awaitDianValidation(current.cufe(), clock.instant());
+                        current.awaitDianValidation(current.documentKey(), clock.instant());
                     }
                     yield DianVerdict.Outcome.PROCESSING;
                 }
@@ -187,21 +190,22 @@ public class DianDelivery {
                     yield DianVerdict.Outcome.REJECTED;
                 }
             };
-            Invoice saved = invoices.save(current);
+            ElectronicDocument saved = documents.save(current);
             verdicts.save(DianVerdict.of(saved, operation, outcome, answer.statusCode(), answer.statusDescription(),
                     answer.errors(), clock.instant()));
             if (outcome == DianVerdict.Outcome.ACCEPTED && answer.applicationResponse() != null
-                    && documents.find(invoiceUuid, InvoiceDocument.Kind.DIAN_APPLICATION_RESPONSE).isEmpty()) {
-                documents.save(InvoiceDocument.of(saved, InvoiceDocument.Kind.DIAN_APPLICATION_RESPONSE,
+                    && files.find(documentUuid, DocumentFile.Kind.DIAN_APPLICATION_RESPONSE).isEmpty()) {
+                files.save(DocumentFile.of(saved, DocumentFile.Kind.DIAN_APPLICATION_RESPONSE,
                         answer.applicationResponse()));
             }
-            log.info("Invoice {} {} by the DIAN ({} {})", saved.number(), outcome, answer.statusCode(),
+            log.info("{} {} {} by the DIAN ({} {})", saved.type(), saved.number(), outcome, answer.statusCode(),
                     answer.statusDescription());
             return saved;
         });
     }
 
-    private Invoice invoice(UUID invoiceUuid) {
-        return invoices.findByUuid(invoiceUuid).orElseThrow(BillingException.InvoiceNotFound::new);
+    private ElectronicDocument document(UUID documentUuid) {
+        return documents.findByUuid(documentUuid)
+                .orElseThrow(() -> new IllegalStateException("Unknown electronic document " + documentUuid));
     }
 }

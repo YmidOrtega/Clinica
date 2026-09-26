@@ -22,7 +22,7 @@ class JpaDianVerdicts implements DianVerdicts {
     }
 
     @Override
-    public List<DianVerdict> ofInvoice(UUID invoiceUuid) {
-        return repository.ofInvoice(invoiceUuid);
+    public List<DianVerdict> ofDocument(UUID documentUuid) {
+        return repository.ofDocument(documentUuid);
     }
 }

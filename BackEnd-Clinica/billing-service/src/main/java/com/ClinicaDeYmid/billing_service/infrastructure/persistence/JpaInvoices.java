@@ -2,7 +2,6 @@ package com.ClinicaDeYmid.billing_service.infrastructure.persistence;
 
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.Invoices;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -36,20 +35,5 @@ class JpaInvoices implements Invoices {
     @Override
     public boolean liveFor(UUID accountUuid, UUID saleUuid) {
         return repository.liveFor(accountUuid, saleUuid);
-    }
-
-    @Override
-    public List<UUID> awaitingSignature(int limit) {
-        return repository.awaitingSignature(PageRequest.of(0, limit));
-    }
-
-    @Override
-    public List<UUID> awaitingDelivery(int limit) {
-        return repository.awaitingDelivery(PageRequest.of(0, limit));
-    }
-
-    @Override
-    public List<UUID> awaitingDianValidation(int limit) {
-        return repository.awaitingDianValidation(PageRequest.of(0, limit));
     }
 }

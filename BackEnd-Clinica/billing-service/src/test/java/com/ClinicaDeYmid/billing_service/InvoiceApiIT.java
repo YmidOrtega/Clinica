@@ -2,7 +2,7 @@ package com.ClinicaDeYmid.billing_service;
 
 import com.ClinicaDeYmid.billing_service.application.DianDelivery;
 import com.ClinicaDeYmid.billing_service.application.EpisodeAccountProjection;
-import com.ClinicaDeYmid.billing_service.application.InvoiceSigning;
+import com.ClinicaDeYmid.billing_service.application.DocumentSigning;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionSnapshot;
 import com.ClinicaDeYmid.billing_service.support.AdmissionEvents;
@@ -42,7 +42,7 @@ class InvoiceApiIT extends IntegrationTest {
     private EpisodeAccountProjection projection;
 
     @Autowired
-    private InvoiceSigning signing;
+    private DocumentSigning signing;
 
     @Autowired
     private DianDelivery delivery;
@@ -105,7 +105,7 @@ class InvoiceApiIT extends IntegrationTest {
                 .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         assertThat(XadesVerification.verify(ubl, LocalDianSigningKey.SHARED.certificate().getPublicKey()).valid())
                 .isTrue();
-        change("BILLING", post(INVOICES + "/" + invoice + "/discard"), 2, "{\"reason\":\"Tarde\"}")
+        change("BILLING", post(INVOICES + "/" + invoice + "/discard"), 1, "{\"reason\":\"Tarde\"}")
                 .andExpect(status().isUnprocessableEntity());
 
         as("BILLING", get("/api/v1/billing/accounts/" + episode.number() + "/invoices"))
@@ -174,12 +174,14 @@ class InvoiceApiIT extends IntegrationTest {
                 .andExpect(jsonPath("$[2].outcome").value("ACCEPTED"))
                 .andExpect(jsonPath("$[2].statusCode").value("00"));
         assertThat(jdbc.queryForObject("""
-                SELECT d.content FROM invoice_documents d JOIN invoices i ON i.id = d.invoice_id
-                WHERE i.uuid = ? AND d.kind = 'DIAN_APPLICATION_RESPONSE'""", String.class, invoice))
+                SELECT f.content FROM document_files f
+                JOIN electronic_documents e ON e.id = f.electronic_document_id
+                JOIN invoices i ON i.id = e.invoice_id
+                WHERE i.uuid = ? AND f.kind = 'DIAN_APPLICATION_RESPONSE'""", String.class, invoice))
                 .isEqualTo(DianSimulator.APPLICATION_RESPONSE);
         as("BILLING", post(INVOICES + "/" + invoice + "/dian-delivery"))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.code").value("INVOICE_NOT_DELIVERABLE"));
+                .andExpect(jsonPath("$.code").value("DOCUMENT_NOT_DELIVERABLE"));
     }
 
     @Test
@@ -249,7 +251,7 @@ class InvoiceApiIT extends IntegrationTest {
 
         as("BILLING", post(INVOICES + "/" + draft + "/signature"))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.code").value("INVOICE_NOT_SIGNABLE"));
+                .andExpect(jsonPath("$.code").value("INVOICE_NOT_ISSUED"));
         as("RECEPTIONIST", post(INVOICES + "/" + draft + "/signature")).andExpect(status().isForbidden());
     }
 
