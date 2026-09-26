@@ -8,6 +8,7 @@ import com.ClinicaDeYmid.billing_service.domain.ChargedService;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccounts;
 import com.ClinicaDeYmid.billing_service.domain.FeeAgreementTerms;
+import com.ClinicaDeYmid.billing_service.domain.Invoices;
 import com.ClinicaDeYmid.billing_service.domain.LineOrigin;
 import com.ClinicaDeYmid.billing_service.domain.LinePrice;
 import com.ClinicaDeYmid.billing_service.domain.PractitionerFee;
@@ -50,12 +51,13 @@ public class SaleCommands {
     private final PractitionerDirectory practitioners;
     private final FeeAgreements feeAgreements;
     private final PractitionerFees fees;
+    private final Invoices invoices;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public SaleCommands(EpisodeAccounts accounts, Sales sales, EpisodeDirectory episodes, PortfolioCatalogue portfolio,
                         SalePricing pricing, PractitionerDirectory practitioners, FeeAgreements feeAgreements,
-                        PractitionerFees fees, TransactionOperations transactions, Clock clock) {
+                        PractitionerFees fees, Invoices invoices, TransactionOperations transactions, Clock clock) {
         this.accounts = accounts;
         this.sales = sales;
         this.episodes = episodes;
@@ -64,6 +66,7 @@ public class SaleCommands {
         this.practitioners = practitioners;
         this.feeAgreements = feeAgreements;
         this.fees = fees;
+        this.invoices = invoices;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -78,6 +81,9 @@ public class SaleCommands {
         Sale opened = transactions.execute(status -> {
             EpisodeAccount account = accounts.lockByAdmission(found.admissionUuid())
                     .orElseThrow(BillingException.AccountNotFound::new);
+            if (invoices.liveFor(account.uuid(), null)) {
+                throw new BillingException.AccountAlreadyInvoiced();
+            }
             Sale sale = Sale.open(account, sales.countByAccount(account.uuid()) + 1, type);
             planned.forEach(line -> sale.charge(line.service(), 1, today, line.origin(), clock));
             return sales.save(sale);
@@ -183,6 +189,9 @@ public class SaleCommands {
     public Sale cancel(UUID saleUuid, long expectedVersion, String reason) {
         Sale cancelled = transactions.execute(status -> {
             Sale sale = current(saleUuid, expectedVersion);
+            if (invoices.liveFor(sale.account().uuid(), saleUuid)) {
+                throw new BillingException.SaleAlreadyInvoiced();
+            }
             sale.cancel(reason, clock);
             Sale saved = sales.save(sale);
             List<PractitionerFee> owed = fees.findBySale(saleUuid);
