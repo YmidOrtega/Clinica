@@ -14,7 +14,7 @@
 
 	<groupId>com.ClinicaDeYmid</groupId>
 	<artifactId>clinica-commons-documents</artifactId>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<packaging>jar</packaging>
 	<name>clinica-commons-documents</name>
 	<description>Documents the clinic hands out: PDF pages, the SHA-256 fingerprint, the institutional seal signed with transit, and the verification of both.</description>

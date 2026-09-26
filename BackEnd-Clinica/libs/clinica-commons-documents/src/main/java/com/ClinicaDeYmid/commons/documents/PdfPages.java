@@ -6,7 +6,10 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -69,6 +72,17 @@ public final class PdfPages implements AutoCloseable {
         line(Style.TEXT, value);
     }
 
+    public void picture(BufferedImage image, float width, float height) {
+        ensure(height);
+        try {
+            PDImageXObject picture = LosslessFactory.createFromImage(document, image);
+            stream.drawImage(picture, MARGIN, y - height, width, height);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+        y -= height;
+    }
+
     public void gap(float points) {
         y -= points;
         ensure(0);
@@ -79,6 +93,10 @@ public final class PdfPages implements AutoCloseable {
     }
 
     public byte[] finish(String footerPrefix, String title) {
+        return finish(footerPrefix, title, "clinical-history-service");
+    }
+
+    public byte[] finish(String footerPrefix, String title, String producer) {
         try {
             stream.close();
             int total = document.getNumberOfPages();
@@ -93,12 +111,12 @@ public final class PdfPages implements AutoCloseable {
                 }
             }
             document.getDocumentInformation().setTitle(sanitize(Style.TEXT, title));
-            document.getDocumentInformation().setProducer("clinical-history-service");
+            document.getDocumentInformation().setProducer(producer);
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             document.save(output);
             return output.toByteArray();
         } catch (IOException ex) {
-            throw new UncheckedIOException("Could not render the record copy", ex);
+            throw new UncheckedIOException("Could not render the document", ex);
         }
     }
 
