@@ -21,6 +21,8 @@
 		<clinica-commons-security.version>2.7.0</clinica-commons-security.version>
 		<clinica-commons-openbao.version>1.3.0</clinica-commons-openbao.version>
 		<xmlsec.version>4.0.4</xmlsec.version>
+		<clinica-commons-documents.version>1.1.0</clinica-commons-documents.version>
+		<zxing.version>3.5.3</zxing.version>
 		<wiremock.version>3.13.1</wiremock.version>
 		<archunit.version>1.4.1</archunit.version>
 		<json-schema-validator.version>1.5.9</json-schema-validator.version>
@@ -44,6 +46,20 @@
 			<groupId>com.ClinicaDeYmid</groupId>
 			<artifactId>clinica-commons-openbao</artifactId>
 			<version>${clinica-commons-openbao.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.ClinicaDeYmid</groupId>
+			<artifactId>clinica-commons-documents</artifactId>
+			<version>${clinica-commons-documents.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>${zxing.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.santuario</groupId>
@@ -144,6 +160,14 @@
 			<groupId>com.ClinicaDeYmid</groupId>
 			<artifactId>clinica-commons-openbao</artifactId>
 			<version>${clinica-commons-openbao.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.ClinicaDeYmid</groupId>
+			<artifactId>clinica-commons-documents</artifactId>
+			<version>${clinica-commons-documents.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
