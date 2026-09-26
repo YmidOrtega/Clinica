@@ -160,11 +160,17 @@ ok "admissions-service lee solo su secreto y firma solo con su clave"
 status=0
 bao_as openbao_approle_billing "bao kv get -mount=secret admissions/db/app > /dev/null 2>&1" || status=$?
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "billing-service leyó un secreto de admissions-service"
-bao_as openbao_approle_billing "bao kv get -mount=secret billing/db/app > /dev/null && bao kv get -mount=secret -field=pkcs12 billing/dian/certificate > /dev/null" \
+bao_as openbao_approle_billing "bao kv get -mount=secret billing/db/app > /dev/null && bao kv get -mount=secret -field=pem billing/dian/certificate > /dev/null" \
   || fail "billing-service no lee su base de datos o su certificado DIAN"
 bao_as openbao_approle_billing "bao write -field=signature transit/sign/billing-service-client input=aGVsbG8= hash_algorithm=sha2-256 > /dev/null \
-  && bao write -field=signature transit/sign/billing-seal input=aGVsbG8= hash_algorithm=sha2-256 > /dev/null" \
+  && bao write -field=signature transit/sign/billing-seal input=aGVsbG8= hash_algorithm=sha2-256 > /dev/null \
+  && bao write -field=signature transit/sign/billing-dian input=aGVsbG8= hash_algorithm=sha2-256 signature_algorithm=pkcs1v15 > /dev/null" \
   || fail "billing-service no firma sus aserciones o sus facturas"
+bao_as openbao_approle_billing "[ \"\$(bao read -field=exportable transit/keys/billing-dian)\" = false ]" \
+  || fail "la clave de firma DIAN se puede exportar de OpenBao"
+status=0
+bao_as openbao_approle_admissions "bao write transit/sign/billing-dian input=aGVsbG8= > /dev/null 2>&1" || status=$?
+[ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "admissions-service firmó con la clave DIAN de facturación"
 status=0
 bao_as openbao_approle_billing "bao write transit/sign/admissions-seal input=aGVsbG8= > /dev/null 2>&1" || status=$?
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "billing-service firmó con el sello de admisiones"
