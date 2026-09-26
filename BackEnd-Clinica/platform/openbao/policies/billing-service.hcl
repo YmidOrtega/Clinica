@@ -25,3 +25,11 @@ path "transit/keys/billing-service-client" {
 path "transit/sign/billing-service-client" {
   capabilities = ["update"]
 }
+
+path "transit/keys/billing-dian" {
+  capabilities = ["read"]
+}
+
+path "transit/sign/billing-dian" {
+  capabilities = ["update"]
+}
