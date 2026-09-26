@@ -10,6 +10,10 @@ path "secret/data/billing/dian/*" {
   capabilities = ["read"]
 }
 
+path "secret/data/billing/ministry/credentials" {
+  capabilities = ["read"]
+}
+
 path "transit/keys/billing-seal" {
   capabilities = ["read"]
 }

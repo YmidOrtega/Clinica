@@ -61,6 +61,14 @@ DIAN y se cargan a mano; sin ellos no se emite ni se envía:
 bao kv put -mount=secret billing/dian/software software-id=<uuid> software-pin=<pin> test-set-id=<uuid>
 ```
 
+El RIPS de cada factura se valida contra el mecanismo único de validación del Ministerio de Salud (API
+FEV-RIPS en Docker de la clínica) con el usuario SISPRO del facturador; sin él la validación responde que
+faltan credenciales:
+
+```sh
+bao kv put -mount=secret billing/ministry/credentials document-type=CC document-number=<número> password=<clave>
+```
+
 | Clave transit (`transit/`) | Tipo           | Uso                                               |
 | -------------------------- | -------------- | ------------------------------------------------- |
 | `clinical-kek`             | `aes256-gcm96` | `clinical-history-service` cifra, descifra y lee versiones |
