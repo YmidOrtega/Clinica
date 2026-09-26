@@ -29,7 +29,8 @@ public class InvoiceDocument {
 
     public enum Kind {
         UBL_UNSIGNED,
-        UBL_SIGNED
+        UBL_SIGNED,
+        DIAN_APPLICATION_RESPONSE
     }
 
     @Id

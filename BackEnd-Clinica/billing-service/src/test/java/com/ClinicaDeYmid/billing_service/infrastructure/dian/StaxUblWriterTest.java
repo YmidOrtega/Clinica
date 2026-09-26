@@ -64,7 +64,7 @@ class StaxUblWriterTest {
         Fixture fixture = issued();
 
         String xml = new StaxUblWriter().invoice(ElectronicInvoice.of(fixture.invoice(), fixture.issuer(),
-                fixture.resolution(), new DianSoftware("56f2ae4e-9812-4fad-9255-643406bbb1a1", "12345")));
+                fixture.resolution(), new DianSoftware("56f2ae4e-9812-4fad-9255-643406bbb1a1", "12345", null)));
         XPath path = xpath();
         Document document = parse(xml);
 
@@ -101,7 +101,7 @@ class StaxUblWriterTest {
     static String sampleUbl() {
         Fixture fixture = issued();
         return new StaxUblWriter().invoice(ElectronicInvoice.of(fixture.invoice(), fixture.issuer(),
-                fixture.resolution(), new DianSoftware("56f2ae4e-9812-4fad-9255-643406bbb1a1", "12345")));
+                fixture.resolution(), new DianSoftware("56f2ae4e-9812-4fad-9255-643406bbb1a1", "12345", null)));
     }
 
     private static Fixture issued() {

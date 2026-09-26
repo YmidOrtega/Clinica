@@ -30,6 +30,10 @@ public final class JwtTestTokens {
         registry.add("clinica.billing.dian.software-id", () -> "56f2ae4e-9812-4fad-9255-643406bbb1a1");
         registry.add("clinica.billing.dian.software-pin", () -> "12345");
         registry.add("clinica.billing.dian.signature-retries.enabled", () -> false);
+        registry.add("clinica.billing.dian.delivery.enabled", () -> false);
+        registry.add("clinica.billing.dian.test-set-id", () -> "7d1f9a3c-2b4e-4f6a-8c9d-0e1f2a3b4c5d");
+        registry.add("clinica.billing.dian.urls.test", DianSimulator::url);
+        registry.add("clinica.billing.dian.urls.production", DianSimulator::url);
     }
 
     public static String bearer(String role) {

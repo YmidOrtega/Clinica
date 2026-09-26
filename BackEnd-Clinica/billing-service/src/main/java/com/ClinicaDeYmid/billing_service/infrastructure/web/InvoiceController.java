@@ -1,10 +1,13 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.web;
 
+import com.ClinicaDeYmid.billing_service.application.DianDelivery;
 import com.ClinicaDeYmid.billing_service.application.InvoiceCommands;
 import com.ClinicaDeYmid.billing_service.application.InvoiceQueries;
 import com.ClinicaDeYmid.billing_service.application.InvoiceSigning;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
+import com.ClinicaDeYmid.billing_service.domain.DianStatus;
+import com.ClinicaDeYmid.billing_service.domain.DianVerdict;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceDocument;
@@ -51,13 +54,15 @@ class InvoiceController {
     private final InvoiceCommands commands;
     private final InvoiceQueries queries;
     private final InvoiceSigning signing;
+    private final DianDelivery delivery;
     private final RecentAuthentication recentAuthentication;
 
-    InvoiceController(InvoiceCommands commands, InvoiceQueries queries, InvoiceSigning signing,
+    InvoiceController(InvoiceCommands commands, InvoiceQueries queries, InvoiceSigning signing, DianDelivery delivery,
                       RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
         this.signing = signing;
+        this.delivery = delivery;
         this.recentAuthentication = recentAuthentication;
     }
 
@@ -113,6 +118,23 @@ class InvoiceController {
         return tagged(uuid);
     }
 
+    @PostMapping(INVOICES + "/{uuid}/dian-delivery")
+    @PreAuthorize(Access.INVOICE)
+    @Operation(summary = "Enviar ya a la DIAN una factura firmada, o reenviar una rechazada",
+            description = "Las firmadas se envían solas en segundo plano; un rechazo por reglas no se reintenta solo y "
+                    + "se reenvía aquí conservando el número. Si la DIAN no responde, queda en cola")
+    ResponseEntity<InvoiceView> deliver(@PathVariable UUID uuid) {
+        delivery.sendNow(uuid);
+        return tagged(uuid);
+    }
+
+    @GetMapping(INVOICES + "/{uuid}/dian-verdicts")
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Respuestas de la DIAN a los envíos y consultas de una factura")
+    List<VerdictView> verdicts(@PathVariable UUID uuid) {
+        return delivery.verdicts(uuid).stream().map(VerdictView::from).toList();
+    }
+
     @GetMapping(value = INVOICES + "/{uuid}/ubl", produces = MediaType.APPLICATION_XML_VALUE)
     @PreAuthorize(Access.READ)
     @Operation(summary = "Descargar el XML UBL 2.1 de una factura emitida",
@@ -155,6 +177,24 @@ class InvoiceController {
         }
     }
 
+    record VerdictView(DianVerdict.Operation operation, DianVerdict.Outcome outcome, String fileName,
+                       String trackId, String statusCode, String statusDescription, List<String> errors,
+                       Instant receivedAt) {
+
+        static VerdictView from(DianVerdict verdict) {
+            return new VerdictView(verdict.operation(), verdict.outcome(), verdict.fileName(), verdict.trackId(),
+                    verdict.statusCode(), verdict.statusDescription(), verdict.errors(), verdict.receivedAt());
+        }
+    }
+
+    record DianView(DianStatus status, Instant since, String fileName, String trackId, int attempts) {
+
+        static DianView from(Invoice invoice) {
+            return new DianView(invoice.dianStatus(), invoice.dianStatusAt(), invoice.dianFileName(),
+                    invoice.dianTrackId(), invoice.dianAttempts());
+        }
+    }
+
     record StatusView(InvoiceStatus.Code code, String reason, Instant since) {
 
         static StatusView from(InvoiceStatus status) {
@@ -168,7 +208,7 @@ class InvoiceController {
     }
 
     record InvoiceView(UUID uuid, String number, LocalDate issuedOn, String issuedTime, String cufe, String qrContent,
-                       Instant signedAt, UUID resolutionUuid, StatusView status,
+                       Instant signedAt, DianView dian, UUID resolutionUuid, StatusView status,
                        String admissionNumber, AccountSummary.UnitKind unitKind, UUID saleUuid, Buyer buyer,
                        HealthUser user, UUID contractUuid, String contractNumber, BigDecimal grossTotal,
                        BigDecimal patientShare, AccountSummary.ShareSource patientShareSource, BigDecimal payableTotal,
@@ -177,7 +217,7 @@ class InvoiceController {
         static InvoiceView from(Invoice invoice) {
             return new InvoiceView(invoice.uuid(), invoice.number(), invoice.issuedOn(),
                     invoice.issuedTime() == null ? null : com.ClinicaDeYmid.billing_service.domain.Cufe.time(invoice.issuedTime()),
-                    invoice.cufe(), invoice.qrContent(), invoice.signedAt(), invoice.resolutionUuid(),
+                    invoice.cufe(), invoice.qrContent(), invoice.signedAt(), DianView.from(invoice), invoice.resolutionUuid(),
                     StatusView.from(invoice.status()), invoice.account().admissionNumber(), invoice.unitKind(),
                     invoice.saleUuid(), invoice.buyer(), invoice.user(), invoice.contractUuid(),
                     invoice.contractNumber(), invoice.grossTotal(), invoice.patientShare(),

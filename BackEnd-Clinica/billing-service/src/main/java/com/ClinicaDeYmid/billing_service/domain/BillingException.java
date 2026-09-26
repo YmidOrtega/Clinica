@@ -401,4 +401,24 @@ public sealed abstract class BillingException extends DomainException {
             super(ErrorCategory.RULE_VIOLATION, "DIAN_CERTIFICATE_INVALID", detail);
         }
     }
+
+    public static final class InvoiceNotDeliverable extends BillingException {
+        public InvoiceNotDeliverable(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "INVOICE_NOT_DELIVERABLE", detail);
+        }
+    }
+
+    public static final class DianUnavailable extends BillingException {
+        public DianUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "DIAN_UNAVAILABLE",
+                    "El servicio web de la DIAN no responde; el envío se reintentará solo");
+        }
+    }
+
+    public static final class DianTestSetNotConfigured extends BillingException {
+        public DianTestSetNotConfigured() {
+            super(ErrorCategory.RULE_VIOLATION, "DIAN_TEST_SET_NOT_CONFIGURED",
+                    "Falta el identificador del set de pruebas de habilitación DIAN");
+        }
+    }
 }
