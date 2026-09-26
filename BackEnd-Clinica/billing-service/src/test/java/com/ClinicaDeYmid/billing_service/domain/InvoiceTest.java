@@ -148,10 +148,17 @@ class InvoiceTest {
         return AccountSummary.of(account, List.of(sale), true, List.of(copayment), List.of()).units().getFirst();
     }
 
-    private static EpisodeAccount account() {
+    static EpisodeAccount account() {
         return EpisodeAccount.open(new AdmissionSnapshot(UUID.randomUUID(), "ADM-2026-000123", 1, UUID.randomUUID(),
                 AdmissionKind.INPATIENT, AdmissionSnapshot.Status.DISCHARGED, UUID.randomUUID(),
                 Instant.parse("2026-09-25T13:00:00Z"), DischargeType.MEDICAL, null));
+    }
+
+    static Invoice issuedToThePayer(long consecutive) {
+        EpisodeAccount account = account();
+        Invoice invoice = Invoice.draft(unitOf(account, null), account, EPS, ANA, TERMS);
+        invoice.issue(new IssuedNumber(UUID.randomUUID(), "SETP", consecutive), NOW);
+        return invoice;
     }
 
     static Invoice copaymentInvoiced(EpisodeAccount account, String amount, long consecutive, Clock clock) {

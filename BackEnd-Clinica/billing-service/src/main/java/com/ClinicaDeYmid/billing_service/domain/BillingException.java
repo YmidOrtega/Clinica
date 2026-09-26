@@ -496,4 +496,32 @@ public sealed abstract class BillingException extends DomainException {
                     "El documento adjunto solo existe cuando la DIAN aceptó el documento electrónico");
         }
     }
+
+    public static final class RipsIncomplete extends BillingException {
+        public RipsIncomplete(java.util.List<String> gaps) {
+            super(ErrorCategory.RULE_VIOLATION, "RIPS_INCOMPLETE",
+                    "El RIPS aún no se puede validar; falta: " + String.join("; ", gaps));
+        }
+    }
+
+    public static final class RipsAlreadyValidated extends BillingException {
+        public RipsAlreadyValidated() {
+            super(ErrorCategory.CONFLICT, "RIPS_ALREADY_VALIDATED",
+                    "La factura ya tiene CUV del Ministerio de Salud");
+        }
+    }
+
+    public static final class MinistryUnavailable extends BillingException {
+        public MinistryUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "MINISTRY_VALIDATOR_UNAVAILABLE",
+                    "El mecanismo único de validación del Ministerio no respondió; el envío queda pendiente y se reintenta");
+        }
+    }
+
+    public static final class MinistryCredentialsMissing extends BillingException {
+        public MinistryCredentialsMissing() {
+            super(ErrorCategory.PRECONDITION_FAILED, "MINISTRY_CREDENTIALS_MISSING",
+                    "Faltan las credenciales SISPRO del mecanismo único de validación");
+        }
+    }
 }

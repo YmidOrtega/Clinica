@@ -94,6 +94,15 @@ clinica:
       read-timeout: 60s
       delivery:
         delay: ${BILLING_DIAN_DELIVERY_DELAY:PT30S}
+    ministry:
+      url: ${BILLING_MINISTRY_VALIDATOR_URL:https://fevrips-api:9443}
+      document-type: ${BILLING_MINISTRY_DOCUMENT_TYPE:}
+      document-number: ${BILLING_MINISTRY_DOCUMENT_NUMBER:}
+      password: ${BILLING_MINISTRY_PASSWORD:}
+      connect-timeout: 5s
+      read-timeout: 120s
+      retries:
+        delay: ${BILLING_MINISTRY_RETRY_DELAY:PT5M}
     seal:
       transit-key: ${BILLING_SEAL_TRANSIT_KEY:billing-seal}
     representations:
@@ -163,6 +172,7 @@ spring:
       - vault://secret/billing/db/migrator?prefix=billing.db.migrator.
       - vault://secret/billing/db/app?prefix=billing.db.app.
       - optional:vault://secret/billing/dian/software?prefix=clinica.billing.dian.
+      - optional:vault://secret/billing/ministry/credentials?prefix=clinica.billing.ministry.
   cloud:
     vault:
       enabled: true
