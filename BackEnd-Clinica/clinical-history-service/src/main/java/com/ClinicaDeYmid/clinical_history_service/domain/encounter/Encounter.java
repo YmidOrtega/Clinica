@@ -20,6 +20,7 @@ public record Encounter(
         EncounterType type,
         UUID admissionUuid,
         boolean admissionVerified,
+        CareSetting careSetting,
         Instant openedAt,
         Clinician openedBy,
         EncounterStatus status) {
@@ -33,8 +34,18 @@ public record Encounter(
         Objects.requireNonNull(status, "status");
     }
 
+    public Encounter(UUID id, UUID patientUuid, EncounterType type, UUID admissionUuid, boolean admissionVerified,
+                     Instant openedAt, Clinician openedBy, EncounterStatus status) {
+        this(id, patientUuid, type, admissionUuid, admissionVerified, null, openedAt, openedBy, status);
+    }
+
     public static Encounter open(PatientReference patient, EncounterType type, UUID admissionUuid,
                                  boolean admissionVerified, Clinician openedBy, Clock clock) {
+        return open(patient, type, admissionUuid, admissionVerified, null, openedBy, clock);
+    }
+
+    public static Encounter open(PatientReference patient, EncounterType type, UUID admissionUuid,
+                                 boolean admissionVerified, CareSetting careSetting, Clinician openedBy, Clock clock) {
         ClinicalText.present(type, "type");
         if (!patient.acceptsNewEncounters()) {
             throw new ClinicalException.PatientNotAcceptingEncounters();
@@ -42,7 +53,7 @@ public record Encounter(
         if (admissionUuid == null && admissionVerified) {
             throw new IllegalArgumentException("An encounter without an admission cannot be verified");
         }
-        return new Encounter(UUID.randomUUID(), patient.uuid(), type, admissionUuid, admissionVerified,
+        return new Encounter(UUID.randomUUID(), patient.uuid(), type, admissionUuid, admissionVerified, careSetting,
                 Instant.now(clock), openedBy, new EncounterStatus.Open());
     }
 

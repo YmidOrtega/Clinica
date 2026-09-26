@@ -57,6 +57,7 @@ record EncounterEventMessage(
                 data.put("admissionUuid", opened.encounter().admissionUuid());
                 data.put("admissionVerified", opened.encounter().admissionVerified());
                 data.put("openedBy", Person.of(opened.encounter().openedBy()));
+                data.put("careSetting", opened.encounter().careSetting());
             }
             case LedgerEntry.NoteSigned signed -> {
                 SignedNote note = signed.note();
@@ -73,6 +74,7 @@ record EncounterEventMessage(
                 data.put("careOccurredAt", note.occurredAt());
                 data.put("extemporaneous", note.extemporaneous());
                 data.put("diagnoses", note.content().diagnoses().stream().map(CodedDiagnosis::of).toList());
+                data.put("careReason", NoteContent.careReasonOf(note.content()));
                 data.put("amendsNoteId", note.content() instanceof NoteContent.Addendum addendum
                         ? addendum.amendsNoteId() : null);
                 data.put("listChanges", note.updates().stream().filter(update -> !(update instanceof AppliedUpdate.VitalSignObserved)).count());

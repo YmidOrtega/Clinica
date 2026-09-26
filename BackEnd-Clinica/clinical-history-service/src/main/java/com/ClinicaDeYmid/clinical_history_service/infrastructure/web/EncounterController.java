@@ -1,6 +1,8 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.web;
 
 import com.ClinicaDeYmid.clinical_history_service.application.encounter.EncounterCommands;
+import com.ClinicaDeYmid.clinical_history_service.application.terminology.CareClassification;
+import com.ClinicaDeYmid.clinical_history_service.domain.encounter.CareSetting;
 import com.ClinicaDeYmid.clinical_history_service.application.note.NoteCommands;
 import com.ClinicaDeYmid.clinical_history_service.application.record.ClinicalRecordQueries;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
@@ -41,9 +43,11 @@ class EncounterController {
     private final ClinicalRecordQueries queries;
     private final CurrentClinician clinician;
     private final NoteContentReader contentReader;
+    private final CareClassification classification;
 
     EncounterController(EncounterCommands encounters, NoteCommands notes, ClinicalRecordQueries queries, CurrentClinician clinician,
-                        NoteContentReader contentReader) {
+                        NoteContentReader contentReader, CareClassification classification) {
+        this.classification = classification;
         this.encounters = encounters;
         this.notes = notes;
         this.queries = queries;
@@ -54,7 +58,10 @@ class EncounterController {
     @PostMapping("/encounters")
     @Operation(summary = "Abrir una atención clínica para un paciente")
     ResponseEntity<EncounterView> open(@Valid @RequestBody ClinicalRequests.OpenEncounter request) {
-        Encounter encounter = encounters.open(request.patientUuid(), request.type(), request.admissionUuid(), clinician.require());
+        CareSetting setting = request.careSetting() == null ? null
+                : classification.setting(request.careSetting().serviceCode(), request.careSetting().modality());
+        Encounter encounter = encounters.open(request.patientUuid(), request.type(), request.admissionUuid(), setting,
+                clinician.require());
         return ResponseEntity.created(URI.create(BASE_PATH + "/encounters/" + encounter.id())).body(EncounterView.from(encounter));
     }
 

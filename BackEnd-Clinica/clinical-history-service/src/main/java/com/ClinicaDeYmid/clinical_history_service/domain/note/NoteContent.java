@@ -22,8 +22,19 @@ public sealed interface NoteContent {
         return this;
     }
 
+    static CareReason careReasonOf(NoteContent content) {
+        return switch (content) {
+            case Admission admission -> admission.careReason();
+            case Progress progress -> progress.careReason();
+            case Consultation consultation -> consultation.careReason();
+            case Discharge discharge -> discharge.careReason();
+            case null, default -> null;
+        };
+    }
+
     record Admission(String chiefComplaint, String currentIllness, String physicalExam, String assessment, String plan,
-                     List<Diagnosis> diagnoses) implements NoteContent {
+                     List<Diagnosis> diagnoses,
+                     CareReason careReason) implements NoteContent {
 
         public Admission {
             chiefComplaint = optional(chiefComplaint, "chiefComplaint", SHORT);
@@ -34,9 +45,13 @@ public sealed interface NoteContent {
             diagnoses = Diagnosis.normalize(diagnoses);
         }
 
+        public Admission(String chiefComplaint, String currentIllness, String physicalExam, String assessment, String plan, List<Diagnosis> diagnoses) {
+            this(chiefComplaint, currentIllness, physicalExam, assessment, plan, diagnoses, null);
+        }
+
         @Override
         public NoteContent withDiagnoses(List<Diagnosis> resolved) {
-            return new Admission(chiefComplaint, currentIllness, physicalExam, assessment, plan, resolved);
+            return new Admission(chiefComplaint, currentIllness, physicalExam, assessment, plan, resolved, careReason);
         }
 
         @Override
@@ -52,7 +67,8 @@ public sealed interface NoteContent {
         }
     }
 
-    record Progress(String subjective, String objective, String assessment, String plan, List<Diagnosis> diagnoses)
+    record Progress(String subjective, String objective, String assessment, String plan, List<Diagnosis> diagnoses,
+                     CareReason careReason)
             implements NoteContent {
 
         public Progress {
@@ -63,9 +79,13 @@ public sealed interface NoteContent {
             diagnoses = Diagnosis.normalize(diagnoses);
         }
 
+        public Progress(String subjective, String objective, String assessment, String plan, List<Diagnosis> diagnoses) {
+            this(subjective, objective, assessment, plan, diagnoses, null);
+        }
+
         @Override
         public NoteContent withDiagnoses(List<Diagnosis> resolved) {
-            return new Progress(subjective, objective, assessment, plan, resolved);
+            return new Progress(subjective, objective, assessment, plan, resolved, careReason);
         }
 
         @Override
@@ -98,7 +118,8 @@ public sealed interface NoteContent {
         }
     }
 
-    record Consultation(String specialty, String reason, String findings, String recommendations, List<Diagnosis> diagnoses)
+    record Consultation(String specialty, String reason, String findings, String recommendations, List<Diagnosis> diagnoses,
+                     CareReason careReason)
             implements NoteContent {
 
         public Consultation {
@@ -109,9 +130,13 @@ public sealed interface NoteContent {
             diagnoses = Diagnosis.normalize(diagnoses);
         }
 
+        public Consultation(String specialty, String reason, String findings, String recommendations, List<Diagnosis> diagnoses) {
+            this(specialty, reason, findings, recommendations, diagnoses, null);
+        }
+
         @Override
         public NoteContent withDiagnoses(List<Diagnosis> resolved) {
-            return new Consultation(specialty, reason, findings, recommendations, resolved);
+            return new Consultation(specialty, reason, findings, recommendations, resolved, careReason);
         }
 
         @Override
@@ -145,7 +170,8 @@ public sealed interface NoteContent {
     }
 
     record Discharge(String admissionSummary, String evolutionSummary, String dischargeCondition, String recommendations,
-                     String followUp, List<Diagnosis> diagnoses) implements NoteContent {
+                     String followUp, List<Diagnosis> diagnoses,
+                     CareReason careReason) implements NoteContent {
 
         public Discharge {
             admissionSummary = optional(admissionSummary, "admissionSummary", LONG);
@@ -156,9 +182,13 @@ public sealed interface NoteContent {
             diagnoses = Diagnosis.normalize(diagnoses);
         }
 
+        public Discharge(String admissionSummary, String evolutionSummary, String dischargeCondition, String recommendations, String followUp, List<Diagnosis> diagnoses) {
+            this(admissionSummary, evolutionSummary, dischargeCondition, recommendations, followUp, diagnoses, null);
+        }
+
         @Override
         public NoteContent withDiagnoses(List<Diagnosis> resolved) {
-            return new Discharge(admissionSummary, evolutionSummary, dischargeCondition, recommendations, followUp, resolved);
+            return new Discharge(admissionSummary, evolutionSummary, dischargeCondition, recommendations, followUp, resolved, careReason);
         }
 
         @Override

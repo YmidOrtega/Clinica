@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clinical_history_service.application.note;
 
+import com.ClinicaDeYmid.clinical_history_service.application.terminology.CareClassification;
 import com.ClinicaDeYmid.clinical_history_service.domain.ClinicalException;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.Diagnosis;
 import com.ClinicaDeYmid.clinical_history_service.domain.note.NoteContent;
@@ -13,12 +14,17 @@ import java.util.List;
 public class ClinicalCoding {
 
     private final ConceptCatalog catalog;
+    private final CareClassification classification;
 
-    public ClinicalCoding(ConceptCatalog catalog) {
+    public ClinicalCoding(ConceptCatalog catalog, CareClassification classification) {
         this.catalog = catalog;
+        this.classification = classification;
     }
 
     public NoteContent resolve(NoteContent content) {
+        if (content != null) {
+            classification.validate(NoteContent.careReasonOf(content));
+        }
         if (content == null || content.diagnoses().isEmpty()) {
             return content;
         }

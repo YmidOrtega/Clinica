@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.clinical_history_service.infrastructure.persistence;
 
+import com.ClinicaDeYmid.clinical_history_service.domain.encounter.CareSetting;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.Encounter;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterClosure;
 import com.ClinicaDeYmid.clinical_history_service.domain.encounter.EncounterStatus;
@@ -21,7 +22,8 @@ import java.util.UUID;
 class JdbcEncounters implements Encounters {
 
     static final String SELECT = """
-            SELECT e.id, e.patient_uuid, e.type, e.admission_uuid, e.admission_verified, e.opened_at, e.opened_by,
+            SELECT e.id, e.patient_uuid, e.type, e.admission_uuid, e.admission_verified, e.service_code, e.modality,
+                   e.service_group, e.opened_at, e.opened_by,
                    e.opened_by_role,
                    c.closed_at, c.closed_by, c.closed_by_role
             FROM clinical_ledger.encounters e
@@ -37,8 +39,10 @@ class JdbcEncounters implements Encounters {
     public void add(Encounter encounter) {
         jdbc.update("""
                 INSERT INTO clinical_ledger.encounters (id, patient_uuid, type, admission_uuid, admission_verified,
+                                                        service_code, modality, service_group,
                                                         opened_at, opened_by, opened_by_role)
-                VALUES (:id, :patientUuid, :type, :admissionUuid, :admissionVerified, :openedAt, :openedBy, :openedByRole)""",
+                VALUES (:id, :patientUuid, :type, :admissionUuid, :admissionVerified, :serviceCode, :modality,
+                        :serviceGroup, :openedAt, :openedBy, :openedByRole)""",
                 new MapSqlParameterSource()
                         .addValue("id", encounter.id().toString())
                         .addValue("patientUuid", encounter.patientUuid().toString())
@@ -46,6 +50,10 @@ class JdbcEncounters implements Encounters {
                         .addValue("admissionUuid", encounter.admissionUuid() == null ? null
                                 : encounter.admissionUuid().toString())
                         .addValue("admissionVerified", encounter.admissionVerified())
+                        .addValue("serviceCode", encounter.careSetting() == null ? null : encounter.careSetting().serviceCode())
+                        .addValue("modality", encounter.careSetting() == null ? null : encounter.careSetting().modality())
+                        .addValue("serviceGroup", encounter.careSetting() == null ? null
+                                : encounter.careSetting().serviceGroup())
                         .addValue("openedAt", Rows.timestamp(encounter.openedAt()))
                         .addValue("openedBy", encounter.openedBy().uuid().toString())
                         .addValue("openedByRole", encounter.openedBy().role().name()));
@@ -96,6 +104,8 @@ class JdbcEncounters implements Encounters {
                 : new EncounterStatus.Closed(closedAt, Rows.clinician(row, "closed_by", "closed_by_role"));
         return new Encounter(Rows.uuid(row, "id"), Rows.uuid(row, "patient_uuid"), EncounterType.valueOf(row.getString("type")),
                 Rows.uuid(row, "admission_uuid"), row.getBoolean("admission_verified"),
+                row.getString("service_code") == null ? null : new CareSetting(row.getString("service_code"),
+                        row.getString("modality"), row.getString("service_group")),
                 Rows.instant(row, "opened_at"), Rows.clinician(row, "opened_by", "opened_by_role"),
                 status);
     }
