@@ -10,6 +10,8 @@ import java.util.UUID;
 
 public final class JwtTestTokens {
 
+    public static final String DIAN_SOFTWARE_PIN = "12345";
+
     public static final Map<String, String> USERS = Map.of(
             "SUPER_ADMIN", "00000000-0000-4000-8000-000000000001",
             "ADMIN", "00000000-0000-4000-8000-000000000002",
@@ -28,7 +30,7 @@ public final class JwtTestTokens {
         registry.add("clinica.billing.admission-events.enabled", () -> false);
         registry.add("spring.kafka.admin.auto-create", () -> false);
         registry.add("clinica.billing.dian.software-id", () -> "56f2ae4e-9812-4fad-9255-643406bbb1a1");
-        registry.add("clinica.billing.dian.software-pin", () -> "12345");
+        registry.add("clinica.billing.dian.software-pin", () -> DIAN_SOFTWARE_PIN);
         registry.add("clinica.billing.dian.signature-retries.enabled", () -> false);
         registry.add("clinica.billing.dian.delivery.enabled", () -> false);
         registry.add("clinica.billing.dian.test-set-id", () -> "7d1f9a3c-2b4e-4f6a-8c9d-0e1f2a3b4c5d");

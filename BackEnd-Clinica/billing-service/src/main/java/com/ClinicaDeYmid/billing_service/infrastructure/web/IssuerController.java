@@ -63,6 +63,16 @@ class IssuerController {
         return tagged(commands.revise(EntityTags.requiredVersion(ifMatch), request.toDomain()));
     }
 
+    @PutMapping("/credit-note-prefix")
+    @PreAuthorize(Access.MANAGE_CONFIG)
+    @Operation(summary = "Cambiar el prefijo de las notas crédito",
+            description = "Cada prefijo lleva su propio consecutivo; la DIAN no exige resolución para notas")
+    ResponseEntity<IssuerView> useCreditNotePrefix(
+            @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody IssuerRequests.CreditNotePrefix request) {
+        return tagged(commands.useCreditNotePrefix(EntityTags.requiredVersion(ifMatch), request.prefix()));
+    }
+
     @PostMapping("/production")
     @PreAuthorize(Access.MANAGE_CONFIG)
     @Operation(summary = "Pasar a facturar en producción",

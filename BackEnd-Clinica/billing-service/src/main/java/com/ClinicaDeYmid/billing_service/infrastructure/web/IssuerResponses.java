@@ -21,7 +21,8 @@ final class IssuerResponses {
                       String tradeName, TaxScheme taxScheme, List<ResponsibilityView> taxResponsibilities,
                       String addressLine, String municipalityCode, String departmentCode, String cityName,
                       String departmentName, String postalCode, String email, String phone,
-                      String healthProviderCode, DianEnvironment environment, Instant productionSince) {
+                      String healthProviderCode, String creditNotePrefix, DianEnvironment environment,
+                      Instant productionSince) {
 
         static IssuerView from(Issuer issuer) {
             IssuerProfile profile = issuer.profile();
@@ -32,7 +33,8 @@ final class IssuerResponses {
                     profile.personType(), profile.legalName(), profile.tradeName(), profile.taxScheme(),
                     responsibilities, profile.addressLine(), profile.municipalityCode(), profile.departmentCode(),
                     profile.cityName(), profile.departmentName(), profile.postalCode(), profile.email(),
-                    profile.phone(), profile.healthProviderCode(), issuer.environment(), issuer.productionSince());
+                    profile.phone(), profile.healthProviderCode(), issuer.creditNotePrefix(), issuer.environment(),
+                    issuer.productionSince());
         }
     }
 

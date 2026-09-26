@@ -34,6 +34,11 @@ class JpaElectronicDocuments implements ElectronicDocuments {
     }
 
     @Override
+    public Optional<ElectronicDocument> ofCreditNote(UUID creditNoteUuid) {
+        return repository.ofCreditNote(creditNoteUuid);
+    }
+
+    @Override
     public List<UUID> awaitingSignature(int limit) {
         return repository.awaitingSignature(PageRequest.of(0, limit));
     }

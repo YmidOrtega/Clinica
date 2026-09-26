@@ -118,6 +118,9 @@ public class Invoice {
     @Column(name = "payable_total", nullable = false, updatable = false, precision = 14, scale = 2)
     private BigDecimal payableTotal;
 
+    @Column(name = "credited_total", nullable = false, precision = 14, scale = 2)
+    private BigDecimal creditedTotal = Money.ZERO;
+
     @Column(name = "patient_share_source", nullable = false, updatable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private AccountSummary.ShareSource patientShareSource;
@@ -282,6 +285,26 @@ public class Invoice {
         return issuedTime;
     }
 
+    public void credit(CreditNote note) {
+        DomainRules.required(note, "note");
+        if (note.invoice() != this) {
+            throw new IllegalArgumentException("The credit note belongs to another invoice");
+        }
+        BigDecimal credited = creditedTotal.add(note.creditedPayable());
+        if (credited.compareTo(payableTotal) > 0) {
+            throw new BillingException.CreditExceedsInvoice("Las notas crédito superarían el valor a pagar de la factura");
+        }
+        if (note.voids()) {
+            applyStatus(status().voidBy("Anulada con la nota crédito " + note.number() + ": " + note.reason(),
+                    note.issuedAt()));
+        }
+        creditedTotal = Money.of(credited);
+    }
+
+    public BigDecimal creditedTotal() {
+        return creditedTotal;
+    }
+
     public void discard(String reason, Clock clock) {
         applyStatus(status().discard(reason, Instant.now(clock)));
     }
@@ -291,6 +314,7 @@ public class Invoice {
             case DRAFT -> new InvoiceStatus.Draft();
             case ISSUED -> new InvoiceStatus.Issued(statusChangedAt);
             case DISCARDED -> new InvoiceStatus.Discarded(statusReason, statusChangedAt);
+            case VOIDED -> new InvoiceStatus.Voided(statusReason, statusChangedAt);
         };
     }
 
@@ -308,6 +332,10 @@ public class Invoice {
             case InvoiceStatus.Discarded discarded -> {
                 statusReason = discarded.reason();
                 statusChangedAt = discarded.at();
+            }
+            case InvoiceStatus.Voided voided -> {
+                statusReason = voided.reason();
+                statusChangedAt = voided.at();
             }
         }
     }

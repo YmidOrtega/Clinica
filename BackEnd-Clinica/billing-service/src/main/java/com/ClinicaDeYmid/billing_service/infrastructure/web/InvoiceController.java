@@ -209,6 +209,8 @@ class InvoiceController {
                 case InvoiceStatus.Issued issued -> new StatusView(InvoiceStatus.Code.ISSUED, null, issued.at());
                 case InvoiceStatus.Discarded discarded ->
                         new StatusView(InvoiceStatus.Code.DISCARDED, discarded.reason(), discarded.at());
+                case InvoiceStatus.Voided voided ->
+                        new StatusView(InvoiceStatus.Code.VOIDED, voided.reason(), voided.at());
             };
         }
     }
@@ -218,7 +220,7 @@ class InvoiceController {
                        String admissionNumber, AccountSummary.UnitKind unitKind, UUID saleUuid, Buyer buyer,
                        HealthUser user, UUID contractUuid, String contractNumber, BigDecimal grossTotal,
                        BigDecimal patientShare, AccountSummary.ShareSource patientShareSource, BigDecimal payableTotal,
-                       List<LineView> lines, Instant createdAt) {
+                       BigDecimal creditedTotal, List<LineView> lines, Instant createdAt) {
 
         static InvoiceView from(Invoice invoice, ElectronicDocument document) {
             return new InvoiceView(invoice.uuid(), invoice.number(), invoice.issuedOn(),
@@ -228,7 +230,7 @@ class InvoiceController {
                     StatusView.from(invoice.status()), invoice.account().admissionNumber(), invoice.unitKind(),
                     invoice.saleUuid(), invoice.buyer(), invoice.user(), invoice.contractUuid(),
                     invoice.contractNumber(), invoice.grossTotal(), invoice.patientShare(),
-                    invoice.patientShareSource(), invoice.payableTotal(),
+                    invoice.patientShareSource(), invoice.payableTotal(), invoice.creditedTotal(),
                     invoice.lines().stream().map(LineView::from).toList(), invoice.createdAt());
         }
     }
