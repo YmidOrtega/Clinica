@@ -13,4 +13,6 @@ public interface Invoices {
     List<Invoice> findByAccount(UUID accountUuid);
 
     boolean liveFor(UUID accountUuid, UUID saleUuid);
+
+    List<UUID> awaitingSignature(int limit);
 }

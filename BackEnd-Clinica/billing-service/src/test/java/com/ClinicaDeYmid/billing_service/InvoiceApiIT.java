@@ -1,11 +1,14 @@
 package com.ClinicaDeYmid.billing_service;
 
 import com.ClinicaDeYmid.billing_service.application.EpisodeAccountProjection;
+import com.ClinicaDeYmid.billing_service.application.InvoiceSigning;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionSnapshot;
 import com.ClinicaDeYmid.billing_service.support.AdmissionEvents;
 import com.ClinicaDeYmid.billing_service.support.BillingSetup;
 import com.ClinicaDeYmid.billing_service.support.JwtTestTokens;
+import com.ClinicaDeYmid.billing_service.support.LocalDianSigningKey;
+import com.ClinicaDeYmid.billing_service.support.XadesVerification;
 import com.ClinicaDeYmid.billing_service.support.StubbedServices;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +21,7 @@ import java.time.ZoneId;
 import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,12 +39,19 @@ class InvoiceApiIT extends IntegrationTest {
     @Autowired
     private EpisodeAccountProjection projection;
 
+    @Autowired
+    private InvoiceSigning signing;
+
     @BeforeEach
     void anIssuerWithAnActiveResolution() throws Exception {
+        anActiveResolution("SETP");
+    }
+
+    private void anActiveResolution(String prefix) throws Exception {
         forgetTheBillingSetup();
         as("BILLING", post(BillingSetup.ISSUER), BillingSetup.configuration()).andExpect(status().isCreated());
         String body = as("BILLING", post(BillingSetup.RESOLUTIONS),
-                BillingSetup.resolution("18760000001", "SETP", 990000000, 995000000))
+                BillingSetup.resolution("18760000001", prefix, 990000000, 995000000))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         change("BILLING", post(BillingSetup.RESOLUTIONS + "/" + JsonPath.read(body, "$.uuid") + "/activation"), 0, null)
                 .andExpect(status().isOk());
@@ -80,17 +91,78 @@ class InvoiceApiIT extends IntegrationTest {
                 .andExpect(jsonPath("$.number").value("SETP990000000"))
                 .andExpect(jsonPath("$.issuedOn").value(TODAY.toString()))
                 .andExpect(jsonPath("$.cufe").value(org.hamcrest.Matchers.matchesPattern("^[0-9a-f]{96}$")))
-                .andExpect(jsonPath("$.qrContent").value(org.hamcrest.Matchers.containsString("NumFac: SETP990000000")));
-        as("BILLING", get(INVOICES + "/" + invoice + "/ubl"))
+                .andExpect(jsonPath("$.qrContent").value(org.hamcrest.Matchers.containsString("NumFac: SETP990000000")))
+                .andExpect(jsonPath("$.signedAt").exists());
+        String ubl = as("BILLING", get(INVOICES + "/" + invoice + "/ubl"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("<cbc:ID>SETP990000000</cbc:ID>")));
-        change("BILLING", post(INVOICES + "/" + invoice + "/discard"), 1, "{\"reason\":\"Tarde\"}")
+                        .string(org.hamcrest.Matchers.containsString("<cbc:ID>SETP990000000</cbc:ID>")))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(XadesVerification.verify(ubl, LocalDianSigningKey.SHARED.certificate().getPublicKey()).valid())
+                .isTrue();
+        change("BILLING", post(INVOICES + "/" + invoice + "/discard"), 2, "{\"reason\":\"Tarde\"}")
                 .andExpect(status().isUnprocessableEntity());
 
         as("BILLING", get("/api/v1/billing/accounts/" + episode.number() + "/invoices"))
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].number").value("SETP990000000"));
+    }
+
+    @Test
+    void anIssuedInvoiceStaysUnsignedWhileTheKeyIsUnreachableAndIsSignedOnRetry() throws Exception {
+        anActiveResolution("SETS");
+        String first = issuedWhileTheKeyIsUnreachable();
+        String second = issuedWhileTheKeyIsUnreachable();
+
+        as("BILLING", get(INVOICES + "/" + first + "/ubl"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("ds:Signature"))));
+        as("BILLING", post(INVOICES + "/" + first + "/signature"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("DIAN_SIGNATURE_UNAVAILABLE"));
+
+        LocalDianSigningKey.SHARED.available(true);
+        String signedAt = JsonPath.read(as("BILLING", post(INVOICES + "/" + first + "/signature"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.signedAt").exists())
+                .andReturn().getResponse().getContentAsString(), "$.signedAt");
+        as("BILLING", post(INVOICES + "/" + first + "/signature"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.signedAt").value(signedAt));
+        assertThat(signing.signPending(50)).isGreaterThanOrEqualTo(1);
+        as("BILLING", get(INVOICES + "/" + second))
+                .andExpect(jsonPath("$.signedAt").exists());
+        String ubl = as("BILLING", get(INVOICES + "/" + second + "/ubl")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(XadesVerification.verify(ubl, LocalDianSigningKey.SHARED.certificate().getPublicKey()).valid())
+                .isTrue();
+    }
+
+    @Test
+    void onlyAnIssuedInvoiceIsSigned() throws Exception {
+        Episode episode = outpatient("COVERED");
+        String sale = confirmedSale(episode);
+        String draft = JsonPath.read(as("BILLING", post(INVOICES), drafting(episode, sale))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.uuid");
+
+        as("BILLING", post(INVOICES + "/" + draft + "/signature"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("INVOICE_NOT_SIGNABLE"));
+        as("RECEPTIONIST", post(INVOICES + "/" + draft + "/signature")).andExpect(status().isForbidden());
+    }
+
+    private String issuedWhileTheKeyIsUnreachable() throws Exception {
+        Episode episode = outpatient("COVERED");
+        String sale = confirmedSale(episode);
+        String invoice = JsonPath.read(as("BILLING", post(INVOICES), drafting(episode, sale))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.uuid");
+        LocalDianSigningKey.SHARED.available(false);
+        change("BILLING", post(INVOICES + "/" + invoice + "/issuance"), 0, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status.code").value("ISSUED"))
+                .andExpect(jsonPath("$.signedAt").doesNotExist());
+        return invoice;
     }
 
     @Test

@@ -28,7 +28,8 @@ import java.util.HexFormat;
 public class InvoiceDocument {
 
     public enum Kind {
-        UBL_UNSIGNED
+        UBL_UNSIGNED,
+        UBL_SIGNED
     }
 
     @Id
