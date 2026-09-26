@@ -1,0 +1,135 @@
+package com.ClinicaDeYmid.billing_service;
+
+import com.ClinicaDeYmid.billing_service.application.DianDelivery;
+import com.ClinicaDeYmid.billing_service.application.EpisodeAccountProjection;
+import com.ClinicaDeYmid.billing_service.domain.AdmissionKind;
+import com.ClinicaDeYmid.billing_service.domain.AdmissionSnapshot;
+import com.ClinicaDeYmid.billing_service.support.AdmissionEvents;
+import com.ClinicaDeYmid.billing_service.support.BillingSetup;
+import com.ClinicaDeYmid.billing_service.support.DianSimulator;
+import com.ClinicaDeYmid.billing_service.support.StubbedServices;
+import com.jayway.jsonpath.JsonPath;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.UUID;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+abstract class InvoicingIntegrationTest extends IntegrationTest {
+
+    static final String SALES = "/api/v1/billing/sales";
+    static final String INVOICES = "/api/v1/billing/invoices";
+    static final String CONSULTATION = "2c1b0a9f-8e7d-4c6b-9a5f-4e3d2c1b0a9f";
+    static final String PAYER = "7f3a1c2e-9b8d-4e6f-a5b4-c3d2e1f0a9b8";
+    static final LocalDate TODAY = LocalDate.now(ZoneId.of("America/Bogota"));
+
+    @Autowired
+    protected EpisodeAccountProjection projection;
+
+    protected void anActiveResolution(String prefix) throws Exception {
+        forgetTheBillingSetup();
+        as("BILLING", post(BillingSetup.ISSUER), BillingSetup.configuration()).andExpect(status().isCreated());
+        String body = as("BILLING", post(BillingSetup.RESOLUTIONS),
+                BillingSetup.resolution("18760000001", prefix, 990000000, 995000000))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        change("BILLING", post(BillingSetup.RESOLUTIONS + "/" + JsonPath.read(body, "$.uuid") + "/activation"), 0, null)
+                .andExpect(status().isOk());
+    }
+
+    protected String issued() throws Exception {
+        Episode episode = outpatient("COVERED");
+        return issued(episode, confirmedSale(episode));
+    }
+
+    protected String issued(Episode episode, String sale) throws Exception {
+        String invoice = JsonPath.read(as("BILLING", post(INVOICES), drafting(episode, sale))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.uuid");
+        change("BILLING", post(INVOICES + "/" + invoice + "/issuance"), 0, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.signedAt").exists());
+        return invoice;
+    }
+
+    protected static String drafting(Episode episode, String sale) {
+        return "{\"admissionNumber\":\"" + episode.number() + "\",\"saleUuid\":\"" + sale + "\"}";
+    }
+
+    protected String confirmedSale(Episode episode) throws Exception {
+        String opened = as("BILLING", post(SALES), "{\"admissionNumber\":\"" + episode.number()
+                + "\",\"type\":\"NON_SURGICAL\",\"preloadAuthorized\":false}")
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String sale = JsonPath.read(opened, "$.uuid");
+        change("BILLING", post(SALES + "/" + sale + "/lines"), 0,
+                "{\"portfolioItemUuid\":\"" + CONSULTATION + "\",\"quantity\":1}").andExpect(status().isOk());
+        change("BILLING", post(SALES + "/" + sale + "/confirmation"), 1, null).andExpect(status().isOk());
+        return sale;
+    }
+
+    protected Episode outpatient(String coverage) {
+        UUID admission = UUID.randomUUID();
+        String number = AdmissionEvents.nextNumber();
+        UUID patient = UUID.randomUUID();
+        projection.follow(new AdmissionSnapshot(admission, number, 1, patient, AdmissionKind.OUTPATIENT,
+                AdmissionSnapshot.Status.ACTIVE, UUID.randomUUID(), Instant.parse("2026-09-01T13:00:00Z"), null, null));
+        stubEpisode(admission, number, coverage);
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/portfolio-items/" + CONSULTATION)).willReturn(okJson("""
+                {"uuid":"%s","cupsCode":"890201","name":"Consulta","status":{"code":"ACTIVE","offered":true}}"""
+                .formatted(CONSULTATION))));
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(
+                urlPathEqualTo("/api/v1/price-quotes")).willReturn(okJson("""
+                {"contractNumber":"CT-1","payerUuid":"%s","services":[{"cupsCode":"890201","quantity":1,
+                 "unitPrice":45000.00,"lineTotal":45000.00,"origin":"TARIFF_MANUAL"}],"packages":[]}""".formatted(PAYER))));
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/patients/" + patient)).willReturn(okJson("""
+                {"uuid":"%s","document":{"type":"CEDULA_DE_CIUDADANIA","number":"1098765432"},
+                 "demographics":{"firstNames":"Ana María","lastNames":"Restrepo Gómez","birthDate":"1990-04-12",
+                   "sex":"FEMALE"},"affiliation":{"regime":"CONTRIBUTORY"}}""".formatted(patient))));
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/payers/" + PAYER)).willReturn(okJson("""
+                {"uuid":"%s","socialReason":"Nueva EPS S.A.","nit":"900156264-2","type":"EPS"}""".formatted(PAYER))));
+        return new Episode(admission, number);
+    }
+
+    protected static void stubEpisode(UUID admission, String number, String coverage) {
+        String coverageJson = "NOT_COVERED".equals(coverage)
+                ? "{\"status\":\"NOT_COVERED\"}"
+                : "{\"status\":\"" + coverage + "\",\"contractUuid\":\"" + UUID.randomUUID()
+                        + "\",\"contractNumber\":\"CT-1\",\"payerUuid\":\"" + PAYER + "\"}";
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/admissions/episodes/" + admission)).willReturn(okJson("""
+                {"uuid":"%s","number":"%s","kind":"OUTPATIENT","status":{"code":"ACTIVE"},"coverage":%s}"""
+                .formatted(admission, number, coverageJson))));
+        StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
+                urlPathEqualTo("/api/v1/admissions/episodes/" + admission + "/authorizations")).willReturn(okJson("""
+                [{"uuid":"%s","number":"AUT-778899","type":"AMBULATORY_SERVICES","authorizedBy":"Nueva EPS",
+                  "copayment":35000,"validFrom":"2026-09-01","validTo":"%s","authorizedItems":["%s"],
+                  "coversEverything":false,"status":"ACTIVE"}]"""
+                .formatted(UUID.randomUUID(), TODAY.plusDays(30), CONSULTATION))));
+    }
+
+    protected record Episode(UUID uuid, String number) {
+    }
+
+    protected String acceptedInvoice(DianDelivery delivery) throws Exception {
+        Episode episode = outpatient("COVERED");
+        return acceptedInvoice(delivery, episode, confirmedSale(episode));
+    }
+
+    protected String acceptedInvoice(DianDelivery delivery, Episode episode, String sale) throws Exception {
+        String invoice = issued(episode, sale);
+        DianSimulator.doesNotKnowTheDocument();
+        DianSimulator.receivesTheTestSet("zip-" + UUID.randomUUID());
+        delivery.deliverPending(100);
+        DianSimulator.validates("GetStatusZip");
+        delivery.checkPending(100);
+        as("BILLING", get(INVOICES + "/" + invoice)).andExpect(jsonPath("$.dian.status").value("ACCEPTED"));
+        return invoice;
+    }
+}
