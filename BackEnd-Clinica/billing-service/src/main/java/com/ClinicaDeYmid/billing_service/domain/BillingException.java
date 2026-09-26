@@ -315,4 +315,10 @@ public sealed abstract class BillingException extends DomainException {
                     "El directorio de profesionales no responde; intenta de nuevo");
         }
     }
+
+    public static final class NotABillableUnit extends BillingException {
+        public NotABillableUnit(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "NOT_A_BILLABLE_UNIT", detail);
+        }
+    }
 }
