@@ -146,6 +146,7 @@ spring:
     import:
       - vault://secret/billing/db/migrator?prefix=billing.db.migrator.
       - vault://secret/billing/db/app?prefix=billing.db.app.
+      - optional:vault://secret/billing/dian/software?prefix=clinica.billing.dian.
   cloud:
     vault:
       enabled: true
