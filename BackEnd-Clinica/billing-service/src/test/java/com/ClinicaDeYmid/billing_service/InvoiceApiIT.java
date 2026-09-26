@@ -1,11 +1,13 @@
 package com.ClinicaDeYmid.billing_service;
 
+import com.ClinicaDeYmid.billing_service.application.DianDelivery;
 import com.ClinicaDeYmid.billing_service.application.EpisodeAccountProjection;
 import com.ClinicaDeYmid.billing_service.application.InvoiceSigning;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionKind;
 import com.ClinicaDeYmid.billing_service.domain.AdmissionSnapshot;
 import com.ClinicaDeYmid.billing_service.support.AdmissionEvents;
 import com.ClinicaDeYmid.billing_service.support.BillingSetup;
+import com.ClinicaDeYmid.billing_service.support.DianSimulator;
 import com.ClinicaDeYmid.billing_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.billing_service.support.LocalDianSigningKey;
 import com.ClinicaDeYmid.billing_service.support.XadesVerification;
@@ -41,6 +43,9 @@ class InvoiceApiIT extends IntegrationTest {
 
     @Autowired
     private InvoiceSigning signing;
+
+    @Autowired
+    private DianDelivery delivery;
 
     @BeforeEach
     void anIssuerWithAnActiveResolution() throws Exception {
@@ -137,6 +142,102 @@ class InvoiceApiIT extends IntegrationTest {
                 .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         assertThat(XadesVerification.verify(ubl, LocalDianSigningKey.SHARED.certificate().getPublicKey()).valid())
                 .isTrue();
+    }
+
+    @Test
+    void aSignedInvoiceTravelsToTheDianTestSetUntilItIsAccepted() throws Exception {
+        anActiveResolution("SETD");
+        String invoice = issued();
+        DianSimulator.receivesTheTestSet("zip-accepted");
+        DianSimulator.doesNotKnowTheDocument();
+
+        delivery.deliverPending(50);
+
+        as("BILLING", get(INVOICES + "/" + invoice))
+                .andExpect(jsonPath("$.dian.status").value("AWAITING_VALIDATION"))
+                .andExpect(jsonPath("$.dian.trackId").value("zip-accepted"))
+                .andExpect(jsonPath("$.dian.fileName").value(org.hamcrest.Matchers.matchesPattern(
+                        "^z0800197268000[0-9]{2}[0-9a-f]{8}\\.zip$")))
+                .andExpect(jsonPath("$.dian.attempts").value(1));
+        DianSimulator.isStillProcessing();
+        delivery.checkPending(50);
+        as("BILLING", get(INVOICES + "/" + invoice)).andExpect(jsonPath("$.dian.status").value("AWAITING_VALIDATION"));
+        DianSimulator.validates("GetStatusZip");
+        delivery.checkPending(50);
+
+        as("BILLING", get(INVOICES + "/" + invoice)).andExpect(jsonPath("$.dian.status").value("ACCEPTED"));
+        as("BILLING", get(INVOICES + "/" + invoice + "/dian-verdicts"))
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].operation").value("SEND_TEST_SET"))
+                .andExpect(jsonPath("$[0].outcome").value("RECEIVED"))
+                .andExpect(jsonPath("$[1].outcome").value("PROCESSING"))
+                .andExpect(jsonPath("$[2].outcome").value("ACCEPTED"))
+                .andExpect(jsonPath("$[2].statusCode").value("00"));
+        assertThat(jdbc.queryForObject("""
+                SELECT d.content FROM invoice_documents d JOIN invoices i ON i.id = d.invoice_id
+                WHERE i.uuid = ? AND d.kind = 'DIAN_APPLICATION_RESPONSE'""", String.class, invoice))
+                .isEqualTo(DianSimulator.APPLICATION_RESPONSE);
+        as("BILLING", post(INVOICES + "/" + invoice + "/dian-delivery"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("INVOICE_NOT_DELIVERABLE"));
+    }
+
+    @Test
+    void aRejectedInvoiceWaitsForAManualResendThatKeepsItsNumber() throws Exception {
+        anActiveResolution("SETR");
+        String invoice = issued();
+        DianSimulator.receivesTheTestSet("zip-first");
+        String number = JsonPath.read(as("BILLING", post(INVOICES + "/" + invoice + "/dian-delivery"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dian.status").value("AWAITING_VALIDATION"))
+                .andReturn().getResponse().getContentAsString(), "$.number");
+        DianSimulator.rejects("GetStatusZip", "Regla: FAD06, Rechazo: el CUFE no corresponde");
+        delivery.checkPending(50);
+
+        String rejected = as("BILLING", get(INVOICES + "/" + invoice))
+                .andExpect(jsonPath("$.dian.status").value("REJECTED"))
+                .andReturn().getResponse().getContentAsString();
+        delivery.deliverPending(50);
+        as("BILLING", get(INVOICES + "/" + invoice + "/dian-verdicts"))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[1].errors[0]").value("Regla: FAD06, Rechazo: el CUFE no corresponde"));
+
+        DianSimulator.doesNotKnowTheDocument();
+        DianSimulator.receivesTheTestSet("zip-second");
+        as("BILLING", post(INVOICES + "/" + invoice + "/dian-delivery"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.number").value(number))
+                .andExpect(jsonPath("$.dian.status").value("AWAITING_VALIDATION"))
+                .andExpect(jsonPath("$.dian.trackId").value("zip-second"))
+                .andExpect(jsonPath("$.dian.attempts").value(2))
+                .andExpect(jsonPath("$.dian.fileName").value(org.hamcrest.Matchers.not(
+                        (String) JsonPath.read(rejected, "$.dian.fileName"))));
+    }
+
+    @Test
+    void anUnreachableDianLeavesTheInvoiceQueued() throws Exception {
+        anActiveResolution("SETU");
+        String invoice = issued();
+        DianSimulator.isDown();
+
+        as("BILLING", post(INVOICES + "/" + invoice + "/dian-delivery"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("DIAN_UNAVAILABLE"));
+        as("BILLING", get(INVOICES + "/" + invoice))
+                .andExpect(jsonPath("$.dian.status").doesNotExist())
+                .andExpect(jsonPath("$.dian.attempts").value(1));
+        as("BILLING", get(INVOICES + "/" + invoice + "/dian-verdicts")).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private String issued() throws Exception {
+        Episode episode = outpatient("COVERED");
+        String sale = confirmedSale(episode);
+        String invoice = JsonPath.read(as("BILLING", post(INVOICES), drafting(episode, sale))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), "$.uuid");
+        change("BILLING", post(INVOICES + "/" + invoice + "/issuance"), 0, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.signedAt").exists());
+        return invoice;
     }
 
     @Test

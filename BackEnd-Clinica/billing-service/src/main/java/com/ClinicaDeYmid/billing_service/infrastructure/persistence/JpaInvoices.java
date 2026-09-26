@@ -42,4 +42,14 @@ class JpaInvoices implements Invoices {
     public List<UUID> awaitingSignature(int limit) {
         return repository.awaitingSignature(PageRequest.of(0, limit));
     }
+
+    @Override
+    public List<UUID> awaitingDelivery(int limit) {
+        return repository.awaitingDelivery(PageRequest.of(0, limit));
+    }
+
+    @Override
+    public List<UUID> awaitingDianValidation(int limit) {
+        return repository.awaitingDianValidation(PageRequest.of(0, limit));
+    }
 }

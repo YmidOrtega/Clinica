@@ -1,8 +1,12 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.config;
 
+import com.ClinicaDeYmid.billing_service.application.dian.DianGateway;
 import com.ClinicaDeYmid.billing_service.application.dian.DianSoftware;
 import com.ClinicaDeYmid.billing_service.application.dian.InvoiceSigner;
+import com.ClinicaDeYmid.billing_service.domain.DianEnvironment;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.DianSigningKey;
+import com.ClinicaDeYmid.billing_service.infrastructure.dian.DianSoapEnvelope;
+import com.ClinicaDeYmid.billing_service.infrastructure.dian.SoapDianGateway;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.TransitDianSigningKey;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.UnavailableDianSigningKey;
 import com.ClinicaDeYmid.billing_service.infrastructure.dian.XadesInvoiceSigner;
@@ -15,11 +19,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.vault.core.VaultOperations;
+import org.springframework.web.client.RestClient;
 
+import java.net.http.HttpClient;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.ZoneId;
+import java.util.Map;
 
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
@@ -29,8 +38,9 @@ public class DianConfiguration {
 
     @Bean
     DianSoftware dianSoftware(@Value("${clinica.billing.dian.software-id}") String softwareId,
-                              @Value("${clinica.billing.dian.software-pin}") String pin) {
-        return new DianSoftware(softwareId, pin);
+                              @Value("${clinica.billing.dian.software-pin}") String pin,
+                              @Value("${clinica.billing.dian.test-set-id}") String testSetId) {
+        return new DianSoftware(softwareId, pin, testSetId);
     }
 
     @Bean
@@ -50,6 +60,20 @@ public class DianConfiguration {
         }
         return new TransitDianSigningKey(client, operations, keyName, mount, certificatePath,
                 properties.keyRefreshInterval(), clock);
+    }
+
+    @Bean
+    DianGateway dianGateway(DianSigningKey key, Clock clock,
+                            @Value("${clinica.billing.dian.urls.test}") String testUrl,
+                            @Value("${clinica.billing.dian.urls.production}") String productionUrl,
+                            @Value("${clinica.billing.dian.connect-timeout}") Duration connectTimeout,
+                            @Value("${clinica.billing.dian.read-timeout}") Duration readTimeout) {
+        JdkClientHttpRequestFactory requests = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(connectTimeout).build());
+        requests.setReadTimeout(readTimeout);
+        return new SoapDianGateway(RestClient.builder().requestFactory(requests).build(),
+                new DianSoapEnvelope(key, clock),
+                Map.of(DianEnvironment.TEST, testUrl, DianEnvironment.PRODUCTION, productionUrl));
     }
 
     @Bean

@@ -36,4 +36,16 @@ interface InvoiceJpaRepository extends JpaRepository<Invoice, Long> {
               and i.signedAt is null
             order by i.statusChangedAt, i.id""")
     List<UUID> awaitingSignature(Pageable page);
+
+    @Query("""
+            select i.uuid from Invoice i
+            where i.signedAt is not null and i.dianStatus is null
+            order by i.statusChangedAt, i.id""")
+    List<UUID> awaitingDelivery(Pageable page);
+
+    @Query("""
+            select i.uuid from Invoice i
+            where i.dianStatus = com.ClinicaDeYmid.billing_service.domain.DianStatus.AWAITING_VALIDATION
+            order by i.dianStatusAt, i.id""")
+    List<UUID> awaitingDianValidation(Pageable page);
 }

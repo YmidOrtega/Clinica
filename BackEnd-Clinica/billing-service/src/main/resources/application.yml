@@ -79,11 +79,19 @@ clinica:
     dian:
       software-id: ${BILLING_DIAN_SOFTWARE_ID:}
       software-pin: ${BILLING_DIAN_SOFTWARE_PIN:}
+      test-set-id: ${BILLING_DIAN_TEST_SET_ID:}
       signing-key: ${BILLING_DIAN_SIGNING_KEY:billing-dian}
       certificate-mount: secret
       certificate-path: billing/dian/certificate
       signature-retries:
         delay: ${BILLING_DIAN_SIGNATURE_RETRY_DELAY:PT1M}
+      urls:
+        test: ${BILLING_DIAN_TEST_URL:https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc}
+        production: ${BILLING_DIAN_PRODUCTION_URL:https://vpfe.dian.gov.co/WcfDianCustomerServices.svc}
+      connect-timeout: 5s
+      read-timeout: 60s
+      delivery:
+        delay: ${BILLING_DIAN_DELIVERY_DELAY:PT30S}
   security:
     jwt:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
