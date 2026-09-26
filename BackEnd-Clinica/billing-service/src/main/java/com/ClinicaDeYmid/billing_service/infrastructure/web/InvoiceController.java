@@ -6,6 +6,7 @@ import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
+import com.ClinicaDeYmid.billing_service.domain.InvoiceDocument;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceLine;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceStatus;
 import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
@@ -19,6 +20,7 @@ import jakarta.validation.constraints.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -95,6 +97,16 @@ class InvoiceController {
         return tagged(uuid);
     }
 
+    @GetMapping(value = INVOICES + "/{uuid}/ubl", produces = MediaType.APPLICATION_XML_VALUE)
+    @PreAuthorize(Access.READ)
+    @Operation(summary = "Descargar el XML UBL 2.1 de una factura emitida, sin firma",
+            description = "La firma XAdES llega al enviar a la DIAN; este es el documento exacto que se firmará")
+    ResponseEntity<String> ubl(@PathVariable UUID uuid) {
+        InvoiceDocument document = queries.document(uuid, InvoiceDocument.Kind.UBL_UNSIGNED);
+        return ResponseEntity.ok().eTag("\"" + document.sha256() + "\"").contentType(MediaType.APPLICATION_XML)
+                .body(document.content());
+    }
+
     @PostMapping(INVOICES + "/{uuid}/discard")
     @PreAuthorize(Access.INVOICE)
     @Operation(summary = "Descartar un borrador de factura con motivo")
@@ -139,14 +151,17 @@ class InvoiceController {
         }
     }
 
-    record InvoiceView(UUID uuid, String number, LocalDate issuedOn, UUID resolutionUuid, StatusView status,
+    record InvoiceView(UUID uuid, String number, LocalDate issuedOn, String issuedTime, String cufe, String qrContent,
+                       UUID resolutionUuid, StatusView status,
                        String admissionNumber, AccountSummary.UnitKind unitKind, UUID saleUuid, Buyer buyer,
                        HealthUser user, UUID contractUuid, String contractNumber, BigDecimal grossTotal,
                        BigDecimal patientShare, AccountSummary.ShareSource patientShareSource, BigDecimal payableTotal,
                        List<LineView> lines, Instant createdAt) {
 
         static InvoiceView from(Invoice invoice) {
-            return new InvoiceView(invoice.uuid(), invoice.number(), invoice.issuedOn(), invoice.resolutionUuid(),
+            return new InvoiceView(invoice.uuid(), invoice.number(), invoice.issuedOn(),
+                    invoice.issuedTime() == null ? null : com.ClinicaDeYmid.billing_service.domain.Cufe.time(invoice.issuedTime()),
+                    invoice.cufe(), invoice.qrContent(), invoice.resolutionUuid(),
                     StatusView.from(invoice.status()), invoice.account().admissionNumber(), invoice.unitKind(),
                     invoice.saleUuid(), invoice.buyer(), invoice.user(), invoice.contractUuid(),
                     invoice.contractNumber(), invoice.grossTotal(), invoice.patientShare(),

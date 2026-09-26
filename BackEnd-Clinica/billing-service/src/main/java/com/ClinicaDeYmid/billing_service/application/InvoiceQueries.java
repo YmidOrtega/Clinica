@@ -4,6 +4,8 @@ import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccounts;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
+import com.ClinicaDeYmid.billing_service.domain.InvoiceDocument;
+import com.ClinicaDeYmid.billing_service.domain.InvoiceDocuments;
 import com.ClinicaDeYmid.billing_service.domain.Invoices;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +19,17 @@ public class InvoiceQueries {
 
     private final Invoices invoices;
     private final EpisodeAccounts accounts;
+    private final InvoiceDocuments documents;
 
-    public InvoiceQueries(Invoices invoices, EpisodeAccounts accounts) {
+    public InvoiceQueries(Invoices invoices, EpisodeAccounts accounts, InvoiceDocuments documents) {
         this.invoices = invoices;
         this.accounts = accounts;
+        this.documents = documents;
+    }
+
+    public InvoiceDocument document(UUID invoiceUuid, InvoiceDocument.Kind kind) {
+        invoice(invoiceUuid);
+        return documents.find(invoiceUuid, kind).orElseThrow(BillingException.InvoiceNotFound::new);
     }
 
     public Invoice invoice(UUID uuid) {

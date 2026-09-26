@@ -76,6 +76,9 @@ clinica:
       enabled: ${BILLING_ADMISSION_EVENTS_ENABLED:true}
     pricing:
       private-contract-uuid: ${BILLING_PRIVATE_CONTRACT_UUID:}
+    dian:
+      software-id: ${BILLING_DIAN_SOFTWARE_ID:}
+      software-pin: ${BILLING_DIAN_SOFTWARE_PIN:}
   security:
     jwt:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
