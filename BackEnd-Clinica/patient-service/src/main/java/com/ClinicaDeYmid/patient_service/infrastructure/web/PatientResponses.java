@@ -117,10 +117,11 @@ final class PatientResponses {
     }
 
     record DemographicsView(String firstNames, String lastNames, LocalDate birthDate, Sex sex,
-                            String countryOfOrigin, Disability disability) {
+                            String countryOfOrigin, String countryOfOriginCode, Disability disability) {
         static DemographicsView from(Demographics demographics) {
             return new DemographicsView(demographics.name().firstNames(), demographics.name().lastNames(),
-                    demographics.birthDate(), demographics.sex(), demographics.countryOfOrigin(), demographics.disability());
+                    demographics.birthDate(), demographics.sex(), demographics.countryOfOrigin(),
+                    demographics.countryOfOriginCode(), demographics.disability());
         }
     }
 
@@ -145,9 +146,10 @@ final class PatientResponses {
         }
     }
 
-    record ResidenceView(String department, String municipality, Zone zone, String address) {
+    record ResidenceView(String department, String municipality, String municipalityCode, Zone zone, String address) {
         static ResidenceView from(Residence residence) {
-            return new ResidenceView(residence.department(), residence.municipality(), residence.zone(), residence.address());
+            return new ResidenceView(residence.department(), residence.municipality(), residence.municipalityCode(),
+                    residence.zone(), residence.address());
         }
     }
 

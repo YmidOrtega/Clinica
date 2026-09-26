@@ -230,6 +230,25 @@ class PatientApiIT {
     }
 
     @Test
+    void codesTheResidenceAndTheCountryOfOriginWithTheSisproTables() throws Exception {
+        String uuid = register(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula()));
+
+        as("RECEPTIONIST", fetch("/api/v1/patients/" + uuid))
+                .andExpect(jsonPath("$.demographics.countryOfOrigin").value("CO"))
+                .andExpect(jsonPath("$.demographics.countryOfOriginCode").value("170"));
+        as("RECEPTIONIST", put("/api/v1/patients/" + uuid + "/residence").header(HttpHeaders.IF_MATCH, "\"0\"")
+                .content("{\"department\": \"Santander\", \"municipality\": \"Girón\", \"municipalityCode\": \"99999\", "
+                        + "\"zone\": \"RURAL\", \"address\": \"Vereda El Carmen\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNKNOWN_PLACE_CODE"));
+        as("RECEPTIONIST", put("/api/v1/patients/" + uuid + "/residence").header(HttpHeaders.IF_MATCH, "\"0\"")
+                .content("{\"department\": \"Santander\", \"municipality\": \"Girón\", \"municipalityCode\": \"68307\", "
+                        + "\"zone\": \"RURAL\", \"address\": \"Vereda El Carmen\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.residence.municipalityCode").value("68307"));
+    }
+
+    @Test
     void exposesTheChangeHistoryOnlyToAdministrators() throws Exception {
         String uuid = register(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula()));
         as("RECEPTIONIST", put("/api/v1/patients/" + uuid + "/contact").header(HttpHeaders.IF_MATCH, "\"0\"")

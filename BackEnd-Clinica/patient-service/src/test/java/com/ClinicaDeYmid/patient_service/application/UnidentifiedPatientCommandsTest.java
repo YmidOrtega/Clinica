@@ -22,7 +22,7 @@ class UnidentifiedPatientCommandsTest {
     private final InMemoryUnidentifiedPatients unidentifiedPatients = new InMemoryUnidentifiedPatients();
     private final PatientCommandsTest.StubPayers payers = new PatientCommandsTest.StubPayers();
     private final PatientCommandsTest.RecordingOutbox outbox = new PatientCommandsTest.RecordingOutbox();
-    private final PatientCommands patientCommands = new PatientCommands(patients, payers, outbox,
+    private final PatientCommands patientCommands = new PatientCommands(patients, payers, new StubGeography(), outbox,
             TransactionOperations.withoutTransaction(), PatientFixtures.today());
     private final UnidentifiedPatientCommands commands = new UnidentifiedPatientCommands(unidentifiedPatients, patients,
             patientCommands, outbox, TransactionOperations.withoutTransaction(), PatientFixtures.today());

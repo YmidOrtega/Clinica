@@ -29,14 +29,16 @@ public class PatientCommands {
 
     private final Patients patients;
     private final PayerDirectory payers;
+    private final Geography geography;
     private final PatientEventOutbox outbox;
     private final TransactionOperations transactions;
     private final Clock clock;
 
-    public PatientCommands(Patients patients, PayerDirectory payers, PatientEventOutbox outbox,
+    public PatientCommands(Patients patients, PayerDirectory payers, Geography geography, PatientEventOutbox outbox,
                            TransactionOperations transactions, Clock clock) {
         this.patients = patients;
         this.payers = payers;
+        this.geography = geography;
         this.outbox = outbox;
         this.transactions = transactions;
         this.clock = clock;
@@ -47,11 +49,31 @@ public class PatientCommands {
         return transactions.execute(status -> registerInCurrentTransaction(registration));
     }
 
+    PatientRegistration located(PatientRegistration registration) {
+        verifyResidence(registration.residence());
+        return registration.withDemographics(coded(registration.demographics()));
+    }
+
+    Demographics coded(Demographics demographics) {
+        String code = geography.countryCode(demographics.countryOfOrigin())
+                .orElseThrow(() -> new ApplicationException.UnknownPlace("countryOfOrigin", demographics.countryOfOrigin()));
+        return demographics.withCountryOfOriginCode(code);
+    }
+
+    void verifyResidence(Residence residence) {
+        if (residence == null || residence.municipalityCode() == null) {
+            return;
+        }
+        geography.departmentOfMunicipality(residence.municipalityCode())
+                .orElseThrow(() -> new ApplicationException.UnknownPlace("residence.municipalityCode",
+                        residence.municipalityCode()));
+    }
+
     Patient registerInCurrentTransaction(PatientRegistration registration) {
         if (patients.existsByDocument(registration.document())) {
             throw new PatientException.DocumentAlreadyRegistered();
         }
-        Patient registered = saveWithEvents(Patient.register(registration, clock));
+        Patient registered = saveWithEvents(Patient.register(located(registration), clock));
         log.info("Patient registered: uuid={}", registered.uuid());
         return registered;
     }
@@ -68,7 +90,8 @@ public class PatientCommands {
     }
 
     public Patient correctDemographics(UUID uuid, long expectedVersion, Demographics demographics) {
-        return modify(uuid, expectedVersion, patient -> patient.correctDemographics(demographics, clock));
+        Demographics coded = coded(demographics);
+        return modify(uuid, expectedVersion, patient -> patient.correctDemographics(coded, clock));
     }
 
     public Patient updateContact(UUID uuid, long expectedVersion, ContactInfo contact, EmergencyContact emergencyContact) {
@@ -81,6 +104,7 @@ public class PatientCommands {
     }
 
     public Patient updateResidence(UUID uuid, long expectedVersion, Residence residence) {
+        verifyResidence(residence);
         return modify(uuid, expectedVersion, patient -> patient.updateResidence(residence));
     }
 

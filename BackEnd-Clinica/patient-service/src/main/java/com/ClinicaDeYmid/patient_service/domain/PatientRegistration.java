@@ -15,4 +15,8 @@ public record PatientRegistration(
         DomainRules.required(affiliation, "affiliation");
         DomainRules.required(residence, "residence");
     }
+
+    public PatientRegistration withDemographics(Demographics coded) {
+        return new PatientRegistration(document, coded, contact, emergencyContact, affiliation, residence);
+    }
 }
