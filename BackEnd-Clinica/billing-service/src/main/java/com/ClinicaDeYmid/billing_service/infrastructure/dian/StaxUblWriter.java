@@ -85,10 +85,10 @@ class StaxUblWriter implements UblWriter {
 
         xml.writeStartElement(EXT, "UBLExtensions");
         dianExtension(xml, electronic);
-        healthExtension(xml, invoice, issuer);
         xml.writeStartElement(EXT, "UBLExtension");
         xml.writeEmptyElement(EXT, "ExtensionContent");
         xml.writeEndElement();
+        healthExtension(xml, invoice, issuer);
         xml.writeEndElement();
 
         basic(xml, "UBLVersionID", "UBL 2.1");
