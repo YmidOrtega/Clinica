@@ -375,4 +375,11 @@ public sealed abstract class BillingException extends DomainException {
                     "El directorio de pacientes no responde; sin el paciente no se prepara la factura");
         }
     }
+
+    public static final class DianSoftwareNotConfigured extends BillingException {
+        public DianSoftwareNotConfigured() {
+            super(ErrorCategory.RULE_VIOLATION, "DIAN_SOFTWARE_NOT_CONFIGURED",
+                    "Falta configurar el identificador y el PIN del software de facturación ante la DIAN");
+        }
+    }
 }

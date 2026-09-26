@@ -6,14 +6,24 @@ import com.ClinicaDeYmid.billing_service.application.context.PatientDirectory;
 import com.ClinicaDeYmid.billing_service.application.context.PatientLookup;
 import com.ClinicaDeYmid.billing_service.application.context.PayerDirectory;
 import com.ClinicaDeYmid.billing_service.application.context.PayerLookup;
+import com.ClinicaDeYmid.billing_service.application.dian.DianSoftware;
+import com.ClinicaDeYmid.billing_service.application.dian.ElectronicInvoice;
+import com.ClinicaDeYmid.billing_service.application.dian.UblWriter;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
+import com.ClinicaDeYmid.billing_service.domain.Cufe;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccount;
 import com.ClinicaDeYmid.billing_service.domain.EpisodeAccounts;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
+import com.ClinicaDeYmid.billing_service.domain.InvoiceDocument;
+import com.ClinicaDeYmid.billing_service.domain.InvoiceDocuments;
 import com.ClinicaDeYmid.billing_service.domain.Invoices;
+import com.ClinicaDeYmid.billing_service.domain.Issuer;
+import com.ClinicaDeYmid.billing_service.domain.Issuers;
+import com.ClinicaDeYmid.billing_service.domain.NumberingResolution;
+import com.ClinicaDeYmid.billing_service.domain.NumberingResolutions;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,18 +48,29 @@ public class InvoiceCommands {
     private final InvoiceNumbering numbering;
     private final PayerDirectory payers;
     private final PatientDirectory patients;
+    private final Issuers issuers;
+    private final NumberingResolutions resolutions;
+    private final InvoiceDocuments documents;
+    private final UblWriter ubl;
+    private final DianSoftware software;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public InvoiceCommands(AccountSummaries summaries, EpisodeAccounts accounts, Invoices invoices,
                            InvoiceNumbering numbering, PayerDirectory payers, PatientDirectory patients,
-                           TransactionOperations transactions, Clock clock) {
+                           Issuers issuers, NumberingResolutions resolutions, InvoiceDocuments documents,
+                           UblWriter ubl, DianSoftware software, TransactionOperations transactions, Clock clock) {
         this.summaries = summaries;
         this.accounts = accounts;
         this.invoices = invoices;
         this.numbering = numbering;
         this.payers = payers;
         this.patients = patients;
+        this.issuers = issuers;
+        this.resolutions = resolutions;
+        this.documents = documents;
+        this.ubl = ubl;
+        this.software = software;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -89,10 +110,19 @@ public class InvoiceCommands {
         if (!unit.ready() || !current.stillMatches(unit)) {
             throw new BillingException.InvoiceOutdated();
         }
+        software.requireConfigured();
         Invoice issued = transactions.execute(status -> {
             Invoice invoice = current(invoiceUuid, expectedVersion);
             invoice.issue(numbering.next(), clock);
-            return invoices.save(invoice);
+            Issuer issuer = issuers.find().orElseThrow(BillingException.IssuerNotConfigured::new);
+            NumberingResolution resolution = resolutions.findByUuid(invoice.resolutionUuid())
+                    .orElseThrow(BillingException.ResolutionNotFound::new);
+            String cufe = Cufe.of(invoice.cufeInput(issuer, resolution));
+            invoice.identify(cufe, ElectronicInvoice.qrContent(invoice, issuer, cufe));
+            Invoice saved = invoices.save(invoice);
+            documents.save(InvoiceDocument.of(saved, InvoiceDocument.Kind.UBL_UNSIGNED,
+                    ubl.invoice(ElectronicInvoice.of(saved, issuer, resolution, software))));
+            return saved;
         });
         log.info("Invoice {} issued for {} with total {}", issued.number(), issued.account().admissionNumber(),
                 issued.payableTotal());

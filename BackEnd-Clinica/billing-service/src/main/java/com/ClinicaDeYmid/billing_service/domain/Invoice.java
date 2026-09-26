@@ -148,6 +148,15 @@ public class Invoice {
     @Column(name = "issued_on")
     private LocalDate issuedOn;
 
+    @Column(name = "issued_time")
+    private java.time.LocalTime issuedTime;
+
+    @Column(name = "cufe", length = 96)
+    private String cufe;
+
+    @Column(name = "qr_content", length = 1000)
+    private String qrContent;
+
     @NotAudited
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.PERSIST)
     @OrderBy("position")
@@ -241,6 +250,36 @@ public class Invoice {
         number = issued.formatted();
         resolutionUuid = issued.resolutionUuid();
         issuedOn = LocalDate.now(clock);
+        issuedTime = java.time.LocalTime.now(clock).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    }
+
+    public Cufe.Input cufeInput(Issuer issuer, NumberingResolution resolution) {
+        if (!(status() instanceof InvoiceStatus.Issued)) {
+            throw new IllegalStateException("Only an issued invoice has a CUFE");
+        }
+        return new Cufe.Input(number, issuedOn, issuedTime, grossTotal, Money.ZERO, Money.ZERO, Money.ZERO,
+                payableTotal, issuer.nit().number(), Cufe.withoutVerificationDigit(buyerDocumentNumber),
+                resolution.terms().technicalKey(), issuer.environment());
+    }
+
+    public void identify(String cufe, String qrContent) {
+        if (this.cufe != null) {
+            throw new IllegalStateException("The CUFE of an invoice never changes");
+        }
+        this.cufe = DomainRules.requiredText(cufe, "cufe", 96);
+        this.qrContent = DomainRules.requiredText(qrContent, "qrContent", 1000);
+    }
+
+    public String cufe() {
+        return cufe;
+    }
+
+    public String qrContent() {
+        return qrContent;
+    }
+
+    public java.time.LocalTime issuedTime() {
+        return issuedTime;
     }
 
     public void discard(String reason, Clock clock) {

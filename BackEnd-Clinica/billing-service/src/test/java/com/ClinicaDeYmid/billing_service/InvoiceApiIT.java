@@ -78,7 +78,13 @@ class InvoiceApiIT extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status.code").value("ISSUED"))
                 .andExpect(jsonPath("$.number").value("SETP990000000"))
-                .andExpect(jsonPath("$.issuedOn").value(TODAY.toString()));
+                .andExpect(jsonPath("$.issuedOn").value(TODAY.toString()))
+                .andExpect(jsonPath("$.cufe").value(org.hamcrest.Matchers.matchesPattern("^[0-9a-f]{96}$")))
+                .andExpect(jsonPath("$.qrContent").value(org.hamcrest.Matchers.containsString("NumFac: SETP990000000")));
+        as("BILLING", get(INVOICES + "/" + invoice + "/ubl"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("<cbc:ID>SETP990000000</cbc:ID>")));
         change("BILLING", post(INVOICES + "/" + invoice + "/discard"), 1, "{\"reason\":\"Tarde\"}")
                 .andExpect(status().isUnprocessableEntity());
 
