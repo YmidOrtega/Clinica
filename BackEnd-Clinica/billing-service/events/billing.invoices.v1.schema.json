@@ -133,12 +133,23 @@
     "contractNumber": {
       "type": "string"
     },
+    "uncontractedCare": {
+      "type": "string",
+      "enum": [
+        "EMERGENCY",
+        "ADRES_SOAT_OR_VOLUNTARY_PLAN",
+        "COURT_ORDER",
+        "PORTABILITY",
+        "EXCEPTIONAL",
+        "ORGAN_RECOVERY"
+      ],
+      "description": "Solo cuando se facturó al pagador sin contrato: el caso del DT2 que lo permite"
+    },
     "sharedPaymentKind": {
       "type": "string",
       "enum": [
         "COPAYMENT",
         "MODERATING_FEE",
-        "RECOVERY_FEE",
         "VOLUNTARY_PLAN"
       ]
     },
@@ -147,6 +158,11 @@
     },
     "patientShare": {
       "type": "number"
+    },
+    "shareShortfall": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Solo en facturas al pagador: lo que el paciente debía pagar y no se le facturó"
     },
     "payableTotal": {
       "type": "number"

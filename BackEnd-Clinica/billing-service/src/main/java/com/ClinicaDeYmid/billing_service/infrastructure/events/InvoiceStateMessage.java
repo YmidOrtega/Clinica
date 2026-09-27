@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.billing_service.infrastructure.events;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
 import com.ClinicaDeYmid.billing_service.domain.CreditNote;
 import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
+import com.ClinicaDeYmid.billing_service.domain.HealthTerms;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceFiling;
 import com.ClinicaDeYmid.billing_service.domain.Money;
@@ -19,8 +20,8 @@ import java.util.UUID;
 record InvoiceStateMessage(UUID eventId, String type, Instant occurredAt, String traceId, UUID invoiceUuid,
                            String number, String purpose, String status, String cufe, LocalDate issuedOn,
                            Instant issuedAt, String admissionNumber, UUID patientUuid, BuyerPart buyer,
-                           UUID contractUuid, String contractNumber, String sharedPaymentKind, BigDecimal grossTotal,
-                           BigDecimal patientShare, BigDecimal payableTotal, BigDecimal creditedTotal,
+                           UUID contractUuid, String contractNumber, String uncontractedCare, String sharedPaymentKind,
+                           BigDecimal grossTotal, BigDecimal patientShare, BigDecimal shareShortfall, BigDecimal payableTotal, BigDecimal creditedTotal,
                            BigDecimal balance, DianPart dian, List<CreditNotePart> creditNotes, RipsPart rips,
                            FilingPart filing, List<ObjectionPart> objections) {
 
@@ -47,6 +48,11 @@ record InvoiceStateMessage(UUID eventId, String type, Instant occurredAt, String
                          BigDecimal acceptedAmount, BigDecimal upheldAmount, String outcome) {
     }
 
+    private static String uncontractedCareOf(Invoice invoice) {
+        HealthTerms terms = invoice.healthTerms();
+        return terms != null && terms.billedWithoutContract() ? terms.uncontracted().name() : null;
+    }
+
     static InvoiceStateMessage of(String type, Invoice invoice, ElectronicDocument document,
                                   List<CreditNote> notes, Map<UUID, ElectronicDocument> noteDocuments,
                                   RipsSubmission validated, InvoiceFiling filing, List<PayerObjection> objections,
@@ -58,9 +64,10 @@ record InvoiceStateMessage(UUID eventId, String type, Instant occurredAt, String
                 invoice.user().patientUuid(),
                 new BuyerPart(buyer.kind().name(), buyer.reference(),
                         buyer.kind() == Buyer.Kind.PAYER ? buyer.documentNumber() : null),
-                invoice.contractUuid(), invoice.contractNumber(),
+                invoice.contractUuid(), invoice.contractNumber(), uncontractedCareOf(invoice),
                 invoice.sharedPaymentKind() == null ? null : invoice.sharedPaymentKind().name(), invoice.grossTotal(),
-                invoice.patientShare(), invoice.payableTotal(), invoice.creditedTotal(),
+                invoice.patientShare(), invoice.shareShortfall().signum() > 0 ? invoice.shareShortfall() : null,
+                invoice.payableTotal(), invoice.creditedTotal(),
                 Money.of(invoice.payableTotal().subtract(invoice.creditedTotal())),
                 document == null || document.signedAt() == null ? null : new DianPart(document.signedAt(),
                         document.dianStatus() == null ? null : document.dianStatus().name(), document.dianStatusAt()),
