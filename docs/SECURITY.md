@@ -1,7 +1,7 @@
 # Seguridad — Clínica
 
 **Stack:** Spring Authorization Server · JWT ES256 firmado en OpenBao transit · Gateway BFF con Redis ·
-`clinica-commons-security` 2.11.0
+`clinica-commons-security` 2.11.1
 
 ---
 

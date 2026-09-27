@@ -176,8 +176,8 @@ nunca van en el JSON ni en variables de entorno. Cada conector MySQL necesita un
 |---|---|---|
 | `clinica-commons-web` | 1.1.0 | `DomainException` + `ErrorCategory`, manejador RFC 9457 con `code` y `traceId`, ETag e `If-Match` |
 | `clinica-commons-openbao` | 1.3.0 | cliente del motor transit de OpenBao (cifrar, descifrar, firmar, versiones y claves públicas); `OpenBaoTestContainer` en su jar de pruebas |
-| `clinica-commons-security` | 2.11.0 | resource server de los tokens ES256, catálogo `StaffRole` → `StaffPermission`, revocación desde `auth.users.v1`, step-up, intercambio de tokens para Feign, `AuditorAware`, 401/403 en RFC 9457; `SecurityTestTokens` en su jar de pruebas |
-| `clinica-commons-documents` | 1.1.0 | PDF sellados con transit y verificables por un código impreso (comprobantes, copias, representaciones gráficas) |
+| `clinica-commons-security` | 2.11.1 | resource server de los tokens ES256, catálogo `StaffRole` → `StaffPermission`, revocación desde `auth.users.v1`, step-up, intercambio de tokens para Feign, `AuditorAware`, 401/403 en RFC 9457; `SecurityTestTokens` en su jar de pruebas |
+| `clinica-commons-documents` | 1.1.1 | PDF sellados con transit y verificables por un código impreso (comprobantes, copias, representaciones gráficas) |
 
 Son dependencias de compilación con versión fija, no servicios: una versión nueva solo afecta a los
 servicios que la adopten. Se compilan en el orden web → openbao → security → documents, y el `pom.xml`
