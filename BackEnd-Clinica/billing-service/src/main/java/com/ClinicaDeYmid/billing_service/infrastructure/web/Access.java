@@ -7,6 +7,9 @@ final class Access {
     static final String SELL = "hasAuthority('billing:sell')";
     static final String PRICE_MANUALLY = "hasAuthority('billing:price-manually')";
     static final String INVOICE = "hasAuthority('billing:invoice')";
+    static final String VOID = "hasAuthority('billing:void')";
+    static final String FILE = "hasAuthority('billing:file')";
+    static final String GLOSSES = "hasAuthority('billing:glosses')";
     static final String COLLECT = "hasAuthority('billing:collect')";
     static final String MANAGE_CONFIG = "hasAuthority('billing:manage-config')";
 

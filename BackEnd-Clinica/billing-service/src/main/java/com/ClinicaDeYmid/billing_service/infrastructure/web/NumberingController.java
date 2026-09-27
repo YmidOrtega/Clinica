@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,10 +33,13 @@ class NumberingController {
 
     private final NumberingCommands commands;
     private final NumberingQueries queries;
+    private final RecentAuthentication recentAuthentication;
 
-    NumberingController(NumberingCommands commands, NumberingQueries queries) {
+    NumberingController(NumberingCommands commands, NumberingQueries queries,
+                        RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
+        this.recentAuthentication = recentAuthentication;
     }
 
     @PostMapping
@@ -69,6 +73,7 @@ class NumberingController {
             description = "Solo puede haber una activa; la que estaba activa queda retirada")
     ResponseEntity<ResolutionView> activate(@PathVariable UUID uuid,
                                             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        recentAuthentication.require();
         commands.activate(uuid, EntityTags.requiredVersion(ifMatch));
         return tagged(uuid);
     }
@@ -79,6 +84,7 @@ class NumberingController {
     ResponseEntity<ResolutionView> retire(@PathVariable UUID uuid,
                                           @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                           @Valid @RequestBody NumberingRequests.Reason request) {
+        recentAuthentication.require();
         commands.retire(uuid, EntityTags.requiredVersion(ifMatch), request.reason());
         return tagged(uuid);
     }

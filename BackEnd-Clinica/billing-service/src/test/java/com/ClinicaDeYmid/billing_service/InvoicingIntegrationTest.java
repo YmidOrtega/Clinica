@@ -42,11 +42,11 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
 
     protected void anActiveResolution(String prefix) throws Exception {
         forgetTheBillingSetup();
-        as("BILLING", post(BillingSetup.ISSUER), BillingSetup.configuration()).andExpect(status().isCreated());
-        String body = as("BILLING", post(BillingSetup.RESOLUTIONS),
+        as("ADMIN", post(BillingSetup.ISSUER), BillingSetup.configuration()).andExpect(status().isCreated());
+        String body = as("ADMIN", post(BillingSetup.RESOLUTIONS),
                 BillingSetup.resolution("18760000001", prefix, 990000000, 995000000))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        change("BILLING", post(BillingSetup.RESOLUTIONS + "/" + JsonPath.read(body, "$.uuid") + "/activation"), 0, null)
+        change("ADMIN", post(BillingSetup.RESOLUTIONS + "/" + JsonPath.read(body, "$.uuid") + "/activation"), 0, null)
                 .andExpect(status().isOk());
     }
 

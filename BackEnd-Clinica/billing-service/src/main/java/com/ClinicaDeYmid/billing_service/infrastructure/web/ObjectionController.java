@@ -23,7 +23,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,6 +49,8 @@ class ObjectionController {
 
     static final String OBJECTIONS = "/api/v1/billing/objections";
 
+    private static final String VOID_AUTHORITY = "billing:void";
+
     private static final Logger log = LoggerFactory.getLogger(ObjectionController.class);
 
     private final PayerObjectionService objections;
@@ -60,7 +65,7 @@ class ObjectionController {
     }
 
     @PostMapping(InvoiceController.INVOICES + "/{uuid}/objections")
-    @PreAuthorize(Access.INVOICE)
+    @PreAuthorize(Access.GLOSSES)
     @Operation(summary = "Registrar la devolución o las glosas que comunicó el pagador",
             description = "La factura debe estar radicada. Queda marcada como extemporánea si el pagador la comunicó "
                     + "después de 5 (devolución) o 20 (glosa) días hábiles desde la radicación")
@@ -88,13 +93,18 @@ class ObjectionController {
     }
 
     @PostMapping(OBJECTIONS + "/{uuid}/response")
-    @PreAuthorize(Access.INVOICE)
+    @PreAuthorize(Access.GLOSSES)
     @Operation(summary = "Responder la devolución o la glosa con los códigos RE del manual",
             description = "Exige If-Match y un segundo factor reciente. Si se acepta algún valor emite en la misma "
-                    + "operación la nota crédito: parcial por línea para glosas, anulación para la devolución")
+                    + "operación la nota crédito (parcial por línea para glosas, anulación para la devolución) y "
+                    + "exige además billing:void")
     ResponseEntity<ObjectionView> respond(@PathVariable UUID uuid, @Valid @RequestBody Response request,
                                           @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
         long version = EntityTags.requiredVersion(ifMatch);
+        if (request.answers().stream().anyMatch(answer -> answer.acceptedAmount() != null
+                && answer.acceptedAmount().signum() > 0)) {
+            requireAuthority(VOID_AUTHORITY);
+        }
         AuthenticatedUser user = recentAuthentication.require();
         log.info("Step-up accepted to answer objection {}: {} authenticated at {}", uuid, user.uuid(),
                 user.authenticatedAt());
@@ -108,11 +118,13 @@ class ObjectionController {
     }
 
     @PostMapping(OBJECTIONS + "/{uuid}/decision")
-    @PreAuthorize(Access.INVOICE)
+    @PreAuthorize(Access.GLOSSES)
     @Operation(summary = "Registrar la decisión del pagador sobre la respuesta",
-            description = "Por causal, el valor que el pagador deja en firme; lo que queda en firme va a conciliación")
+            description = "Por causal, el valor que el pagador deja en firme; lo que queda en firme va a conciliación. "
+                    + "Exige If-Match y un segundo factor reciente")
     ResponseEntity<ObjectionView> decide(@PathVariable UUID uuid, @Valid @RequestBody Decision request,
                                          @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        recentAuthentication.require();
         objections.decide(uuid, EntityTags.requiredVersion(ifMatch), request.decidedOn(),
                 request.rulings().stream().map(ruling -> new PayerObjection.Ruling(ruling.position(),
                         ruling.upheldAmount())).toList());
@@ -127,6 +139,14 @@ class ObjectionController {
                                 @RequestParam(required = false) BusinessDeadline.State state,
                                 @RequestParam(defaultValue = "200") @Min(1) @Max(500) int limit) {
         return objections.tray(payerUuid, state, limit).stream().map(ObjectionView::from).toList();
+    }
+
+    private static void requireAuthority(String authority) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities().stream()
+                .noneMatch(granted -> authority.equals(granted.getAuthority()))) {
+            throw new AccessDeniedException("Aceptar un valor emite una nota crédito y exige " + authority);
+        }
     }
 
     private ResponseEntity<ObjectionView> tagged(UUID uuid) {

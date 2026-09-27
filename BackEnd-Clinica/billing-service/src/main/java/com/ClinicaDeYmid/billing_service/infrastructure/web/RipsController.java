@@ -44,7 +44,7 @@ class RipsController {
     }
 
     @PostMapping(InvoiceController.INVOICES + "/{uuid}/rips-validation")
-    @PreAuthorize(Access.INVOICE)
+    @PreAuthorize(Access.FILE)
     @Operation(summary = "Validar el RIPS y la factura ante el mecanismo único de validación del Ministerio",
             description = "Exige el RIPS completo y la factura aceptada por la DIAN; envía el RIPS JSON y el "
                     + "AttachedDocument y guarda el CUV o los rechazos. Si el Ministerio no responde el envío queda "
