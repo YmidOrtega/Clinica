@@ -154,7 +154,7 @@ services:
             condition: service_healthy
       environment:
          MYSQL_ROOT_PASSWORD_FILE: /run/secrets/patient-db/root-password
-         MYSQL_DATABASE: ${PATIENT_DB_NAME}
+         MYSQL_DATABASE: ${PATIENT_DB_NAME:-patient_db}
          PATIENT_DB_MIGRATOR_USER_FILE: /run/secrets/patient-db/migrator-user
          PATIENT_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/patient-db/migrator-password
          PATIENT_DB_APP_USER_FILE: /run/secrets/patient-db/app-user
@@ -182,7 +182,7 @@ services:
             condition: service_healthy
       environment:
          MYSQL_ROOT_PASSWORD_FILE: /run/secrets/clinical-db/root-password
-         MYSQL_DATABASE: ${CLINICAL_DB_NAME}
+         MYSQL_DATABASE: ${CLINICAL_DB_NAME:-clinical_db}
          CLINICAL_DB_MIGRATOR_USER_FILE: /run/secrets/clinical-db/migrator-user
          CLINICAL_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/clinical-db/migrator-password
          CLINICAL_DB_APP_USER_FILE: /run/secrets/clinical-db/app-user
@@ -610,7 +610,7 @@ services:
             condition: service_healthy
       environment:
          - SPRING_PROFILES_ACTIVE=openbao
-         - PATIENT_DB_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME}
+         - PATIENT_DB_URL=jdbc:mysql://patient-db:3306/${PATIENT_DB_NAME:-patient_db}
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
@@ -650,7 +650,7 @@ services:
             condition: service_healthy
       environment:
          - SPRING_PROFILES_ACTIVE=openbao
-         - CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/${CLINICAL_DB_NAME}
+         - CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/${CLINICAL_DB_NAME:-clinical_db}
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
