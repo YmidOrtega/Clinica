@@ -86,4 +86,19 @@ class ArchitectureTest {
             }
         };
     }
+
+    @ArchTest
+    static final ArchRule kafkaListenersJoinTheServiceConsumerGroup = com.tngtech.archunit.lang.syntax.ArchRuleDefinition
+            .methods().that().areAnnotatedWith(org.springframework.kafka.annotation.KafkaListener.class)
+            .should(new com.tngtech.archunit.lang.ArchCondition<>("consume in the consumer group of the service") {
+                @Override
+                public void check(com.tngtech.archunit.core.domain.JavaMethod method,
+                                  com.tngtech.archunit.lang.ConditionEvents events) {
+                    boolean own = !method.getAnnotationOfType(org.springframework.kafka.annotation.KafkaListener.class)
+                            .idIsGroup();
+                    events.add(new com.tngtech.archunit.lang.SimpleConditionEvent(method, own, method.getFullName()
+                            + (own ? " uses" : " would share a consumer group named after its id instead of")
+                            + " spring.kafka.consumer.group-id"));
+                }
+            });
 }
