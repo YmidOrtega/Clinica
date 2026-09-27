@@ -20,7 +20,7 @@ class PatientEventsListener {
         this.projection = projection;
     }
 
-    @KafkaListener(id = "patient-events", topics = TOPIC, autoStartup = "${clinica.clinical.patient-events.enabled:true}")
+    @KafkaListener(id = "patient-events", idIsGroup = false, topics = TOPIC, autoStartup = "${clinica.clinical.patient-events.enabled:true}")
     void onPatientEvent(ConsumerRecord<String, String> record) {
         PatientEventMapper.toReference(record.value()).ifPresentOrElse(projection::apply,
                 () -> log.debug("Ignored patient event of an unknown type at offset {}", record.offset()));
