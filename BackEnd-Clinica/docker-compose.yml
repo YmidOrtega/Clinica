@@ -203,7 +203,7 @@ services:
          retries: 10
 
    clinical-storage:
-      image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+      image: ghcr.io/ymidortega/clinica-minio:RELEASE.2025-09-07T16-13-09Z
       container_name: clinical-storage
       restart: always
       command: server /data --console-address ":9001"
@@ -225,7 +225,7 @@ services:
          retries: 10
 
    clinical-storage-init:
-      image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+      image: ghcr.io/ymidortega/clinica-minio:RELEASE.2025-09-07T16-13-09Z
       container_name: clinical-storage-init
       restart: "no"
       depends_on:

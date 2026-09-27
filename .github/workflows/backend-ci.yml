@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
   security-events: write
   actions: read
 
@@ -85,6 +86,13 @@ jobs:
           name: clinica-libraries
           path: ~/.m2/repository/com/ClinicaDeYmid
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Unit and integration tests
         working-directory: BackEnd-Clinica/${{ matrix.service }}
         run: mvn verify
@@ -136,6 +144,13 @@ jobs:
         with:
           name: clinica-libraries
           path: ~/.m2/repository/com/ClinicaDeYmid
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package the services of the stack
         run: |

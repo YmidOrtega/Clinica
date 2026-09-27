@@ -6,7 +6,7 @@ import org.testcontainers.utility.DockerImageName;
 
 public final class MinioTestContainer {
 
-    public static final DockerImageName IMAGE = DockerImageName.parse("quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z")
+    public static final DockerImageName IMAGE = DockerImageName.parse("ghcr.io/ymidortega/clinica-minio:RELEASE.2025-09-07T16-13-09Z")
             .asCompatibleSubstituteFor("minio/minio");
     public static final String ACCESS_KEY = "clinical-test";
     public static final String SECRET_KEY = "clinical-test-secret";
