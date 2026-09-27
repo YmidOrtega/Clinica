@@ -16,6 +16,10 @@ class CurrentStaff {
         this.currentUser = currentUser;
     }
 
+    String name() {
+        return currentUser.get().map(AuthenticatedUser::name).orElse("");
+    }
+
     UUID uuid() {
         return currentUser.get().map(AuthenticatedUser::uuid)
                 .orElseThrow(() -> new AccessDeniedException("El asistente atiende solo a personal de la clínica"));

@@ -36,6 +36,13 @@ final class ConversationResponses {
         }
     }
 
+    record ExchangeView(MessageView question, MessageView answer) {
+
+        static ExchangeView from(ConversationViews.Exchange exchange) {
+            return new ExchangeView(MessageView.from(exchange.question()), MessageView.from(exchange.answer()));
+        }
+    }
+
     record PageView(List<ConversationView> content, int page, int size, long totalElements) {
 
         static PageView from(ConversationViews.Page<ConversationViews.ConversationSummary> page) {

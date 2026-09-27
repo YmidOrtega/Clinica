@@ -50,6 +50,10 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  http:
+    client:
+      connect-timeout: 2s
+      read-timeout: ${AI_ASSISTANT_LLM_TIMEOUT:25s}
   ai:
     openai:
       base-url: ${AI_ASSISTANT_LLM_BASE_URL:http://localhost:1234}

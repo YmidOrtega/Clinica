@@ -29,6 +29,13 @@ public sealed abstract class AssistantException extends DomainException {
         }
     }
 
+    public static final class ModelUnavailable extends AssistantException {
+        public ModelUnavailable() {
+            super(ErrorCategory.DEPENDENCY_UNAVAILABLE, "ASSISTANT_MODEL_UNAVAILABLE",
+                    "El modelo local no respondió a tiempo; intente de nuevo en un momento");
+        }
+    }
+
     public static final class ConversationClosed extends AssistantException {
         public ConversationClosed() {
             super(ErrorCategory.RULE_VIOLATION, "CONVERSATION_CLOSED", "La conversación ya está cerrada");

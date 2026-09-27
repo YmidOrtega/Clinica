@@ -10,4 +10,7 @@ final class ConversationRequests {
 
     record Start(@NotBlank @Size(max = 120) String title) {
     }
+
+    record Question(@NotBlank @Size(max = 4000) String content) {
+    }
 }

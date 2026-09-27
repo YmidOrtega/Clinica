@@ -62,7 +62,7 @@ public class Conversation {
     @Column(name = "closed_at")
     private Instant closedAt;
 
-    @OneToMany(mappedBy = "conversation", cascade = CascadeType.PERSIST)
+    @OneToMany(mappedBy = "conversation", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @OrderBy("position")
     private List<ConversationMessage> messages = new ArrayList<>();
 

@@ -4,6 +4,7 @@ import com.ClinicaDeYmid.ai_assistant_service.service.ConversationService;
 import com.ClinicaDeYmid.ai_assistant_service.service.ConversationViews;
 import com.ClinicaDeYmid.ai_assistant_service.web.ConversationResponses.ConversationView;
 import com.ClinicaDeYmid.ai_assistant_service.web.ConversationResponses.DetailView;
+import com.ClinicaDeYmid.ai_assistant_service.web.ConversationResponses.ExchangeView;
 import com.ClinicaDeYmid.ai_assistant_service.web.ConversationResponses.PageView;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -68,6 +70,16 @@ class ConversationController {
     ResponseEntity<DetailView> get(@PathVariable UUID uuid) {
         ConversationViews.ConversationDetail detail = conversations.get(staff.uuid(), uuid);
         return ResponseEntity.ok().eTag(EntityTags.of(detail.summary().version())).body(DetailView.from(detail));
+    }
+
+    @PostMapping("/{uuid}/messages")
+    @PreAuthorize(Access.USE)
+    @Operation(summary = "Preguntarle al asistente",
+            description = "El modelo local consulta las facturas con los permisos del usuario y responde. Si no responde "
+                    + "a tiempo devuelve 503 y la pregunta no queda guardada")
+    ResponseEntity<ExchangeView> ask(@PathVariable UUID uuid, @Valid @RequestBody ConversationRequests.Question request) {
+        ConversationViews.Exchange exchange = conversations.ask(staff.uuid(), staff.name(), uuid, request.content());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ExchangeView.from(exchange));
     }
 
     @PostMapping("/{uuid}/closure")
