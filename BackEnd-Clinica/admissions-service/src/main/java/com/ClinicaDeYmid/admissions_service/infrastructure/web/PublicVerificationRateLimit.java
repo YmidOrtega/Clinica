@@ -34,7 +34,7 @@ class PublicVerificationRateLimit extends OncePerRequestFilter {
     private final int limit;
 
     PublicVerificationRateLimit(ObjectMapper json,
-                                @Value("${clinica.admissions.receipts.public-checks-per-window:20}") int limit,
+                                @Value("${clinica.admissions.receipts.public-checks-per-window:600}") int limit,
                                 @Value("${clinica.admissions.receipts.public-window:1m}") Duration window) {
         this.json = json;
         this.limit = limit;

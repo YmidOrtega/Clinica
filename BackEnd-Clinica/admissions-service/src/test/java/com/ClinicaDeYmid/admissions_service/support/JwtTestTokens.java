@@ -25,6 +25,7 @@ public final class JwtTestTokens {
     public static void register(DynamicPropertyRegistry registry) {
         SecurityTestTokens.register(registry, "admissions-service");
         registry.add("eureka.client.enabled", () -> false);
+        registry.add("clinica.admissions.receipts.public-checks-per-window", () -> 20);
         registry.add("clinica.security.client.id", () -> "");
         registry.add("clinica.admissions.patient-events.enabled", () -> false);
         registry.add("clinica.admissions.practitioner-events.enabled", () -> false);
