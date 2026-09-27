@@ -5,6 +5,8 @@ import com.ClinicaDeYmid.billing_service.application.InvoiceEvents;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
 import com.ClinicaDeYmid.billing_service.domain.CreditConcept;
+import com.ClinicaDeYmid.billing_service.domain.CreditNote;
+import com.ClinicaDeYmid.billing_service.domain.CreditNotes;
 import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceFilings;
@@ -34,19 +36,22 @@ public class PayerObjectionService {
     private final PayerObjections objections;
     private final ObjectionCatalog catalog;
     private final CreditNoteCommands creditNotes;
+    private final CreditNotes notes;
     private final ObjectionPolicy policy;
     private final InvoiceEvents events;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public PayerObjectionService(Invoices invoices, InvoiceFilings filings, PayerObjections objections,
-                                 ObjectionCatalog catalog, CreditNoteCommands creditNotes, ObjectionPolicy policy,
+                                 ObjectionCatalog catalog, CreditNoteCommands creditNotes, CreditNotes notes,
+                                 ObjectionPolicy policy,
                                  InvoiceEvents events, TransactionOperations transactions, Clock clock) {
         this.invoices = invoices;
         this.filings = filings;
         this.objections = objections;
         this.catalog = catalog;
         this.creditNotes = creditNotes;
+        this.notes = notes;
         this.policy = policy;
         this.events = events;
         this.transactions = transactions;
@@ -90,7 +95,8 @@ public class PayerObjectionService {
                         devolution ? CreditConcept.VOID : CreditConcept.PARTIAL_RETURN,
                         (devolution ? "Devolución " : "Glosa ") + objection.payerRecord() + " aceptada ("
                                 + objection.items().getFirst().responseCode() + ")",
-                        devolution ? List.of() : objection.acceptedByLine());
+                        devolution ? List.of() : objection.acceptedByLine(
+                                CreditNote.creditableByLine(invoice, notes.ofInvoice(invoice.uuid()))));
                 objection.settledBy(note.creditNote());
             }
             PayerObjection saved = objections.save(objection);

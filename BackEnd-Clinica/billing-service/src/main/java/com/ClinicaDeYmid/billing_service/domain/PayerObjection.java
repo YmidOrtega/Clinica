@@ -28,6 +28,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -105,6 +106,7 @@ public class PayerObjection {
     private static final Set<String> FULL_ACCEPTANCE = Set.of("RE9701", "RE9702");
     private static final String PARTIAL_ACCEPTANCE = "RE9801";
     private static final int MAX_ITEMS = 500;
+    private static final String AGREEMENT_FOLLOW_UP = "SA";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -238,7 +240,7 @@ public class PayerObjection {
         if (item.invoiceLinePosition() != null) {
             throw new BillingException.InvalidData("items.invoiceLinePosition", "una devolución afecta la factura completa");
         }
-        items.add(ObjectionItem.of(this, 1, null, code(item.code(), catalog), outstanding, item.detail()));
+        items.add(ObjectionItem.of(this, 1, null, code(item.code(), catalog).code(), outstanding, item.detail()));
     }
 
     private void addGlosses(Invoice invoice, List<Item> requested, Function<String, Optional<ObjectionCode>> catalog,
@@ -253,20 +255,26 @@ public class PayerObjection {
         BigDecimal total = Money.ZERO;
         int position = 1;
         for (Item item : requested) {
+            ObjectionCode code = code(item.code(), catalog);
+            BigDecimal amount = Money.positive(item.amount(), "items.amount");
+            if (item.invoiceLinePosition() == null && AGREEMENT_FOLLOW_UP.equals(code.concept())) {
+                total = total.add(amount);
+                items.add(ObjectionItem.of(this, position++, null, code.code(), amount, item.detail()));
+                continue;
+            }
             InvoiceLine line = item.invoiceLinePosition() == null ? null : lines.get(item.invoiceLinePosition());
             if (line == null) {
                 throw new BillingException.InvalidData("items.invoiceLinePosition",
-                        "cada glosa señala una línea con valor de la factura: " + item.invoiceLinePosition());
+                        "cada glosa que no sea de seguimiento de acuerdos (SA) señala una línea con valor de la factura: "
+                                + item.invoiceLinePosition());
             }
-            BigDecimal amount = Money.positive(item.amount(), "items.amount");
             BigDecimal onLine = perLine.merge(line.position(), amount, BigDecimal::add);
             if (onLine.compareTo(line.lineTotal()) > 0) {
                 throw new BillingException.InvalidData("items.amount", "la línea " + line.position()
                         + " quedaría glosada por más de lo facturado (" + Money.of(line.lineTotal()) + ")");
             }
             total = total.add(amount);
-            items.add(ObjectionItem.of(this, position++, line.position(), code(item.code(), catalog), amount,
-                    item.detail()));
+            items.add(ObjectionItem.of(this, position++, line.position(), code.code(), amount, item.detail()));
         }
         if (total.compareTo(outstanding) > 0) {
             throw new BillingException.InvalidData("items.amount",
@@ -274,14 +282,14 @@ public class PayerObjection {
         }
     }
 
-    private String code(String code, Function<String, Optional<ObjectionCode>> catalog) {
+    private ObjectionCode code(String code, Function<String, Optional<ObjectionCode>> catalog) {
         ObjectionCode found = catalog.apply(DomainRules.requiredText(code, "code", 6)).orElseThrow(() ->
                 new BillingException.InvalidData("items.code", "no existe en el manual único: " + code));
         if (found.kind() != kind.codeKind() || !found.applicable()) {
             throw new BillingException.InvalidData("items.code", code + " no es una causal de "
                     + (kind == Kind.DEVOLUTION ? "devolución" : "glosa") + " aplicable");
         }
-        return found.code();
+        return found;
     }
 
     public void respond(String record, LocalDate on, List<Answer> answers, LocalDate today) {
@@ -369,12 +377,61 @@ public class PayerObjection {
         return found;
     }
 
-    public List<CreditRequest> acceptedByLine() {
+    public List<CreditRequest> acceptedByLine(Map<Integer, BigDecimal> creditableByLine) {
         Map<Integer, BigDecimal> perLine = new LinkedHashMap<>();
-        items.stream().filter(item -> item.acceptedAmount() != null && item.acceptedAmount().signum() > 0)
-                .forEach(item -> perLine.merge(item.invoiceLinePosition(), item.acceptedAmount(), BigDecimal::add));
-        return perLine.entrySet().stream()
+        BigDecimal unlined = Money.ZERO;
+        for (ObjectionItem item : items) {
+            if (item.acceptedAmount() == null || item.acceptedAmount().signum() <= 0) {
+                continue;
+            }
+            if (item.invoiceLinePosition() == null) {
+                unlined = unlined.add(item.acceptedAmount());
+            } else {
+                perLine.merge(item.invoiceLinePosition(), item.acceptedAmount(), BigDecimal::add);
+            }
+        }
+        if (unlined.signum() > 0) {
+            prorate(unlined, creditableByLine, perLine);
+        }
+        return perLine.entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .map(entry -> new CreditRequest(entry.getKey(), null, Money.of(entry.getValue()))).toList();
+    }
+
+    private static void prorate(BigDecimal amount, Map<Integer, BigDecimal> creditableByLine,
+                                Map<Integer, BigDecimal> perLine) {
+        Map<Integer, BigDecimal> room = new LinkedHashMap<>();
+        creditableByLine.forEach((position, creditable) -> {
+            BigDecimal left = creditable.subtract(perLine.getOrDefault(position, Money.ZERO));
+            if (left.signum() > 0) {
+                room.put(position, left);
+            }
+        });
+        BigDecimal available = room.values().stream().reduce(Money.ZERO, BigDecimal::add);
+        if (amount.compareTo(available) > 0) {
+            throw new BillingException.CreditExceedsInvoice(
+                    "Lo aceptado sin línea supera lo que queda por acreditar en la factura (" + Money.of(available) + ")");
+        }
+        BigDecimal assigned = Money.ZERO;
+        Map<Integer, BigDecimal> shares = new LinkedHashMap<>();
+        for (Map.Entry<Integer, BigDecimal> entry : room.entrySet()) {
+            BigDecimal share = amount.multiply(entry.getValue()).divide(available, 2, RoundingMode.DOWN);
+            shares.put(entry.getKey(), share);
+            assigned = assigned.add(share);
+        }
+        BigDecimal cents = amount.subtract(assigned);
+        for (Map.Entry<Integer, BigDecimal> entry : room.entrySet()) {
+            if (cents.signum() <= 0) {
+                break;
+            }
+            BigDecimal extra = entry.getValue().subtract(shares.get(entry.getKey())).min(cents);
+            shares.merge(entry.getKey(), extra, BigDecimal::add);
+            cents = cents.subtract(extra);
+        }
+        shares.forEach((position, share) -> {
+            if (share.signum() > 0) {
+                perLine.merge(position, share, BigDecimal::add);
+            }
+        });
     }
 
     public boolean extemporaneous() {

@@ -80,6 +80,11 @@ Lo que comunica el pagador se registra con sus causales del manual único (Anexo
 | Devolución | 5 días hábiles | 5 días hábiles | 5 días hábiles |
 | Glosa | 20 días hábiles | 15 días hábiles | 10 días hábiles |
 
+Cada causal de glosa señala la línea glosada, salvo las de seguimiento de acuerdos (`SA`: indicadores,
+nota técnica), que afectan la factura completa y solo se limitan contra su saldo. Si se acepta valor de
+una `SA`, la nota crédito lo reparte entre las líneas en proporción a lo que a cada una le queda por
+acreditar.
+
 La respuesta usa los códigos `RE`. Aceptar un valor emite en la misma transacción la nota crédito por ese
 valor, por eso exige además `billing:void`. La decisión del pagador (`/decision`) deja en firme lo
 aceptado y lo levantado. `GET /objections/pending` es la bandeja con semáforo; si vence el plazo sin

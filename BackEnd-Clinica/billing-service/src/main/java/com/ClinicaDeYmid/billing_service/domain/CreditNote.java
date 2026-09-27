@@ -34,6 +34,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -113,6 +114,15 @@ public class CreditNote {
     private String createdBy;
 
     protected CreditNote() {
+    }
+
+    public static Map<Integer, BigDecimal> creditableByLine(Invoice invoice, List<CreditNote> previous) {
+        Map<Integer, BigDecimal> creditable = new LinkedHashMap<>();
+        invoice.lines().stream().filter(line -> line.lineTotal().signum() > 0)
+                .forEach(line -> creditable.put(line.position(), line.lineTotal()));
+        previous.forEach(note -> note.lines().forEach(line ->
+                creditable.computeIfPresent(line.invoiceLinePosition(), (position, left) -> left.subtract(line.lineTotal()))));
+        return creditable;
     }
 
     public static CreditNote issue(Invoice invoice, List<CreditNote> previous, CreditConcept concept, String reason,

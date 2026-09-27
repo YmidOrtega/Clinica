@@ -68,6 +68,25 @@ class ObjectionApiIT extends InvoicingIntegrationTest {
     }
 
     @Test
+    void anAgreementFollowUpGlossNamesNoLineAndItsAcceptedValueIsCreditedAcrossTheInvoice() throws Exception {
+        String invoice = filedInvoice("GLOS", delivery, clinical);
+
+        as("BILLING", post(objectionsOf(invoice)), gloss("GL-SA0", TODAY, "{\"code\":\"TA0201\",\"amount\":2500}"))
+                .andExpect(status().isBadRequest());
+        String objection = JsonPath.read(as("BILLING", post(objectionsOf(invoice)), gloss("GL-SA1", TODAY,
+                        "{\"code\":\"SA5601\",\"amount\":2500,\"detail\":\"Metas de calidad incumplidas\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.items[0].invoiceLinePosition").doesNotExist())
+                .andReturn().getResponse().getContentAsString(), "$.uuid");
+
+        change("BILLING", post(OBJECTIONS + "/" + objection + "/response"), 0, response("RE9801", 2000))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.acceptedAmount").value(2000))
+                .andExpect(jsonPath("$.creditNoteNumber").exists());
+        as("BILLING", get(INVOICES + "/" + invoice)).andExpect(jsonPath("$.creditedTotal").value(2000));
+    }
+
+    @Test
     void anAcceptedDevolutionVoidsTheInvoiceAndHappensOnlyOnce() throws Exception {
         String invoice = filedInvoice("GLOB", delivery, clinical);
 
