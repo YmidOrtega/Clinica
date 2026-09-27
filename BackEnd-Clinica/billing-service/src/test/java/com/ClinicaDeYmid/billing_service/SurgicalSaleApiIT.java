@@ -203,7 +203,9 @@ class SurgicalSaleApiIT extends IntegrationTest {
         practitioner(SURGEON, "Ana María Cirujana", true);
         practitioner(ANESTHESIOLOGIST, "Luis Anestesiólogo", true);
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
-                urlPathEqualTo("/api/v1/practitioners/" + SURGEON + "/fee-agreements/in-force")).willReturn(okJson("""
+                urlPathEqualTo("/api/v1/practitioners/" + SURGEON + "/fee-agreements/in-force"))
+                .withQueryParam("on", com.github.tomakehurst.wiremock.client.WireMock.matching("\\d{4}-\\d{2}-\\d{2}"))
+                .willReturn(okJson("""
                 {"uuid":"%s","basis":"PER_PROCEDURE","procedures":[{"serviceCode":"514201","amount":900000.00}]}"""
                 .formatted(UUID.randomUUID()))));
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
