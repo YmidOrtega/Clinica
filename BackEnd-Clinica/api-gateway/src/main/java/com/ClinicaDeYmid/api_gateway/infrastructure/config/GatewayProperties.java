@@ -29,6 +29,7 @@ public record GatewayProperties(Frontend frontend, @DefaultValue Session session
     }
 
     public record Routes(String authService, String patientService, String clinicalHistoryService,
-                         String contractingService, String practitionersService, String admissionsService) {
+                         String contractingService, String practitionersService, String admissionsService,
+                         String billingService) {
     }
 }

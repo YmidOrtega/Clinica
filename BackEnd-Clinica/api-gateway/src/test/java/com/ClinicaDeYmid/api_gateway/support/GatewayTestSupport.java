@@ -62,6 +62,7 @@ public final class GatewayTestSupport {
         registry.add("clinica.gateway.routes.patient-service", SERVICES::baseUrl);
         registry.add("clinica.gateway.routes.clinical-history-service", SERVICES::baseUrl);
         registry.add("clinica.gateway.routes.admissions-service", SERVICES::baseUrl);
+        registry.add("clinica.gateway.routes.billing-service", SERVICES::baseUrl);
     }
 
     public static void publishSigningKey() {

@@ -100,4 +100,20 @@ class RateLimitIT {
         assertThat(limited.json().get("code").asText()).isEqualTo("TOO_MANY_REQUESTS");
         assertThat(browser.get("/bff/session").status()).isEqualTo(200);
     }
+
+    @Test
+    void theBillingPublicDoorSharesTheSameLimitPerClient() {
+        Browser browser = new Browser(port);
+        GatewayTestSupport.SERVICES.stubFor(get("/api/v1/billing/seal-keys").willReturn(okJson("{}")));
+        GatewayTestSupport.SERVICES.stubFor(post("/api/v1/billing/graphic-representations/verification")
+                .willReturn(okJson("{\"authentic\": false}")));
+
+        assertThat(browser.get("/api/v1/billing/seal-keys").status()).isEqualTo(200);
+        assertThat(browser.send("POST", "/api/v1/billing/graphic-representations/verification",
+                "{\"number\":\"SETP1\",\"sha256\":\"" + "b".repeat(64) + "\"}", "Content-Type", "application/json")
+                .status()).isEqualTo(200);
+        Browser.Response limited = browser.get("/api/v1/billing/seal-keys");
+
+        assertThat(limited.status()).isEqualTo(429);
+    }
 }

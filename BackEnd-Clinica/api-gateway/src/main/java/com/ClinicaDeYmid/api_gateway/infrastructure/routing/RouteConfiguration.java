@@ -50,7 +50,9 @@ class RouteConfiguration {
                         .or(path("/api/v1/specialties/**")).or(path("/api/v1/specialties"))
                         .or(path("/api/v1/sub-specialties/**")), properties.routes().practitionersService(), headers, tokens))
                 .and(staffRoute("admissions-service", path("/api/v1/admissions/**"),
-                        properties.routes().admissionsService(), headers, tokens));
+                        properties.routes().admissionsService(), headers, tokens))
+                .and(staffRoute("billing-service", path("/api/v1/billing/**"),
+                        properties.routes().billingService(), headers, tokens));
     }
 
     @Bean
@@ -59,7 +61,9 @@ class RouteConfiguration {
         return publicRoute("admissions-public", path(PublicApiPaths.RECEIPT_VERIFICATION)
                         .or(path(PublicApiPaths.ADMISSIONS_SEAL_KEYS)), properties.routes().admissionsService(), headers)
                 .and(publicRoute("clinical-public", path(PublicApiPaths.CLINICAL_SEAL_KEYS),
-                        properties.routes().clinicalHistoryService(), headers));
+                        properties.routes().clinicalHistoryService(), headers))
+                .and(publicRoute("billing-public", path(PublicApiPaths.REPRESENTATION_VERIFICATION)
+                        .or(path(PublicApiPaths.BILLING_SEAL_KEYS)), properties.routes().billingService(), headers));
     }
 
     private static RouterFunction<ServerResponse> publicRoute(String id, RequestPredicate predicate, String target,

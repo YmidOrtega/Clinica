@@ -90,6 +90,26 @@ cierra además la sesión de `auth-service` y vuelve a la página de inicio del 
 | `/api/v1/users/**`, `/api/v1/me/**` | `auth-service` | `Authorization: Bearer <access token>` |
 | `/api/v1/patients/**`, `/api/v1/unidentified-patients/**` | `patient-service` | ídem |
 | `/api/v1/clinical/**` | `clinical-history-service` | ídem |
+| `/api/v1/payers/**`, `/api/v1/contracts/**`, `/api/v1/portfolio-items/**`, `/api/v1/tariff-manuals/**`, `/api/v1/price-quotes`, `/api/v1/funding-agreements/**`, `/api/v1/capitated-members/**` | `contracting-service` | ídem |
+| `/api/v1/practitioners/**`, `/api/v1/specialties/**`, `/api/v1/sub-specialties/**` | `practitioners-service` | ídem |
+| `/api/v1/admissions/**` | `admissions-service` | ídem |
+| `/api/v1/billing/**` | `billing-service` | ídem |
+
+### Rutas sin sesión
+
+Verificar un documento sellado no exige iniciar sesión: el QR impreso lo abre cualquiera. Estas rutas no
+llevan credenciales hacia el servicio (el gateway quita `Cookie` y `Authorization`), no piden token CSRF y
+tienen su propio límite por IP del cliente, más estricto que el general:
+
+| Ruta | Destino |
+|---|---|
+| `POST /api/v1/admissions/receipts/verification`, `GET /api/v1/admissions/seal-keys` | `admissions-service` |
+| `GET /api/v1/clinical/seal-keys` | `clinical-history-service` |
+| `POST /api/v1/billing/graphic-representations/verification`, `GET /api/v1/billing/seal-keys` | `billing-service` |
+
+Como el gateway no reenvía la IP del navegador, los servicios ven todas estas llamadas llegar desde el
+gateway: el límite por cliente es el del gateway (`clinica.gateway.rate-limit.per-public-address`, 60 por
+minuto) y el de cada servicio es solo un tope global de protección (600 por minuto por defecto).
 
 Hacia los servicios el gateway quita `Cookie`, las cabeceras CSRF y cualquier `Authorization` o
 `X-Forwarded-*` que envíe el navegador. Los servicios aún no migrados no tienen ruta.
@@ -107,8 +127,8 @@ Hacia los servicios el gateway quita `Cookie`, las cabeceras CSRF y cualquier `A
 - **Fallos:** si `auth-service` no responde al renovar, el gateway sigue usando el token vigente mientras
   no venza y después responde `503 AUTH_UNAVAILABLE` sin cerrar la sesión. Si rechaza el refresh token,
   cierra la sesión (`401 SESSION_EXPIRED`).
-- **Rate limit:** ventana fija en Redis por dirección IP (1000 por minuto, antes de autenticar) y por
-  usuario (300 por minuto). Si Redis no responde, deja pasar y lo registra. Cabeceras `RateLimit-Limit`,
+- **Rate limit:** ventana fija en Redis por dirección IP (1000 por minuto, antes de autenticar), por
+  usuario (300 por minuto) y por IP en las rutas sin sesión (60 por minuto). Si Redis no responde, deja pasar y lo registra. Cabeceras `RateLimit-Limit`,
   `RateLimit-Remaining` y `RateLimit-Reset`.
 - **Cookies entre orígenes:** con `SameSite=Lax` la cookie viaja mientras frontend y gateway compartan
   sitio (`localhost` en desarrollo, subdominios del mismo dominio en producción). Con dominios

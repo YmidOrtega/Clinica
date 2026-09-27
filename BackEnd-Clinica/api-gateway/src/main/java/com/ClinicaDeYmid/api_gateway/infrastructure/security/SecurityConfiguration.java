@@ -47,13 +47,15 @@ class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfiguration(properties)))
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(new HttpSessionCsrfTokenRepository())
-                        .ignoringRequestMatchers("/auth/**", PublicApiPaths.RECEIPT_VERIFICATION))
+                        .ignoringRequestMatchers("/auth/**", PublicApiPaths.RECEIPT_VERIFICATION,
+                                PublicApiPaths.REPRESENTATION_VERIFICATION))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/bff/session", "/bff/login", "/bff/step-up", "/auth/**", "/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, PublicApiPaths.RECEIPT_VERIFICATION).permitAll()
+                        .requestMatchers(HttpMethod.POST, PublicApiPaths.RECEIPT_VERIFICATION,
+                                PublicApiPaths.REPRESENTATION_VERIFICATION).permitAll()
                         .requestMatchers(HttpMethod.GET, PublicApiPaths.ADMISSIONS_SEAL_KEYS,
-                                PublicApiPaths.CLINICAL_SEAL_KEYS).permitAll()
+                                PublicApiPaths.CLINICAL_SEAL_KEYS, PublicApiPaths.BILLING_SEAL_KEYS).permitAll()
                         .anyRequest().authenticated())
                 .oauth2Login(oauthLogin::customize)
                 .requestCache(cache -> cache.requestCache(new NullRequestCache()))
