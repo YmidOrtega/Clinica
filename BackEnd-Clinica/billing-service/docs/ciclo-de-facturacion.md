@@ -31,6 +31,14 @@ El borrador (`POST /invoices`) agrupa lo confirmado de una unidad facturable y c
 paciente. Emitirlo (`/issuance`) toma el siguiente consecutivo de la resolución activa bajo un bloqueo de
 fila: dos emisiones simultáneas nunca repiten número ni dejan huecos, y la prueba de carga lo comprueba.
 
+Sin contrato con el pagador, el borrador se factura al paciente como particular, salvo que facturación
+indique en `uncontracted` uno de los casos del DT2 en que el pagador responde sin contrato (urgencias;
+ADRES, SOAT o planes voluntarios; tutela; portabilidad; excepcional; recuperación de órganos), la cobertura
+y una justificación. Esa factura va al pagador por evento, sin CUCON y con `FACTURA_SIN_CONTRATO`, y pide
+segundo factor reciente. `GET /accounts/{n}/summary` trae `uncontractedProposal` cuando el episodio tiene
+pagador y no contrato: urgencias si el episodio lo es y la cobertura UPC del régimen del paciente. La
+póliza (`policyNumber`) es obligatoria con coberturas SOAT o de planes voluntarios y no se admite en las demás.
+
 Lo que paga el paciente se le factura al recaudarlo (`POST /shared-payments`): copago, cuota moderadora o
 pago compartido de plan voluntario, los tres conceptos de recaudo que admite el DT2 de la Resolución 948
 de 2026. La factura al pagador lo descuenta como `PrepaidPayment`. La cuota de recuperación no se recauda:

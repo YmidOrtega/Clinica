@@ -1,11 +1,14 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.web;
 
 import com.ClinicaDeYmid.billing_service.application.AccountSummaries;
+import com.ClinicaDeYmid.billing_service.application.UncontractedProposals;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.Copayment;
+import com.ClinicaDeYmid.billing_service.domain.CoveragePlan;
 import com.ClinicaDeYmid.billing_service.domain.PackageCharge;
 import com.ClinicaDeYmid.billing_service.domain.PatientShareAdjustment;
 import com.ClinicaDeYmid.billing_service.domain.Sale;
+import com.ClinicaDeYmid.billing_service.domain.UncontractedCare;
 import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
 import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,10 +42,13 @@ class SummaryController {
     private static final Logger log = LoggerFactory.getLogger(SummaryController.class);
 
     private final AccountSummaries summaries;
+    private final UncontractedProposals proposals;
     private final RecentAuthentication recentAuthentication;
 
-    SummaryController(AccountSummaries summaries, RecentAuthentication recentAuthentication) {
+    SummaryController(AccountSummaries summaries, UncontractedProposals proposals,
+                      RecentAuthentication recentAuthentication) {
         this.summaries = summaries;
+        this.proposals = proposals;
         this.recentAuthentication = recentAuthentication;
     }
 
@@ -51,9 +57,11 @@ class SummaryController {
     @Operation(summary = "Resumen de la cuenta por unidad facturable",
             description = "Ambulatorio: una unidad por venta confirmada. Urgencias y hospitalización: la cuenta entera, "
                     + "lista tras el egreso. Cada paquete se cobra una vez por cuenta; el copago sale de las "
-                    + "autorizaciones usadas o de una corrección auditada")
+                    + "autorizaciones usadas o de una corrección auditada. Si el episodio tiene pagador pero no "
+                    + "contrato, propone el motivo y la cobertura para facturarle sin contrato")
     SummaryView summary(@PathVariable @Pattern(regexp = "^ADM-[0-9]{4}-[0-9]{6}$") String admissionNumber) {
-        return SummaryView.from(summaries.summarize(admissionNumber));
+        AccountSummaries.Context context = summaries.context(admissionNumber);
+        return SummaryView.from(context.summary(), proposals.of(context).map(ProposalView::from).orElse(null));
     }
 
     @PostMapping(AccountController.BASE_PATH + "/{admissionNumber}/patient-share-adjustments")
@@ -104,13 +112,23 @@ class SummaryController {
         }
     }
 
-    record SummaryView(String admissionNumber, String accountStatus, List<UnitView> units, BigDecimal total,
-                       BigDecimal patientShare, BigDecimal payerShare) {
+    record ProposalView(UUID payerUuid, UncontractedCare reason, String reasonCode, CoveragePlan coverage,
+                        String coverageCode) {
 
-        static SummaryView from(AccountSummary summary) {
+        static ProposalView from(UncontractedProposals.Proposal proposal) {
+            return new ProposalView(proposal.payerUuid(), proposal.reason(),
+                    proposal.reason() == null ? null : proposal.reason().sisproCode(), proposal.coverage(),
+                    proposal.coverage() == null ? null : proposal.coverage().sisproCode());
+        }
+    }
+
+    record SummaryView(String admissionNumber, String accountStatus, List<UnitView> units, BigDecimal total,
+                       BigDecimal patientShare, BigDecimal payerShare, ProposalView uncontractedProposal) {
+
+        static SummaryView from(AccountSummary summary, ProposalView proposal) {
             return new SummaryView(summary.account().admissionNumber(), summary.account().status().code().name(),
                     summary.units().stream().map(UnitView::from).toList(), summary.total(), summary.patientShare(),
-                    summary.payerShare());
+                    summary.payerShare(), proposal);
         }
     }
 }

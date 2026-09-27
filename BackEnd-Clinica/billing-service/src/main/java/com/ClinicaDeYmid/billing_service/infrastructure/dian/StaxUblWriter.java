@@ -429,7 +429,7 @@ class StaxUblWriter implements UblWriter {
         information(xml, "COBERTURA_PLAN_BENEFICIOS", terms.coverage().label(), "salud_cobertura.gc",
                 terms.coverage().sisproCode());
         information(xml, "NUMERO_CONTRATO", terms.cucon() == null ? "" : terms.cucon());
-        information(xml, "NUMERO_POLIZA", "");
+        information(xml, "NUMERO_POLIZA", terms.policyNumber() == null ? "" : terms.policyNumber());
         if (terms.uncontracted() != null) {
             information(xml, "FACTURA_SIN_CONTRATO", terms.uncontracted().label(), "salud_cobertura.gc",
                     terms.uncontracted().sisproCode());

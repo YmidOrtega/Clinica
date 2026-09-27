@@ -41,4 +41,8 @@ public enum CoveragePlan {
     public String label() {
         return label;
     }
+
+    public boolean requiresPolicy() {
+        return this == SOAT_POLICY || this == COMPLEMENTARY_PLAN || this == PREPAID_MEDICINE || this == HEALTH_POLICY;
+    }
 }

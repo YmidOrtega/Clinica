@@ -305,6 +305,88 @@ class InvoiceApiIT extends InvoicingIntegrationTest {
     }
 
     @Test
+    void aPayerWithoutAContractIsInvoicedWithTheReasonAndASecondFactor() throws Exception {
+        anActiveResolution("SSCT");
+        Episode episode = outpatient(NO_CONTRACT);
+        String sale = manuallyPricedSale(episode);
+
+        as("BILLING", get("/api/v1/billing/accounts/" + episode.number() + "/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.uncontractedProposal.payerUuid").value(PAYER))
+                .andExpect(jsonPath("$.uncontractedProposal.reason").doesNotExist())
+                .andExpect(jsonPath("$.uncontractedProposal.coverage").value("UPC_CONTRIBUTORY"))
+                .andExpect(jsonPath("$.uncontractedProposal.coverageCode").value("16"));
+
+        changeWithToken(JwtTestTokens.bearerWithoutSecondFactor("BILLING"), post(INVOICES), 0,
+                uncontracted(episode, sale, "EXCEPTIONAL", "UPC_CONTRIBUTORY", null))
+                .andExpect(status().isUnauthorized());
+        as("BILLING", post(INVOICES), uncontracted(episode, sale, "EXCEPTIONAL", "UPC_CONTRIBUTORY", "POL-1"))
+                .andExpect(status().isBadRequest());
+        as("BILLING", post(INVOICES), uncontracted(episode, sale, "ADRES_SOAT_OR_VOLUNTARY_PLAN", "SOAT_POLICY", null))
+                .andExpect(status().isBadRequest());
+        as("BILLING", post(INVOICES), uncontracted(episode, sale, "PRIVATE_PATIENT", "UPC_CONTRIBUTORY", null))
+                .andExpect(status().isBadRequest());
+
+        String invoice = JsonPath.read(as("BILLING", post(INVOICES),
+                        uncontracted(episode, sale, "EXCEPTIONAL", "UPC_CONTRIBUTORY", null))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.buyer.kind").value("PAYER"))
+                .andExpect(jsonPath("$.buyer.name").value("Nueva EPS S.A."))
+                .andExpect(jsonPath("$.health.uncontracted").value("EXCEPTIONAL"))
+                .andExpect(jsonPath("$.health.uncontractedCode").value("05"))
+                .andExpect(jsonPath("$.health.uncontractedJustification").value("Autorización telefónica AUT-TEL-9"))
+                .andExpect(jsonPath("$.health.cucon").doesNotExist())
+                .andExpect(jsonPath("$.expectedShare").value(0))
+                .andExpect(jsonPath("$.payableTotal").value(45000.00))
+                .andReturn().getResponse().getContentAsString(), "$.uuid");
+        change("BILLING", post(INVOICES + "/" + invoice + "/issuance"), 0, null).andExpect(status().isOk());
+
+        assertThat(as("BILLING", get(INVOICES + "/" + invoice + "/ubl")).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                .contains("<Name>COBERTURA_PLAN_BENEFICIOS</Name><Value schemeID=\"16\" schemeName=\"salud_cobertura.gc\">",
+                        "<Name>NUMERO_CONTRATO</Name><Value/>",
+                        "<Name>NUMERO_POLIZA</Name><Value/>",
+                        "<Name>FACTURA_SIN_CONTRATO</Name><Value schemeID=\"05\" schemeName=\"salud_cobertura.gc\">");
+    }
+
+    @Test
+    void anEmergencyWithoutAContractProposesTheEmergencyReasonAndACoveredEpisodeRefusesIt() throws Exception {
+        Episode emergency = episode(AdmissionKind.EMERGENCY, NO_CONTRACT);
+        as("BILLING", get("/api/v1/billing/accounts/" + emergency.number() + "/summary"))
+                .andExpect(jsonPath("$.uncontractedProposal.reason").value("EMERGENCY"))
+                .andExpect(jsonPath("$.uncontractedProposal.reasonCode").value("01"));
+
+        Episode covered = outpatient("COVERED");
+        String sale = confirmedSale(covered);
+        as("BILLING", get("/api/v1/billing/accounts/" + covered.number() + "/summary"))
+                .andExpect(jsonPath("$.uncontractedProposal").doesNotExist());
+        as("BILLING", post(INVOICES), uncontracted(covered, sale, "EMERGENCY", "UPC_CONTRIBUTORY", null))
+                .andExpect(status().isBadRequest());
+    }
+
+    private String manuallyPricedSale(Episode episode) throws Exception {
+        String opened = as("BILLING", post(SALES), "{\"admissionNumber\":\"" + episode.number()
+                + "\",\"type\":\"NON_SURGICAL\",\"preloadAuthorized\":false}")
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String sale = JsonPath.read(opened, "$.uuid");
+        String line = JsonPath.read(change("BILLING", post(SALES + "/" + sale + "/lines"), 0,
+                "{\"portfolioItemUuid\":\"" + CONSULTATION + "\",\"quantity\":1}").andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(), "$.lines[0].uuid");
+        change("BILLING", post(SALES + "/" + sale + "/lines/" + line + "/manual-price"), 1,
+                "{\"unitPrice\":45000,\"reason\":\"Tarifa SOAT pleno de la clínica\"}").andExpect(status().isOk());
+        change("BILLING", post(SALES + "/" + sale + "/confirmation"), 2, null).andExpect(status().isOk());
+        return sale;
+    }
+
+    private static String uncontracted(Episode episode, String sale, String reason, String coverage, String policy) {
+        return """
+                {"admissionNumber":"%s","saleUuid":"%s",%s
+                 "uncontracted":{"reason":"%s","coverage":"%s","justification":"Autorización telefónica AUT-TEL-9"}}"""
+                .formatted(episode.number(), sale, policy == null ? "" : "\"policyNumber\":\"" + policy + "\",",
+                        reason, coverage);
+    }
+
+    @Test
     void aPayerIsNotInvoicedUnderAContractWithoutItsSiifaRegistration() throws Exception {
         Episode episode = outpatient("COVERED");
         String sale = confirmedSale(episode);

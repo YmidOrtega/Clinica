@@ -139,6 +139,12 @@ public class Invoice {
     @Column(name = "uncontracted_care", updatable = false, length = 40)
     private UncontractedCare uncontractedCare;
 
+    @Column(name = "uncontracted_justification", updatable = false, length = 500)
+    private String uncontractedJustification;
+
+    @Column(name = "policy_number", updatable = false, length = 30)
+    private String policyNumber;
+
     @Column(name = "period_start")
     private LocalDate periodStart;
 
@@ -247,6 +253,11 @@ public class Invoice {
 
     public static Invoice draft(AccountSummary.Unit unit, EpisodeAccount account, Buyer buyer, HealthUser user,
                                 HealthTerms terms, List<Invoice> shared) {
+        return draft(unit, account, buyer, user, terms, shared, null);
+    }
+
+    public static Invoice draft(AccountSummary.Unit unit, EpisodeAccount account, Buyer buyer, HealthUser user,
+                                HealthTerms terms, List<Invoice> shared, String uncontractedJustification) {
         DomainRules.required(unit, "unit");
         if (!unit.ready()) {
             throw new BillingException.NotABillableUnit(unit.notReadyReason());
@@ -282,12 +293,25 @@ public class Invoice {
         invoice.coveragePlan = terms.coverage();
         invoice.cucon = terms.cucon();
         invoice.uncontractedCare = terms.uncontracted();
+        invoice.policyNumber = terms.policyNumber();
+        if (terms.billedWithoutContract() != (buyer.kind() == Buyer.Kind.PAYER && invoice.contractUuid == null)) {
+            throw new BillingException.InvalidData("uncontracted", terms.billedWithoutContract()
+                    ? "solo aplica a una unidad sin contrato facturada al pagador"
+                    : "es obligatorio para facturar al pagador una unidad sin contrato");
+        }
+        if (terms.billedWithoutContract()) {
+            invoice.uncontractedJustification = DomainRules.requiredText(uncontractedJustification,
+                    "uncontracted.justification", 500);
+        } else if (uncontractedJustification != null) {
+            throw new BillingException.InvalidData("uncontracted.justification",
+                    "solo se registra al facturar al pagador sin contrato");
+        }
         invoice.grossTotal = unit.total();
         if (buyer.kind() == Buyer.Kind.PATIENT) {
             invoice.patientShare = Money.ZERO;
             invoice.payableTotal = unit.total();
         } else {
-            invoice.expectedShare = unit.patientShare();
+            invoice.expectedShare = expectedShareOf(unit, terms);
             invoice.deduct(shared);
         }
         invoice.patientShareSource = unit.shareSource();
@@ -383,7 +407,12 @@ public class Invoice {
 
     public boolean stillMatches(AccountSummary.Unit unit) {
         return keyOf(account, unit).equals(unitKey) && unit.total().compareTo(grossTotal) == 0
-                && (buyerKind == Buyer.Kind.PATIENT || unit.patientShare().compareTo(expectedShare) == 0);
+                && (buyerKind == Buyer.Kind.PATIENT || expectedShareOf(unit, healthTerms()).compareTo(expectedShare) == 0);
+    }
+
+    private static BigDecimal expectedShareOf(AccountSummary.Unit unit, HealthTerms terms) {
+        return terms != null && terms.billedWithoutContract() && unit.shareSource() == AccountSummary.ShareSource.PRIVATE
+                ? Money.ZERO : unit.patientShare();
     }
 
     public void issue(IssuedNumber issued, Clock clock) {
@@ -402,7 +431,7 @@ public class Invoice {
 
     public HealthTerms healthTerms() {
         return paymentModality == null ? null
-                : new HealthTerms(paymentModality, coveragePlan, cucon, uncontractedCare);
+                : new HealthTerms(paymentModality, coveragePlan, cucon, uncontractedCare, policyNumber);
     }
 
     public LocalDate periodStart() {
@@ -519,6 +548,10 @@ public class Invoice {
 
     public BigDecimal expectedShare() {
         return expectedShare;
+    }
+
+    public String uncontractedJustification() {
+        return uncontractedJustification;
     }
 
     public List<Invoice> sharedPayments() {

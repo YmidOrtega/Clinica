@@ -7,14 +7,17 @@ import com.ClinicaDeYmid.billing_service.application.DocumentAttachment;
 import com.ClinicaDeYmid.billing_service.application.DocumentSigning;
 import com.ClinicaDeYmid.billing_service.domain.AccountSummary;
 import com.ClinicaDeYmid.billing_service.domain.Buyer;
+import com.ClinicaDeYmid.billing_service.domain.CoveragePlan;
 import com.ClinicaDeYmid.billing_service.domain.DianStatus;
 import com.ClinicaDeYmid.billing_service.domain.DianVerdict;
 import com.ClinicaDeYmid.billing_service.domain.DocumentFile;
 import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
+import com.ClinicaDeYmid.billing_service.domain.HealthTerms;
 import com.ClinicaDeYmid.billing_service.domain.HealthUser;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceLine;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceStatus;
+import com.ClinicaDeYmid.billing_service.domain.UncontractedCare;
 import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
 import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import com.ClinicaDeYmid.commons.web.EntityTags;
@@ -22,7 +25,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -75,9 +80,19 @@ class InvoiceController {
     @PreAuthorize(Access.INVOICE)
     @Operation(summary = "Preparar el borrador de factura de una unidad lista",
             description = "Ambulatorio: indica la venta. Urgencias y hospitalización: la cuenta completa tras el egreso. "
-                    + "Se factura al pagador con el copago como pago compartido; al paciente si es particular")
+                    + "Se factura al pagador con el copago como pago compartido; al paciente si es particular. "
+                    + "Facturar al pagador sin contrato exige el motivo, la cobertura, una justificación y un "
+                    + "segundo factor reciente; la póliza es obligatoria en coberturas SOAT y planes voluntarios")
     ResponseEntity<InvoiceView> draft(@Valid @RequestBody Drafting request) {
-        Invoice invoice = commands.draft(request.admissionNumber(), request.saleUuid());
+        InvoiceCommands.Uncontracted uncontracted = null;
+        if (request.uncontracted() != null) {
+            AuthenticatedUser user = recentAuthentication.require();
+            log.info("Step-up accepted to invoice {} to its payer without a contract ({}): {} authenticated at {}",
+                    request.admissionNumber(), request.uncontracted().reason(), user.uuid(), user.authenticatedAt());
+            uncontracted = request.uncontracted().toCommand();
+        }
+        Invoice invoice = commands.draft(request.admissionNumber(), request.saleUuid(), uncontracted,
+                request.policyNumber());
         Invoice drafted = queries.invoice(invoice.uuid());
         return ResponseEntity.created(URI.create(INVOICES + "/" + drafted.uuid()))
                 .eTag(EntityTags.of(drafted.version())).body(InvoiceView.from(drafted, null));
@@ -180,7 +195,16 @@ class InvoiceController {
                 .body(InvoiceView.from(invoice, queries.electronicDocument(uuid).orElse(null)));
     }
 
-    record Drafting(@NotBlank @Pattern(regexp = "^ADM-[0-9]{4}-[0-9]{6}$") String admissionNumber, UUID saleUuid) {
+    record Drafting(@NotBlank @Pattern(regexp = "^ADM-[0-9]{4}-[0-9]{6}$") String admissionNumber, UUID saleUuid,
+                    @Valid UncontractedRequest uncontracted, @Size(max = 30) String policyNumber) {
+    }
+
+    record UncontractedRequest(@NotNull UncontractedCare reason, @NotNull CoveragePlan coverage,
+                               @NotBlank @Size(max = 500) String justification) {
+
+        InvoiceCommands.Uncontracted toCommand() {
+            return new InvoiceCommands.Uncontracted(reason, coverage, justification);
+        }
     }
 
     record Reason(@NotBlank String reason) {
@@ -237,12 +261,29 @@ class InvoiceController {
         }
     }
 
+    record HealthTermsView(String paymentModality, CoveragePlan coverage, String coverageCode, String cucon,
+                           UncontractedCare uncontracted, String uncontractedCode, String uncontractedJustification,
+                           String policyNumber) {
+
+        static HealthTermsView from(Invoice invoice) {
+            HealthTerms terms = invoice.healthTerms();
+            if (terms == null) {
+                return null;
+            }
+            return new HealthTermsView(terms.modality().sisproCode(), terms.coverage(), terms.coverage().sisproCode(),
+                    terms.cucon(), terms.uncontracted(),
+                    terms.uncontracted() == null ? null : terms.uncontracted().sisproCode(),
+                    invoice.uncontractedJustification(), terms.policyNumber());
+        }
+    }
+
     record InvoiceView(UUID uuid, Invoice.Purpose purpose,
                        com.ClinicaDeYmid.billing_service.domain.SharedPaymentKind sharedPaymentKind,
                        String authorizationNumber, String number, LocalDate issuedOn, String issuedTime, String cufe, String qrContent,
                        Instant signedAt, DianView dian, UUID resolutionUuid, StatusView status,
                        String admissionNumber, AccountSummary.UnitKind unitKind, UUID saleUuid, Buyer buyer,
-                       HealthUser user, UUID contractUuid, String contractNumber, BigDecimal grossTotal,
+                       HealthUser user, UUID contractUuid, String contractNumber, HealthTermsView health,
+                       BigDecimal grossTotal,
                        BigDecimal patientShare, AccountSummary.ShareSource patientShareSource, BigDecimal payableTotal,
                        BigDecimal expectedShare, BigDecimal shareShortfall, List<SharedView> sharedPayments,
                        BigDecimal creditedTotal, List<LineView> lines, Instant createdAt) {
@@ -255,7 +296,7 @@ class InvoiceController {
                     invoice.resolutionUuid(),
                     StatusView.from(invoice.status()), invoice.account().admissionNumber(), invoice.unitKind(),
                     invoice.saleUuid(), invoice.buyer(), invoice.user(), invoice.contractUuid(),
-                    invoice.contractNumber(), invoice.grossTotal(), invoice.patientShare(),
+                    invoice.contractNumber(), HealthTermsView.from(invoice), invoice.grossTotal(), invoice.patientShare(),
                     invoice.patientShareSource(), invoice.payableTotal(), invoice.expectedShare(),
                     invoice.shareShortfall(), invoice.sharedPayments().stream().map(SharedView::from).toList(),
                     invoice.creditedTotal(),

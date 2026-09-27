@@ -35,6 +35,7 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
     static final String PAYER = "7f3a1c2e-9b8d-4e6f-a5b4-c3d2e1f0a9b8";
     static final String CONTRACT = "3c9d2e1f-6a5b-4c7d-8e9f-0a1b2c3d4e5f";
     static final String CUCON = "5f0e2b7c9a1d4e3f8b6a0c2d4e6f8a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f";
+    static final String NO_CONTRACT = "NO_CONTRACT";
     static final LocalDate TODAY = LocalDate.now(ZoneId.of("America/Bogota"));
 
     @Autowired
@@ -88,10 +89,14 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
     }
 
     protected Episode outpatient(String coverage) {
+        return episode(AdmissionKind.OUTPATIENT, coverage);
+    }
+
+    protected Episode episode(AdmissionKind kind, String coverage) {
         UUID admission = UUID.randomUUID();
         String number = AdmissionEvents.nextNumber();
         UUID patient = UUID.randomUUID();
-        projection.follow(new AdmissionSnapshot(admission, number, 1, patient, AdmissionKind.OUTPATIENT,
+        projection.follow(new AdmissionSnapshot(admission, number, 1, patient, kind,
                 AdmissionSnapshot.Status.ACTIVE, UUID.randomUUID(), Instant.parse("2026-09-01T13:00:00Z"), null, null));
         stubEpisode(admission, number, coverage);
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
@@ -122,10 +127,13 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
     }
 
     protected static void stubEpisode(UUID admission, String number, String coverage) {
-        String coverageJson = "NOT_COVERED".equals(coverage)
-                ? "{\"status\":\"NOT_COVERED\"}"
-                : "{\"status\":\"" + coverage + "\",\"contractUuid\":\"" + CONTRACT
-                        + "\",\"contractNumber\":\"CT-1\",\"payerUuid\":\"" + PAYER + "\"}";
+        String coverageJson = switch (coverage) {
+            case "NOT_COVERED" -> "{\"status\":\"NOT_COVERED\"}";
+            case NO_CONTRACT -> "{\"status\":\"NOT_COVERED\",\"payerUuid\":\"" + PAYER
+                    + "\",\"detail\":\"El pagador no tiene contrato vigente\"}";
+            default -> "{\"status\":\"" + coverage + "\",\"contractUuid\":\"" + CONTRACT
+                    + "\",\"contractNumber\":\"CT-1\",\"payerUuid\":\"" + PAYER + "\"}";
+        };
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(
                 urlPathEqualTo("/api/v1/contracts/" + CONTRACT)).willReturn(okJson("""
                 {"uuid":"%s","number":"CT-1","modality":"EVENT","coveragePlan":"UPC_CONTRIBUTORY",

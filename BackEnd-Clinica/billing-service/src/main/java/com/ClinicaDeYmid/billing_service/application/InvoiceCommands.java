@@ -23,6 +23,7 @@ import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.Invoices;
 import com.ClinicaDeYmid.billing_service.domain.PaymentModality;
 import com.ClinicaDeYmid.billing_service.domain.Sale;
+import com.ClinicaDeYmid.billing_service.domain.UncontractedCare;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +69,14 @@ public class InvoiceCommands {
         this.clock = clock;
     }
 
+    public record Uncontracted(UncontractedCare reason, CoveragePlan coverage, String justification) {
+    }
+
     public Invoice draft(String admissionNumber, UUID saleUuid) {
+        return draft(admissionNumber, saleUuid, null, null);
+    }
+
+    public Invoice draft(String admissionNumber, UUID saleUuid, Uncontracted uncontracted, String policyNumber) {
         AccountSummaries.Context context = summaries.context(admissionNumber);
         EpisodeDetails.Coverage coverage = requireResolved(context.episode());
         AccountSummary.Unit unit = unitOf(context.summary(), saleUuid);
@@ -78,9 +86,26 @@ public class InvoiceCommands {
                     throw new BillingException.BuyerNotIdentified("El paciente del episodio no está en el directorio");
             case PatientLookup.Unavailable ignored -> throw new BillingException.PatientsUnavailable();
         };
-        Buyer buyer = covered(coverage) ? payerOf(coverage) : patientAsBuyer(patient);
+        Buyer buyer;
+        HealthTerms terms;
+        if (uncontracted != null) {
+            if (!payerWithoutContract(coverage)) {
+                throw new BillingException.InvalidData("uncontracted",
+                        "solo aplica a un episodio con pagador y sin contrato");
+            }
+            buyer = payerOf(coverage);
+            terms = HealthTerms.uncontracted(uncontracted.reason(), uncontracted.coverage(), policyNumber);
+        } else if (covered(coverage)) {
+            buyer = payerOf(coverage);
+            terms = contractedTerms(unit, policyNumber);
+        } else {
+            if (policyNumber != null && !policyNumber.isBlank()) {
+                throw new BillingException.InvalidData("policyNumber", "solo se informa al facturar al pagador");
+            }
+            buyer = patientAsBuyer(patient);
+            terms = HealthTerms.privatePatient();
+        }
         HealthUser user = userOf(patient);
-        HealthTerms terms = buyer.kind() == Buyer.Kind.PAYER ? contractedTerms(unit) : HealthTerms.privatePatient();
         Invoice drafted;
         try {
             drafted = transactions.execute(status -> {
@@ -89,13 +114,14 @@ public class InvoiceCommands {
                 List<Invoice> shared = buyer.kind() == Buyer.Kind.PAYER
                         ? SharedPaymentAllocation.forUnit(context.summary(), unit, invoices.sharedPaymentsOf(account.uuid()))
                         : List.of();
-                return invoices.save(Invoice.draft(unit, account, buyer, user, terms, shared));
+                return invoices.save(Invoice.draft(unit, account, buyer, user, terms, shared,
+                        uncontracted == null ? null : uncontracted.justification()));
             });
         } catch (DataIntegrityViolationException taken) {
             throw new BillingException.UnitAlreadyInvoiced();
         }
-        log.info("Invoice draft {} prepared for {} ({}) to {}", drafted.uuid(), admissionNumber, unit.kind(),
-                buyer.kind());
+        log.info("Invoice draft {} prepared for {} ({}) to {}{}", drafted.uuid(), admissionNumber, unit.kind(),
+                buyer.kind(), terms.billedWithoutContract() ? " without a contract (" + terms.uncontracted() + ")" : "");
         return drafted;
     }
 
@@ -149,6 +175,10 @@ public class InvoiceCommands {
         return coverage != null && COVERED.equals(coverage.status()) && coverage.payerUuid() != null;
     }
 
+    static boolean payerWithoutContract(EpisodeDetails.Coverage coverage) {
+        return coverage != null && AccountSummaries.NOT_COVERED.equals(coverage.status()) && coverage.payerUuid() != null;
+    }
+
     private static AccountSummary.Unit unitOf(AccountSummary summary, UUID saleUuid) {
         return summary.units().stream()
                 .filter(unit -> saleUuid == null ? unit.kind() == AccountSummary.UnitKind.ACCOUNT
@@ -159,7 +189,7 @@ public class InvoiceCommands {
                         : "Esa venta no es una unidad facturable de este episodio"));
     }
 
-    private HealthTerms contractedTerms(AccountSummary.Unit unit) {
+    private HealthTerms contractedTerms(AccountSummary.Unit unit, String policyNumber) {
         UUID contractUuid = unit.sales().stream().map(Sale::settlement).flatMap(java.util.Optional::stream)
                 .map(Sale.Settlement::contractUuid).filter(java.util.Objects::nonNull).findFirst()
                 .orElseThrow(() -> new BillingException.ContractNotRegisteredForRips(
@@ -175,7 +205,8 @@ public class InvoiceCommands {
             throw new BillingException.ContractNotRegisteredForRips("El contrato " + contract.number()
                     + " no tiene registrados la cobertura y el CUCON de SIIFA");
         }
-        return HealthTerms.contracted(PaymentModality.valueOf(contract.modality()), coverage, contract.cucon());
+        return HealthTerms.contracted(PaymentModality.valueOf(contract.modality()), coverage, contract.cucon(),
+                policyNumber);
     }
 
     private Buyer payerOf(EpisodeDetails.Coverage coverage) {
