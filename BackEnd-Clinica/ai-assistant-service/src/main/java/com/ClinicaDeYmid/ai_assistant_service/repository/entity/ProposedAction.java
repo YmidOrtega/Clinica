@@ -40,8 +40,8 @@ public class ProposedAction {
     @Column(name = "version", nullable = false)
     private long version;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "conversation_id", nullable = false, updatable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversation_id", updatable = false)
     private Conversation conversation;
 
     @Column(name = "owner_uuid", nullable = false, updatable = false)
@@ -174,7 +174,7 @@ public class ProposedAction {
     }
 
     public UUID conversationUuid() {
-        return conversation.uuid();
+        return conversation == null ? null : conversation.uuid();
     }
 
     public UUID invoiceUuid() {

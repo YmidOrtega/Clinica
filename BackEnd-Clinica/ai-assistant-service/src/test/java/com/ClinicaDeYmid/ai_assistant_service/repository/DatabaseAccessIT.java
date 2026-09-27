@@ -67,6 +67,38 @@ class DatabaseAccessIT {
                 .rootCause().hasMessageContaining("chk_conversations_closed");
     }
 
+    @Test
+    void thePurgeForgetsOldConversationsButKeepsTheActionsAsAudit() {
+        UUID owner = UUID.randomUUID();
+        UUID old = conversation(owner, "now() - interval '31 days'");
+        UUID recent = conversation(owner, "now()");
+        app.update("INSERT INTO assistant.conversation_messages (uuid, conversation_id, position, role, content, created_at) "
+                + "SELECT ?, id, 1, 'USER', '¿Qué pasó con la SETP1?', now() FROM assistant.conversations WHERE uuid = ?",
+                UUID.randomUUID(), old);
+        UUID action = UUID.randomUUID();
+        app.update("INSERT INTO assistant.proposed_actions (uuid, version, conversation_id, owner_uuid, invoice_uuid, "
+                + "invoice_number, kind, reason, status, proposed_at, expires_at, decided_at, outcome) "
+                + "SELECT ?, 2, id, ?, ?, 'SETP1', 'SEND_TO_DIAN', 'Reenviar', 'DONE', now(), now() + interval '30 minutes', "
+                + "now(), 'Enviada' FROM assistant.conversations WHERE uuid = ?", action, owner, UUID.randomUUID(), old);
+
+        Integer purged = app.queryForObject("SELECT assistant.purge_conversations(now() - interval '30 days')", Integer.class);
+
+        assertThat(purged).isEqualTo(1);
+        assertThat(app.queryForObject("SELECT count(*) FROM assistant.conversations WHERE uuid IN (?, ?)", Integer.class,
+                old, recent)).isEqualTo(1);
+        assertThat(app.queryForObject("SELECT conversation_id IS NULL AND status = 'DONE' FROM assistant.proposed_actions "
+                + "WHERE uuid = ?", Boolean.class, action)).isTrue();
+        assertDenied(() -> app.update("DELETE FROM assistant.conversation_messages"));
+        assertDenied(() -> app.update("DELETE FROM assistant.proposed_actions"));
+    }
+
+    private static UUID conversation(UUID owner, String touched) {
+        UUID uuid = UUID.randomUUID();
+        app.update("INSERT INTO assistant.conversations (uuid, version, owner_uuid, title, status, created_at, updated_at) "
+                + "VALUES (?, 0, ?, 'Revisión', 'OPEN', " + touched + ", " + touched + ")", uuid, owner);
+        return uuid;
+    }
+
     private static void assertDenied(ThrowingCallable statement) {
         assertThatThrownBy(statement).rootCause().hasMessageContaining("permission denied");
     }

@@ -82,6 +82,9 @@ clinica:
     time-zone: America/Bogota
     invoice-events:
       enabled: ${AI_ASSISTANT_INVOICE_EVENTS_ENABLED:true}
+    conversations:
+      retention: ${AI_ASSISTANT_CONVERSATION_RETENTION:P30D}
+      purge-cron: ${AI_ASSISTANT_CONVERSATION_PURGE_CRON:0 30 3 * * *}
     actions:
       lifetime: ${AI_ASSISTANT_ACTION_LIFETIME:PT30M}
     review:
