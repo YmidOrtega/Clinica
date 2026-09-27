@@ -55,15 +55,16 @@ una vez, en el QR del enrolamiento. El motor rechaza un código ya usado dentro 
 importada (BYOK) y no exportable, y lee el certificado público en `secret/billing/dian/certificate`
 (campo `pem`, hoja primero y luego la cadena). `configure.sh` importa uno autofirmado solo para desarrollo.
 El identificador y el PIN del software y el set de pruebas de habilitación los entrega el portal de la
-DIAN y se cargan a mano; sin ellos no se emite ni se envía:
+DIAN. `configure.sh` siembra valores de desarrollo que solo sirven contra `dian-simulator`; en
+habilitación y producción se reemplazan a mano (sin ellos no se emite ni se envía):
 
 ```sh
 bao kv put -mount=secret billing/dian/software software-id=<uuid> software-pin=<pin> test-set-id=<uuid>
 ```
 
 El RIPS de cada factura se valida contra el mecanismo único de validación del Ministerio de Salud (API
-FEV-RIPS en Docker de la clínica) con el usuario SISPRO del facturador; sin él la validación responde que
-faltan credenciales:
+FEV-RIPS en Docker de la clínica) con el usuario SISPRO del facturador. `configure.sh` siembra uno de
+desarrollo que solo sirve contra `muv-simulator`; el real se carga a mano:
 
 ```sh
 bao kv put -mount=secret billing/ministry/credentials document-type=CC document-number=<número> password=<clave>
