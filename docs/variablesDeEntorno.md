@@ -242,7 +242,7 @@ con la API de OpenAI). No hay claves que guardar.
 ```bash
 AI_ASSISTANT_LLM_BASE_URL=http://host.docker.internal:1234
 AI_ASSISTANT_LLM_MODEL=qwen3-8b
-AI_ASSISTANT_LLM_TIMEOUT=25s
+AI_ASSISTANT_LLM_TIMEOUT=80s
 ```
 
 El resto de su configuración está en `BackEnd-Clinica/ai-assistant-service/docs/asistente-de-facturas.md`.

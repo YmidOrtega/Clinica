@@ -765,7 +765,7 @@ services:
          - AI_ASSISTANT_DB_URL=jdbc:postgresql://ai-assistant-db:5432/${AI_ASSISTANT_DB_NAME:-ai_assistant_db}?currentSchema=assistant
          - AI_ASSISTANT_LLM_BASE_URL=${AI_ASSISTANT_LLM_BASE_URL:-http://host.docker.internal:1234}
          - AI_ASSISTANT_LLM_MODEL=${AI_ASSISTANT_LLM_MODEL:-qwen3-8b}
-         - AI_ASSISTANT_LLM_TIMEOUT=${AI_ASSISTANT_LLM_TIMEOUT:-25s}
+         - AI_ASSISTANT_LLM_TIMEOUT=${AI_ASSISTANT_LLM_TIMEOUT:-80s}
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token

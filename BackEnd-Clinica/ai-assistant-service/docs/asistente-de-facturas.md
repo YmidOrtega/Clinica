@@ -91,7 +91,8 @@ El prompt ordena tratar lo que devuelven las herramientas como datos y nunca com
 de la DIAN o el detalle de una glosa los escriben terceros. Aunque el modelo se desviara, no puede escribir
 en billing: solo puede proponer.
 
-Si el modelo no responde en `AI_ASSISTANT_LLM_TIMEOUT` (25 s, por debajo de los 30 s del gateway) o falla,
+Si el modelo no responde en `AI_ASSISTANT_LLM_TIMEOUT` (80 s; la ruta del asistente en el gateway espera 90 s,
+las demás 30 s) o falla,
 la API responde `503 ASSISTANT_MODEL_UNAVAILABLE` y la pregunta no queda guardada.
 
 ## Acciones propuestas
@@ -135,7 +136,7 @@ auditoría de quién confirmó qué, sobre qué factura, con qué datos y con qu
 |---|---|---|
 | `AI_ASSISTANT_LLM_BASE_URL` | `http://localhost:1234` (`http://host.docker.internal:1234` en compose) | API compatible con OpenAI del modelo local |
 | `AI_ASSISTANT_LLM_MODEL` | `qwen3-8b` | modelo cargado en LM Studio; debe soportar tool calling |
-| `AI_ASSISTANT_LLM_TIMEOUT` | `25s` | espera máxima por respuesta del modelo |
+| `AI_ASSISTANT_LLM_TIMEOUT` | `80s` | espera máxima por respuesta del modelo |
 | `AI_ASSISTANT_REVIEW_DIAN_GRACE` / `_RIPS_GRACE` | `PT2H` / `PT24H` | cuándo se marca una factura sin respuesta DIAN o sin CUV |
 | `AI_ASSISTANT_REVIEW_SWEEP_DELAY` | `PT30M` | barrido de las reglas que dependen del tiempo |
 | `AI_ASSISTANT_ACTION_LIFETIME` | `PT30M` | vigencia de una propuesta |
