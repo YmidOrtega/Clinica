@@ -128,8 +128,11 @@ class SpecialtyApiIT {
         as("DOCTOR", post("/api/v1/specialties").content("{\"code\":\"" + nextCode() + "\",\"name\":\"Cardiología\"}"))
                 .andExpect(status().isForbidden());
 
-        as("RECEPTIONIST", get("/api/v1/specialties/" + uuid))
+        as("RECEPTIONIST", post("/api/v1/specialties").content("{\"code\":\"" + nextCode() + "\",\"name\":\"Cardiología\"}"))
                 .andExpect(status().isForbidden());
+
+        as("RECEPTIONIST", get("/api/v1/specialties/" + uuid))
+                .andExpect(status().isOk());
 
         as("DOCTOR", get("/api/v1/specialties/" + uuid))
                 .andExpect(status().isForbidden());
