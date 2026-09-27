@@ -22,6 +22,10 @@ path "secret/data/billing/db/*" {
   capabilities = ["read"]
 }
 
+path "secret/data/assistant/db/*" {
+  capabilities = ["read"]
+}
+
 path "secret/data/auth/db/*" {
   capabilities = ["read"]
 }

@@ -153,6 +153,9 @@ for service in patient clinical contracting practitioners admissions billing; do
   seed "$service/db/app" username="${service}_app" password="$(random_secret)"
   seed "$service/db/debezium" username="${service}_debezium" password="$(random_secret)"
 done
+seed assistant/db/root password="$(random_secret)"
+seed assistant/db/migrator username="ai_assistant_migrator" password="$(random_secret)"
+seed assistant/db/app username="ai_assistant_app" password="$(random_secret)"
 seed auth/db/root password="$(random_secret)"
 seed auth/db/migrator username="auth_migrator" password="$(random_secret)"
 seed auth/db/app username="auth_app" password="$(random_secret)"

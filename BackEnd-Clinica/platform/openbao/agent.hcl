@@ -429,3 +429,33 @@ template {
   destination = "/rendered/kafka-connect/billing-db-debezium-password"
   perms       = "0444"
 }
+
+template {
+  contents    = "{{ with secret \"secret/data/assistant/db/root\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/assistant-db/root-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/assistant/db/migrator\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/assistant-db/migrator-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/assistant/db/migrator\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/assistant-db/migrator-password"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/assistant/db/app\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/assistant-db/app-user"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/assistant/db/app\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/assistant-db/app-password"
+  perms       = "0444"
+}

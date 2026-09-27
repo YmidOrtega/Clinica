@@ -132,10 +132,11 @@ services:
          - practitioners_db_secrets:/rendered/practitioners-db
          - admissions_db_secrets:/rendered/admissions-db
          - billing_db_secrets:/rendered/billing-db
+         - assistant_db_secrets:/rendered/assistant-db
       networks:
          - secrets-net
       healthcheck:
-         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password kafka-connect/practitioners-db-debezium-password admissions-db/app-password kafka-connect/admissions-db-debezium-password billing-db/app-password kafka-connect/billing-db-debezium-password; do test -s /rendered/$$f || exit 1; done"]
+         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password kafka-connect/practitioners-db-debezium-password admissions-db/app-password kafka-connect/admissions-db-debezium-password billing-db/app-password kafka-connect/billing-db-debezium-password assistant-db/app-password; do test -s /rendered/$$f || exit 1; done"]
          interval: 5s
          timeout: 3s
          retries: 24
@@ -322,25 +323,28 @@ services:
       image: postgres:16
       container_name: ai-assistant-db
       restart: always
+      depends_on:
+         openbao-agent:
+            condition: service_healthy
       environment:
-         POSTGRES_DB: ${AI_ASSISTANT_DB_NAME}
-         POSTGRES_USER: ${AI_ASSISTANT_DB_USER}
-         POSTGRES_PASSWORD: ${AI_ASSISTANT_DB_PASSWORD}
-      ports:
-         - "3310:5432"
+         POSTGRES_USER: postgres
+         POSTGRES_PASSWORD_FILE: /run/secrets/assistant-db/root-password
+         POSTGRES_DB: ${AI_ASSISTANT_DB_NAME:-ai_assistant_db}
+         AI_ASSISTANT_DB_MIGRATOR_USER_FILE: /run/secrets/assistant-db/migrator-user
+         AI_ASSISTANT_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/assistant-db/migrator-password
+         AI_ASSISTANT_DB_APP_USER_FILE: /run/secrets/assistant-db/app-user
+         AI_ASSISTANT_DB_APP_PASSWORD_FILE: /run/secrets/assistant-db/app-password
       volumes:
          - ai_assistant_data:/var/lib/postgresql/data
+         - ./ai-assistant-service/docker/postgres-init:/docker-entrypoint-initdb.d:ro
+         - assistant_db_secrets:/run/secrets/assistant-db:ro
       networks:
-         - clinica-net
+         - assistant-data
       healthcheck:
-         test:
-            [
-               "CMD-SHELL",
-               "pg_isready -U ${AI_ASSISTANT_DB_USER} -d ${AI_ASSISTANT_DB_NAME}",
-            ]
+         test: ["CMD-SHELL", "pg_isready -U postgres -d $${POSTGRES_DB}"]
          interval: 10s
          timeout: 5s
-         retries: 5
+         retries: 10
 
    # Base de datos para proveedores
    auth-db:
@@ -748,42 +752,42 @@ services:
 
    ai-assistant-service:
       build: ./ai-assistant-service
-      container_name: ai-assistant-service
+      restart: unless-stopped
       depends_on:
          ai-assistant-db:
             condition: service_healthy
+         openbao-init:
+            condition: service_completed_successfully
          eureka-service:
             condition: service_healthy
-         redis-cache:
-            condition: service_healthy
       environment:
-         - SPRING_DATASOURCE_URL=jdbc:postgresql://ai-assistant-db:5432/${AI_ASSISTANT_DB_NAME}
-         - SPRING_DATASOURCE_USERNAME=${AI_ASSISTANT_DB_USER}
-         - SPRING_DATASOURCE_PASSWORD=${AI_ASSISTANT_DB_PASSWORD}
-         - SPRING_AI_GOOGLE_GENAI_API_KEY=${GEMINI_API_KEY}
-         - SPRING_DATA_REDIS_HOST=redis-cache
-         - SPRING_DATA_REDIS_PORT=6379
-         - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
-         - SPRING_DATA_REDIS_TIMEOUT=2000ms
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=8
-         - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=0
-         - JWT_SECRET=${JWT_SECRET}
-         - JWT_EXPIRATION=${JWT_EXPIRATION}
-         - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
-         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-         - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-         - SPRING_PROFILES_ACTIVE=docker
-      ports:
-         - "8084:8084"
+         - SPRING_PROFILES_ACTIVE=openbao
+         - AI_ASSISTANT_DB_URL=jdbc:postgresql://ai-assistant-db:5432/${AI_ASSISTANT_DB_NAME:-ai_assistant_db}?currentSchema=assistant
+         - AI_ASSISTANT_LLM_BASE_URL=${AI_ASSISTANT_LLM_BASE_URL:-http://host.docker.internal:1234}
+         - AI_ASSISTANT_LLM_MODEL=${AI_ASSISTANT_LLM_MODEL:-qwen3-8b}
+         - AI_ASSISTANT_LLM_TIMEOUT=${AI_ASSISTANT_LLM_TIMEOUT:-25s}
+         - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
+         - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
+         - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
+         - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_PREFER_IP_ADDRESS=false
+      extra_hosts:
+         - "host.docker.internal:host-gateway"
+      volumes:
+         - openbao_tls:/run/secrets/openbao-tls:ro
+         - openbao_approle_ai_assistant:/run/secrets/openbao/approle:ro
       networks:
          - clinica-net
+         - assistant-data
+         - kafka-net
+         - secrets-net
       healthcheck:
-         test: [ "CMD", "curl", "-f", "http://localhost:8084/actuator/health" ]
-         interval: 30s
-         timeout: 10s
+         test: [ "CMD", "curl", "-fs", "http://localhost:8084/actuator/health/readiness" ]
+         interval: 15s
+         timeout: 5s
          retries: 5
-         start_period: 90s
+         start_period: 60s
 
    auth-service:
       build: ./auth-service
@@ -1013,6 +1017,7 @@ volumes:
    billing_data:
    admissions_db_secrets:
    billing_db_secrets:
+   assistant_db_secrets:
    admissions_data:
    ai_assistant_data:
    auth_data:
@@ -1050,6 +1055,9 @@ networks:
       driver: bridge
       internal: true
    billing-data:
+      driver: bridge
+      internal: true
+   assistant-data:
       driver: bridge
       internal: true
    admissions-data:

@@ -74,6 +74,20 @@ services:
          - BILLING_DIAN_DELIVERY_DELAY=PT5S
          - BILLING_MINISTRY_VALIDATOR_URL=http://muv-simulator:8080
 
+   ai-assistant-db:
+      ports:
+         - "127.0.0.1:3310:5432"
+      networks:
+         - assistant-data
+         - debug-net
+
+   ai-assistant-service:
+      ports:
+         - "127.0.0.1:8084:8084"
+      environment:
+         - SWAGGER_UI_ENABLED=true
+         - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
+
    dian-simulator:
       image: wiremock/wiremock:3.13.1
       container_name: dian-simulator
