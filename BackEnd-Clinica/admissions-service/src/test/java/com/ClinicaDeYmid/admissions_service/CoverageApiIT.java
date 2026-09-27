@@ -138,7 +138,9 @@ class CoverageApiIT extends IntegrationTest {
     }
 
     private void activeEventContract(UUID payer, String number) {
-        StubbedServices.server().stubFor(get(urlPathEqualTo("/api/v1/contracts")).willReturn(okJson(
+        StubbedServices.server().stubFor(get(urlPathEqualTo("/api/v1/contracts"))
+                .withQueryParam("inForceOn", com.github.tomakehurst.wiremock.client.WireMock.matching("\\d{4}-\\d{2}-\\d{2}"))
+                .willReturn(okJson(
                 "[{\"uuid\":\"" + UUID.randomUUID() + "\",\"number\":\"" + number + "\",\"modality\":\"EVENT\","
                         + "\"payerUuid\":\"" + payer + "\",\"status\":{\"code\":\"ACTIVE\"}}]")));
     }
