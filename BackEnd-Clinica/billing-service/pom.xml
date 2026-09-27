@@ -18,7 +18,7 @@
 	<properties>
 		<java.version>21</java.version>
 		<clinica-commons-web.version>1.1.0</clinica-commons-web.version>
-		<clinica-commons-security.version>2.10.0</clinica-commons-security.version>
+		<clinica-commons-security.version>2.11.0</clinica-commons-security.version>
 		<clinica-commons-openbao.version>1.3.0</clinica-commons-openbao.version>
 		<xmlsec.version>4.0.4</xmlsec.version>
 		<clinica-commons-documents.version>1.1.0</clinica-commons-documents.version>
