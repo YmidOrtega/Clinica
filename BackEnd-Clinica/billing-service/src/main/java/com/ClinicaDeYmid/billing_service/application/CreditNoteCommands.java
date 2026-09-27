@@ -42,12 +42,14 @@ public class CreditNoteCommands {
     private final Issuers issuers;
     private final UblWriter ubl;
     private final DianSoftware software;
+    private final InvoiceEvents events;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public CreditNoteCommands(Invoices invoices, CreditNotes notes, CreditNoteCounters counters,
                               ElectronicDocuments documents, DocumentFiles files, Issuers issuers, UblWriter ubl,
-                              DianSoftware software, TransactionOperations transactions, Clock clock) {
+                              DianSoftware software, InvoiceEvents events, TransactionOperations transactions,
+                              Clock clock) {
         this.invoices = invoices;
         this.notes = notes;
         this.counters = counters;
@@ -57,6 +59,7 @@ public class CreditNoteCommands {
         this.ubl = ubl;
         this.software = software;
         this.transactions = transactions;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -85,6 +88,8 @@ public class CreditNoteCommands {
             ElectronicDocument document = documents.save(ElectronicDocument.ofCreditNote(saved));
             files.save(DocumentFile.of(document, DocumentFile.Kind.UBL_UNSIGNED,
                     ubl.creditNote(ElectronicCreditNote.of(saved, issuer, software))));
+            events.invoiceChanged(invoiceUuid, concept == CreditConcept.VOID ? InvoiceEvents.Change.InvoiceVoided
+                    : InvoiceEvents.Change.InvoiceCredited);
             return document;
         });
         log.info("Credit note {} ({}) issued on invoice {}", issued.number(), concept, issued.invoice().number());

@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.billing_service.application.filing;
 
+import com.ClinicaDeYmid.billing_service.application.InvoiceEvents;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
@@ -31,15 +32,18 @@ public class InvoiceFilingService {
     private final InvoiceFilings filings;
     private final RipsSubmissions submissions;
     private final FilingPolicy policy;
+    private final InvoiceEvents events;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public InvoiceFilingService(Invoices invoices, InvoiceFilings filings, RipsSubmissions submissions,
-                                FilingPolicy policy, TransactionOperations transactions, Clock clock) {
+                                FilingPolicy policy, InvoiceEvents events, TransactionOperations transactions,
+                                Clock clock) {
         this.invoices = invoices;
         this.filings = filings;
         this.submissions = submissions;
         this.policy = policy;
+        this.events = events;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -52,8 +56,10 @@ public class InvoiceFilingService {
                     throw new BillingException.AlreadyFiled();
                 }
                 RipsSubmission validated = validated(invoiceUuid);
-                return filings.save(InvoiceFiling.register(validated, filingNumber, filedOn, validatedOn(validated),
-                        LocalDate.now(clock)));
+                InvoiceFiling saved = filings.save(InvoiceFiling.register(validated, filingNumber, filedOn,
+                        validatedOn(validated), LocalDate.now(clock)));
+                events.invoiceChanged(invoiceUuid, InvoiceEvents.Change.InvoiceFiled);
+                return saved;
             });
             log.info("Invoice {} filed with the payer as {} on {}{}", filing.invoice().number(), filing.filingNumber(),
                     filing.filedOn(), filing.late() ? " after its deadline " + filing.deadline() : "");
@@ -71,7 +77,9 @@ public class InvoiceFilingService {
                 throw new EntityTags.StaleVersion();
             }
             filing.correct(filingNumber, filedOn, reason, validatedOn(validated(invoiceUuid)), LocalDate.now(clock));
-            return filings.save(filing);
+            InvoiceFiling saved = filings.save(filing);
+            events.invoiceChanged(invoiceUuid, InvoiceEvents.Change.InvoiceFilingCorrected);
+            return saved;
         });
     }
 

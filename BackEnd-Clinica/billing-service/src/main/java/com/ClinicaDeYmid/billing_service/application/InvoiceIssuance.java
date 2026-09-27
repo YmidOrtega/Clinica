@@ -32,11 +32,13 @@ public class InvoiceIssuance {
     private final DocumentFiles files;
     private final UblWriter ubl;
     private final DianSoftware software;
+    private final InvoiceEvents events;
     private final Clock clock;
 
     public InvoiceIssuance(Invoices invoices, InvoiceNumbering numbering, Issuers issuers,
                            NumberingResolutions resolutions, ElectronicDocuments documents, DocumentFiles files,
-                           UblWriter ubl, DianSoftware software, Clock clock) {
+                           UblWriter ubl, DianSoftware software, InvoiceEvents events,
+                           Clock clock) {
         this.invoices = invoices;
         this.numbering = numbering;
         this.issuers = issuers;
@@ -45,6 +47,7 @@ public class InvoiceIssuance {
         this.files = files;
         this.ubl = ubl;
         this.software = software;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -60,6 +63,7 @@ public class InvoiceIssuance {
         ElectronicDocument document = documents.save(ElectronicDocument.ofInvoice(saved));
         files.save(DocumentFile.of(document, DocumentFile.Kind.UBL_UNSIGNED,
                 ubl.invoice(ElectronicInvoice.of(saved, issuer, resolution, software))));
+        events.invoiceChanged(saved.uuid(), InvoiceEvents.Change.InvoiceIssued);
         return document;
     }
 }
