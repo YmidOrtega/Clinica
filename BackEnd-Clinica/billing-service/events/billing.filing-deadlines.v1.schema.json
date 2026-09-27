@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinica.local/events/billing.filing-deadlines.v1.schema.json",
+  "title": "billing.filing-deadlines.v1",
+  "description": "Alertas del plazo de radicación de facturas ante el pagador (22 días hábiles desde la expedición, Res. 2284 de 2023). Una por factura y estado, la primera vez que entra en él.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "type",
+    "occurredAt",
+    "invoiceUuid",
+    "invoiceNumber",
+    "admissionNumber",
+    "payerUuid",
+    "payerName",
+    "payerNit",
+    "payableTotal",
+    "issuedOn",
+    "deadline",
+    "remainingBusinessDays",
+    "state"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "FilingDeadlineApproaching",
+        "FilingDeadlineMissed"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "traceId": {
+      "type": "string"
+    },
+    "invoiceUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "invoiceNumber": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24
+    },
+    "admissionNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payerUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "payerName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payerNit": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payableTotal": {
+      "type": "number",
+      "minimum": 0
+    },
+    "issuedOn": {
+      "type": "string",
+      "format": "date"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "remainingBusinessDays": {
+      "type": "integer",
+      "description": "Días hábiles que quedan hasta el plazo; negativo cuando ya venció"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "DUE_SOON",
+        "OVERDUE"
+      ]
+    },
+    "cuv": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{96}$",
+      "description": "Código único de validación del Ministerio; ausente si el RIPS aún no se valida"
+    }
+  }
+}
