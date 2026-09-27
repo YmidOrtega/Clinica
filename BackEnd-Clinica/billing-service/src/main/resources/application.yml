@@ -116,7 +116,7 @@ clinica:
     seal:
       transit-key: ${BILLING_SEAL_TRANSIT_KEY:billing-seal}
     representations:
-      public-checks-per-window: ${BILLING_PUBLIC_CHECKS_PER_WINDOW:20}
+      public-checks-per-window: ${BILLING_PUBLIC_CHECKS_PER_WINDOW:600}
       public-window: ${BILLING_PUBLIC_CHECK_WINDOW:1m}
   security:
     jwt:
