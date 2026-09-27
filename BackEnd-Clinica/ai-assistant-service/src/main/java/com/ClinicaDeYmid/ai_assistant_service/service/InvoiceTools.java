@@ -55,7 +55,7 @@ public class InvoiceTools {
 
     @Tool(description = "Estado resumido de una factura según la copia local: DIAN, CUV, radicado, saldo y sus hallazgos.")
     @Transactional(readOnly = true)
-    public String invoiceStatus(@ToolParam(description = "Número de la factura, por ejemplo SETP990000001") String number) {
+    public String invoiceStatus(@ToolParam(description = "Número de la factura con su prefijo, tal como lo escribió el usuario") String number) {
         return snapshot(number).map(invoice -> {
             Map<String, Object> status = new LinkedHashMap<>();
             status.put("number", invoice.number());
