@@ -1,35 +1,34 @@
 # Seguridad — Clínica
 
-**Versión:** 1.0  
-**Stack:** Spring Authorization Server · JWT ES256 firmado en OpenBao transit · Gateway BFF con Redis
+**Stack:** Spring Authorization Server · JWT ES256 firmado en OpenBao transit · Gateway BFF con Redis ·
+`clinica-commons-security` 2.11.0
 
 ---
 
 ## 1. Modelo de Seguridad
 
-El sistema implementa múltiples capas de seguridad que operan de forma independiente. El fallo de una capa no compromete las demás.
+Cada capa se sostiene sola: si una falla, las siguientes siguen protegiendo.
 
 ```
-Cliente
-  │
+navegador
+  │  cookie de sesión HttpOnly + CSRF; nunca un token
   ▼
-[1] TLS / HTTPS ────────── cifrado en tránsito
-  │
+[1] api-gateway ─── rate limit por IP y por usuario, sesión en Redis, renovación de tokens
+  │  Bearer: access token de 5 min firmado en OpenBao
   ▼
-[2] Rate Limiting ─────── protección contra fuerza bruta / DoS
-  │
+[2] cada servicio ─ valida firma, emisor, audiencia y revocación; autoriza por permiso o por rol;
+  │                 step-up (segundo factor reciente) en lo sensible
+  │  entre servicios: token del usuario intercambiado para la audiencia del destino
   ▼
-[3] JWT Validation ─────── identidad y roles verificados
-  │
+[3] dominio ─────── reglas de negocio, relación de cuidado en la historia clínica
   ▼
-[4] RBAC ──────────────── autorización por rol
-  │
+[4] base de datos ─ red interna, usuario sin DELETE ni DDL, CHECK, cifrado en reposo donde aplica
   ▼
-Microservicio
-  │
-  ▼
-[5] Audit Log ──────────── trazabilidad completa
+[5] trazabilidad ── Envers, auditoría de lectura, eventos de seguridad, cadenas de integridad
 ```
+
+Los secretos de todas las capas (contraseñas de bases, claves de firma, TOTP, credenciales de Eureka y
+del Ministerio) viven en OpenBao (sección 7.7).
 
 ---
 
@@ -124,7 +123,7 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   revocación se rechaza: quien vuelve a entrar justo después de un reseteo o de cerrar todas sus
   sesiones puede recibir un `401` y debe repetir el login un segundo después.
 
-### 2.6 Validación en los servicios (`clinica-commons-security` 2.4.0)
+### 2.6 Validación en los servicios (`clinica-commons-security`)
 
 - **Firma y destino:** cada servicio valida ES256 contra el JWKS de `auth-service` (en caché; si auth
   cae, las claves conocidas siguen sirviendo 24 h), el emisor, la vigencia y que `aud` incluya
@@ -139,30 +138,37 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
 - **Llamadas en nombre de una persona:** el token del usuario no se reenvía. El servicio que llama lo
   intercambia en `auth-service` (RFC 8693, con su propio token como `actor_token`) por uno con `aud`
   exacta del destino, el mismo `sub`, rol, `auth_time` y `amr`, y el claim `act` con la cadena de
-  servicios. `auth-service` solo permite las audiencias configuradas por cliente (hoy
-  `clinical-history-service → patient-service` y `contracting-service → patient-service`) y rechaza el
-  intercambio si la persona fue suspendida.
+  servicios. `auth-service` solo permite las audiencias configuradas por cliente y rechaza el intercambio si la
+  persona fue suspendida:
+
+  | Cliente | Puede intercambiar hacia |
+  |---|---|
+  | `clinical-history-service` | `patient-service`, `admissions-service` |
+  | `contracting-service` | `patient-service` |
+  | `admissions-service` | `patient-service`, `practitioners-service`, `contracting-service` |
+  | `billing-service` | `admissions-service`, `contracting-service`, `practitioners-service`, `patient-service` |
+  | `ai-assistant-service` | `billing-service` |
+
   El token intercambiado vence a los 5 minutos o con el original, lo que ocurra antes; se guarda en
   caché por token original y destino.
 - **Step-up:** `RecentAuthentication` exige segundo factor verificado hace 5 minutos o menos y responde
   `401` con `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age=300`. En clinical
   lo exigen firmar y anular notas, el acceso de emergencia, emitir la copia de la historia y el rewrap de
   claves.
-- **Clientes de servicio:** `patient-service`, `clinical-history-service` y `contracting-service` se
-  autentican con `private_key_jwt` firmando la aserción en OpenBao transit (`patient-service-client`,
-  `clinical-history-service-client`, `contracting-service-client`); sus tokens propios duran 30 minutos
-  y se renuevan antes de vencer. El scope que pide cada uno se declara en su configuración
-  (`clinica.security.client.scopes`, hoy `contracting.read` en `patient-service`) y viaja en el
-  `client_credentials`: sin pedirlo, `auth-service` emite el token sin ningún scope aunque el cliente los
-  tenga registrados.
+- **Clientes de servicio:** los servicios que llaman a otros (`patient`, `clinical-history`,
+  `contracting`, `admissions`, `billing` y `ai-assistant`) se autentican con `private_key_jwt`, firmando
+  la aserción con su propia clave de OpenBao transit (`<servicio>-client`); sus tokens propios duran 30
+  minutos y se renuevan antes de vencer. El scope que pide cada uno se declara en su configuración
+  (`clinica.security.client.scopes`, por ejemplo `contracting.read`) y viaja en el `client_credentials`:
+  sin pedirlo, `auth-service` emite el token sin ningún scope aunque el cliente los tenga registrados.
 - **Contexto en los cortacircuitos:** las llamadas entre servicios corren dentro de un circuit breaker,
   que las ejecuta en otro hilo. `clinica-commons-security` le entrega un ejecutor que traslada el
   `SecurityContext`, para que el relevo del token del usuario siga funcionando dentro del cortacircuito.
 - **Admisiones:** autoriza por permiso (`admissions:*`). Exigen **reautenticación con segundo factor** el
   egreso por fallecimiento, el egreso por fuga, la anulación del episodio y admitir saltándose la
   cobertura. Solo dos rutas viven sin credenciales —la verificación pública de un comprobante, que
-  responde únicamente `authentic`, y las claves públicas del sello—, ambas con cuota por IP en el gateway
-  (60/min) y en el propio servicio (20/min). Una prueba de arquitectura falla si aparece un endpoint sin
+  responde únicamente `authentic`, y las claves públicas del sello—. El límite por cliente lo pone el
+  gateway (60 por minuto por IP) y el servicio tiene además un tope global de protección (600 por minuto). Una prueba de arquitectura falla si aparece un endpoint sin
   `@PreAuthorize` que no esté en esa lista. La aplicación entra a su base como `admissions_app`, sin
   DELETE ni DDL, y el certificado de defunción nunca viaja en un evento.
 
@@ -171,6 +177,21 @@ auth-service ──"firma este JWT"──► OpenBao transit (auth-jwt, ecdsa-p2
   `clinica-commons-security`, y si esa copia no está al día responde `503` en vez de vincular a ciegas. El
   estado de la cuenta se muestra pero no decide si el profesional atiende. Sus honorarios exigen step-up y
   el permiso `practitioners:manage-fees` incluso para leerlos, y **no viajan en `practitioners.v1`**.
+- **Facturación:** autoriza por permiso (`billing:*`). Poner un precio a mano, corregir lo que paga el paciente, emitir facturas y notas crédito, facturar al
+  pagador sin contrato,
+  la configuración fiscal (emisor, resoluciones de numeración, paso a producción), corregir un radicado,
+  responder glosas y registrar la decisión del pagador exigen **segundo factor reciente**; aceptar valor
+  en una glosa emite una nota crédito y exige además `billing:void`. La clave privada del certificado de
+  la DIAN está importada en OpenBao transit y no se puede exportar: la firma XAdES se pide a transit. Las
+  credenciales SISPRO del Ministerio viven en OpenBao. La verificación pública de la representación
+  gráfica de una factura y las claves de su sello pasan sin sesión con la misma cuota por IP que
+  admisiones.
+- **Asistente de facturas:** exige `assistant:use` (facturación, cartera y administración). Lo que consulta
+  o ejecuta en billing va con el token intercambiado del usuario, así que billing aplica sus permisos. El
+  modelo corre en local (los datos no salen de la clínica), trata lo que devuelven las herramientas como
+  datos y no como instrucciones, y **no puede escribir**: solo deja propuestas que el usuario confirma con
+  `If-Match`, y responder una glosa exige segundo factor reciente en el propio asistente. Cada usuario ve
+  solo sus conversaciones, que se borran a los 30 días; las acciones confirmadas quedan como auditoría.
 - **Lectura entre servicios:** las consultas de `contracting-service` aceptan el permiso de persona
   `contracting:read` o el scope de servicio `contracting.read`. `patient-service` verifica con ese scope que
   el pagador de una afiliación existe, porque es una comprobación del sistema y debe funcionar aunque no
@@ -212,20 +233,20 @@ Tras 100 fallos consecutivos la cuenta queda bloqueada hasta un reseteo de contr
 
 ### 4.1 Roles del Sistema
 
-Los roles son fijos en el código de `auth-service` y cada usuario tiene uno solo; los de servicios
-futuros (facturación, laboratorio, farmacia) se agregan en su turno.
+Los roles son fijos en el código de `auth-service` y cada usuario tiene uno solo.
 
-| Rol                  | Descripción                                       |
-| -------------------- | ------------------------------------------------- |
-| `ROLE_SUPER_ADMIN`   | Administra a los administradores y las claves     |
-| `ROLE_ADMIN`         | Gestión de usuarios operativos y configuración    |
-| `ROLE_DOCTOR`        | Gestión de atenciones, acceso a historias clínicas |
-| `ROLE_NURSE`         | Triage, actualización de estados de atención      |
-| `ROLE_RECEPTIONIST`  | Registro de pacientes, creación de atenciones     |
-| `ROLE_MEDICAL_RECORDS` | Archivo clínico — copias de la historia para el paciente, sin editarla |
-| `ROLE_CONTRACTING`   | Contratación — pagadores, contratos, manuales tarifarios y capitación |
-| `ROLE_BILLING`       | Facturación — consulta de contratos y resolución de precios |
-| `ROLE_HUMAN_RESOURCES` | Talento humano — directorio de profesionales y sus honorarios |
+| Rol | Para quién |
+| --- | --- |
+| `SUPER_ADMIN` | administra a los administradores, las claves y el catálogo CIE-10 |
+| `ADMIN` | administración operativa: usuarios operativos, configuración fiscal, camas y catálogos |
+| `DOCTOR` | atención médica: historia clínica y egresos |
+| `NURSE` | enfermería: historia clínica (triage, notas de enfermería) y movimiento de camas |
+| `RECEPTIONIST` | recepción: registro de pacientes, admisión, autorizaciones y comprobantes |
+| `MEDICAL_RECORDS` | archivo clínico: copias de la historia para el paciente, sin editarla |
+| `CONTRACTING` | contratación: pagadores, contratos, manuales tarifarios y capitación |
+| `BILLING` | facturación: ventas, facturas, notas crédito, recaudo, RIPS, radicación y glosas |
+| `ACCOUNTS_RECEIVABLE` | cartera: radicación y respuesta a devoluciones y glosas |
+| `HUMAN_RESOURCES` | talento humano: directorio de profesionales y sus honorarios |
 
 El token lleva un solo claim `role`. Los permisos no viajan en el token: `clinica-commons-security`
 los deriva del rol y los entrega como authorities con la forma `servicio:acción` (por ejemplo
@@ -246,37 +267,50 @@ Reglas de administración, aplicadas en el dominio de `auth-service`:
 
 ### 4.2 Matriz de Permisos
 
-| Recurso                      | ADMIN | DOCTOR | NURSE | RECEPTIONIST | BILLING | MEDICAL_RECORDS |
-| ---------------------------- | ----- | ------ | ----- | ------------ | ------- | --------------- |
-| Crear paciente               | ✓     | ✓      | ✗     | ✓            | ✗       | ✗               |
-| Ver historia clínica         | ✗     | ✓ ¹    | ✓ ¹   | ✗            | ✗       | ✗               |
-| Escribir en la historia      | ✗     | ✓ ¹    | ✓ ¹   | ✗            | ✗       | ✗               |
-| Copia de la historia al paciente | ✗ | ✗      | ✗     | ✗            | ✗       | ✓               |
-| Verificar integridad y firma | ✓     | ✗      | ✗     | ✗            | ✗       | ✓               |
-| Crear atención               | ✓     | ✓      | ✓     | ✓            | ✗       | ✗               |
-| Cambiar estado atención      | ✓     | ✓      | ✓     | ✗            | ✗       | ✗               |
-| Acceder facturación          | ✓     | ✗      | ✗     | ✗            | ✓       | ✗               |
-| Gestionar médicos            | ✓     | ✗      | ✗     | ✗            | ✗       | ✗               |
-| Gestionar usuarios           | ✓     | ✗      | ✗     | ✗            | ✗       | ✗               |
-| Chat con IA                  | ✓     | ✓      | ✓     | ✓            | ✗       | ✗               |
+`SUPER_ADMIN` y `ADMIN` tienen todos los permisos de negocio; la tabla muestra los roles operativos.
+
+| Operación | RECEP. | DOCTOR | NURSE | ARCHIVO | CONTRAT. | FACTUR. | CARTERA | T. HUMANO |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| Registrar y corregir pacientes | ✓ | | | | | | | |
+| Consultar pacientes | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| Ver y escribir la historia clínica | | ✓ ¹ | ✓ ¹ | | | | | |
+| Copia de la historia al paciente | | | | ✓ | | | | |
+| Admitir, activar el episodio y cambiarlo de servicio | ✓ | | | | | | | |
+| Mover al paciente de cama | | | ✓ | | | | | |
+| Dar egreso | | ✓ | | | | | | |
+| Consultar episodios | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ | |
+| Pagadores, contratos y tarifas | | | | | ✓ | | | |
+| Cotizar precios | | | | | ✓ | ✓ | | |
+| Consultar el directorio profesional | ✓ | | | | | ✓ | ✓ | ✓ |
+| Administrar el directorio y los honorarios | | | | | | | | ✓ |
+| Consultar honorarios | | | | | | ✓ | | ✓ |
+| Vender, facturar, notas crédito y recaudo | | | | | | ✓ | | |
+| Radicar y responder devoluciones y glosas | | | | | | ✓ | ✓ ² | |
+| Asistente de revisión de facturas | | | | | | ✓ | ✓ | |
+| Configuración fiscal de billing | solo `ADMIN` y `SUPER_ADMIN` | | | | | | | |
 
 ¹ El rol solo habilita: para ver o escribir hace falta además relación de cuidado con esa atención
 (sección 7.6). Los roles administrativos no ven contenido clínico.
+² Cartera responde, pero aceptar valor emite una nota crédito y exige `billing:void`, que no tiene.
+
+El detalle de cada permiso está en
+[auth-service/docs/roles-y-permisos.md](../BackEnd-Clinica/auth-service/docs/roles-y-permisos.md).
 
 ### 4.3 Implementación
 
 El rol viaja dentro del JWT en el claim `role`. La librería `clinica-commons-security` valida el token
-como OAuth2 Resource Server (sección 2.6), convierte el rol en la autoridad `ROLE_<ROL>` y cada
-controlador aplica `@PreAuthorize`:
+como OAuth2 Resource Server (sección 2.6) y entrega el rol como `ROLE_<ROL>` y sus permisos como
+authorities `servicio:acción`. `patient-service` y `clinical-history-service` autorizan por rol; los
+demás, por permiso:
 
 ```java
 @GetMapping("/{uuid}")
 @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
 ResponseEntity<PatientDetailsView> get(@PathVariable UUID uuid) { ... }
 
-@PostMapping("/{uuid}/deactivation")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-ResponseEntity<PatientView> deactivate(@PathVariable UUID uuid, ...) { ... }
+@PostMapping("/api/v1/billing/invoices/{uuid}/issuance")
+@PreAuthorize("hasAuthority('billing:invoice')")
+ResponseEntity<InvoiceView> issue(@PathVariable UUID uuid, ...) { ... }
 ```
 
 No se realiza ninguna llamada al Auth Service en tiempo de request: los roles están en el token y la
@@ -287,12 +321,13 @@ validación es local. El rol que aplica es el del token vigente; un cambio de ro
 
 ## 5. Rate Limiting
 
-`api-gateway` aplica dos límites independientes con contadores de ventana fija en su Redis:
+`api-gateway` aplica tres límites independientes con contadores de ventana fija en su Redis:
 
 | Clave | Límite | Momento | Motivo |
 |---|---|---|---|
 | Dirección IP (`clinica:gateway:rate-limit:address:<sha256>`) | 1000 por minuto | Antes de autenticar | Cubre el login y cualquier ruta pública, donde ataca quien no tiene credenciales; umbral alto porque tras un NAT hay muchos usuarios legítimos |
 | Usuario de la sesión (`…:user:<sha256 del uuid>`) | 300 por minuto | Después de autenticar | La identidad sale de la sesión del gateway, no de una cabecera; frena la extracción masiva desde una cuenta comprometida |
+| Dirección IP en rutas sin sesión | 60 por minuto | Verificación pública de comprobantes y facturas, claves de sello | Cualquiera puede abrir un QR impreso; el límite evita usar la verificación para enumerar documentos |
 
 - El conteo es un script Lua atómico (`INCR` y, en el primer golpe, `PEXPIRE`), correcto con varias
   réplicas del gateway. En el borde de dos ventanas pueden pasar hasta el doble de peticiones en poco
@@ -303,7 +338,8 @@ validación es local. El rol que aplica es el del token vigente; un cambio de ro
   tumbar un sistema hospitalario; el frenado de intentos de login de `auth-service` (sección 3) sigue
   activo y vive en MySQL.
 - La IP es la dirección de la conexión que llega al gateway. Detrás de un balanceador habría que
-  configurar sus direcciones como proxies de confianza.
+  configurar sus direcciones como proxies de confianza. El gateway no reenvía `X-Forwarded-*`, así que
+  los servicios ven todas las peticiones llegar desde él: el límite por cliente es el del gateway.
 
 ### 5.6 Escenarios de Protección
 
@@ -335,24 +371,17 @@ corten el acceso de un usuario suspendido sin esperar a que venza su token. Tipo
 en `BackEnd-Clinica/auth-service/events/README.md`. Ningún evento lleva contraseñas, secretos TOTP,
 códigos de recuperación ni tokens.
 
-### 6.2 Soft Delete y Auditoría de Datos
+### 6.2 Trazabilidad de los datos
 
-Todas las entidades clínicas tienen campos de trazabilidad:
-
-```sql
-deleted_at   DATETIME    NULL   -- null = activo
-deleted_by   VARCHAR(50) NULL   -- username que eliminó
-created_at   DATETIME    NOT NULL DEFAULT NOW()
-updated_at   DATETIME    NOT NULL DEFAULT NOW() ON UPDATE NOW()
-created_by   VARCHAR(50) NOT NULL
-updated_by   VARCHAR(50) NOT NULL
-```
-
-Esto garantiza:
-- ¿Quién creó un registro? → `created_by`
-- ¿Quién lo modificó por última vez? → `updated_by`
-- ¿Quién lo "eliminó" y cuándo? → `deleted_by`, `deleted_at`
-- Reproducibilidad completa del estado de cualquier registro en cualquier momento
+- **Historial por entidad** con Hibernate Envers en un esquema de historia aparte (`<servicio>_history`),
+  con quién hizo cada revisión; el usuario de la aplicación solo puede insertar en él.
+- **Autor y fecha** (`createdBy`/`updatedBy`, `createdAt`/`updatedAt`) salen del token, no de lo que manda
+  el cliente.
+- **Nada se borra.** No hay borrado lógico con `deleted_at`: lo que termina cambia de estado (inactivo,
+  anulado, revocado, retirado) con motivo, quién y cuándo, y el usuario de la aplicación no tiene `DELETE`.
+  Lo firmado (notas clínicas, facturas) se corrige agregando: nota aclaratoria o anulación, nota crédito.
+- **Cadenas de integridad** en la historia clínica (sección 7.5) y **auditoría de lectura** en
+  `clinical.access-audit.v1`.
 
 ---
 
@@ -364,8 +393,10 @@ Gateway → Microservicio: HTTP interno en red Docker (red privada, sin exposici
 Microservicio → BD:      Conexión autenticada por usuario/contraseña de base de datos
 ```
 
-Las credenciales de `patient-service`, `clinical-history-service` y su infraestructura viven en OpenBao
-(sección 7.7); los servicios que aún no se refactorizan siguen recibiéndolas por variables de entorno.
+Las credenciales de todos los servicios y de su infraestructura viven en OpenBao (sección 7.7); ninguna
+viaja en variables de entorno. Cada base tiene un migrador y un usuario de aplicación sin `DELETE` ni DDL,
+y vive en su red interna sin puerto publicado; las secciones 7.1 y 7.4 detallan pacientes e historia
+clínica, que son las más sensibles.
 
 ### 7.1 Mínimo privilegio en la base de pacientes
 
