@@ -566,6 +566,22 @@ services:
          retries: 12
          start_period: 30s
 
+   kafka-topics-init:
+      image: apache/kafka:4.3.1
+      container_name: kafka-topics-init
+      restart: "no"
+      depends_on:
+         kafka:
+            condition: service_healthy
+      environment:
+         KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+         KAFKA_REPLICATION_FACTOR: 1
+      entrypoint: ["sh", "/create-topics.sh"]
+      volumes:
+         - ./platform/kafka/create-topics.sh:/create-topics.sh:ro
+      networks:
+         - kafka-net
+
    kafka-connect-init:
       image: curlimages/curl:8.16.0
       container_name: kafka-connect-init
@@ -754,6 +770,8 @@ services:
       build: ./ai-assistant-service
       restart: unless-stopped
       depends_on:
+         kafka-topics-init:
+            condition: service_completed_successfully
          ai-assistant-db:
             condition: service_healthy
          openbao-init:
