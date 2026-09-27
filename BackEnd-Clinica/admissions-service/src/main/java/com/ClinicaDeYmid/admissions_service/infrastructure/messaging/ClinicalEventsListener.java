@@ -20,7 +20,7 @@ class ClinicalEventsListener {
         this.triage = triage;
     }
 
-    @KafkaListener(id = "clinical-events", topics = TOPIC,
+    @KafkaListener(id = "clinical-events", idIsGroup = false, topics = TOPIC,
             autoStartup = "${clinica.admissions.clinical-events.enabled:true}")
     void onClinicalEvent(ConsumerRecord<String, String> record) {
         ClinicalEventMapper.toTriage(record.value()).ifPresentOrElse(
