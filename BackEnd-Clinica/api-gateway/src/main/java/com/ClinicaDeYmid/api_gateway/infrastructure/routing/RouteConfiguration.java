@@ -52,7 +52,9 @@ class RouteConfiguration {
                 .and(staffRoute("admissions-service", path("/api/v1/admissions/**"),
                         properties.routes().admissionsService(), headers, tokens))
                 .and(staffRoute("billing-service", path("/api/v1/billing/**"),
-                        properties.routes().billingService(), headers, tokens));
+                        properties.routes().billingService(), headers, tokens))
+                .and(staffRoute("ai-assistant-service", path("/api/v1/assistant/**"),
+                        properties.routes().aiAssistantService(), headers, tokens));
     }
 
     @Bean

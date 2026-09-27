@@ -94,6 +94,7 @@ cierra además la sesión de `auth-service` y vuelve a la página de inicio del 
 | `/api/v1/practitioners/**`, `/api/v1/specialties/**`, `/api/v1/sub-specialties/**` | `practitioners-service` | ídem |
 | `/api/v1/admissions/**` | `admissions-service` | ídem |
 | `/api/v1/billing/**` | `billing-service` | ídem |
+| `/api/v1/assistant/**` | `ai-assistant-service` | ídem |
 
 ### Rutas sin sesión
 

@@ -76,6 +76,7 @@ clinica:
       practitioners-service: ${GATEWAY_PRACTITIONERS_SERVICE_URI:lb://practitioners-service}
       admissions-service: ${GATEWAY_ADMISSIONS_SERVICE_URI:lb://admissions-service}
       billing-service: ${GATEWAY_BILLING_SERVICE_URI:lb://billing-service}
+      ai-assistant-service: ${GATEWAY_AI_ASSISTANT_SERVICE_URI:lb://ai-assistant-service}
 
 eureka:
   client:

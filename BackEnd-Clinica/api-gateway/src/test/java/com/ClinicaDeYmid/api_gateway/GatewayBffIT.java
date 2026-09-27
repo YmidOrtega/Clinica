@@ -241,6 +241,21 @@ class GatewayBffIT {
     }
 
     @Test
+    void relaysTheInvoiceAssistantWithTheStaffTokenAndNoBrowserCredentials() {
+        Browser browser = new Browser(port);
+        signIn(browser, FRONTEND + "/facturacion", 300);
+        SERVICES.stubFor(get("/api/v1/assistant/findings").willReturn(okJson("{\"content\": []}")));
+
+        Browser.Response findings = browser.get("/api/v1/assistant/findings", "Origin", FRONTEND);
+
+        assertThat(findings.status()).isEqualTo(200);
+        assertThat(new Browser(port).get("/api/v1/assistant/findings").status()).isEqualTo(401);
+        SERVICES.verify(getRequestedFor(urlPathEqualTo("/api/v1/assistant/findings"))
+                .withHeader("Authorization", matching("Bearer .+"))
+                .withoutHeader("Cookie"));
+    }
+
+    @Test
     void letsAnybodyCheckAnInvoicePdfAndReadTheBillingSealKeysWithoutASession() {
         Browser browser = new Browser(port);
         SERVICES.stubFor(post("/api/v1/billing/graphic-representations/verification")
