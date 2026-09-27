@@ -2,33 +2,56 @@
 set -eu
 
 PROJECT="${COMPOSE_PROJECT:-clinica}"
+TOOLS_IMAGE=clinica/openbao-tools:2.6.2
+ISSUER="${AUTH_ISSUER:-http://localhost:8080/auth}"
+REDIRECT_URI="${AUTH_GATEWAY_REDIRECT_URI:-http://localhost:8080/login/oauth2/code/clinica}"
+SUPER_ADMIN="${AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL:-superadmin@clinica.local}"
 published() { echo "http://$(docker compose -p "$PROJECT" port --index 1 "$1" "$2" 2>/dev/null)"; }
 ADMISSIONS_URL="${ADMISSIONS_URL:-$(published admissions-service 8088)}"
 PATIENT_URL="${PATIENT_URL:-$(published patient-service 8081)}"
 PRACTITIONERS_URL="${PRACTITIONERS_URL:-$(published practitioners-service 8085)}"
 CLINICAL_URL="${CLINICAL_URL:-$(published clinical-history-service 8089)}"
+AUTH_URL="${AUTH_URL:-$(published auth-service 8086)}"
+MAILPIT_URL="${MAILPIT_URL:-$(published mailpit 8025)}"
 [ "$ADMISSIONS_URL" != "http://" ] || { echo "Publica los puertos con docker-compose.debug.yml o define ADMISSIONS_URL" >&2; exit 1; }
 [ "$PATIENT_URL" != "http://" ] || { echo "El ingreso necesita patient-service publicado" >&2; exit 1; }
+[ "$AUTH_URL" != "http://" ] && [ "$MAILPIT_URL" != "http://" ] \
+  || { echo "El personal real necesita auth-service y mailpit publicados" >&2; exit 1; }
 DIR=$(cd "$(dirname "$0")" && pwd)
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
+JAR="$WORK/cookies"
+TOTP_STATE="${E2E_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/clinica-e2e}/$PROJECT-super-admin-totp.json"
+PASSWORD="frase e2e $(date +%s) para admisiones"
 
 SUFFIX=$(date +%s | tail -c 6)
 ADMIN_ID=00000000-0000-4000-8000-000000000002
 DOCTOR_ID=$(cat /proc/sys/kernel/random/uuid)
 NURSE_ID=$(cat /proc/sys/kernel/random/uuid)
 RECEPTION_ID=$(cat /proc/sys/kernel/random/uuid)
-token() { sh "$DIR/staff-token.sh" "$@"; }
-step() { printf '\n== %s\n' "$1"; }
-fail() { echo "FAIL: $1" >&2; exit 1; }
+. "$DIR/staff-login.sh"
+
+token() {
+  eval "access=\${$1_ACCESS:-}"
+  if [ -n "$access" ]; then echo "$access"; else sh "$DIR/staff-token.sh" "$@"; fi
+}
+
+staff_member() {
+  role=$1; email="$(printf '%s' "$role" | tr 'A-Z_' 'a-z.').adm.$SUFFIX@clinica.local"
+  status=$(curl -s -o "$WORK/body" -w '%{http_code}' -X POST "$AUTH_URL/api/v1/users" \
+    -H "Authorization: Bearer $SUPER_ADMIN_ACCESS" -H 'Content-Type: application/json' --data "{
+    \"email\": \"$email\", \"fullName\": \"Personal de $(printf '%s' "$role" | tr 'A-Z_' 'a-z ')\", \"role\": \"$role\"}")
+  [ "$status" = "201" ] || { cat "$WORK/body" >&2; fail "invitación de $role"; }
+  invited_staff_access_token "$email" "guardia larga $(date +%s%N) sin atajos"
+}
 
 call() {
   method=$1; url=$2; role=$3; subject=$4; body=${5:-}; extra=${6:-}
   if [ -n "$body" ]; then
-    curl -s -o "$WORK/body" -w '%{http_code}' -X "$method" "$url" -H "Authorization: Bearer $(token "$role" "$subject")" \
+    curl -s -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' -X "$method" "$url" -H "Authorization: Bearer $(token "$role" "$subject")" \
       -H 'Content-Type: application/json' $extra --data "$body"
   else
-    curl -s -o "$WORK/body" -w '%{http_code}' -X "$method" "$url" -H "Authorization: Bearer $(token "$role" "$subject")" $extra
+    curl -s -o "$WORK/body" -D "$WORK/headers" -w '%{http_code}' -X "$method" "$url" -H "Authorization: Bearer $(token "$role" "$subject")" $extra
   fi
 }
 
@@ -37,7 +60,14 @@ expect() {
   echo "ok  $3"
 }
 
-version() { jq -r .version "$WORK/body"; }
+version() { tr -d '\r' < "$WORK/headers" | awk 'tolower($1) == "etag:" {gsub(/"/, "", $2); print $2}'; }
+
+step "Personal real con segundo factor para los pasos que cruzan servicios"
+SUPER_ADMIN_ACCESS=$(super_admin_access_token)
+NURSE_ACCESS=$(staff_member NURSE)
+RECEPTIONIST_ACCESS=$(staff_member RECEPTIONIST)
+DOCTOR_ACCESS=$(staff_member DOCTOR)
+echo "ok  enfermería, recepción y medicina activaron sus cuentas con TOTP"
 
 step "Catálogo, habitación y cama"
 status=$(call POST "$ADMISSIONS_URL/api/v1/admissions/catalogue/service-types" ADMIN "$ADMIN_ID" "{
@@ -65,7 +95,7 @@ expect "$status" 201 "hospitalización configurada en la sede"
 WARD=$(jq -r .uuid "$WORK/body")
 
 status=$(call POST "$ADMISSIONS_URL/api/v1/admissions/rooms" ADMIN "$ADMIN_ID" "{
-  \"name\": \"Hab $SUFFIX\", \"locationUuid\": \"$LOCATION\"}")
+  \"name\": \"Hab $SUFFIX\", \"locationUuid\": \"$LOCATION\", \"stayType\": \"GENERAL_WARD\"}")
 expect "$status" 201 "habitación"
 ROOM=$(jq -r .uuid "$WORK/body")
 
@@ -220,6 +250,9 @@ expect "$status" 200 "claves públicas del sello"
 [ "$(jq -r 'to_entries | length' "$WORK/body")" -ge 1 ] || fail "no se publicó ninguna clave de sello"
 
 step "Egreso por fallecimiento con step-up y aviso a patient-service"
+status=$(call GET "$ADMISSIONS_URL/api/v1/admissions/episodes/$EPISODE" DOCTOR "$DOCTOR_ID")
+expect "$status" 200 "episodio antes del egreso"
+VERSION=$(version)
 status=$(call POST "$ADMISSIONS_URL/api/v1/admissions/episodes/$EPISODE/discharge" DOCTOR "$DOCTOR_ID" "{
   \"type\": \"DEATH\", \"occurredAt\": \"$(date -u -d '-10 minutes' +%Y-%m-%dT%H:%M:%SZ)\",
   \"certificateNumber\": \"CD-$SUFFIX\"}" "-H If-Match:\"$VERSION\"")
