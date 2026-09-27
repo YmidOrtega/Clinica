@@ -50,7 +50,7 @@
     }
   },
   "$defs": {
-    "role": {"enum": ["SUPER_ADMIN", "ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST", "MEDICAL_RECORDS"]},
+    "role": {"enum": ["SUPER_ADMIN", "ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST", "MEDICAL_RECORDS", "CONTRACTING", "BILLING", "HUMAN_RESOURCES"]},
     "actor": {
       "type": "object",
       "additionalProperties": false,
