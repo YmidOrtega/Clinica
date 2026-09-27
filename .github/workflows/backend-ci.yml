@@ -142,6 +142,7 @@ jobs:
       AUTH_SERVICE_REPLICAS: 1
       PATIENT_SERVICE_REPLICAS: 1
       CLINICAL_SERVICE_REPLICAS: 1
+      BILLING_SERVICE_REPLICAS: 1
       E2E_STATE_DIR: ${{ github.workspace }}/.e2e-state
     defaults:
       run:
@@ -167,7 +168,7 @@ jobs:
       - name: Package the services of the stack
         run: |
           for service in eureka-service auth-service patient-service clinical-history-service contracting-service \
-                         practitioners-service admissions-service api-gateway; do
+                         practitioners-service admissions-service billing-service api-gateway; do
             mvn package -DskipTests -f "$service/pom.xml"
           done
 
@@ -175,7 +176,8 @@ jobs:
         run: |
           docker compose -p "$COMPOSE_PROJECT" -f docker-compose.yml -f docker-compose.debug.yml \
             up -d --build api-gateway auth-service patient-service clinical-history-service contracting-service \
-              practitioners-service admissions-service kafka-connect-init mailpit
+              practitioners-service admissions-service billing-service dian-simulator muv-simulator \
+              kafka-connect-init mailpit
           for attempt in $(seq 1 120); do
             if [ -z "$(docker ps -q --filter health=starting --filter health=unhealthy)" ] \
                 && curl -sf http://localhost:8080/actuator/health > /dev/null; then
@@ -200,6 +202,9 @@ jobs:
 
       - name: Admissions, beds, receipts and events
         run: sh platform/e2e/admissions-e2e.sh
+
+      - name: Billing, DIAN, RIPS, filing and glosas
+        run: sh platform/e2e/billing-e2e.sh
 
       - name: OpenBao failover and isolation
         run: sh platform/e2e/openbao-e2e.sh
@@ -283,7 +288,7 @@ jobs:
           - practitioners-service
           - admissions-service
           - ai-assistant-service
-          # - billing-service  # TODO: Uncomment when service is implemented
+          - billing-service
     
     steps:
       - name: Checkout code
