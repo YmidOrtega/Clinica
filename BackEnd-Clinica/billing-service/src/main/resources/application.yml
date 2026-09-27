@@ -181,6 +181,7 @@ spring:
     import:
       - vault://secret/billing/db/migrator?prefix=billing.db.migrator.
       - vault://secret/billing/db/app?prefix=billing.db.app.
+      - vault://secret/eureka/client?prefix=registry.
       - optional:vault://secret/billing/dian/software?prefix=clinica.billing.dian.
       - optional:vault://secret/billing/ministry/credentials?prefix=clinica.billing.ministry.
   cloud:

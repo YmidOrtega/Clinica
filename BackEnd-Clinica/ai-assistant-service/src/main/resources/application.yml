@@ -142,6 +142,7 @@ spring:
     import:
       - vault://secret/assistant/db/migrator?prefix=assistant.db.migrator.
       - vault://secret/assistant/db/app?prefix=assistant.db.app.
+      - vault://secret/eureka/client?prefix=registry.
   cloud:
     vault:
       enabled: true

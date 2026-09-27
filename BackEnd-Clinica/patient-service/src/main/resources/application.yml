@@ -118,6 +118,7 @@ spring:
     import:
       - vault://secret/patient/db/migrator?prefix=patient.db.migrator.
       - vault://secret/patient/db/app?prefix=patient.db.app.
+      - vault://secret/eureka/client?prefix=registry.
   cloud:
     vault:
       enabled: true

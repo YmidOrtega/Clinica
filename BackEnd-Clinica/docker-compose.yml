@@ -133,10 +133,11 @@ services:
          - admissions_db_secrets:/rendered/admissions-db
          - billing_db_secrets:/rendered/billing-db
          - assistant_db_secrets:/rendered/assistant-db
+         - eureka_secrets:/rendered/eureka
       networks:
          - secrets-net
       healthcheck:
-         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password kafka-connect/practitioners-db-debezium-password admissions-db/app-password kafka-connect/admissions-db-debezium-password billing-db/app-password kafka-connect/billing-db-debezium-password assistant-db/app-password; do test -s /rendered/$$f || exit 1; done"]
+         test: ["CMD-SHELL", "for f in patient-db/debezium-password clinical-db/debezium-password clinical-storage/attachments-secret-key kafka-connect/clinical-db-debezium-password auth-db/app-password auth-db/debezium-password kafka-connect/auth-db-debezium-password gateway-redis/password contracting-db/app-password kafka-connect/contracting-db-debezium-password practitioners-db/app-password kafka-connect/practitioners-db-debezium-password admissions-db/app-password kafka-connect/admissions-db-debezium-password billing-db/app-password kafka-connect/billing-db-debezium-password assistant-db/app-password eureka/password; do test -s /rendered/$$f || exit 1; done"]
          interval: 5s
          timeout: 3s
          retries: 24
@@ -469,22 +470,21 @@ services:
       build: ./eureka-service
       container_name: eureka-service
       restart: always
+      depends_on:
+         openbao-agent:
+            condition: service_healthy
       environment:
-         - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
-         - EUREKA_CLIENT_FETCH_REGISTRY=false
-         - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-         - EUREKA_INSTANCE_HOSTNAME=eureka-service
-         - SPRING_PROFILES_ACTIVE=docker
-      ports:
-         - "8761:8761"
+         - EUREKA_HOSTNAME=eureka-service
+      volumes:
+         - eureka_secrets:/run/secrets/eureka:ro
       networks:
          - clinica-net
       healthcheck:
-         test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-         interval: 30s
-         timeout: 10s
+         test: ["CMD", "curl", "-fs", "http://localhost:8761/actuator/health/readiness"]
+         interval: 15s
+         timeout: 5s
          retries: 5
-         start_period: 60s
+         start_period: 40s
 
    # Plataforma de eventos
    kafka:
@@ -620,7 +620,7 @@ services:
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
@@ -660,7 +660,7 @@ services:
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
          - CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000
       volumes:
@@ -697,7 +697,7 @@ services:
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
@@ -733,7 +733,7 @@ services:
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
@@ -770,7 +770,7 @@ services:
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
       extra_hosts:
          - "host.docker.internal:host-gateway"
@@ -806,7 +806,7 @@ services:
       environment:
          - SPRING_PROFILES_ACTIVE=openbao
          - AUTH_DB_URL=jdbc:mysql://auth-db:3306/${AUTH_DB_NAME:-auth_db}
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_LOGIN_URL=${AUTH_LOGIN_URL:-http://localhost:4321/login}
@@ -852,7 +852,7 @@ services:
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
@@ -887,7 +887,7 @@ services:
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
@@ -933,7 +933,7 @@ services:
          - GATEWAY_FRONTEND_HOME_URL=${GATEWAY_FRONTEND_HOME_URL:-http://localhost:4321/}
          - GATEWAY_SESSION_SAME_SITE=${GATEWAY_SESSION_SAME_SITE:-lax}
          - GATEWAY_SESSION_COOKIE_SECURE=${GATEWAY_SESSION_COOKIE_SECURE:-false}
-         - EUREKA_URL=http://eureka-service:8761/eureka/
+         - EUREKA_URL=http://$${registry.username}:$${registry.password}@eureka-service:8761/eureka/
          - EUREKA_PREFER_IP_ADDRESS=false
       volumes:
          - openbao_tls:/run/secrets/openbao-tls:ro
@@ -1018,6 +1018,7 @@ volumes:
    admissions_db_secrets:
    billing_db_secrets:
    assistant_db_secrets:
+   eureka_secrets:
    admissions_data:
    ai_assistant_data:
    auth_data:

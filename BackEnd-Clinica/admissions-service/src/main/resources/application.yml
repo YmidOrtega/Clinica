@@ -147,6 +147,7 @@ spring:
     import:
       - vault://secret/admissions/db/migrator?prefix=admissions.db.migrator.
       - vault://secret/admissions/db/app?prefix=admissions.db.app.
+      - vault://secret/eureka/client?prefix=registry.
   cloud:
     vault:
       enabled: true

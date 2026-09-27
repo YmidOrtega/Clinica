@@ -175,6 +175,7 @@ spring:
     import:
       - vault://secret/auth/db/migrator?prefix=auth.db.migrator.
       - vault://secret/auth/db/app?prefix=auth.db.app.
+      - vault://secret/eureka/client?prefix=registry.
       - optional:vault://secret/auth/bootstrap?prefix=clinica.auth.bootstrap.
   cloud:
     vault:

@@ -87,6 +87,7 @@ spring:
     import:
       - vault://secret/practitioners/db/migrator?prefix=practitioners.db.migrator.
       - vault://secret/practitioners/db/app?prefix=practitioners.db.app.
+      - vault://secret/eureka/client?prefix=registry.
   cloud:
     vault:
       enabled: true

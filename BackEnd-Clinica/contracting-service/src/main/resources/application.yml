@@ -119,6 +119,7 @@ spring:
     import:
       - vault://secret/contracting/db/migrator?prefix=contracting.db.migrator.
       - vault://secret/contracting/db/app?prefix=contracting.db.app.
+      - vault://secret/eureka/client?prefix=registry.
   cloud:
     vault:
       enabled: true

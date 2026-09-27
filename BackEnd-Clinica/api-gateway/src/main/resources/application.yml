@@ -106,6 +106,7 @@ spring:
       on-profile: openbao
     import:
       - vault://secret/gateway/redis?prefix=gateway.redis.
+      - vault://secret/eureka/client?prefix=registry.
   cloud:
     vault:
       enabled: true

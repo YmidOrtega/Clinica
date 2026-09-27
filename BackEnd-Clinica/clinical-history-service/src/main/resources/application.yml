@@ -164,6 +164,7 @@ spring:
       - vault://secret/clinical/db/migrator?prefix=clinical.db.migrator.
       - vault://secret/clinical/db/app?prefix=clinical.db.app.
       - vault://secret/clinical/storage/attachments?prefix=clinical.storage.attachments.
+      - vault://secret/eureka/client?prefix=registry.
       - optional:vault://secret/clinical/retired-master-keys?prefix=clinica.clinical.encryption.retired-master-keys.
       - optional:vault://secret/clinical/retired-seal-keys?prefix=clinica.clinical.seal.retired-public-keys.
   cloud:
