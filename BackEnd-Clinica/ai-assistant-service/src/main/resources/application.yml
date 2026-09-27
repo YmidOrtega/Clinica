@@ -50,9 +50,28 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  ai:
+    openai:
+      base-url: ${AI_ASSISTANT_LLM_BASE_URL:http://localhost:1234}
+      api-key: ${AI_ASSISTANT_LLM_API_KEY:lm-studio}
+      chat:
+        options:
+          model: ${AI_ASSISTANT_LLM_MODEL:qwen3-8b}
+          temperature: 0.1
+    retry:
+      max-attempts: 1
   cloud:
     vault:
       enabled: false
+    openfeign:
+      client:
+        config:
+          billing-service:
+            connect-timeout: 1000
+            read-timeout: 5000
+    circuitbreaker:
+      resilience4j:
+        disable-time-limiter: true
 
 clinica:
   assistant:
@@ -68,6 +87,12 @@ clinica:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}
       issuer: ${AUTH_ISSUER:http://localhost:8080/auth}
       audiences: clinica-api, ai-assistant-service
+    client:
+      id: ai-assistant-service
+      token-uri: ${AUTH_TOKEN_URI:http://localhost:8086/oauth2/token}
+      assertion-key: ${AI_ASSISTANT_CLIENT_TRANSIT_KEY:ai-assistant-service-client}
+      audiences:
+        billing-service: billing-service
     revocation:
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
 
