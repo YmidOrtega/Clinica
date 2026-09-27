@@ -16,7 +16,7 @@ class PractitionerEventsListener {
         this.projection = projection;
     }
 
-    @KafkaListener(id = "practitioner-events", topics = TOPIC,
+    @KafkaListener(id = "practitioner-events", idIsGroup = false, topics = TOPIC,
             autoStartup = "${clinica.clinical.practitioner-events.enabled:true}")
     void onPractitionerEvent(ConsumerRecord<String, String> record) {
         if (record.value() == null) {
