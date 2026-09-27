@@ -96,6 +96,27 @@ class ServiceTokensIT {
     }
 
     @Test
+    void theInvoiceAssistantReachesOnlyBillingKeepingWhenAndHowTheUserSignedIn() throws ParseException {
+        StaffAccounts.StaffAccount biller = staff.active(Role.BILLING);
+        OAuthBrowser browser = new OAuthBrowser(port);
+        browser.authorize();
+        String subjectToken = browser.exchangeCode(browser.authorizationCode(browser.signIn(biller))).json().get("access_token").asText();
+        JWTClaimsSet subject = SignedJWT.parse(subjectToken).getJWTClaimsSet();
+        String actorToken = serviceToken(AuthTestSupport.ASSISTANT_SERVICE, AuthTestSupport.ASSISTANT_SERVICE_KEY).json().get("access_token").asText();
+
+        OAuthBrowser.Response exchanged = exchange(AuthTestSupport.ASSISTANT_SERVICE, AuthTestSupport.ASSISTANT_SERVICE_KEY,
+                subjectToken, actorToken, "billing-service");
+
+        assertThat(exchanged.status()).as(exchanged.body()).isEqualTo(200);
+        JWTClaimsSet claims = claims(exchanged);
+        assertThat(claims.getAudience()).containsExactly("billing-service");
+        assertThat(claims.getLongClaim("auth_time")).isEqualTo(subject.getLongClaim("auth_time"));
+        assertThat(claims.getStringClaim("acr")).isEqualTo(subject.getStringClaim("acr"));
+        assertThat(exchange(AuthTestSupport.ASSISTANT_SERVICE, AuthTestSupport.ASSISTANT_SERVICE_KEY, subjectToken, actorToken,
+                AuthTestSupport.PATIENT_SERVICE).json().get("error").asText()).isEqualTo("invalid_target");
+    }
+
+    @Test
     void aSuspendedStaffMemberCannotBeImpersonatedByAService() {
         StaffAccounts.StaffAccount nurse = staff.active(Role.NURSE);
         OAuthBrowser browser = new OAuthBrowser(port);

@@ -25,6 +25,8 @@ public class AuthTestSupport {
     public static final String PATIENT_SERVICE_KEY = OpenBaoTestContainer.ensureKey("patient-service-client", "ecdsa-p256");
     public static final String CLINICAL_SERVICE = "clinical-history-service";
     public static final String CLINICAL_SERVICE_KEY = OpenBaoTestContainer.ensureKey("clinical-history-service-client", "ecdsa-p256");
+    public static final String ASSISTANT_SERVICE = "ai-assistant-service";
+    public static final String ASSISTANT_SERVICE_KEY = OpenBaoTestContainer.ensureKey("ai-assistant-service-client", "ecdsa-p256");
 
     @Bean
     BearerTokens bearerTokens(JwtEncoder encoder) {
@@ -48,6 +50,7 @@ public class AuthTestSupport {
         registry.add("clinica.auth.server.clients.api-gateway.assertion-key", () -> CLIENT_ASSERTION_KEY);
         registry.add("clinica.auth.server.clients.patient-service.assertion-key", () -> PATIENT_SERVICE_KEY);
         registry.add("clinica.auth.server.clients.clinical-history-service.assertion-key", () -> CLINICAL_SERVICE_KEY);
+        registry.add("clinica.auth.server.clients.ai-assistant-service.assertion-key", () -> ASSISTANT_SERVICE_KEY);
         registry.add("clinica.auth.mail.dispatch-interval", () -> "PT1H");
     }
 

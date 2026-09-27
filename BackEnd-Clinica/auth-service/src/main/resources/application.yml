@@ -112,6 +112,12 @@ clinica:
           assertion-key: ${AUTH_BILLING_SERVICE_CLIENT_KEY:billing-service-client}
           access-token-ttl: 30m
           exchange-audiences: admissions-service, contracting-service, practitioners-service, patient-service
+        ai-assistant-service:
+          grant-types: client_credentials, urn:ietf:params:oauth:grant-type:token-exchange
+          scopes: openid, profile
+          assertion-key: ${AUTH_AI_ASSISTANT_SERVICE_CLIENT_KEY:ai-assistant-service-client}
+          access-token-ttl: 30m
+          exchange-audiences: billing-service
     frontend:
       activation-url: ${AUTH_ACTIVATION_URL:http://localhost:4321/activar-cuenta}
       password-reset-url: ${AUTH_PASSWORD_RESET_URL:http://localhost:4321/restablecer-contrasena}
