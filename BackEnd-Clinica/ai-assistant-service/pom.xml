@@ -19,6 +19,7 @@
 		<clinica-commons-web.version>1.1.0</clinica-commons-web.version>
 		<clinica-commons-security.version>2.10.0</clinica-commons-security.version>
 		<archunit.version>1.4.1</archunit.version>
+		<json-schema-validator.version>1.5.9</json-schema-validator.version>
 	</properties>
 
 	<dependencies>
@@ -56,6 +57,10 @@
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -108,6 +113,17 @@
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>kafka</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.networknt</groupId>
+			<artifactId>json-schema-validator</artifactId>
+			<version>${json-schema-validator.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>

@@ -16,15 +16,24 @@ class ArchitectureTest {
     static final ArchRule dependenciesOnlyGoDown = layeredArchitecture()
             .consideringOnlyDependenciesInLayers()
             .layer("Web").definedBy("..ai_assistant_service.web..")
+            .layer("Messaging").definedBy("..ai_assistant_service.messaging..")
             .layer("Service").definedBy("..ai_assistant_service.service..")
             .layer("Repository").definedBy("..ai_assistant_service.repository..")
             .whereLayer("Web").mayNotBeAccessedByAnyLayer()
-            .whereLayer("Service").mayOnlyBeAccessedByLayers("Web")
+            .whereLayer("Messaging").mayNotBeAccessedByAnyLayer()
+            .whereLayer("Service").mayOnlyBeAccessedByLayers("Web", "Messaging")
             .whereLayer("Repository").mayOnlyBeAccessedByLayers("Service");
 
     @ArchTest
     static final ArchRule theWebLayerNeverTouchesPersistence = noClasses()
             .that().resideInAPackage("..ai_assistant_service.web..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "..ai_assistant_service.repository..", "jakarta.persistence..", "org.hibernate..",
+                    "org.springframework.data..");
+
+    @ArchTest
+    static final ArchRule theMessagingLayerNeverTouchesPersistence = noClasses()
+            .that().resideInAPackage("..ai_assistant_service.messaging..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "..ai_assistant_service.repository..", "jakarta.persistence..", "org.hibernate..",
                     "org.springframework.data..");

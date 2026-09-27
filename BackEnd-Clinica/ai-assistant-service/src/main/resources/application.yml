@@ -38,6 +38,18 @@ spring:
         default_schema: assistant
         jdbc:
           time_zone: UTC
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ai-assistant-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        allow.auto.create.topics: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   cloud:
     vault:
       enabled: false
@@ -45,6 +57,8 @@ spring:
 clinica:
   assistant:
     time-zone: America/Bogota
+    invoice-events:
+      enabled: ${AI_ASSISTANT_INVOICE_EVENTS_ENABLED:true}
   security:
     jwt:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}

@@ -21,6 +21,8 @@ public final class JwtTestTokens {
         SecurityTestTokens.register(registry, "ai-assistant-service");
         registry.add("eureka.client.enabled", () -> false);
         registry.add("clinica.security.client.id", () -> "");
+        registry.add("clinica.assistant.invoice-events.enabled", () -> false);
+        registry.add("spring.kafka.admin.auto-create", () -> false);
     }
 
     public static String bearer(String role) {
