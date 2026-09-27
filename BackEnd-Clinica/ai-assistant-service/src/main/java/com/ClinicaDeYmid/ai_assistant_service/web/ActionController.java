@@ -4,6 +4,7 @@ import com.ClinicaDeYmid.ai_assistant_service.service.ActionService;
 import com.ClinicaDeYmid.ai_assistant_service.service.ActionViews;
 import com.ClinicaDeYmid.ai_assistant_service.shared.ActionStatus;
 import com.ClinicaDeYmid.ai_assistant_service.web.ActionResponses.ActionView;
+import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,10 +31,12 @@ class ActionController {
 
     private final ActionService actions;
     private final CurrentStaff staff;
+    private final RecentAuthentication recentAuthentication;
 
-    ActionController(ActionService actions, CurrentStaff staff) {
+    ActionController(ActionService actions, CurrentStaff staff, RecentAuthentication recentAuthentication) {
         this.actions = actions;
         this.staff = staff;
+        this.recentAuthentication = recentAuthentication;
     }
 
     @GetMapping
@@ -47,10 +50,15 @@ class ActionController {
     @PreAuthorize(Access.USE)
     @Operation(summary = "Confirmar una acción propuesta",
             description = "La ejecuta en billing con los permisos del usuario. Exige el ETag de la propuesta; una "
-                    + "vencida, ya confirmada o descartada no se ejecuta")
+                    + "vencida, ya confirmada o descartada no se ejecuta. Responder una glosa exige además un segundo "
+                    + "factor reciente")
     ResponseEntity<ActionView> confirm(@PathVariable UUID uuid,
                                        @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
-        return respond(actions.confirm(staff.uuid(), uuid, EntityTags.requiredVersion(ifMatch)));
+        long version = EntityTags.requiredVersion(ifMatch);
+        if (actions.needsRecentSecondFactor(staff.uuid(), uuid)) {
+            recentAuthentication.require();
+        }
+        return respond(actions.confirm(staff.uuid(), uuid, version));
     }
 
     @PostMapping("/{uuid}/discard")

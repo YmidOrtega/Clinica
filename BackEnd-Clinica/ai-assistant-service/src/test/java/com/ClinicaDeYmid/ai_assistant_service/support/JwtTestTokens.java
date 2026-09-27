@@ -29,6 +29,10 @@ public final class JwtTestTokens {
         return SecurityTestTokens.staff(role, UUID.fromString(USERS.get(role))).bearer();
     }
 
+    public static String bearerWithoutSecondFactor(String role) {
+        return SecurityTestTokens.staff(role, UUID.fromString(USERS.get(role))).withoutSecondFactor().bearer();
+    }
+
     public static String bearerAs(String role, UUID user) {
         return SecurityTestTokens.staff(role, user).bearer();
     }

@@ -1,13 +1,14 @@
 package com.ClinicaDeYmid.ai_assistant_service.client;
 
-import com.ClinicaDeYmid.ai_assistant_service.shared.ActionKind;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.circuitbreaker.CircuitBreaker;
 import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
+import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -50,16 +51,33 @@ public class BillingDirectory {
         });
     }
 
-    public BillingLookup perform(ActionKind kind, UUID invoiceUuid) {
-        Function<UUID, String> call = switch (kind) {
+    public BillingLookup perform(BillingAction action) {
+        Function<UUID, String> call = switch (action.kind()) {
             case SIGN -> client::sign;
             case SEND_TO_DIAN -> client::sendToDian;
             case VALIDATE_RIPS -> client::validateRips;
+            case FILE -> invoice -> client.file(invoice, action.body());
+            case ANSWER_OBJECTION -> invoice -> client.answerObjection(action.targetUuid(),
+                    "\"" + action.targetVersion() + "\"", action.body());
         };
-        return circuitBreaker.run(() -> lookup(call, invoiceUuid), failure -> {
-            log.warn("billing-service did not answer the {} request ({})", kind, failure.getClass().getSimpleName());
+        return circuitBreaker.run(() -> lookup(call, action.invoiceUuid()), failure -> {
+            log.warn("billing-service did not answer the {} request ({})", action.kind(),
+                    failure.getClass().getSimpleName());
             return new BillingLookup.Unavailable();
         });
+    }
+
+    public OptionalLong objectionVersion(UUID objectionUuid) {
+        return circuitBreaker.run(() -> {
+            try {
+                ResponseEntity<String> objection = client.objection(objectionUuid);
+                String tag = objection.getHeaders().getETag();
+                return tag == null ? OptionalLong.empty()
+                        : OptionalLong.of(Long.parseLong(tag.replace("W/", "").replace("\"", "")));
+            } catch (FeignException.FeignClientException | NumberFormatException unusable) {
+                return OptionalLong.empty();
+            }
+        }, failure -> OptionalLong.empty());
     }
 
     private static BillingLookup lookup(Function<UUID, String> call, UUID invoiceUuid) {
@@ -67,7 +85,7 @@ public class BillingDirectory {
             return new BillingLookup.Found(call.apply(invoiceUuid));
         } catch (FeignException.NotFound missing) {
             return new BillingLookup.NotFound();
-        } catch (FeignException.Forbidden | FeignException.Unauthorized refused) {
+        } catch (FeignException.Forbidden refused) {
             return new BillingLookup.Forbidden();
         } catch (FeignException.FeignClientException rejected) {
             return new BillingLookup.Refused(rejected.status(), rejected.contentUTF8());
