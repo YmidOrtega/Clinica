@@ -68,6 +68,7 @@ jobs:
           - practitioners-service
           - admissions-service
           - billing-service
+          - ai-assistant-service
           - api-gateway
     steps:
       - uses: actions/checkout@v4
@@ -109,8 +110,6 @@ jobs:
       matrix:
         service:
           - eureka-service
-          - admissions-service
-          - ai-assistant-service
     steps:
       - uses: actions/checkout@v4
 
@@ -168,7 +167,7 @@ jobs:
       - name: Package the services of the stack
         run: |
           for service in eureka-service auth-service patient-service clinical-history-service contracting-service \
-                         practitioners-service admissions-service billing-service api-gateway; do
+                         practitioners-service admissions-service billing-service ai-assistant-service api-gateway; do
             mvn package -DskipTests -f "$service/pom.xml"
           done
 
@@ -176,7 +175,8 @@ jobs:
         run: |
           docker compose -p "$COMPOSE_PROJECT" -f docker-compose.yml -f docker-compose.debug.yml \
             up -d --build api-gateway auth-service patient-service clinical-history-service contracting-service \
-              practitioners-service admissions-service billing-service dian-simulator muv-simulator \
+              practitioners-service admissions-service billing-service ai-assistant-service \
+              dian-simulator muv-simulator llm-simulator \
               kafka-connect-init mailpit
           for attempt in $(seq 1 120); do
             if [ -z "$(docker ps -q --filter health=starting --filter health=unhealthy)" ] \
@@ -204,7 +204,14 @@ jobs:
         run: sh platform/e2e/admissions-e2e.sh
 
       - name: Billing, DIAN, RIPS, filing and glosas
+        env:
+          E2E_EXPORT_FILE: ${{ runner.temp }}/billing.env
         run: sh platform/e2e/billing-e2e.sh
+
+      - name: Invoice assistant with the simulated local model
+        env:
+          BILLING_EXPORT: ${{ runner.temp }}/billing.env
+        run: sh platform/e2e/assistant-e2e.sh
 
       - name: OpenBao failover and isolation
         run: sh platform/e2e/openbao-e2e.sh
