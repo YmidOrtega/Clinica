@@ -33,7 +33,7 @@ Los servicios ya escritos (patient, clinical-history) siguen autorizando por rol
 | `HUMAN_RESOURCES` | talento humano | `practitioners:read`, `practitioners:manage`, `practitioners:manage-fees` |
 | `RECEPTIONIST` | recepción | `admissions:read`, `admissions:admit`; `contracting:read`, `practitioners:read` |
 | `DOCTOR` | médicos | `admissions:read`, `admissions:discharge` |
-| `NURSE` | enfermería | `admissions:read`, `admissions:admit`, `admissions:move-bed` |
+| `NURSE` | enfermería | `admissions:read`, `admissions:move-bed` |
 | `MEDICAL_RECORDS` | archivo clínico | `admissions:read` |
 
 `SUPER_ADMIN` recibe todo permiso nuevo automáticamente: es el usuario con el que corren los E2E y las

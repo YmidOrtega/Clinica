@@ -54,7 +54,6 @@ public enum StaffRole {
             StaffPermission.ADMISSIONS_DISCHARGE)),
     NURSE(EnumSet.of(
             StaffPermission.ADMISSIONS_READ,
-            StaffPermission.ADMISSIONS_ADMIT,
             StaffPermission.ADMISSIONS_MOVE_BED)),
     MEDICAL_RECORDS(EnumSet.of(StaffPermission.ADMISSIONS_READ));
 

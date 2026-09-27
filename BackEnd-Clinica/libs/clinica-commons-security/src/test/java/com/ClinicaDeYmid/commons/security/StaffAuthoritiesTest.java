@@ -56,9 +56,9 @@ class StaffAuthoritiesTest {
     }
 
     @Test
-    void onlyReceptionAndNursingAdmit() {
+    void onlyReceptionAdmits() {
         assertThat(rolesHolding(StaffPermission.ADMISSIONS_ADMIT)).containsExactlyInAnyOrder(
-                StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.RECEPTIONIST, StaffRole.NURSE);
+                StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.RECEPTIONIST);
     }
 
     @Test
