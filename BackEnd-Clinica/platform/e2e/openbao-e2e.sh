@@ -191,6 +191,16 @@ bao_as openbao_approle_agent "bao kv get -mount=secret billing/dian/certificate 
 [ "$status" -ne 0 ] && [ "$status" -ne 90 ] || fail "el agente de infraestructura leyó el certificado DIAN"
 ok "billing-service lee solo sus secretos y firma solo con sus claves; nadie más ve el certificado DIAN"
 
+step "El registro de servicios exige las credenciales de OpenBao"
+anonymous=$(docker exec eureka-service curl -s -o /dev/null -w '%{http_code}' http://localhost:8761/eureka/apps)
+[ "$anonymous" = "401" ] || fail "Eureka respondió $anonymous sin credenciales"
+registered=$(docker exec eureka-service sh -c 'curl -s -H "Accept: application/json" \
+  -u "$(cat /run/secrets/eureka/username):$(cat /run/secrets/eureka/password)" http://localhost:8761/eureka/apps')
+for app in BILLING-SERVICE ADMISSIONS-SERVICE AI-ASSISTANT-SERVICE; do
+  printf '%s' "$registered" | grep -q "\"$app\"" || fail "$app no se registró en Eureka con sus credenciales"
+done
+ok "Eureka rechaza al anónimo y los servicios se registran con la credencial de OpenBao"
+
 step "Ningún secreto en la configuración de los contenedores"
 secrets=$(bao_root "for path in patient/db/root patient/db/app patient/db/migrator patient/db/debezium clinical/db/root clinical/db/app clinical/db/migrator clinical/db/debezium clinical/storage/root auth/db/root auth/db/app auth/db/migrator auth/db/debezium gateway/redis; do bao kv get -mount=secret -field=password \$path; echo; done; bao kv get -mount=secret -field=secret-key clinical/storage/attachments")
 containers=$(docker compose -p "$PROJECT" ps -a -q)
