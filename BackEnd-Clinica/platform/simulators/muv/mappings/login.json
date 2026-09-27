@@ -1,0 +1,19 @@
+{
+  "name": "El MUV autentica al usuario SISPRO",
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/Auth/LoginSISPRO"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "token": "{{randomValue length=40 type='ALPHANUMERIC'}}",
+      "login": true,
+      "registrado": true,
+      "errors": []
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "El MUV valida el RIPS y la factura y asigna un CUV",
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/PaquetesFevRips/CargarFevRips",
+    "headers": {
+      "Authorization": {
+        "matches": "Bearer .+"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "ResultState": true,
+      "ProcesoId": 1024,
+      "NumFactura": "{{jsonPath request.body '$.rips.numFactura'}}",
+      "CodigoUnicoValidacion": "{{randomValue length=96 type='HEXADECIMAL'}}",
+      "FechaRadicacion": "{{now}}",
+      "RutaArchivos": null,
+      "ResultadosValidacion": [
+        {
+          "Clase": "NOTIFICACION",
+          "Codigo": "SIM001",
+          "Descripcion": "Validado por el simulador del entorno de pruebas",
+          "Observaciones": "",
+          "PathFuente": "",
+          "Fuente": "Simulador"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "La DIAN acepta la factura en producción",
+  "request": {
+    "method": "POST",
+    "urlPath": "/WcfDianCustomerServices.svc",
+    "headers": {
+      "Content-Type": {
+        "contains": "IWcfDianCustomerServices/SendBillSync\""
+      }
+    },
+    "bodyPatterns": [
+      {
+        "contains": "<wsse:BinarySecurityToken"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/soap+xml; charset=utf-8"
+    },
+    "body": "<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:a=\"http://www.w3.org/2005/08/addressing\"><s:Header><a:Action s:mustUnderstand=\"1\">http://wcf.dian.colombia/IWcfDianCustomerServices/SendBillSyncResponse</a:Action></s:Header><s:Body><SendBillSyncResponse xmlns=\"http://wcf.dian.colombia\"><SendBillSyncResult xmlns:b=\"http://schemas.datacontract.org/2004/07/DianResponse\" xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\"><b:ErrorMessage xmlns:c=\"http://schemas.microsoft.com/2003/10/Serialization/Arrays\"/><b:IsValid>true</b:IsValid><b:StatusCode>00</b:StatusCode><b:StatusDescription>Procesado Correctamente.</b:StatusDescription><b:StatusMessage>Procesado Correctamente.</b:StatusMessage><b:XmlBase64Bytes>PEFwcGxpY2F0aW9uUmVzcG9uc2UgeG1sbnM9InVybjpvYXNpczpuYW1lczpzcGVjaWZpY2F0aW9uOnVibDpzY2hlbWE6eHNkOkFwcGxpY2F0aW9uUmVzcG9uc2UtMiI+PFJlc3BvbnNlPjAyPC9SZXNwb25zZT48L0FwcGxpY2F0aW9uUmVzcG9uc2U+</b:XmlBase64Bytes><b:XmlDocumentKey>cufe</b:XmlDocumentKey></SendBillSyncResult></SendBillSyncResponse></s:Body></s:Envelope>"
+  }
+}
