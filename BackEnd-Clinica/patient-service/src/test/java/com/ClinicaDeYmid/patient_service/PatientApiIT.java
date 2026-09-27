@@ -308,6 +308,11 @@ class PatientApiIT {
         as("BILLING", MockMvcRequestBuilders.get("/api/v1/patients/" + uuid))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.uuid").value(uuid));
+        as("ACCOUNTS_RECEIVABLE", MockMvcRequestBuilders.get("/api/v1/patients/" + uuid))
+                .andExpect(status().isOk());
+        as("ACCOUNTS_RECEIVABLE", post("/api/v1/patients")
+                .content(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula())))
+                .andExpect(status().isForbidden());
 
         as("BILLING", post("/api/v1/patients").content(PatientJson.uninsuredRegistration(PatientJson.uniqueCedula())))
                 .andExpect(status().isForbidden());
