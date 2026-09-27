@@ -1,0 +1,23 @@
+{
+  "name": "El modelo responde sin herramientas",
+  "priority": 5,
+  "request": { "method": "POST", "urlPath": "/v1/chat/completions" },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "id": "sim-plain",
+      "object": "chat.completion",
+      "created": 1,
+      "model": "simulador",
+      "choices": [
+        {
+          "index": 0,
+          "message": { "role": "assistant", "content": "Respuesta del simulador del modelo local." },
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": { "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2 }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "El modelo responde después de consultar una herramienta",
+  "priority": 2,
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/chat/completions",
+    "bodyPatterns": [ { "matches": "(?s).*\"role\"\\s*:\\s*\"tool\".*" } ]
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "id": "sim-answer",
+      "object": "chat.completion",
+      "created": 1,
+      "model": "simulador",
+      "choices": [
+        {
+          "index": 0,
+          "message": { "role": "assistant", "content": "Revisé la factura con la herramienta de estado (simulador)." },
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": { "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2 }
+    }
+  }
+}

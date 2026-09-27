@@ -86,6 +86,7 @@ services:
          - "127.0.0.1:8084:8084"
       environment:
          - SWAGGER_UI_ENABLED=true
+         - AI_ASSISTANT_LLM_BASE_URL=${AI_ASSISTANT_LLM_BASE_URL:-http://llm-simulator:8080}
          - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
 
    dian-simulator:
@@ -96,6 +97,18 @@ services:
          - ./platform/simulators/dian/mappings:/home/wiremock/mappings:ro
       ports:
          - "127.0.0.1:8097:8080"
+      networks:
+         - clinica-net
+         - debug-net
+
+   llm-simulator:
+      image: wiremock/wiremock:3.13.1
+      container_name: llm-simulator
+      command: ["--global-response-templating", "--disable-banner"]
+      volumes:
+         - ./platform/simulators/llm/mappings:/home/wiremock/mappings:ro
+      ports:
+         - "127.0.0.1:8079:8080"
       networks:
          - clinica-net
          - debug-net

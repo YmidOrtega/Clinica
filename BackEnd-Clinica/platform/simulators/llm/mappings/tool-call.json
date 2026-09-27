@@ -1,0 +1,43 @@
+{
+  "name": "El modelo pide el estado de la factura que menciona el usuario",
+  "priority": 1,
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/chat/completions",
+    "bodyPatterns": [
+      { "matches": "(?s).*SETP[0-9]+.*" },
+      { "doesNotMatch": "(?s).*\"role\"\\s*:\\s*\"tool\".*" }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "id": "sim-tool",
+      "object": "chat.completion",
+      "created": 1,
+      "model": "simulador",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "invoiceStatus",
+                  "arguments": "{\"number\":\"{{regexExtract request.body 'SETP[0-9]+'}}\"}"
+                }
+              }
+            ]
+          },
+          "finish_reason": "tool_calls"
+        }
+      ],
+      "usage": { "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2 }
+    }
+  }
+}
