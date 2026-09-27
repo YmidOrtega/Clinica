@@ -457,6 +457,13 @@ Con Eureka: el gateway resuelve "PATIENT-SERVICE" → IP actual dinámicamente
 
 **Beneficio en Docker Compose:** al reiniciar un contenedor con nueva IP, Eureka lo re-registra automáticamente. Ninguna configuración cambia.
 
+**Registro cerrado.** Los clientes Feign entre servicios (billing→admissions, el asistente→billing, etc.)
+eligen su destino con Eureka y le envían el token intercambiado del usuario, así que quien pudiera
+registrarse como `billing-service` recibiría esos tokens. Eureka exige por eso credenciales para leer y
+para registrarse: cada servicio las toma de OpenBao (`secret/eureka/client`) con su AppRole y el servidor
+las recibe del agente en un volumen propio. Solo `/actuator/health` e `/info` quedan abiertos, y el puerto
+se publica únicamente en `docker-compose.debug.yml` y en `127.0.0.1`.
+
 ---
 
 ## 6. Estrategia de Base de Datos

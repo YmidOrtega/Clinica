@@ -486,6 +486,9 @@ atención no exige relación previa —así empieza el cuidado— pero queda aud
   en memoria; MySQL, Kafka Connect y el almacenamiento los leen de archivos (`*_FILE`,
   `DirectoryConfigProvider`) en volúmenes montados solo en ese contenedor. `openbao-e2e.sh` comprueba
   que ninguna contraseña aparezca en `docker inspect`.
+- **El registro de servicios también es un secreto.** Eureka pide usuario y contraseña (de
+  `secret/eureka/client`) para leer el registro o registrarse; sin ellas nadie puede hacerse pasar por
+  otro servicio y recibir tokens intercambiados. `openbao-e2e.sh` comprueba que rechaza al anónimo.
 - **TLS 1.3 y auditoría.** Todo el tráfico con OpenBao va cifrado y cada petición queda en el registro
   de auditoría de los nodos.
 - **Desarrollo frente a producción.** En desarrollo el sello es una clave estática en un volumen y el
