@@ -13,4 +13,7 @@ public sealed interface BillingLookup {
 
     record Unavailable() implements BillingLookup {
     }
+
+    record Refused(int status, String problem) implements BillingLookup {
+    }
 }

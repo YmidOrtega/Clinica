@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.ai_assistant_service.web;
 
+import com.ClinicaDeYmid.ai_assistant_service.service.ActionViews;
 import com.ClinicaDeYmid.ai_assistant_service.service.ConversationViews;
 
 import java.time.Instant;
@@ -36,10 +37,11 @@ final class ConversationResponses {
         }
     }
 
-    record ExchangeView(MessageView question, MessageView answer) {
+    record ExchangeView(MessageView question, MessageView answer, List<ActionResponses.ActionView> proposedActions) {
 
-        static ExchangeView from(ConversationViews.Exchange exchange) {
-            return new ExchangeView(MessageView.from(exchange.question()), MessageView.from(exchange.answer()));
+        static ExchangeView from(ConversationViews.Exchange exchange, List<ActionViews.ActionView> proposed) {
+            return new ExchangeView(MessageView.from(exchange.question()), MessageView.from(exchange.answer()),
+                    proposed.stream().map(ActionResponses.ActionView::from).toList());
         }
     }
 

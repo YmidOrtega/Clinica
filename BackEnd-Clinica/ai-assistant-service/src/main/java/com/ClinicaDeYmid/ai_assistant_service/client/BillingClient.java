@@ -3,6 +3,7 @@ package com.ClinicaDeYmid.ai_assistant_service.client;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.util.UUID;
 
@@ -26,4 +27,13 @@ interface BillingClient {
 
     @GetMapping("/api/v1/billing/invoices/{uuid}/credit-notes")
     String creditNotes(@PathVariable("uuid") UUID uuid);
+
+    @PostMapping("/api/v1/billing/invoices/{uuid}/signature")
+    String sign(@PathVariable("uuid") UUID uuid);
+
+    @PostMapping("/api/v1/billing/invoices/{uuid}/dian-delivery")
+    String sendToDian(@PathVariable("uuid") UUID uuid);
+
+    @PostMapping("/api/v1/billing/invoices/{uuid}/rips-validation")
+    String validateRips(@PathVariable("uuid") UUID uuid);
 }

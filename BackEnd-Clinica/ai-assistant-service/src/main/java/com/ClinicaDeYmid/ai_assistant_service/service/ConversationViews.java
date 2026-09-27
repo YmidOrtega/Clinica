@@ -38,7 +38,7 @@ public final class ConversationViews {
         }
     }
 
-    public record Exchange(MessageView question, MessageView answer) {
+    public record Exchange(MessageView question, MessageView answer, List<UUID> proposedActions) {
     }
 
     public record Page<T>(List<T> content, int page, int size, long totalElements) {

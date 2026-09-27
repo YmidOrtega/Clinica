@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -59,7 +61,8 @@ public class ConversationService {
                             message.content()))
                     .toList();
         });
-        String answer = model.answer(userName, history, asked);
+        List<UUID> proposed = Collections.synchronizedList(new ArrayList<>());
+        String answer = model.answer(ownerUuid, uuid, userName, history, asked, proposed);
         return transactions.execute(status -> {
             Conversation conversation = owned(ownerUuid, uuid);
             ConversationMessage asked_ = conversation.append(ConversationMessage.Role.USER, asked, clock);
@@ -69,7 +72,7 @@ public class ConversationService {
             conversations.saveAndFlush(conversation);
             log.info("Conversation {} answered ({} characters)", conversation.uuid(), answer.length());
             return new ConversationViews.Exchange(ConversationViews.MessageView.of(asked_),
-                    ConversationViews.MessageView.of(reply));
+                    ConversationViews.MessageView.of(reply), List.copyOf(proposed));
         });
     }
 

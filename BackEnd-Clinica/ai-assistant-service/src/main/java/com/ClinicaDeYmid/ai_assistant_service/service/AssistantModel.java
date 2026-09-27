@@ -17,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Component
@@ -30,18 +32,21 @@ class AssistantModel {
 
     private final ChatClient chat;
     private final InvoiceTools tools;
+    private final ActionTools actionTools;
     private final String systemPrompt;
     private final Clock clock;
 
-    AssistantModel(ChatClient.Builder chat, InvoiceTools tools,
+    AssistantModel(ChatClient.Builder chat, InvoiceTools tools, ActionTools actionTools,
                    @Value("classpath:/prompts/system.st") Resource systemPrompt, Clock clock) {
         this.chat = chat.build();
         this.tools = tools;
+        this.actionTools = actionTools;
         this.systemPrompt = read(systemPrompt);
         this.clock = clock;
     }
 
-    String answer(String userName, List<Turn> history, String question) {
+    String answer(UUID ownerUuid, UUID conversationUuid, String userName, List<Turn> history, String question,
+                  List<UUID> proposed) {
         List<Message> messages = history.stream()
                 .<Message>map(turn -> turn.fromUser() ? new UserMessage(turn.content()) : new AssistantMessage(turn.content()))
                 .toList();
@@ -53,7 +58,9 @@ class AssistantModel {
                             .param("user", userName == null ? "" : userName))
                     .messages(messages)
                     .user(question)
-                    .tools(tools)
+                    .tools(tools, actionTools)
+                    .toolContext(Map.of(ActionTools.OWNER, ownerUuid, ActionTools.CONVERSATION, conversationUuid,
+                            ActionTools.PROPOSED, proposed))
                     .call()
                     .content();
         } catch (RuntimeException unreachable) {

@@ -82,6 +82,8 @@ clinica:
     time-zone: America/Bogota
     invoice-events:
       enabled: ${AI_ASSISTANT_INVOICE_EVENTS_ENABLED:true}
+    actions:
+      lifetime: ${AI_ASSISTANT_ACTION_LIFETIME:PT30M}
     review:
       dian-grace: ${AI_ASSISTANT_REVIEW_DIAN_GRACE:PT2H}
       rips-grace: ${AI_ASSISTANT_REVIEW_RIPS_GRACE:PT24H}

@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.ai_assistant_service.web;
 
+import com.ClinicaDeYmid.ai_assistant_service.service.ActionService;
 import com.ClinicaDeYmid.ai_assistant_service.service.ConversationService;
 import com.ClinicaDeYmid.ai_assistant_service.service.ConversationViews;
 import com.ClinicaDeYmid.ai_assistant_service.web.ConversationResponses.ConversationView;
@@ -38,10 +39,12 @@ class ConversationController {
     static final String BASE_PATH = "/api/v1/assistant/conversations";
 
     private final ConversationService conversations;
+    private final ActionService actions;
     private final CurrentStaff staff;
 
-    ConversationController(ConversationService conversations, CurrentStaff staff) {
+    ConversationController(ConversationService conversations, ActionService actions, CurrentStaff staff) {
         this.conversations = conversations;
+        this.actions = actions;
         this.staff = staff;
     }
 
@@ -79,7 +82,8 @@ class ConversationController {
                     + "a tiempo devuelve 503 y la pregunta no queda guardada")
     ResponseEntity<ExchangeView> ask(@PathVariable UUID uuid, @Valid @RequestBody ConversationRequests.Question request) {
         ConversationViews.Exchange exchange = conversations.ask(staff.uuid(), staff.name(), uuid, request.content());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ExchangeView.from(exchange));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ExchangeView.from(exchange,
+                actions.ofUuids(staff.uuid(), exchange.proposedActions())));
     }
 
     @PostMapping("/{uuid}/closure")

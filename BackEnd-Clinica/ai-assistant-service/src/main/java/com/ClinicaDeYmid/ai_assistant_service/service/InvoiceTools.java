@@ -147,6 +147,7 @@ public class InvoiceTools {
                     "{\"error\":\"el usuario no tiene permiso en billing para consultar esto\"}";
             case BillingLookup.Unavailable ignored ->
                     "{\"error\":\"billing no respondió; la información no está disponible ahora\"}";
+            case BillingLookup.Refused refused -> "{\"error\":\"billing rechazó la consulta (" + refused.status() + ")\"}";
         };
     }
 

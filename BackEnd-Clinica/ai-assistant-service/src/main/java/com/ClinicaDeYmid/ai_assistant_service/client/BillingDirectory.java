@@ -1,5 +1,6 @@
 package com.ClinicaDeYmid.ai_assistant_service.client;
 
+import com.ClinicaDeYmid.ai_assistant_service.shared.ActionKind;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,18 @@ public class BillingDirectory {
         });
     }
 
+    public BillingLookup perform(ActionKind kind, UUID invoiceUuid) {
+        Function<UUID, String> call = switch (kind) {
+            case SIGN -> client::sign;
+            case SEND_TO_DIAN -> client::sendToDian;
+            case VALIDATE_RIPS -> client::validateRips;
+        };
+        return circuitBreaker.run(() -> lookup(call, invoiceUuid), failure -> {
+            log.warn("billing-service did not answer the {} request ({})", kind, failure.getClass().getSimpleName());
+            return new BillingLookup.Unavailable();
+        });
+    }
+
     private static BillingLookup lookup(Function<UUID, String> call, UUID invoiceUuid) {
         try {
             return new BillingLookup.Found(call.apply(invoiceUuid));
@@ -56,6 +69,8 @@ public class BillingDirectory {
             return new BillingLookup.NotFound();
         } catch (FeignException.Forbidden | FeignException.Unauthorized refused) {
             return new BillingLookup.Forbidden();
+        } catch (FeignException.FeignClientException rejected) {
+            return new BillingLookup.Refused(rejected.status(), rejected.contentUTF8());
         }
     }
 }

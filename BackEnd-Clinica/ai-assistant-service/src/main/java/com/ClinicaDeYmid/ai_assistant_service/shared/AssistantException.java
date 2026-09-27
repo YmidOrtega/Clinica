@@ -36,6 +36,26 @@ public sealed abstract class AssistantException extends DomainException {
         }
     }
 
+    public static final class ActionNotFound extends AssistantException {
+        public ActionNotFound() {
+            super(ErrorCategory.NOT_FOUND, "ACTION_NOT_FOUND", "No se encontró la acción propuesta");
+        }
+    }
+
+    public static final class ActionNotPending extends AssistantException {
+        public ActionNotPending(String status) {
+            super(ErrorCategory.RULE_VIOLATION, "ACTION_NOT_PENDING",
+                    "La acción ya no espera confirmación (" + status + ")");
+        }
+    }
+
+    public static final class ActionExpired extends AssistantException {
+        public ActionExpired() {
+            super(ErrorCategory.RULE_VIOLATION, "ACTION_EXPIRED",
+                    "La propuesta venció; pídale al asistente que la vuelva a proponer");
+        }
+    }
+
     public static final class ConversationClosed extends AssistantException {
         public ConversationClosed() {
             super(ErrorCategory.RULE_VIOLATION, "CONVERSATION_CLOSED", "La conversación ya está cerrada");
