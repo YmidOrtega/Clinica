@@ -28,8 +28,8 @@ Los servicios ya escritos (patient, clinical-history) siguen autorizando por rol
 | `SUPER_ADMIN` | administración del sistema | todos |
 | `ADMIN` | administración operativa | todos |
 | `CONTRACTING` | contratación | `contracting:read`, `manage-payers`, `manage-contracts`, `manage-tariffs`, `manage-capitation`, `quote-prices` |
-| `BILLING` | facturación | `billing:read`, `sell`, `price-manually`, `invoice`, `void`, `collect`, `file`, `glosses`; `contracting:read`, `contracting:quote-prices`, `admissions:read`, `practitioners:read`, `practitioners:read-fees` |
-| `ACCOUNTS_RECEIVABLE` | cartera | `billing:read`, `billing:file`, `billing:glosses`; `contracting:read`, `admissions:read`, `practitioners:read` |
+| `BILLING` | facturación | `billing:read`, `sell`, `price-manually`, `invoice`, `void`, `collect`, `file`, `glosses`; `contracting:read`, `contracting:quote-prices`, `admissions:read`, `practitioners:read`, `practitioners:read-fees`; `assistant:use` |
+| `ACCOUNTS_RECEIVABLE` | cartera | `billing:read`, `billing:file`, `billing:glosses`; `contracting:read`, `admissions:read`, `practitioners:read`; `assistant:use` |
 | `HUMAN_RESOURCES` | talento humano | `practitioners:read`, `practitioners:manage`, `practitioners:manage-fees` |
 | `RECEPTIONIST` | recepción | `admissions:read`, `admissions:admit`; `contracting:read`, `practitioners:read` |
 | `DOCTOR` | médicos | `admissions:read`, `admissions:discharge` |
@@ -55,6 +55,10 @@ dominio.
 
 `RECEPTIONIST` lee el directorio profesional para nombrar al médico tratante al admitir: admissions lo busca
 en practitioners-service con el token del usuario cuando aún no le llegó por eventos. No ve honorarios.
+
+`assistant:use` abre el asistente de revisión de facturas (ai-assistant-service). Lo que el asistente
+consulta o ejecuta en billing sigue exigiendo los permisos de billing del usuario, porque lo hace con su
+token intercambiado.
 
 `HUMAN_RESOURCES` administra el directorio profesional y los honorarios, y nada más: no toca
 contratación ni pacientes. Como cualquier rol operativo, no administra usuarios.

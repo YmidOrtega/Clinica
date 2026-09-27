@@ -68,6 +68,12 @@ class StaffAuthoritiesTest {
     }
 
     @Test
+    void onlyInvoicingAndReceivablesTalkToTheInvoiceAssistant() {
+        assertThat(rolesHolding(StaffPermission.ASSISTANT_USE)).containsExactlyInAnyOrder(
+                StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.BILLING, StaffRole.ACCOUNTS_RECEIVABLE);
+    }
+
+    @Test
     void onlyDoctorsDischarge() {
         assertThat(rolesHolding(StaffPermission.ADMISSIONS_DISCHARGE)).containsExactlyInAnyOrder(
                 StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.DOCTOR);

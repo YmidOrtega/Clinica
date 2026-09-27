@@ -27,7 +27,8 @@ public enum StaffPermission {
     BILLING_COLLECT("billing:collect"),
     BILLING_FILE("billing:file"),
     BILLING_GLOSSES("billing:glosses"),
-    BILLING_MANAGE_CONFIG("billing:manage-config");
+    BILLING_MANAGE_CONFIG("billing:manage-config"),
+    ASSISTANT_USE("assistant:use");
 
     private final String code;
 
