@@ -89,7 +89,7 @@ class StayApiIT extends IntegrationTest {
     void onlyConfigurationDecidesHowAStayIsBilled() throws Exception {
         portfolio(WARD_DAY, "109101", "Estancia en habitación general");
 
-        change("BILLING", put("/api/v1/billing/stay-charges/PRIVATE_ROOM"), 0,
+        change("ADMIN", put("/api/v1/billing/stay-charges/PRIVATE_ROOM"), 0,
                 "{\"portfolioItemUuid\":\"" + WARD_DAY + "\"}").andExpect(status().isOk());
         as("RECEPTIONIST", put("/api/v1/billing/stay-charges/PRIVATE_ROOM"),
                 "{\"portfolioItemUuid\":\"" + WARD_DAY + "\"}").andExpect(status().isForbidden());
@@ -101,7 +101,7 @@ class StayApiIT extends IntegrationTest {
 
     private void billStay(StayType type, String item, String cups, String name) throws Exception {
         portfolio(item, cups, name);
-        change("BILLING", put("/api/v1/billing/stay-charges/" + type), 0, "{\"portfolioItemUuid\":\"" + item + "\"}")
+        change("ADMIN", put("/api/v1/billing/stay-charges/" + type), 0, "{\"portfolioItemUuid\":\"" + item + "\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cupsCode").value(cups));
     }

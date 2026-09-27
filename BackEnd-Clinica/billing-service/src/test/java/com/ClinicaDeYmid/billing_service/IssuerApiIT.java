@@ -27,7 +27,7 @@ class IssuerApiIT extends IntegrationTest {
 
     @Test
     void registersTheClinicAsIssuerInTheTestEnvironment() throws Exception {
-        as("BILLING", post(ISSUER), configuration())
+        as("ADMIN", post(ISSUER), configuration())
                 .andExpect(status().isCreated())
                 .andExpect(header().string("ETag", "\"0\""))
                 .andExpect(jsonPath("$.nit").value("800197268"))
@@ -45,16 +45,16 @@ class IssuerApiIT extends IntegrationTest {
 
     @Test
     void thereIsOnlyOneIssuer() throws Exception {
-        as("BILLING", post(ISSUER), configuration()).andExpect(status().isCreated());
+        as("ADMIN", post(ISSUER), configuration()).andExpect(status().isCreated());
 
-        as("BILLING", post(ISSUER), configuration("860034313", 7))
+        as("ADMIN", post(ISSUER), configuration("860034313", 7))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ISSUER_ALREADY_CONFIGURED"));
     }
 
     @Test
     void refusesANitWhoseVerificationDigitIsWrong() throws Exception {
-        as("BILLING", post(ISSUER), configuration("800197268", 5))
+        as("ADMIN", post(ISSUER), configuration("800197268", 5))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("NIT_WRONG_VERIFICATION_DIGIT"));
     }
@@ -68,27 +68,27 @@ class IssuerApiIT extends IntegrationTest {
 
     @Test
     void correctsTheProfileWithTheVersionItWasReadAt() throws Exception {
-        as("BILLING", post(ISSUER), configuration()).andExpect(status().isCreated());
+        as("ADMIN", post(ISSUER), configuration()).andExpect(status().isCreated());
 
-        change("BILLING", put(ISSUER), 0, profile("Clínica de Ymid S.A.S. BIC"))
+        change("ADMIN", put(ISSUER), 0, profile("Clínica de Ymid S.A.S. BIC"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("ETag", "\"1\""))
                 .andExpect(jsonPath("$.legalName").value("Clínica de Ymid S.A.S. BIC"))
                 .andExpect(jsonPath("$.nit").value("800197268"));
 
-        change("BILLING", put(ISSUER), 0, profile("Otro nombre"))
+        change("ADMIN", put(ISSUER), 0, profile("Otro nombre"))
                 .andExpect(status().isPreconditionFailed());
-        as("BILLING", put(ISSUER), profile("Otro nombre"))
+        as("ADMIN", put(ISSUER), profile("Otro nombre"))
                 .andExpect(status().isPreconditionRequired());
     }
 
     @Test
     void goingToProductionIsFinalAndRetiresTheTestResolutions() throws Exception {
-        as("BILLING", post(ISSUER), configuration()).andExpect(status().isCreated());
-        as("BILLING", post(RESOLUTIONS), resolution("18760000001", "SETP", 990000000, 995000000))
+        as("ADMIN", post(ISSUER), configuration()).andExpect(status().isCreated());
+        as("ADMIN", post(RESOLUTIONS), resolution("18760000001", "SETP", 990000000, 995000000))
                 .andExpect(status().isCreated());
 
-        change("BILLING", post(ISSUER + "/production"), 0, null)
+        change("ADMIN", post(ISSUER + "/production"), 0, null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.environment").value("PRODUCTION"))
                 .andExpect(jsonPath("$.productionSince").isNotEmpty());
@@ -97,21 +97,21 @@ class IssuerApiIT extends IntegrationTest {
                 .andExpect(jsonPath("$[0].status.code").value("RETIRED"))
                 .andExpect(jsonPath("$[0].status.reason").value("El emisor pasó a facturar en producción"));
 
-        change("BILLING", post(ISSUER + "/production"), 1, null)
+        change("ADMIN", post(ISSUER + "/production"), 1, null)
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("ISSUER_ALREADY_IN_PRODUCTION"));
     }
 
     @Test
     void recordsWhoChangedTheIssuer() throws Exception {
-        as("BILLING", post(ISSUER), configuration()).andExpect(status().isCreated());
+        as("SUPER_ADMIN", post(ISSUER), configuration()).andExpect(status().isCreated());
         change("ADMIN", put(ISSUER), 0, profile("Clínica de Ymid S.A.S. BIC")).andExpect(status().isOk());
 
         assertThat(jdbc.queryForList("""
                 SELECT r.revised_by FROM billing_history.issuer_aud a
                 JOIN billing_history.revisions r ON r.id = a.rev
                 WHERE a.uuid = (SELECT uuid FROM issuer) ORDER BY a.rev""", String.class))
-                .containsExactly("00000000-0000-4000-8000-000000000008", "00000000-0000-4000-8000-000000000002");
+                .containsExactly("00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002");
     }
 
     @ParameterizedTest

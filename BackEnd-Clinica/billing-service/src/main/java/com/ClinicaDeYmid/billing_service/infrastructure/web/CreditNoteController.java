@@ -71,7 +71,7 @@ class CreditNoteController {
     }
 
     @PostMapping(InvoiceController.INVOICES + "/{invoiceUuid}/credit-notes")
-    @PreAuthorize(Access.INVOICE)
+    @PreAuthorize(Access.VOID)
     @Operation(summary = "Emitir una nota crédito sobre una factura aceptada por la DIAN",
             description = "VOID anula la factura completa y libera la unidad para refacturar; los demás conceptos "
                     + "acreditan líneas por cantidad o por valor sin superar lo facturado. Exige un segundo factor "

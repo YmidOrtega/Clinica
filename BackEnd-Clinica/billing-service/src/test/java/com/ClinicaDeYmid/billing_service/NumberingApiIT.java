@@ -21,12 +21,12 @@ class NumberingApiIT extends IntegrationTest {
     @BeforeEach
     void startWithAnIssuerAndNoResolutions() throws Exception {
         forgetTheBillingSetup();
-        as("BILLING", post(ISSUER), configuration()).andExpect(status().isCreated());
+        as("ADMIN", post(ISSUER), configuration()).andExpect(status().isCreated());
     }
 
     @Test
     void registersAResolutionPendingWithItsWholeRangeAhead() throws Exception {
-        as("BILLING", post(RESOLUTIONS), resolution("18760000001", "setp", 990000000, 995000000))
+        as("ADMIN", post(RESOLUTIONS), resolution("18760000001", "setp", 990000000, 995000000))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))
                 .andExpect(jsonPath("$.prefix").value("SETP"))
@@ -43,10 +43,10 @@ class NumberingApiIT extends IntegrationTest {
         String first = registered("18760000001", "SETP", 1, 1000);
         String second = registered("18760000002", "SETP", 1001, 2000);
 
-        change("BILLING", post(RESOLUTIONS + "/" + first + "/activation"), 0, null)
+        change("ADMIN", post(RESOLUTIONS + "/" + first + "/activation"), 0, null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status.code").value("ACTIVE"));
-        change("BILLING", post(RESOLUTIONS + "/" + second + "/activation"), 0, null)
+        change("ADMIN", post(RESOLUTIONS + "/" + second + "/activation"), 0, null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status.code").value("ACTIVE"));
 
@@ -59,24 +59,24 @@ class NumberingApiIT extends IntegrationTest {
     void refusesARangeThatCrossesAnotherOfTheSamePrefix() throws Exception {
         registered("18760000001", "SETP", 1, 1000);
 
-        as("BILLING", post(RESOLUTIONS), resolution("18760000002", "SETP", 1000, 2000))
+        as("ADMIN", post(RESOLUTIONS), resolution("18760000002", "SETP", 1000, 2000))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("RESOLUTION_RANGE_OVERLAPS"));
-        as("BILLING", post(RESOLUTIONS), resolution("18760000002", "FV", 1, 1000))
+        as("ADMIN", post(RESOLUTIONS), resolution("18760000002", "FV", 1, 1000))
                 .andExpect(status().isCreated());
-        as("BILLING", post(RESOLUTIONS), resolution("18760000001", "SETP", 5000, 6000))
+        as("ADMIN", post(RESOLUTIONS), resolution("18760000001", "SETP", 5000, 6000))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("RESOLUTION_ALREADY_REGISTERED"));
     }
 
     @Test
     void refusesToActivateAResolutionThatIsNotValidToday() throws Exception {
-        as("BILLING", post(RESOLUTIONS), resolution("18760000003", "FV", 1, 100, "2026-01-01", "2026-03-31"))
+        as("ADMIN", post(RESOLUTIONS), resolution("18760000003", "FV", 1, 100, "2026-01-01", "2026-03-31"))
                 .andExpect(status().isCreated());
         String expired = jdbc.queryForObject(
                 "SELECT uuid FROM numbering_resolutions WHERE resolution_number = '18760000003'", String.class);
 
-        change("BILLING", post(RESOLUTIONS + "/" + expired + "/activation"), 0, null)
+        change("ADMIN", post(RESOLUTIONS + "/" + expired + "/activation"), 0, null)
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("RESOLUTION_OUTSIDE_VALIDITY"));
     }
@@ -85,12 +85,12 @@ class NumberingApiIT extends IntegrationTest {
     void retiresAResolutionWithAReasonAndKeepsItRetired() throws Exception {
         String resolution = registered("18760000001", "SETP", 1, 1000);
 
-        change("BILLING", post(RESOLUTIONS + "/" + resolution + "/retirement"), 0, "{\"reason\":\"Error de digitación\"}")
+        change("ADMIN", post(RESOLUTIONS + "/" + resolution + "/retirement"), 0, "{\"reason\":\"Error de digitación\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status.code").value("RETIRED"))
                 .andExpect(jsonPath("$.status.reason").value("Error de digitación"));
 
-        change("BILLING", post(RESOLUTIONS + "/" + resolution + "/activation"), 1, null)
+        change("ADMIN", post(RESOLUTIONS + "/" + resolution + "/activation"), 1, null)
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("RESOLUTION_INVALID_TRANSITION"));
     }
@@ -99,7 +99,7 @@ class NumberingApiIT extends IntegrationTest {
     void theDatabaseKeepsASingleActiveResolution() throws Exception {
         String first = registered("18760000001", "SETP", 1, 1000);
         registered("18760000002", "SETP", 1001, 2000);
-        change("BILLING", post(RESOLUTIONS + "/" + first + "/activation"), 0, null).andExpect(status().isOk());
+        change("ADMIN", post(RESOLUTIONS + "/" + first + "/activation"), 0, null).andExpect(status().isOk());
 
         assertThatThrownBy(() -> jdbc.update("""
                 UPDATE numbering_resolutions SET status = 'ACTIVE', status_changed_at = NOW(6)
@@ -119,7 +119,7 @@ class NumberingApiIT extends IntegrationTest {
     }
 
     private String registered(String number, String prefix, long from, long to) throws Exception {
-        String body = as("BILLING", post(RESOLUTIONS), resolution(number, prefix, from, to))
+        String body = as("ADMIN", post(RESOLUTIONS), resolution(number, prefix, from, to))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return JsonPath.read(body, "$.uuid");

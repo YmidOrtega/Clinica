@@ -9,6 +9,7 @@ import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceFiling;
 import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
 import com.ClinicaDeYmid.commons.security.CurrentUser;
+import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import com.ClinicaDeYmid.commons.web.EntityTags;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -48,15 +49,18 @@ class FilingController {
 
     private final InvoiceFilingService filings;
     private final FilingPackages packages;
+    private final RecentAuthentication recentAuthentication;
     private final CurrentUser currentUser = new CurrentUser();
 
-    FilingController(InvoiceFilingService filings, FilingPackages packages) {
+    FilingController(InvoiceFilingService filings, FilingPackages packages,
+                     RecentAuthentication recentAuthentication) {
         this.filings = filings;
         this.packages = packages;
+        this.recentAuthentication = recentAuthentication;
     }
 
     @PostMapping(InvoiceController.INVOICES + "/{uuid}/filing")
-    @PreAuthorize(Access.INVOICE)
+    @PreAuthorize(Access.FILE)
     @Operation(summary = "Registrar el radicado de la factura ante el pagador",
             description = "Exige el CUV del Ministerio. La fecha no puede ser futura ni anterior a la validación del RIPS; "
                     + "si supera el plazo de 22 días hábiles queda registrada como tardía")
@@ -67,10 +71,12 @@ class FilingController {
     }
 
     @PutMapping(InvoiceController.INVOICES + "/{uuid}/filing")
-    @PreAuthorize(Access.INVOICE)
-    @Operation(summary = "Corregir el número o la fecha del radicado con motivo", description = "Exige If-Match; queda auditado")
+    @PreAuthorize(Access.FILE)
+    @Operation(summary = "Corregir el número o la fecha del radicado con motivo",
+            description = "Exige If-Match y un segundo factor reciente; queda auditado")
     ResponseEntity<FilingView> correct(@PathVariable UUID uuid, @Valid @RequestBody Correction request,
                                        @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        recentAuthentication.require();
         InvoiceFiling filing = filings.correct(uuid, EntityTags.requiredVersion(ifMatch), request.filingNumber(),
                 request.filedOn(), request.reason());
         return ResponseEntity.ok().eTag(EntityTags.of(filing.version())).body(FilingView.from(filings.status(uuid)));

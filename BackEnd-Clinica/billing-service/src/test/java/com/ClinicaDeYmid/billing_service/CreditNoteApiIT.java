@@ -164,9 +164,9 @@ class CreditNoteApiIT extends InvoicingIntegrationTest {
     void eachPrefixKeepsItsOwnConsecutive() throws Exception {
         anActiveResolution("SETX");
         String invoice = acceptedInvoice(delivery);
-        change("BILLING", put(BillingSetup.ISSUER + "/credit-note-prefix"), 0, "{\"prefix\":\"nc-1\"}")
+        change("ADMIN", put(BillingSetup.ISSUER + "/credit-note-prefix"), 0, "{\"prefix\":\"nc-1\"}")
                 .andExpect(status().isBadRequest());
-        change("BILLING", put(BillingSetup.ISSUER + "/credit-note-prefix"), 0, "{\"prefix\":\"NCX\"}")
+        change("ADMIN", put(BillingSetup.ISSUER + "/credit-note-prefix"), 0, "{\"prefix\":\"NCX\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.creditNotePrefix").value("NCX"));
 

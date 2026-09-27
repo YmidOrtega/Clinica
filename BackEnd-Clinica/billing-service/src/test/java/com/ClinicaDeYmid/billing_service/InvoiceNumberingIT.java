@@ -40,7 +40,7 @@ class InvoiceNumberingIT extends IntegrationTest {
     @BeforeEach
     void startWithAnIssuer() throws Exception {
         forgetTheBillingSetup();
-        as("BILLING", post(ISSUER), configuration()).andExpect(status().isCreated());
+        as("ADMIN", post(ISSUER), configuration()).andExpect(status().isCreated());
     }
 
     @Test
@@ -122,11 +122,11 @@ class InvoiceNumberingIT extends IntegrationTest {
     }
 
     private String activeResolution(long from, long to) throws Exception {
-        String body = as("BILLING", post(RESOLUTIONS), resolution("18760000001", "SETP", from, to))
+        String body = as("ADMIN", post(RESOLUTIONS), resolution("18760000001", "SETP", from, to))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String uuid = JsonPath.read(body, "$.uuid");
-        change("BILLING", post(RESOLUTIONS + "/" + uuid + "/activation"), 0, null).andExpect(status().isOk());
+        change("ADMIN", post(RESOLUTIONS + "/" + uuid + "/activation"), 0, null).andExpect(status().isOk());
         return uuid;
     }
 }

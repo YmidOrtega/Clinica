@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import com.ClinicaDeYmid.commons.security.RecentAuthentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,10 +32,12 @@ class IssuerController {
 
     private final IssuerCommands commands;
     private final IssuerQueries queries;
+    private final RecentAuthentication recentAuthentication;
 
-    IssuerController(IssuerCommands commands, IssuerQueries queries) {
+    IssuerController(IssuerCommands commands, IssuerQueries queries, RecentAuthentication recentAuthentication) {
         this.commands = commands;
         this.queries = queries;
+        this.recentAuthentication = recentAuthentication;
     }
 
     @PostMapping
@@ -42,6 +45,7 @@ class IssuerController {
     @Operation(summary = "Registrar a la clínica como emisor",
             description = "El NIT no se puede cambiar después; el emisor empieza en el ambiente de pruebas de la DIAN")
     ResponseEntity<IssuerView> configure(@Valid @RequestBody IssuerRequests.Configuration request) {
+        recentAuthentication.require();
         Issuer issuer = commands.configure(new Nit(request.nit(), request.verificationDigit()),
                 request.profile().toDomain());
         return ResponseEntity.created(URI.create(BASE_PATH)).eTag(EntityTags.of(issuer.version()))
@@ -60,6 +64,7 @@ class IssuerController {
     @Operation(summary = "Corregir los datos del emisor, salvo el NIT")
     ResponseEntity<IssuerView> revise(@RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                       @Valid @RequestBody IssuerRequests.Profile request) {
+        recentAuthentication.require();
         return tagged(commands.revise(EntityTags.requiredVersion(ifMatch), request.toDomain()));
     }
 
@@ -70,15 +75,18 @@ class IssuerController {
     ResponseEntity<IssuerView> useCreditNotePrefix(
             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
             @Valid @RequestBody IssuerRequests.CreditNotePrefix request) {
+        recentAuthentication.require();
         return tagged(commands.useCreditNotePrefix(EntityTags.requiredVersion(ifMatch), request.prefix()));
     }
 
     @PostMapping("/production")
     @PreAuthorize(Access.MANAGE_CONFIG)
     @Operation(summary = "Pasar a facturar en producción",
-            description = "No tiene vuelta atrás y retira las resoluciones del ambiente de pruebas")
+            description = "No tiene vuelta atrás y retira las resoluciones del ambiente de pruebas. Toda la "
+                    + "configuración fiscal exige un segundo factor reciente")
     ResponseEntity<IssuerView> goToProduction(
             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+        recentAuthentication.require();
         return tagged(commands.goToProduction(EntityTags.requiredVersion(ifMatch)));
     }
 
