@@ -299,14 +299,11 @@ services:
          ADMISSIONS_DB_APP_PASSWORD_FILE: /run/secrets/admissions-db/app-password
          ADMISSIONS_DB_DEBEZIUM_USER_FILE: /run/secrets/admissions-db/debezium-user
          ADMISSIONS_DB_DEBEZIUM_PASSWORD_FILE: /run/secrets/admissions-db/debezium-password
-      ports:
-         - "3309:5432"
       volumes:
          - admissions_data:/var/lib/postgresql/data
          - ./admissions-service/docker/postgres-init:/docker-entrypoint-initdb.d:ro
          - admissions_db_secrets:/run/secrets/admissions-db:ro
       networks:
-         - clinica-net
          - admissions-data
       healthcheck:
          test:

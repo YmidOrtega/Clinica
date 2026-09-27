@@ -56,6 +56,13 @@ services:
          - SWAGGER_UI_ENABLED=true
          - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
 
+   admissions-db:
+      ports:
+         - "127.0.0.1:3309:5432"
+      networks:
+         - admissions-data
+         - debug-net
+
    admissions-service:
       ports:
          - "127.0.0.1:8099-8100:8088"
