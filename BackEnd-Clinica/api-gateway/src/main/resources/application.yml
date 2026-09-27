@@ -43,7 +43,7 @@ spring:
   http:
     client:
       connect-timeout: 2s
-      read-timeout: 30s
+      read-timeout: ${GATEWAY_READ_TIMEOUT:30s}
 
 clinica:
   openbao:
@@ -51,6 +51,8 @@ clinica:
       mount: ${GATEWAY_TRANSIT_MOUNT:transit}
       key-refresh-interval: 5m
   gateway:
+    assistant:
+      read-timeout: ${GATEWAY_ASSISTANT_READ_TIMEOUT:90s}
     frontend:
       origins: ${GATEWAY_FRONTEND_ORIGINS:http://localhost:4321}
       home-url: ${GATEWAY_FRONTEND_HOME_URL:http://localhost:4321/}

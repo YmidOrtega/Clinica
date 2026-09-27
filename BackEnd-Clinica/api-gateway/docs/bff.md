@@ -96,6 +96,10 @@ cierra además la sesión de `auth-service` y vuelve a la página de inicio del 
 | `/api/v1/billing/**` | `billing-service` | ídem |
 | `/api/v1/assistant/**` | `ai-assistant-service` | ídem |
 
+Cada ruta espera la respuesta del servicio hasta `GATEWAY_READ_TIMEOUT` (30 s) y luego responde un error del
+gateway, salvo `/api/v1/assistant/**`, que espera `GATEWAY_ASSISTANT_READ_TIMEOUT` (90 s) porque el modelo
+local puede tardar; el asistente corta antes (80 s) y responde `503 ASSISTANT_MODEL_UNAVAILABLE`.
+
 ### Rutas sin sesión
 
 Verificar un documento sellado no exige iniciar sesión: el QR impreso lo abre cualquiera. Estas rutas no

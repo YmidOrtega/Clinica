@@ -2,6 +2,14 @@ package com.ClinicaDeYmid.api_gateway.infrastructure.routing;
 
 import com.ClinicaDeYmid.api_gateway.infrastructure.config.GatewayProperties;
 import com.ClinicaDeYmid.api_gateway.infrastructure.oauth.StaffAccessTokens;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
+import org.springframework.cloud.gateway.server.mvc.config.GatewayMvcProperties;
+import org.springframework.cloud.gateway.server.mvc.filter.HttpHeadersFilter;
+import org.springframework.cloud.gateway.server.mvc.handler.ProxyExchangeHandlerFunction;
+import org.springframework.cloud.gateway.server.mvc.handler.RestClientProxyExchange;
 import org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions;
 import org.springframework.cloud.gateway.server.mvc.filter.LoadBalancerFilterFunctions;
 import org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions;
@@ -10,12 +18,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.function.HandlerFunction;
 import org.springframework.web.servlet.function.RequestPredicate;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
 import org.springframework.web.servlet.function.ServerResponse;
 
 import java.net.URI;
+import java.time.Duration;
 
 import static org.springframework.web.servlet.function.RequestPredicates.path;
 
@@ -34,7 +45,22 @@ class RouteConfiguration {
     }
 
     @Bean
-    RouterFunction<ServerResponse> staffApiRoutes(GatewayProperties properties, ProxiedHeaders headers, StaffAccessTokens tokens) {
+    SlowRouteProxy slowStaffProxy(RestClient.Builder http, GatewayMvcProperties gateway,
+                                  @Value("${clinica.gateway.assistant.read-timeout:90s}") Duration readTimeout,
+                                  ObjectProvider<HttpHeadersFilter.RequestHttpHeadersFilter> requestFilters,
+                                  ObjectProvider<HttpHeadersFilter.ResponseHttpHeadersFilter> responseFilters) {
+        ClientHttpRequestFactorySettings settings = ClientHttpRequestFactorySettings.defaults()
+                .withRedirects(ClientHttpRequestFactorySettings.Redirects.DONT_FOLLOW)
+                .withConnectTimeout(Duration.ofSeconds(2))
+                .withReadTimeout(readTimeout);
+        RestClient client = http.requestFactory(ClientHttpRequestFactoryBuilder.detect().build(settings)).build();
+        return new SlowRouteProxy(new ProxyExchangeHandlerFunction(new RestClientProxyExchange(client, gateway),
+                requestFilters, responseFilters));
+    }
+
+    @Bean
+    RouterFunction<ServerResponse> staffApiRoutes(GatewayProperties properties, ProxiedHeaders headers, StaffAccessTokens tokens,
+                                                  SlowRouteProxy slowStaffProxy) {
         return staffRoute("auth-service-api", path("/api/v1/users/**").or(path("/api/v1/users")).or(path("/api/v1/me/**")).or(path("/api/v1/me")),
                 properties.routes().authService(), headers, tokens)
                 .and(staffRoute("patient-service", path("/api/v1/patients/**").or(path("/api/v1/patients")).or(path("/api/v1/unidentified-patients/**"))
@@ -54,7 +80,7 @@ class RouteConfiguration {
                 .and(staffRoute("billing-service", path("/api/v1/billing/**"),
                         properties.routes().billingService(), headers, tokens))
                 .and(staffRoute("ai-assistant-service", path("/api/v1/assistant/**"),
-                        properties.routes().aiAssistantService(), headers, tokens));
+                        properties.routes().aiAssistantService(), headers, tokens, slowStaffProxy));
     }
 
     @Bean
@@ -78,16 +104,26 @@ class RouteConfiguration {
 
     private static RouterFunction<ServerResponse> staffRoute(String id, RequestPredicate predicate, String target, ProxiedHeaders headers,
                                                              StaffAccessTokens tokens) {
-        return target(GatewayRouterFunctions.route(id), predicate, target)
+        return staffRoute(id, predicate, target, headers, tokens, HandlerFunctions.http());
+    }
+
+    private static RouterFunction<ServerResponse> staffRoute(String id, RequestPredicate predicate, String target, ProxiedHeaders headers,
+                                                             StaffAccessTokens tokens, HandlerFunction<ServerResponse> proxy) {
+        return target(GatewayRouterFunctions.route(id), predicate, target, proxy)
                 .before(request -> headers.forStaffApi(request, tokens.accessToken(request.servletRequest())))
                 .after(headers::withoutCorsHeaders)
                 .build();
     }
 
     private static RouterFunctions.Builder target(RouterFunctions.Builder route, RequestPredicate predicate, String target) {
+        return target(route, predicate, target, HandlerFunctions.http());
+    }
+
+    private static RouterFunctions.Builder target(RouterFunctions.Builder route, RequestPredicate predicate, String target,
+                                                  HandlerFunction<ServerResponse> proxy) {
         if (target.startsWith(LOAD_BALANCED)) {
-            return route.route(predicate, HandlerFunctions.http()).filter(LoadBalancerFilterFunctions.lb(target.substring(LOAD_BALANCED.length())));
+            return route.route(predicate, proxy).filter(LoadBalancerFilterFunctions.lb(target.substring(LOAD_BALANCED.length())));
         }
-        return route.route(predicate, HandlerFunctions.http()).before(BeforeFilterFunctions.uri(URI.create(target)));
+        return route.route(predicate, proxy).before(BeforeFilterFunctions.uri(URI.create(target)));
     }
 }
