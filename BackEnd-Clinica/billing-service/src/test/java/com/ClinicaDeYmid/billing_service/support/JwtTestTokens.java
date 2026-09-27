@@ -43,6 +43,7 @@ public final class JwtTestTokens {
         registry.add("clinica.billing.ministry.password", () -> "clave-de-prueba");
         registry.add("clinica.billing.ministry.retries.enabled", () -> false);
         registry.add("clinica.billing.filing.alerts.enabled", () -> false);
+        registry.add("clinica.billing.objections.alerts.enabled", () -> false);
     }
 
     public static String bearer(String role) {
