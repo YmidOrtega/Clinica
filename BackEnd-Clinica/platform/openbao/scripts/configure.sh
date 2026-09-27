@@ -158,6 +158,9 @@ seed auth/db/app username="auth_app" password="$(random_secret)"
 seed auth/db/debezium username="auth_debezium" password="$(random_secret)"
 seed auth/bootstrap super-admin-email="superadmin@clinica.local" super-admin-name="Administración Inicial"
 seed gateway/redis password="$(random_secret)"
+seed billing/dian/software software-id="$(cat /proc/sys/kernel/random/uuid)" software-pin="$(random_secret)" \
+  test-set-id="$(cat /proc/sys/kernel/random/uuid)"
+seed billing/ministry/credentials document-type=CC document-number=1000000000 password="$(random_secret)"
 import_self_signed_dian_key
 seed clinical/storage/root username="clinical-storage-admin" password="$(random_secret)"
 seed clinical/storage/attachments access-key="clinical-history-app" secret-key="$(random_secret)"
