@@ -7,8 +7,7 @@ Este directorio contiene los workflows de CI/CD del proyecto.
 ### 1. Backend CI/CD (`backend-ci.yml`)
 Ejecuta en push o PR a `main`/`develop` cuando hay cambios en `BackEnd-Clinica/`:
 - `libraries`: prueba e instala `clinica-commons-web`, `clinica-commons-openbao` y `clinica-commons-security`, en ese orden, y las comparte como artefacto con los demás jobs
-- `services`: `mvn verify` (unitarias e integración con Testcontainers) de los servicios rehechos (`auth`, `patient`, `clinical-history`, `contracting`, `practitioners`, `admissions`, `billing`, `ai-assistant`) y `api-gateway`; un fallo rompe el build
-- `legacy`: compila `eureka-service`, el único que no se rehízo (no tiene lógica propia)
+- `services`: `mvn verify` (unitarias e integración con Testcontainers) de los servicios rehechos (`auth`, `patient`, `clinical-history`, `contracting`, `practitioners`, `admissions`, `billing`, `ai-assistant`) `api-gateway` y `eureka-service`; un fallo rompe el build
 - `e2e`: cada noche y a mano (`workflow_dispatch`) levanta el stack de Docker Compose con una réplica por servicio y corre los E2E de cada servicio (auth, clínica, contratación, profesionales, admisiones, facturación con simuladores de DIAN y MUV, y el asistente con el simulador del modelo local), `openbao-e2e.sh` y, con un step-up de 20 s, `gateway-e2e.sh`; si falla sube los logs del stack
 - SonarCloud, imágenes Docker y Trivy siguen deshabilitados hasta configurar sus secretos
 
