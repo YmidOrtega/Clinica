@@ -43,7 +43,7 @@ jobs:
       - name: Test and install in dependency order
         working-directory: BackEnd-Clinica/libs
         run: |
-          for library in clinica-commons-web clinica-commons-openbao clinica-commons-security; do
+          for library in clinica-commons-web clinica-commons-openbao clinica-commons-security clinica-commons-documents; do
             mvn install -f "$library/pom.xml"
           done
 

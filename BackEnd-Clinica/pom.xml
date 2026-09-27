@@ -34,7 +34,9 @@
 
 	<modules>
 		<module>libs/clinica-commons-web</module>
+		<module>libs/clinica-commons-openbao</module>
 		<module>libs/clinica-commons-security</module>
+		<module>libs/clinica-commons-documents</module>
 		<module>admissions-service</module>
 		<module>ai-assistant-service</module>
 		<module>api-gateway</module>
