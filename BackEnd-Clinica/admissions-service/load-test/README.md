@@ -8,7 +8,7 @@ dejarían datos de prueba en la base. Lo que aprieta en una guardia son las lect
 
 ## Preparar datos
 
-Con el stack arriba (`docker-compose.debug.yml` publica el puerto 8088), el guion de E2E deja una sede
+Con el stack arriba (`docker-compose.debug.yml` publica el puerto 8099), el guion de E2E deja una sede
 con su cama, un servicio configurado y un episodio:
 
 ```sh
@@ -19,7 +19,7 @@ De su salida se toman los tres identificadores, o se consultan:
 
 ```sh
 TOKEN=$(COMPOSE_PROJECT=<proyecto> E2E_TOKEN_TTL=3600 sh ../../platform/e2e/staff-token.sh RECEPTIONIST)
-curl -s -X POST http://127.0.0.1:8088/api/v1/admissions/episodes/search -H "Authorization: Bearer $TOKEN" \
+curl -s -X POST http://127.0.0.1:8099/api/v1/admissions/episodes/search -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -d '{"status":"ACTIVE"}' \
   | jq -c '.content[0] | {episode: .uuid, service: .configurationServiceUuid}'
 ```
@@ -27,7 +27,7 @@ curl -s -X POST http://127.0.0.1:8088/api/v1/admissions/episodes/search -H "Auth
 ## Ejecutar
 
 ```sh
-k6 run -e BASE_URL=http://127.0.0.1:8088 -e TOKEN="$TOKEN" \
+k6 run -e BASE_URL=http://127.0.0.1:8099 -e TOKEN="$TOKEN" \
   -e LOCATION_UUID=<sede> -e CONFIGURED_SERVICE_UUID=<servicio> -e EPISODE_UUID=<episodio> \
   admissions-load.js
 ```

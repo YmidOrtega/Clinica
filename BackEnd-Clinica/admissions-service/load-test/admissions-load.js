@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, fail } from 'k6';
 
-const BASE_URL = __ENV.BASE_URL || 'http://127.0.0.1:8088';
+const BASE_URL = __ENV.BASE_URL || 'http://127.0.0.1:8099';
 const TOKEN = __ENV.TOKEN;
 const LOCATION_UUID = __ENV.LOCATION_UUID;
 const CONFIGURED_SERVICE_UUID = __ENV.CONFIGURED_SERVICE_UUID;
