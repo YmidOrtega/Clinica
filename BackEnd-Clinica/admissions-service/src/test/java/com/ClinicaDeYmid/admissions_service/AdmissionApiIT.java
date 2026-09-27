@@ -63,7 +63,7 @@ class AdmissionApiIT extends IntegrationTest {
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v1/unidentified-patients"))
                 .willReturn(okJson(unidentifiedPayload(assigned, "NN-2026-000042"))));
 
-        as("NURSE", post(BASE + "/unidentified"), """
+        as("RECEPTIONIST", post(BASE + "/unidentified"), """
                 {"sex":"MALE","estimatedBirthYear":1980,"description":"Hombre adulto sin documentos",
                  "configurationServiceUuid":"%s","cause":"ACCIDENT"}""".formatted(emergency()))
                 .andExpect(status().isCreated())
@@ -78,7 +78,7 @@ class AdmissionApiIT extends IntegrationTest {
         StubbedServices.server().stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/api/v1/unidentified-patients"))
                 .willReturn(aResponse().withStatus(500)));
 
-        as("NURSE", post(BASE + "/unidentified"), """
+        as("RECEPTIONIST", post(BASE + "/unidentified"), """
                 {"sex":"FEMALE","estimatedBirthYear":1975,"configurationServiceUuid":"%s","cause":"ACCIDENT"}"""
                 .formatted(emergency()))
                 .andExpect(status().isServiceUnavailable())
@@ -215,8 +215,8 @@ class AdmissionApiIT extends IntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"DOCTOR", "MEDICAL_RECORDS", "BILLING"})
-    void onlyReceptionAndNursingAdmit(String role) throws Exception {
+    @ValueSource(strings = {"NURSE", "DOCTOR", "MEDICAL_RECORDS", "BILLING"})
+    void onlyReceptionAdmits(String role) throws Exception {
         as(role, post(BASE), registration(aLocalPatient("ACTIVE"), emergency()))
                 .andExpect(status().isForbidden());
     }

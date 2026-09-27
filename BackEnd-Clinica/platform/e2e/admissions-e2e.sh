@@ -105,9 +105,12 @@ expect "$status" 201 "cama instalada"
 BED=$(jq -r .uuid "$WORK/body")
 
 step "Admisión de un paciente sin identificar contra patient-service"
-status=$(call POST "$ADMISSIONS_URL/api/v1/admissions/episodes/unidentified" NURSE "$NURSE_ID" "{
+UNIDENTIFIED="{
   \"sex\": \"MALE\", \"estimatedBirthYear\": 1980, \"description\": \"Hombre adulto traído por ambulancia\",
-  \"configurationServiceUuid\": \"$EMERGENCY\", \"cause\": \"ACCIDENT\"}")
+  \"configurationServiceUuid\": \"$EMERGENCY\", \"cause\": \"ACCIDENT\"}"
+status=$(call POST "$ADMISSIONS_URL/api/v1/admissions/episodes/unidentified" NURSE "$NURSE_ID" "$UNIDENTIFIED")
+expect "$status" 403 "enfermería no admite pacientes"
+status=$(call POST "$ADMISSIONS_URL/api/v1/admissions/episodes/unidentified" RECEPTIONIST "$RECEPTION_ID" "$UNIDENTIFIED")
 expect "$status" 201 "el NN se admite después de registrarlo en patient-service"
 EPISODE=$(jq -r .uuid "$WORK/body")
 NUMBER=$(jq -r .number "$WORK/body")
