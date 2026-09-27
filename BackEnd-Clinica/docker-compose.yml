@@ -106,6 +106,7 @@ services:
          - openbao_approle_practitioners:/openbao/approle/practitioners-service
          - openbao_approle_admissions:/openbao/approle/admissions-service
          - openbao_approle_billing:/openbao/approle/billing-service
+         - openbao_approle_ai_assistant:/openbao/approle/ai-assistant-service
       networks:
          - secrets-net
 
@@ -998,6 +999,7 @@ volumes:
    openbao_approle_practitioners:
    openbao_approle_admissions:
    openbao_approle_billing:
+   openbao_approle_ai_assistant:
    patient_db_secrets:
    clinical_db_secrets:
    clinical_storage_secrets:

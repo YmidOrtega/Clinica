@@ -42,6 +42,10 @@ path "transit/keys/billing-service-client" {
   capabilities = ["read"]
 }
 
+path "transit/keys/ai-assistant-service-client" {
+  capabilities = ["read"]
+}
+
 path "totp/keys/staff-*" {
   capabilities = ["create", "update", "delete"]
 }

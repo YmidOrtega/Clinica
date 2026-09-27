@@ -7,7 +7,7 @@ BOOTSTRAP_DIR=/openbao/bootstrap
 POLICIES_DIR=/openbao/policies
 CREDENTIALS_DIR=/openbao/approle
 NODES="openbao-1 openbao-2 openbao-3"
-APPROLES="patient-service clinical-history-service auth-service api-gateway contracting-service practitioners-service admissions-service billing-service infra-agent"
+APPROLES="patient-service clinical-history-service auth-service api-gateway contracting-service practitioners-service admissions-service billing-service ai-assistant-service infra-agent"
 
 random_secret() {
   openssl rand -base64 36 | tr -d '/+=\n' | cut -c1-40
@@ -91,6 +91,7 @@ transit_key admissions-service-client ecdsa-p256
 transit_key admissions-seal ecdsa-p256
 transit_key billing-service-client ecdsa-p256
 transit_key billing-seal ecdsa-p256
+transit_key ai-assistant-service-client ecdsa-p256
 
 if ! bao auth list -format=json | jq -e 'has("approle/")' > /dev/null; then
   bao auth enable approle
