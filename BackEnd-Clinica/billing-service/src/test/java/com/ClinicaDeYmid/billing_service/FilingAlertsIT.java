@@ -74,6 +74,7 @@ class FilingAlertsIT extends InvoicingIntegrationTest {
     private List<Map<String, Object>> eventsOf(String invoice) {
         return jdbc.queryForList("""
                 SELECT type, aggregatetype, CAST(payload AS CHAR) AS payload
-                FROM billing_outbox.outbox_events WHERE aggregateid = ? ORDER BY created_at""", invoice);
+                FROM billing_outbox.outbox_events WHERE aggregateid = ? AND aggregatetype = 'billing.filing-deadlines'
+                ORDER BY created_at""", invoice);
     }
 }

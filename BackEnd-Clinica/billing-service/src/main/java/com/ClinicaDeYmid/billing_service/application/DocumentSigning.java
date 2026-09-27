@@ -26,14 +26,16 @@ public class DocumentSigning {
     private final ElectronicDocuments documents;
     private final DocumentFiles files;
     private final DocumentSigner signer;
+    private final InvoiceEvents events;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public DocumentSigning(ElectronicDocuments documents, DocumentFiles files, DocumentSigner signer,
-                           TransactionOperations transactions, Clock clock) {
+                           InvoiceEvents events, TransactionOperations transactions, Clock clock) {
         this.documents = documents;
         this.files = files;
         this.signer = signer;
+        this.events = events;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -57,6 +59,9 @@ public class DocumentSigning {
                 current.sign(at);
                 ElectronicDocument updated = documents.save(current);
                 files.save(DocumentFile.of(updated, DocumentFile.Kind.UBL_SIGNED, signed));
+                if (updated.type() == ElectronicDocument.Type.INVOICE) {
+                    events.invoiceChanged(updated.invoice().uuid(), InvoiceEvents.Change.InvoiceSigned);
+                }
                 return updated;
             });
             log.info("{} {} signed with XAdES-EPES", saved.type(), saved.number());

@@ -40,12 +40,13 @@ public class DianDelivery {
     private final Issuers issuers;
     private final DianGateway dian;
     private final DianSoftware software;
+    private final InvoiceEvents events;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public DianDelivery(ElectronicDocuments documents, DocumentFiles files, DianVerdicts verdicts,
                         DianFileCounters counters, Issuers issuers, DianGateway dian, DianSoftware software,
-                        TransactionOperations transactions, Clock clock) {
+                        InvoiceEvents events, TransactionOperations transactions, Clock clock) {
         this.documents = documents;
         this.files = files;
         this.verdicts = verdicts;
@@ -53,6 +54,7 @@ public class DianDelivery {
         this.issuers = issuers;
         this.dian = dian;
         this.software = software;
+        this.events = events;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -197,6 +199,15 @@ public class DianDelivery {
                     && files.find(documentUuid, DocumentFile.Kind.DIAN_APPLICATION_RESPONSE).isEmpty()) {
                 files.save(DocumentFile.of(saved, DocumentFile.Kind.DIAN_APPLICATION_RESPONSE,
                         answer.applicationResponse()));
+            }
+            if (outcome == DianVerdict.Outcome.ACCEPTED || outcome == DianVerdict.Outcome.REJECTED) {
+                boolean invoice = saved.type() == ElectronicDocument.Type.INVOICE;
+                if (invoice || outcome == DianVerdict.Outcome.ACCEPTED) {
+                    events.invoiceChanged(saved.invoice().uuid(),
+                            !invoice ? InvoiceEvents.Change.CreditNoteAcceptedByDian
+                                    : outcome == DianVerdict.Outcome.ACCEPTED ? InvoiceEvents.Change.InvoiceAcceptedByDian
+                                    : InvoiceEvents.Change.InvoiceRejectedByDian);
+                }
             }
             log.info("{} {} {} by the DIAN ({} {})", saved.type(), saved.number(), outcome, answer.statusCode(),
                     answer.statusDescription());

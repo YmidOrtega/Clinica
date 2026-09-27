@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinica.local/events/billing.invoices.v1.schema.json",
+  "title": "billing.invoices.v1",
+  "description": "Estado completo de una factura electrónica de venta después de cada cambio desde su emisión: totales y saldo, DIAN, notas crédito, CUV del Ministerio, radicado ante el pagador y devoluciones o glosas. Topic compactado por uuid de factura. Solo lleva referencias a personas, nunca nombres ni documentos del paciente.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "type",
+    "occurredAt",
+    "invoiceUuid",
+    "number",
+    "purpose",
+    "status",
+    "cufe",
+    "issuedOn",
+    "admissionNumber",
+    "patientUuid",
+    "buyer",
+    "grossTotal",
+    "patientShare",
+    "payableTotal",
+    "creditedTotal",
+    "balance",
+    "creditNotes",
+    "objections"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "InvoiceIssued",
+        "InvoiceSigned",
+        "InvoiceAcceptedByDian",
+        "InvoiceRejectedByDian",
+        "InvoiceCredited",
+        "InvoiceVoided",
+        "CreditNoteAcceptedByDian",
+        "InvoiceRipsValidated",
+        "InvoiceFiled",
+        "InvoiceFilingCorrected",
+        "InvoiceObjectionRegistered",
+        "InvoiceObjectionAnswered",
+        "InvoiceObjectionDecided"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "traceId": {
+      "type": "string"
+    },
+    "invoiceUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "number": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "SERVICES",
+        "SHARED_PAYMENT"
+      ],
+      "description": "SERVICES: servicios de salud; SHARED_PAYMENT: copago o cuota cobrada al paciente"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ISSUED",
+        "VOIDED"
+      ]
+    },
+    "cufe": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{96}$"
+    },
+    "issuedOn": {
+      "type": "string",
+      "format": "date"
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "admissionNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "patientUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "buyer": {
+      "type": "object",
+      "required": [
+        "kind",
+        "reference"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "PAYER",
+            "PATIENT"
+          ]
+        },
+        "reference": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "nit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Solo cuando el adquiriente es un pagador"
+        }
+      }
+    },
+    "contractUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "contractNumber": {
+      "type": "string"
+    },
+    "sharedPaymentKind": {
+      "type": "string",
+      "enum": [
+        "COPAYMENT",
+        "MODERATING_FEE",
+        "RECOVERY_FEE",
+        "VOLUNTARY_PLAN"
+      ]
+    },
+    "grossTotal": {
+      "type": "number"
+    },
+    "patientShare": {
+      "type": "number"
+    },
+    "payableTotal": {
+      "type": "number"
+    },
+    "creditedTotal": {
+      "type": "number"
+    },
+    "balance": {
+      "type": "number",
+      "description": "Valor a pagar menos lo acreditado con notas crédito"
+    },
+    "dian": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "signedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "AWAITING_VALIDATION",
+            "ACCEPTED",
+            "REJECTED"
+          ]
+        },
+        "statusAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "creditNotes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "uuid",
+          "number",
+          "concept",
+          "issuedOn",
+          "creditedPayable",
+          "cude"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "string"
+          },
+          "concept": {
+            "type": "string",
+            "enum": [
+              "PARTIAL_RETURN",
+              "VOID",
+              "DISCOUNT",
+              "PRICE_ADJUSTMENT"
+            ]
+          },
+          "issuedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "creditedPayable": {
+            "type": "number"
+          },
+          "cude": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{96}$"
+          },
+          "dianStatus": {
+            "type": "string",
+            "enum": [
+              "AWAITING_VALIDATION",
+              "ACCEPTED",
+              "REJECTED"
+            ]
+          }
+        }
+      }
+    },
+    "rips": {
+      "type": "object",
+      "required": [
+        "cuv",
+        "validatedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "cuv": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{96}$"
+        },
+        "validatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "filedWithMinistryAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "filing": {
+      "type": "object",
+      "required": [
+        "filingNumber",
+        "filedOn",
+        "deadline",
+        "late"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "filingNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "filedOn": {
+          "type": "string",
+          "format": "date"
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date"
+        },
+        "late": {
+          "type": "boolean"
+        }
+      }
+    },
+    "objections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "uuid",
+          "kind",
+          "payerRecord",
+          "status",
+          "notifiedOn",
+          "extemporaneous",
+          "responseDeadline",
+          "claimedAmount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "DEVOLUTION",
+              "GLOSS"
+            ]
+          },
+          "payerRecord": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "AWAITING_RESPONSE",
+              "RESPONDED",
+              "DECIDED"
+            ]
+          },
+          "notifiedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "extemporaneous": {
+            "type": "boolean"
+          },
+          "responseDeadline": {
+            "type": "string",
+            "format": "date"
+          },
+          "claimedAmount": {
+            "type": "number"
+          },
+          "acceptedAmount": {
+            "type": "number"
+          },
+          "upheldAmount": {
+            "type": "number"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "LIFTED",
+              "PARTIALLY_LIFTED",
+              "UPHELD"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

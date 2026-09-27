@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.billing_service.application.rips;
 
 import com.ClinicaDeYmid.billing_service.application.DocumentAttachment;
+import com.ClinicaDeYmid.billing_service.application.InvoiceEvents;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.ElectronicDocument;
 import com.ClinicaDeYmid.billing_service.domain.ElectronicDocuments;
@@ -34,12 +35,14 @@ public class MinistryValidation {
     private final RipsQueries rips;
     private final Issuers issuers;
     private final MinistryValidator validator;
+    private final InvoiceEvents events;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public MinistryValidation(Invoices invoices, RipsSubmissions submissions, ElectronicDocuments documents,
                               DocumentAttachment attachment, RipsQueries rips, Issuers issuers,
-                              MinistryValidator validator, TransactionOperations transactions, Clock clock) {
+                              MinistryValidator validator, InvoiceEvents events,
+                              TransactionOperations transactions, Clock clock) {
         this.invoices = invoices;
         this.submissions = submissions;
         this.documents = documents;
@@ -47,6 +50,7 @@ public class MinistryValidation {
         this.rips = rips;
         this.issuers = issuers;
         this.validator = validator;
+        this.events = events;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -123,6 +127,9 @@ public class MinistryValidation {
             if (outcome.validated()) {
                 current.validated(outcome.processId(), outcome.cuv(), outcome.filedAt(), fromRecovery,
                         outcome.findings(), outcome.raw(), clock.instant());
+                RipsSubmission saved = submissions.save(current);
+                events.invoiceChanged(saved.invoice().uuid(), InvoiceEvents.Change.InvoiceRipsValidated);
+                return saved;
             } else {
                 current.rejected(outcome.processId(), outcome.findings(), outcome.raw(), clock.instant());
             }

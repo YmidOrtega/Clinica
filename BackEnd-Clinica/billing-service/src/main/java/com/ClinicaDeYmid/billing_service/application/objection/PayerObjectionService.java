@@ -1,6 +1,7 @@
 package com.ClinicaDeYmid.billing_service.application.objection;
 
 import com.ClinicaDeYmid.billing_service.application.CreditNoteCommands;
+import com.ClinicaDeYmid.billing_service.application.InvoiceEvents;
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
 import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
 import com.ClinicaDeYmid.billing_service.domain.CreditConcept;
@@ -34,18 +35,20 @@ public class PayerObjectionService {
     private final ObjectionCatalog catalog;
     private final CreditNoteCommands creditNotes;
     private final ObjectionPolicy policy;
+    private final InvoiceEvents events;
     private final TransactionOperations transactions;
     private final Clock clock;
 
     public PayerObjectionService(Invoices invoices, InvoiceFilings filings, PayerObjections objections,
                                  ObjectionCatalog catalog, CreditNoteCommands creditNotes, ObjectionPolicy policy,
-                                 TransactionOperations transactions, Clock clock) {
+                                 InvoiceEvents events, TransactionOperations transactions, Clock clock) {
         this.invoices = invoices;
         this.filings = filings;
         this.objections = objections;
         this.catalog = catalog;
         this.creditNotes = creditNotes;
         this.policy = policy;
+        this.events = events;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -58,9 +61,11 @@ public class PayerObjectionService {
         try {
             PayerObjection registered = transactions.execute(status -> {
                 invoices.findByUuid(invoiceUuid).orElseThrow(BillingException.InvoiceNotFound::new);
-                return objections.save(PayerObjection.register(filings.ofInvoice(invoiceUuid).orElse(null), kind,
-                        payerRecord, notifiedOn, items, objections.ofInvoice(invoiceUuid), catalog::find,
-                        LocalDate.now(clock)));
+                PayerObjection saved = objections.save(PayerObjection.register(
+                        filings.ofInvoice(invoiceUuid).orElse(null), kind, payerRecord, notifiedOn, items,
+                        objections.ofInvoice(invoiceUuid), catalog::find, LocalDate.now(clock)));
+                events.invoiceChanged(invoiceUuid, InvoiceEvents.Change.InvoiceObjectionRegistered);
+                return saved;
             });
             log.info("{} {} of invoice {} registered for {}{}", kind, registered.payerRecord(),
                     registered.invoice().number(), registered.claimedAmount(),
@@ -88,7 +93,9 @@ public class PayerObjectionService {
                         devolution ? List.of() : objection.acceptedByLine());
                 objection.settledBy(note.creditNote());
             }
-            return new Responded(objections.save(objection), note);
+            PayerObjection saved = objections.save(objection);
+            events.invoiceChanged(saved.invoice().uuid(), InvoiceEvents.Change.InvoiceObjectionAnswered);
+            return new Responded(saved, note);
         });
         log.info("{} {} answered with {} accepted{}", responded.objection().kind(), responded.objection().payerRecord(),
                 responded.objection().acceptedAmount(),
@@ -101,7 +108,8 @@ public class PayerObjectionService {
         transactions.executeWithoutResult(status -> {
             PayerObjection objection = current(objectionUuid, expectedVersion);
             objection.decide(decidedOn, rulings, LocalDate.now(clock));
-            objections.save(objection);
+            PayerObjection saved = objections.save(objection);
+            events.invoiceChanged(saved.invoice().uuid(), InvoiceEvents.Change.InvoiceObjectionDecided);
         });
         return objections.findByUuid(objectionUuid).orElseThrow();
     }
