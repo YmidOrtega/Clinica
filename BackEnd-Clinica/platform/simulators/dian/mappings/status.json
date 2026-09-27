@@ -1,0 +1,24 @@
+{
+  "name": "La DIAN no conoce el documento",
+  "request": {
+    "method": "POST",
+    "urlPath": "/WcfDianCustomerServices.svc",
+    "headers": {
+      "Content-Type": {
+        "contains": "IWcfDianCustomerServices/GetStatus\""
+      }
+    },
+    "bodyPatterns": [
+      {
+        "contains": "<wsse:BinarySecurityToken"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/soap+xml; charset=utf-8"
+    },
+    "body": "<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:a=\"http://www.w3.org/2005/08/addressing\"><s:Header><a:Action s:mustUnderstand=\"1\">http://wcf.dian.colombia/IWcfDianCustomerServices/GetStatusResponse</a:Action></s:Header><s:Body><GetStatusResponse xmlns=\"http://wcf.dian.colombia\"><GetStatusResult xmlns:b=\"http://schemas.datacontract.org/2004/07/DianResponse\" xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\"><b:ErrorMessage xmlns:c=\"http://schemas.microsoft.com/2003/10/Serialization/Arrays\"/><b:IsValid>false</b:IsValid><b:StatusCode>66</b:StatusCode><b:StatusDescription>NSU no encontrado</b:StatusDescription><b:StatusMessage>NSU no encontrado</b:StatusMessage><b:XmlBase64Bytes i:nil=\"true\"/><b:XmlDocumentKey>cufe</b:XmlDocumentKey></GetStatusResult></GetStatusResponse></s:Body></s:Envelope>"
+  }
+}

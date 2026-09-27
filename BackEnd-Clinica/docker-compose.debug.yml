@@ -69,6 +69,34 @@ services:
       environment:
          - SWAGGER_UI_ENABLED=true
          - CLINICA_SECURITY_STEPUP_MAXAGE=${STEP_UP_MAX_AGE_SECONDS:-300}s
+         - BILLING_DIAN_TEST_URL=http://dian-simulator:8080/WcfDianCustomerServices.svc
+         - BILLING_DIAN_PRODUCTION_URL=http://dian-simulator:8080/WcfDianCustomerServices.svc
+         - BILLING_DIAN_DELIVERY_DELAY=PT5S
+         - BILLING_MINISTRY_VALIDATOR_URL=http://muv-simulator:8080
+
+   dian-simulator:
+      image: wiremock/wiremock:3.13.1
+      container_name: dian-simulator
+      command: ["--global-response-templating", "--disable-banner"]
+      volumes:
+         - ./platform/simulators/dian/mappings:/home/wiremock/mappings:ro
+      ports:
+         - "127.0.0.1:8097:8080"
+      networks:
+         - clinica-net
+         - debug-net
+
+   muv-simulator:
+      image: wiremock/wiremock:3.13.1
+      container_name: muv-simulator
+      command: ["--global-response-templating", "--disable-banner"]
+      volumes:
+         - ./platform/simulators/muv/mappings:/home/wiremock/mappings:ro
+      ports:
+         - "127.0.0.1:8098:8080"
+      networks:
+         - clinica-net
+         - debug-net
 
    clinical-history-service:
       ports:

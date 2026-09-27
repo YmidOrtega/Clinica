@@ -1,0 +1,24 @@
+{
+  "name": "La DIAN recibe el set de pruebas",
+  "request": {
+    "method": "POST",
+    "urlPath": "/WcfDianCustomerServices.svc",
+    "headers": {
+      "Content-Type": {
+        "contains": "IWcfDianCustomerServices/SendTestSetAsync\""
+      }
+    },
+    "bodyPatterns": [
+      {
+        "contains": "<wsse:BinarySecurityToken"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/soap+xml; charset=utf-8"
+    },
+    "body": "<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:a=\"http://www.w3.org/2005/08/addressing\"><s:Header><a:Action s:mustUnderstand=\"1\">http://wcf.dian.colombia/IWcfDianCustomerServices/SendTestSetAsyncResponse</a:Action></s:Header><s:Body><SendTestSetAsyncResponse xmlns=\"http://wcf.dian.colombia\"><SendTestSetAsyncResult xmlns:b=\"http://schemas.datacontract.org/2004/07/UploadDocumentResponse\" xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\"><b:ErrorMessageList xmlns:c=\"http://schemas.datacontract.org/2004/07/XmlParamsResponseTrackId\"/><b:ZipKey>{{randomValue type='UUID'}}</b:ZipKey></SendTestSetAsyncResult></SendTestSetAsyncResponse></s:Body></s:Envelope>"
+  }
+}
