@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clinica.local/events/billing.claim-objections.v1.schema.json",
+  "title": "billing.claim-objections.v1",
+  "description": "Alertas del plazo del prestador para responder una devolución (5 días hábiles) o una glosa (15 días hábiles) del pagador; al vencer se entiende aceptada tácitamente. Una por devolución o glosa y estado, la primera vez que entra en él.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "type",
+    "occurredAt",
+    "objectionUuid",
+    "kind",
+    "payerRecord",
+    "invoiceUuid",
+    "invoiceNumber",
+    "admissionNumber",
+    "payerUuid",
+    "payerName",
+    "payerNit",
+    "claimedAmount",
+    "notifiedOn",
+    "responseDeadline",
+    "remainingBusinessDays",
+    "state"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "ObjectionResponseDueSoon",
+        "ObjectionResponseMissed"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "traceId": {
+      "type": "string"
+    },
+    "objectionUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "DEVOLUTION",
+        "GLOSS"
+      ]
+    },
+    "payerRecord": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "description": "Número de registro que el pagador asignó a la devolución o glosa"
+    },
+    "invoiceUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "invoiceNumber": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24
+    },
+    "admissionNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payerUuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "payerName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payerNit": {
+      "type": "string",
+      "minLength": 1
+    },
+    "claimedAmount": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "notifiedOn": {
+      "type": "string",
+      "format": "date"
+    },
+    "responseDeadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "remainingBusinessDays": {
+      "type": "integer",
+      "description": "Días hábiles que quedan para responder; negativo cuando ya venció"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "DUE_SOON",
+        "OVERDUE"
+      ]
+    }
+  }
+}
