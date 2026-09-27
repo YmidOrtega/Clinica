@@ -15,10 +15,22 @@ class KafkaConfiguration {
 
     static final String DEAD_LETTER_SUFFIX = ".assistant.dlt";
     static final String INVOICE_DEAD_LETTER_TOPIC = InvoiceEventsListener.TOPIC + DEAD_LETTER_SUFFIX;
+    static final String FILING_DEAD_LETTER_TOPIC = DeadlineAlertsListener.FILING_TOPIC + DEAD_LETTER_SUFFIX;
+    static final String OBJECTION_DEAD_LETTER_TOPIC = DeadlineAlertsListener.OBJECTION_TOPIC + DEAD_LETTER_SUFFIX;
 
     @Bean
     NewTopic invoiceEventsDeadLetterTopic() {
         return TopicBuilder.name(INVOICE_DEAD_LETTER_TOPIC).partitions(3).build();
+    }
+
+    @Bean
+    NewTopic filingAlertsDeadLetterTopic() {
+        return TopicBuilder.name(FILING_DEAD_LETTER_TOPIC).partitions(3).build();
+    }
+
+    @Bean
+    NewTopic objectionAlertsDeadLetterTopic() {
+        return TopicBuilder.name(OBJECTION_DEAD_LETTER_TOPIC).partitions(3).build();
     }
 
     @Bean

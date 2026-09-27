@@ -18,6 +18,10 @@ public final class ProducerContract {
 
     public static final ProducerContract INVOICE_EVENTS =
             new ProducerContract(Path.of("../billing-service/events/billing.invoices.v1.schema.json"));
+    public static final ProducerContract FILING_ALERTS =
+            new ProducerContract(Path.of("../billing-service/events/billing.filing-deadlines.v1.schema.json"));
+    public static final ProducerContract OBJECTION_ALERTS =
+            new ProducerContract(Path.of("../billing-service/events/billing.claim-objections.v1.schema.json"));
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

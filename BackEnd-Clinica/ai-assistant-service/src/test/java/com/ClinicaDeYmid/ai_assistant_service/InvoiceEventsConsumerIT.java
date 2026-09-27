@@ -1,6 +1,9 @@
 package com.ClinicaDeYmid.ai_assistant_service;
 
+import com.ClinicaDeYmid.ai_assistant_service.repository.FindingRepository;
 import com.ClinicaDeYmid.ai_assistant_service.repository.InvoiceSnapshotRepository;
+import com.ClinicaDeYmid.ai_assistant_service.shared.FindingRule;
+import com.ClinicaDeYmid.ai_assistant_service.shared.FindingStatus;
 import com.ClinicaDeYmid.ai_assistant_service.support.InvoiceEvents;
 import com.ClinicaDeYmid.ai_assistant_service.support.JwtTestTokens;
 import com.ClinicaDeYmid.ai_assistant_service.support.PostgresTestContainer;
@@ -40,6 +43,8 @@ class InvoiceEventsConsumerIT {
 
     private static final String TOPIC = "billing.invoices.v1";
     private static final String DLT = "billing.invoices.v1.assistant.dlt";
+    private static final String FILING_ALERTS = "billing.filing-deadlines.v1";
+    private static final String OBJECTION_ALERTS = "billing.claim-objections.v1";
 
     private static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.1")
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
@@ -49,12 +54,16 @@ class InvoiceEventsConsumerIT {
     @Autowired
     private InvoiceSnapshotRepository invoices;
 
+    @Autowired
+    private FindingRepository findings;
+
     @BeforeAll
     static void startKafka() throws Exception {
         KAFKA.start();
         try (Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
             admin.createTopics(List.of(new NewTopic(TOPIC, 3, (short) 1)
-                    .configs(Map.of("cleanup.policy", "compact")))).all().get();
+                    .configs(Map.of("cleanup.policy", "compact")),
+                    new NewTopic(FILING_ALERTS, 3, (short) 1), new NewTopic(OBJECTION_ALERTS, 3, (short) 1))).all().get();
         }
         producer = new KafkaProducer<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
@@ -82,6 +91,12 @@ class InvoiceEventsConsumerIT {
         assertThat(ProducerContract.INVOICE_EVENTS.breaches(InvoiceEvents.issuedToThePayer(UUID.randomUUID(), "SETP1", now))).isEmpty();
         assertThat(ProducerContract.INVOICE_EVENTS.breaches(InvoiceEvents.rejectedByTheDian(UUID.randomUUID(), "SETP1", now))).isEmpty();
         assertThat(ProducerContract.INVOICE_EVENTS.breaches(InvoiceEvents.uncontractedWithShortfall(UUID.randomUUID(), "SETP1", now))).isEmpty();
+        assertThat(ProducerContract.INVOICE_EVENTS.breaches(InvoiceEvents.filed(UUID.randomUUID(), "SETP1", now))).isEmpty();
+        assertThat(ProducerContract.INVOICE_EVENTS.breaches(InvoiceEvents.withGloss(UUID.randomUUID(), "SETP1",
+                UUID.randomUUID(), "AWAITING_RESPONSE", now))).isEmpty();
+        assertThat(ProducerContract.FILING_ALERTS.breaches(InvoiceEvents.filingAlert(UUID.randomUUID(), "SETP1", "DUE_SOON"))).isEmpty();
+        assertThat(ProducerContract.OBJECTION_ALERTS.breaches(InvoiceEvents.objectionAlert(UUID.randomUUID(), "SETP1",
+                UUID.randomUUID(), "OVERDUE"))).isEmpty();
     }
 
     @Test
@@ -139,7 +154,51 @@ class InvoiceEventsConsumerIT {
         assertThat(invoices.findByInvoiceUuid(broken)).isEmpty();
     }
 
+    @Test
+    void billingDeadlineAlertsBecomeFindingsUntilTheInvoiceIsFiled() throws Exception {
+        UUID invoice = UUID.randomUUID();
+        publish(invoice, InvoiceEvents.acceptedByTheDian(invoice, "SETP990000104", Instant.now()));
+        await().atMost(Duration.ofSeconds(20)).until(() -> invoices.findByInvoiceUuid(invoice).isPresent());
+
+        publish(FILING_ALERTS, invoice, InvoiceEvents.filingAlert(invoice, "SETP990000104", "DUE_SOON"));
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
+                assertThat(openRules(invoice)).contains(FindingRule.FILING_DUE_SOON));
+
+        publish(invoice, InvoiceEvents.filed(invoice, "SETP990000104", Instant.now()));
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
+                assertThat(openRules(invoice)).doesNotContain(FindingRule.FILING_DUE_SOON));
+    }
+
+    @Test
+    void anOverdueGlossReplacesItsWarningAndClosesWhenItIsAnswered() throws Exception {
+        UUID invoice = UUID.randomUUID();
+        UUID gloss = UUID.randomUUID();
+        publish(invoice, InvoiceEvents.withGloss(invoice, "SETP990000105", gloss, "AWAITING_RESPONSE", Instant.now()));
+        await().atMost(Duration.ofSeconds(20)).until(() -> invoices.findByInvoiceUuid(invoice).isPresent());
+
+        publish(OBJECTION_ALERTS, gloss, InvoiceEvents.objectionAlert(invoice, "SETP990000105", gloss, "DUE_SOON"));
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
+                assertThat(openRules(invoice)).contains(FindingRule.OBJECTION_DUE_SOON));
+        publish(OBJECTION_ALERTS, gloss, InvoiceEvents.objectionAlert(invoice, "SETP990000105", gloss, "OVERDUE"));
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
+                assertThat(openRules(invoice)).contains(FindingRule.OBJECTION_OVERDUE)
+                        .doesNotContain(FindingRule.OBJECTION_DUE_SOON));
+
+        publish(invoice, InvoiceEvents.withGloss(invoice, "SETP990000105", gloss, "RESPONDED", Instant.now()));
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
+                assertThat(openRules(invoice)).doesNotContain(FindingRule.OBJECTION_OVERDUE));
+    }
+
+    private java.util.List<FindingRule> openRules(UUID invoice) {
+        return findings.findByInvoiceUuidAndStatus(invoice, FindingStatus.OPEN).stream()
+                .map(com.ClinicaDeYmid.ai_assistant_service.repository.entity.Finding::rule).toList();
+    }
+
     private static void publish(UUID key, String value) throws Exception {
-        producer.send(new ProducerRecord<>(TOPIC, key.toString(), value)).get();
+        publish(TOPIC, key, value);
+    }
+
+    private static void publish(String topic, UUID key, String value) throws Exception {
+        producer.send(new ProducerRecord<>(topic, key.toString(), value)).get();
     }
 }

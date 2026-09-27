@@ -59,6 +59,10 @@ clinica:
     time-zone: America/Bogota
     invoice-events:
       enabled: ${AI_ASSISTANT_INVOICE_EVENTS_ENABLED:true}
+    review:
+      dian-grace: ${AI_ASSISTANT_REVIEW_DIAN_GRACE:PT2H}
+      rips-grace: ${AI_ASSISTANT_REVIEW_RIPS_GRACE:PT24H}
+      sweep-delay: ${AI_ASSISTANT_REVIEW_SWEEP_DELAY:PT30M}
   security:
     jwt:
       jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8086/oauth2/jwks}

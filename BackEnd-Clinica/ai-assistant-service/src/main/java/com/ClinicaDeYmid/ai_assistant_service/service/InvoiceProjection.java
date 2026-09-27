@@ -13,9 +13,11 @@ public class InvoiceProjection {
     private static final Logger log = LoggerFactory.getLogger(InvoiceProjection.class);
 
     private final InvoiceSnapshotRepository invoices;
+    private final FindingService findings;
 
-    public InvoiceProjection(InvoiceSnapshotRepository invoices) {
+    public InvoiceProjection(InvoiceSnapshotRepository invoices, FindingService findings) {
         this.invoices = invoices;
+        this.findings = findings;
     }
 
     @Transactional
@@ -31,7 +33,7 @@ public class InvoiceProjection {
                 state.contractNumber(), state.uncontractedCare(), state.payableTotal(), state.creditedTotal(),
                 state.balance(), state.shareShortfall(), state.dianStatus(), state.dianStatusAt(), state.cuv(),
                 state.filingNumber(), state.filedOn(), state.json());
-        invoices.save(snapshot);
+        findings.review(invoices.save(snapshot));
         log.debug("Invoice {} now at {}", state.number(), state.eventType());
         return true;
     }
