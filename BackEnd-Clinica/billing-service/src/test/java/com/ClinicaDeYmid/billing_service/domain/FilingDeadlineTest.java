@@ -16,19 +16,19 @@ class FilingDeadlineTest {
 
     @Test
     void turnsYellowWithinTheWarningWindowAndRedAfterTheDeadline() {
-        FilingDeadline fresh = FilingDeadline.of(ISSUED, ISSUED, 5);
-        FilingDeadline dueSoon = FilingDeadline.of(ISSUED, LocalDate.parse("2026-10-27"), 5);
-        FilingDeadline lastDay = FilingDeadline.of(ISSUED, LocalDate.parse("2026-11-04"), 5);
-        FilingDeadline overdue = FilingDeadline.of(ISSUED, LocalDate.parse("2026-11-09"), 5);
+        BusinessDeadline fresh = filing(ISSUED);
+        BusinessDeadline dueSoon = filing(LocalDate.parse("2026-10-27"));
+        BusinessDeadline lastDay = filing(LocalDate.parse("2026-11-04"));
+        BusinessDeadline overdue = filing(LocalDate.parse("2026-11-09"));
 
         assertThat(fresh.deadline()).isEqualTo(LocalDate.parse("2026-11-04"));
-        assertThat(fresh.state()).isEqualTo(FilingDeadline.State.ON_TIME);
+        assertThat(fresh.state()).isEqualTo(BusinessDeadline.State.ON_TIME);
         assertThat(fresh.remainingBusinessDays()).isEqualTo(22);
-        assertThat(dueSoon.state()).isEqualTo(FilingDeadline.State.DUE_SOON);
+        assertThat(dueSoon.state()).isEqualTo(BusinessDeadline.State.DUE_SOON);
         assertThat(dueSoon.remainingBusinessDays()).isEqualTo(5);
-        assertThat(lastDay.state()).isEqualTo(FilingDeadline.State.DUE_SOON);
+        assertThat(lastDay.state()).isEqualTo(BusinessDeadline.State.DUE_SOON);
         assertThat(lastDay.remainingBusinessDays()).isZero();
-        assertThat(overdue.state()).isEqualTo(FilingDeadline.State.OVERDUE);
+        assertThat(overdue.state()).isEqualTo(BusinessDeadline.State.OVERDUE);
         assertThat(overdue.remainingBusinessDays()).isEqualTo(-3);
     }
 
@@ -38,7 +38,7 @@ class FilingDeadlineTest {
         RipsSubmission validated = RipsSubmission.prepare(invoice, 1, "{}");
         validated.validated(1L, CUV, Instant.now(), false, List.of(), "{}", Instant.now());
         LocalDate validatedOn = invoice.issuedOn();
-        LocalDate late = FilingDeadline.deadlineOf(invoice.issuedOn()).plusDays(7);
+        LocalDate late = InvoiceFiling.deadlineOf(invoice.issuedOn()).plusDays(7);
 
         InvoiceFiling filing = InvoiceFiling.register(validated, "RAD-1", late, validatedOn, late);
 
@@ -53,5 +53,9 @@ class FilingDeadlineTest {
                 .isInstanceOf(BillingException.InvalidFilingDate.class);
         assertThatThrownBy(() -> InvoiceFiling.register(RipsSubmission.prepare(invoice, 2, "{}"), "RAD-1", late,
                 validatedOn, late)).isInstanceOf(BillingException.FilingWithoutCuv.class);
+    }
+
+    private static BusinessDeadline filing(LocalDate today) {
+        return BusinessDeadline.of(ISSUED, InvoiceFiling.BUSINESS_DAYS_TO_FILE, today, 5);
     }
 }

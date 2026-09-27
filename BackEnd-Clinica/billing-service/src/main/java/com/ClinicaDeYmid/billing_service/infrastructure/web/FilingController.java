@@ -4,7 +4,7 @@ import com.ClinicaDeYmid.billing_service.application.RepresentationService;
 import com.ClinicaDeYmid.billing_service.application.filing.FilingPackages;
 import com.ClinicaDeYmid.billing_service.application.filing.FilingStatus;
 import com.ClinicaDeYmid.billing_service.application.filing.InvoiceFilingService;
-import com.ClinicaDeYmid.billing_service.domain.FilingDeadline;
+import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceFiling;
 import com.ClinicaDeYmid.commons.security.AuthenticatedUser;
@@ -109,7 +109,7 @@ class FilingController {
             description = "Facturas de servicios emitidas al pagador sin radicado, de la más antigua a la más reciente; "
                     + "state filtra ON_TIME, DUE_SOON u OVERDUE")
     List<FilingView> pending(@RequestParam(required = false) UUID payerUuid,
-                             @RequestParam(required = false) FilingDeadline.State state,
+                             @RequestParam(required = false) BusinessDeadline.State state,
                              @RequestParam(defaultValue = "200") @Min(1) @Max(500) int limit) {
         return filings.tray(payerUuid, state, limit).stream().map(FilingView::from).toList();
     }
@@ -124,12 +124,12 @@ class FilingController {
     record FilingView(UUID invoiceUuid, String invoiceNumber, String admissionNumber, UUID payerUuid, String payerName,
                       BigDecimal payableTotal, LocalDate issuedOn, String cuv, boolean filed, String filingNumber,
                       LocalDate filedOn, LocalDate deadline, Boolean late, Integer remainingBusinessDays,
-                      FilingDeadline.State state, String correctionReason, Instant registeredAt, String registeredBy) {
+                      BusinessDeadline.State state, String correctionReason, Instant registeredAt, String registeredBy) {
 
         static FilingView from(FilingStatus status) {
             Invoice invoice = status.invoice();
             InvoiceFiling filing = status.filing();
-            FilingDeadline deadline = status.deadline();
+            BusinessDeadline deadline = status.deadline();
             return new FilingView(invoice.uuid(), invoice.number(), invoice.account().admissionNumber(),
                     invoice.buyer().reference(), invoice.buyer().name(), invoice.payableTotal(), invoice.issuedOn(),
                     filing != null ? filing.cuv() : status.cuv(), filing != null,

@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.events;
 
-import com.ClinicaDeYmid.billing_service.domain.FilingDeadline;
+import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 
 import java.math.BigDecimal;
@@ -17,12 +17,12 @@ record FilingDeadlineMessage(UUID eventId, String type, Instant occurredAt, Stri
     static final String APPROACHING = "FilingDeadlineApproaching";
     static final String MISSED = "FilingDeadlineMissed";
 
-    static FilingDeadlineMessage of(Invoice invoice, FilingDeadline deadline, String cuv, UUID eventId,
+    static FilingDeadlineMessage of(Invoice invoice, BusinessDeadline deadline, String cuv, UUID eventId,
                                     Instant occurredAt, String traceId) {
         return new FilingDeadlineMessage(eventId,
-                deadline.state() == FilingDeadline.State.OVERDUE ? MISSED : APPROACHING, occurredAt, traceId,
+                deadline.state() == BusinessDeadline.State.OVERDUE ? MISSED : APPROACHING, occurredAt, traceId,
                 invoice.uuid(), invoice.number(), invoice.account().admissionNumber(), invoice.buyer().reference(),
-                invoice.buyer().name(), invoice.buyer().documentNumber(), invoice.payableTotal(), deadline.issuedOn(),
+                invoice.buyer().name(), invoice.buyer().documentNumber(), invoice.payableTotal(), deadline.start(),
                 deadline.deadline(), deadline.remainingBusinessDays(), deadline.state().name(), cuv);
     }
 }
