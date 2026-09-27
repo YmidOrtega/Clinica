@@ -1,90 +1,86 @@
 # Arquitectura Técnica — Clínica
 
-**Versión:** 1.0  
-**Stack:** Java 21 · Spring Boot 3.5 · Spring Cloud 2025.0  
-**Dominio:** Gestión hospitalaria — pacientes, admisiones, proveedores, facturación, autenticación, IA
+**Stack:** Java 21 · Spring Boot 3.5.14 · Spring Cloud 2025.0.1
+**Dominio:** gestión de una IPS colombiana — pacientes, historia clínica, admisiones, contratación con
+pagadores, profesionales, facturación electrónica en salud y revisión de facturas con IA local
 
 ---
 
 ## 1. Contexto del Problema
 
-Las clínicas medianas operan con múltiples dominios que cambian a ritmos distintos: el registro de pacientes no tiene el mismo ciclo de actualización que la facturación o la gestión de turnos médicos. Unificar todo en un monolito crea acoplamiento innecesario y bloquea el despliegue independiente de cambios críticos.
+Una clínica tiene dominios que cambian a ritmos distintos y con reglas propias: el registro de pacientes
+no evoluciona como la facturación ante la DIAN ni como la contratación con las EPS. Cada dominio es un
+servicio con su base de datos, y se integran por eventos y por llamadas con el token del usuario.
 
-Adicionalmente, un sistema de salud tiene requisitos no negociables:
+Requisitos que no se negocian en salud:
 
-- **Auditoría completa** — cada cambio en un expediente clínico debe quedar registrado con usuario, fecha y acción.
-- **Eliminación segura** — los datos médicos no se borran físicamente; se marcan como inactivos con trazabilidad.
-- **Seguridad robusta** — credenciales en tránsito, tokens de corta vida, bloqueo por intentos fallidos, RBAC por rol profesional.
-- **Disponibilidad ante fallos parciales** — si el servicio de facturación cae, las admisiones deben seguir funcionando.
+- **Trazabilidad**: cada cambio queda con autor y fecha (Envers, cadenas de integridad, auditoría de
+  lectura en la historia clínica).
+- **Nada se borra por accidente**: el usuario de la aplicación no tiene `DELETE` sobre los datos de
+  negocio; lo firmado se corrige agregando, no reescribiendo.
+- **Seguridad del personal**: segundo factor obligatorio, tokens de 5 minutos, step-up para lo sensible,
+  permisos por rol y datos personales fuera de URLs y logs.
+- **Fallos parciales**: si un servicio cae, los demás siguen con su copia local de lo que necesitan y
+  responden `503` solo en lo que de verdad depende del caído.
 
 ---
 
 ## 2. Visión General del Sistema
 
 ```
-                         ┌─────────────────────────────────┐
-                         │        Clientes Externos        │
-                         │   Browser · Apps · Integraciones│
-                         └─────────────┬───────────────────┘
-                                       │ HTTPS / JWT
-                                       ▼
-                    ┌──────────────────────────────────────┐
-                    │           API Gateway                │
-                    │   Spring Cloud Gateway 4.3           │
-                    │  ┌──────────┬──────────┬──────────┐  │
-                    │  │ Logging  │Rate Limit│ Retry    │  │
-                    │  │ Routing  │  Redis   │Circuit   │  │
-                    │  └──────────┴──────────┴──────────┘  │
-                    └────┬──────┬──────┬──────┬────┬───────┘
-                         │      │      │      │    │
-              ┌──────────┘  ┌───┘  ┌───┘  ┌──┘    └──────┐
-              ▼             ▼      ▼      ▼               ▼
-        ┌──────────┐ ┌──────────┐ ┌────────┐ ┌──────────┐ ┌─────────┐
-        │ Patient  │ │Admissions│ │ Auth   │ │Suppliers │ │ Clients │
-        │ Service  │ │ Service  │ │Service │ │ Service  │ │ Service │
-        │  MySQL   │ │PostgreSQL│ │ MySQL  │ │  MySQL   │ │  MySQL  │
-        └──────────┘ └──────────┘ └────────┘ └──────────┘ └─────────┘
-              │                        │
-              ▼                        ▼
-        ┌──────────┐ ┌──────────┐ ┌───────────────┐
-        │AI Assist │ │ Clinical │ │ Eureka Server │
-        │PostgreSQL│ │ History  │ │   Discovery   │
-        │          │ │MySQL·S3  │ │               │
-        └──────────┘ └──────────┘ └───────────────┘
-                                       ▲
-                        Todos los servicios se registran aquí
+                    navegador (FrontEnd-Clinica)
+                               │ cookie de sesión + CSRF
+                               ▼
+┌───────────────┐   ┌────────────────────┐   ┌─────────────────────────────┐
+│ gateway-redis │◄─►│    api-gateway     │──►│ auth-service (OAuth 2.1/OIDC)│
+└───────────────┘   │  BFF, rate limit   │   └──────────────┬──────────────┘
+                    └─────────┬──────────┘                  │ firma en transit
+                              │ Bearer (token del usuario)  ▼
+     ┌────────────────────────┼─────────────────────┐  ┌──────────────────┐
+     ▼            ▼           ▼          ▼          ▼  │ OpenBao, 3 nodos │
+ patient   clinical-history  contracting  practitioners │ KV · transit ·   │
+     ▼            ▼           ▼          ▼             │ TOTP · AppRole   │
+ admissions ───► billing ───► ai-assistant             └──────────────────┘
+     │   Feign con token intercambiado, destino por Eureka (con credenciales)
+     ▼
+ outbox en cada base ──► Debezium ──► Kafka (KRaft) ──► consumidores con copia local
 ```
+
+Cada servicio tiene su base en una red Docker interna (`<servicio>-data`) sin puerto publicado; solo el
+gateway se publica. `docker-compose.debug.yml` abre los puertos de depuración en `127.0.0.1`.
 
 ---
 
 ## 3. Stack Tecnológico
 
-| Capa              | Tecnología                          | Justificación                                                                    |
-| ----------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
-| Runtime           | Java 21                             | Soporte LTS, records, sealed classes, pattern matching                           |
-| Framework         | Spring Boot 3.5 + Spring Cloud 2025 | Ecosistema maduro para microservicios; auto-configuración, actuator, seguridad   |
-| API Gateway       | Spring Cloud Gateway Server WebMVC 4.3 | BFF servlet con hilos virtuales: oauth2Login, sesión en Redis, relevo de tokens y rate limit |
-| Service Discovery | Netflix Eureka                      | Registro dinámico; los servicios se localizan por nombre, no por IP              |
-| Seguridad         | Spring Authorization Server + JWT ES256 | Auth firma en OpenBao transit sin tener la clave; los servicios validan con el JWKS |
-| Bases de datos    | MySQL 8 · PostgreSQL 16             | MySQL para dominios relacionales simples; PostgreSQL para datos transaccionales  |
-| Migraciones       | Flyway                              | Historial versionado de esquema; obligatorio en sistemas de salud (auditoría)    |
-| ORM               | Hibernate + MapStruct 1.6           | JPA estándar; MapStruct genera el código de mapping en compile time (zero reflect)|
-| Resiliencia       | Resilience4j                        | Circuit breaker, retry con backoff exponencial, fallback declarativo             |
-| Cache / Rate Limit| Redis 7                             | Cache distribuida + contador atómico para rate limiting en el gateway           |
-| IA                | Spring AI + modelo local (LM Studio)| Los datos de facturación no salen de la clínica; API compatible con OpenAI       |
-| Contenedores      | Docker + Compose                    | Stack completo levantable con un solo comando                                    |
-| Testing           | JUnit 5 + Mockito                   | Pruebas unitarias de servicios, controladores e integraciones                    |
-| Build             | Maven multi-módulo                  | Un POM padre gestiona versiones de dependencias para todos los servicios         |
+| Capa | Tecnología | Por qué |
+|---|---|---|
+| Runtime | Java 21, hilos virtuales | records, sealed, pattern matching; hilos baratos para E/S |
+| Framework | Spring Boot 3.5.14, Spring Cloud 2025.0.1 | actuator, seguridad y configuración maduros |
+| Gateway | Spring Cloud Gateway Server MVC como BFF | sesión en servidor, el navegador nunca ve tokens |
+| Identidad | Spring Authorization Server, tokens ES256 | auth firma en OpenBao transit sin tener la clave |
+| Autorización | `clinica-commons-security` | catálogo de roles y permisos, token exchange (RFC 8693) |
+| Secretos | OpenBao 2.6 (KV, transit, TOTP, AppRole) | ningún secreto en variables de entorno ni en archivos del repo |
+| Bases de datos | MySQL 8, PostgreSQL 16 | PostgreSQL donde hacen falta restricciones de exclusión (camas) o JSONB |
+| Migraciones | Flyway con usuario migrador aparte | la aplicación no tiene DDL |
+| Auditoría | Hibernate Envers | historial por entidad con autor de la revisión |
+| Eventos | Kafka 4 (KRaft), Debezium 3 con outbox | publicar sin que el servicio hable con Kafka |
+| Almacenamiento | MinIO con Object Lock | anexos clínicos inmutables (WORM) |
+| Resiliencia | Resilience4j, OpenFeign, Eureka | circuit breaker, timeouts y descubrimiento |
+| IA | Spring AI 1.1 + modelo local (LM Studio) | los datos de facturación no salen de la clínica |
+| Pruebas | JUnit 5, Testcontainers, WireMock, ArchUnit, k6 | integración contra bases y brokers reales |
+| Contenedores | Docker Compose | el stack completo con un comando |
 
 ---
 
 ## 4. Microservicios — Responsabilidades
 
-> **Nota sobre los puertos.** Los puertos indicados abajo son los del perfil `docker`,
-> definidos en el `application.yml` de cada servicio y mapeados en `docker-compose.yml`.
-> En el perfil `dev` los servicios de dominio arrancan con `server.port=0` (puerto efímero
-> asignado por el sistema operativo) para poder levantar varias instancias en la misma
-> máquina sin colisiones; se localizan por nombre lógico a través de Eureka, no por puerto.
+> **Arquitectura interna.** Casi todos los servicios son hexagonales pragmáticos: `domain`, `application`
+> con puertos solo para lo externo, e `infrastructure`; el dominio lleva anotaciones JPA para no duplicar
+> el modelo. `practitioners-service` y `ai-assistant-service` son por capas (`web` → `service` →
+> `repository`) para mostrar que también se puede hacer bien. En ambos casos ArchUnit vigila el sentido
+> de las dependencias. Los puertos son los del contenedor; los de depuración están en
+> `docker-compose.debug.yml`.
 
 ### 4.1 Patient Service (`:8081`)
 
@@ -165,6 +161,7 @@ admissions-db (PostgreSQL) ──WAL──►  kafka-connect (Debezium) ──�
 | `kafka`              | `apache/kafka:4.3.1` (KRaft, 1 nodo)   | Broker; creación automática de topics desactivada        |
 | `kafka-connect`      | `quay.io/debezium/connect:3.6.2.Final` | Un solo clúster Connect para todos los servicios         |
 | `kafka-connect-init` | `curlimages/curl`                      | Registra (idempotente) cada `*/debezium/*.json` y espera `RUNNING` |
+| `kafka-topics-init`  | `apache/kafka:4.3.1`                   | Crea los topics que alguien consume antes de su primer evento (alertas de billing) |
 | `kafka-ui`           | `ghcr.io/kafbat/kafka-ui:v1.5.0`       | Solo en `docker-compose.debug.yml` (`127.0.0.1:8090`) |
 
 Para que otro servicio publique eventos basta con: una tabla outbox en su base de datos, un usuario
@@ -175,39 +172,40 @@ nunca van en el JSON ni en variables de entorno. Cada conector MySQL necesita un
 
 ### 4.1.2 Librerías compartidas (`libs/`)
 
-| Librería                    | Contenido                                                                 |
-| --------------------------- | ------------------------------------------------------------------------- |
-| `clinica-commons-web`       | `DomainException` + `ErrorCategory`, manejador RFC 9457 con `code` y `traceId`, sin datos de entrada en las respuestas |
-| `clinica-commons-security`  | Resource Server de los tokens ES256 de `auth-service` (JWKS, emisor, audiencias), personas con `ROLE_*` y servicios con `SCOPE_*`, revocación desde `auth.users.v1`, step-up, intercambio de tokens para Feign, `AuditorAware`, 401/403 en RFC 9457; `SecurityTestTokens` en su jar de pruebas |
-| `clinica-commons-openbao`   | Cliente del motor transit de OpenBao (cifrar, descifrar, firmar en DER o JWS, versiones y claves públicas) con autoconfiguración, y un `OpenBaoTestContainer` en su jar de pruebas |
+| Librería | Versión | Contenido |
+|---|---|---|
+| `clinica-commons-web` | 1.1.0 | `DomainException` + `ErrorCategory`, manejador RFC 9457 con `code` y `traceId`, ETag e `If-Match` |
+| `clinica-commons-openbao` | 1.3.0 | cliente del motor transit de OpenBao (cifrar, descifrar, firmar, versiones y claves públicas); `OpenBaoTestContainer` en su jar de pruebas |
+| `clinica-commons-security` | 2.11.0 | resource server de los tokens ES256, catálogo `StaffRole` → `StaffPermission`, revocación desde `auth.users.v1`, step-up, intercambio de tokens para Feign, `AuditorAware`, 401/403 en RFC 9457; `SecurityTestTokens` en su jar de pruebas |
+| `clinica-commons-documents` | 1.1.0 | PDF sellados con transit y verificables por un código impreso (comprobantes, copias, representaciones gráficas) |
 
-Son dependencias de compilación con versión fija (`1.0.0`), no servicios: una falla en una versión solo
-afecta a los servicios que la adopten.
+Son dependencias de compilación con versión fija, no servicios: una versión nueva solo afecta a los
+servicios que la adopten. Se compilan en el orden web → openbao → security → documents, y el `pom.xml`
+raíz las incluye.
 
 ### 4.1.3 Plataforma de secretos (OpenBao)
 
 ```
 openbao-bootstrap ─► clave de sello + CA y certificado TLS
 openbao-1 ┐
-openbao-2 ├─ raft (3 votantes, TLS 1.3, sello estático) ◄── openbao-init: políticas, AppRole, secretos iniciales
-openbao-3 ┘        ▲                         ▲
-                   │ AppRole + TLS           │ AppRole + TLS
-   patient-service / clinical-history-service    openbao-agent ─► archivos para MySQL, Kafka Connect y S3
-   (Spring Cloud Vault, perfil openbao)
+openbao-2 ├─ raft (3 votantes, TLS 1.3, sello estático) ◄── openbao-init: políticas, AppRoles, claves de transit, secretos
+openbao-3 ┘        ▲                                   ▲
+                   │ AppRole + TLS                     │ AppRole + TLS
+   los 9 servicios Spring (perfil openbao)      openbao-agent ─► archivos para bases, Kafka Connect, MinIO y Eureka
 ```
 
-| Componente          | Rol                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------- |
-| `openbao-1..3`      | Clúster raft de 3 nodos en la red interna `secrets-net`; tolera la caída de uno        |
-| `openbao-bootstrap` | Genera la clave de sello estático y la CA/certificado TLS de desarrollo (idempotente) |
-| `openbao-init`      | Inicializa, aplica políticas, crea un AppRole por consumidor y siembra los secretos    |
-| `openbao-agent`     | Renderiza en volúmenes dedicados los secretos de los contenedores que no son Spring     |
+| Componente | Rol |
+|---|---|
+| `openbao-1..3` | clúster raft de 3 nodos en la red interna `secrets-net`; tolera la caída de uno |
+| `openbao-bootstrap` | genera la clave de sello estático y la CA/certificado TLS de desarrollo (idempotente) |
+| `openbao-init` | inicializa, aplica políticas, crea un AppRole por consumidor, crea las claves de transit y siembra los secretos |
+| `openbao-agent` | renderiza en volúmenes dedicados los secretos de los contenedores que no son Spring |
 
-Los servicios Spring leen sus secretos **una vez al arrancar**: si OpenBao cae después, siguen
-funcionando; solo falla el arranque de instancias nuevas mientras no haya nodo activo. La excepción es
-el motor transit, que `clinical-history-service` usa en cada firma y al abrir la clave de un paciente
-fuera de caché (sección 4.2). Cada consumidor
-tiene su propia política y solo lee sus rutas. Operación, rotación y recuperación en
+Los servicios leen sus secretos **una vez al arrancar**: si OpenBao cae después, siguen funcionando y solo
+falla el arranque de instancias nuevas. Lo que usa transit en caliente (firmar tokens, sellar notas,
+comprobantes y facturas, cifrar la historia clínica) sí depende de OpenBao y responde `503` mientras no
+haya nodo activo. Cada consumidor tiene su propia política y solo lee sus rutas: `openbao-e2e.sh`
+comprueba que un servicio no lea los secretos de otro. Operación y rotación en
 `BackEnd-Clinica/platform/openbao/README.md`.
 
 ### 4.2 Clinical History Service (`:8089`)
@@ -298,50 +296,34 @@ diarios, p95 de lectura y de firma se quedan por debajo de 35 ms
 **Réplicas:** dos instancias (`CLINICAL_SERVICE_REPLICAS`) sin estado en memoria, en la red interna
 `clinical-data` junto a su base y su almacenamiento de anexos.
 
-### 4.3 Admissions Service (`:8083`)
+### 4.3 Admissions Service (`:8088`)
 
-Gestiona el ciclo de vida completo de una atención médica.
+Dueño del **episodio**: quién entra, por qué servicio pasa, qué cama ocupa, quién responde por él, qué
+autorizó el pagador y cómo sale. No guarda diagnósticos ni notas; la **atención** clínica es de
+`clinical-history-service` y la une el `admissionUuid`.
 
-```
-AttentionController
-    └── AttentionService
-          ├── AttentionRepository        → Tabla attentions (PostgreSQL)
-          ├── AttentionMovementRepository
-          ├── AttentionUserHistoryRepository
-          └── AuthorizationRepository
-```
+- **Un episodio, varias fases.** Urgencias que termina en hospitalización es un solo episodio (un número,
+  una factura) que cambia de fase; cada tipo de servicio dice si exige cama y si la cobertura puede
+  bloquear.
+- **La cobertura nunca frena una urgencia** (Ley 100, art. 168): sin contrato o con `contracting-service`
+  caído, urgencias admite y marca el episodio para facturación; hospitalización y ambulatorio sin
+  cobertura se bloquean. Saltarse la cobertura exige permiso y segundo factor.
+- **Las camas las cuida PostgreSQL** con una restricción `EXCLUDE USING gist` sobre el rango de ocupación:
+  dos personas no pueden asignar la misma cama aunque lleguen en el mismo instante.
+- **Triage** reflejado desde la historia clínica (`clinical.encounters.v1`), que es donde lo firma
+  enfermería; la cola de urgencias se ordena por nivel.
+- **Comprobante sellado**: PDF con la clave `admissions-seal` de transit, verificable sin sesión por su
+  código.
+- Copias locales de pacientes (`patient.events.v1`) y profesionales (`practitioners.v1`); publica
+  `admissions.events.v1`.
 
-**Estado de una atención:**
-
-```
-[Paciente llega]
-      │
-      ▼
-  CREATED ──────────────────► CANCELLED
-      │
-      ▼
- IN_PROGRESS
-      │
-      ├── (facturación validada)
-      │
-      ▼
- DISCHARGED
-```
-
-**Niveles de triage:**
-
-| Color    | Prioridad | Descripción                           |
-| -------- | --------- | ------------------------------------- |
-| `RED`    | 1         | Emergencia crítica — atención inmediata |
-| `ORANGE` | 2         | Emergencia urgente                    |
-| `YELLOW` | 3         | Urgencia moderada                     |
-| `GREEN`  | 4         | No urgente                            |
-| `BLUE`   | 5         | Consulta rutinaria                    |
+Admitir es de recepción (`admissions:admit`); enfermería mueve camas y consulta. Detalle en
+`admissions-service/docs/episodio-camas-y-comprobantes.md`.
 
 ### 4.4 Auth Service (`:8086`)
 
-Identidad del personal y de los servicios, reconstruida por incrementos (rama `refactor/auth-service`)
-como servidor OAuth 2.1 / OIDC con Spring Authorization Server.
+Identidad del personal y de los servicios, como servidor OAuth 2.1 / OIDC con Spring Authorization
+Server. El catálogo de roles y lo que cada uno puede hacer está en `auth-service/docs/roles-y-permisos.md`.
 
 ```
 domain/user         User (agregado JPA + Envers), Role, UserStatus, CredentialState y SecondFactorState sellados
@@ -372,45 +354,73 @@ reintentos (Mailpit en desarrollo) y, al arrancar sin ningún `SUPER_ADMIN`, inv
 `secret/auth/bootstrap`. Corre con 2 réplicas; sesiones y autorizaciones viven en MySQL. Publica sus
 eventos con el conector `auth-service/debezium/auth-outbox.json` (ver `auth-service/events/README.md`).
 
-### 4.5 Suppliers Service (`:8085`)
+### 4.5 Contracting Service (`:8087`)
 
-Gestión del personal médico y sus disponibilidades.
+Lo que se pactó con cada pagador: pagadores (EPS, aseguradoras, entes territoriales), contratos por
+modalidad (evento, paquete, capitación, presupuesto global) con su cobertura y CUCON, manuales tarifarios
+versionados, excepciones, paquetes y la población capitada.
 
-```
-DoctorController
-    └── DoctorService
-          ├── DoctorRepository       → Tabla doctors
-          ├── ScheduleRepository     → Tabla doctor_schedules
-          └── UnavailabilityRepository → Tabla doctor_unavailability
-```
+`POST /api/v1/price-quotes` es la **única fuente de precios** del sistema: resuelve paquete → capitación o
+presupuesto → excepción → manual tarifario × factor, y cada línea dice de dónde salió su precio para poder
+explicar una factura años después. Lo que no tiene tarifa vuelve como `UNPRICED`. Las decisiones de precio
+exigen segundo factor. Publica `contracting.contracts.v1` y `contracting.tariffs.v1`. Detalle en
+`contracting-service/docs/`.
 
-### 4.6 Clients Service (`:8087`)
+### 4.6 Practitioners Service (`:8085`, por capas)
 
-Proveedores de salud: aseguradoras, EPS, redes de clínicas.
+Quién es cada profesional: registro ReTHUS, especialidades del catálogo, tipo de vinculación, el vínculo
+opcional con su cuenta de `auth-service` (verificado contra la copia local de `auth.users.v1`, sin
+llamarlo) y los acuerdos de honorarios, que nunca se reescriben. Ver honorarios exige
+`practitioners:read-fees`. Publica `practitioners.v1`. Detalle en
+`practitioners-service/docs/directorio-y-honorarios.md`.
 
-```
-HealthProviderController
-    └── HealthProviderService
-          ├── HealthProviderRepository → Tabla health_providers
-          ├── ContractRepository       → Tabla contracts
-          └── PortfolioRepository      → Tabla portfolios
-```
+### 4.7 Billing Service (`:8082`)
 
-### 4.7 AI Assistant Service (`:8084`)
-
-Asistente conversacional con memoria de sesión e integración con el flujo de admisiones.
+El ciclo completo de facturación en salud:
 
 ```
-AIAssistantController
-    └── AIAssistantService
-          ├── GeminiClient (Spring AI)  → Llamadas a la API de Gemini
-          ├── ConversationRepository    → Tabla conversation_history
-          └── MessageRepository         → Tabla conversation_messages
+venta ─► confirmación (precios de contracting) ─► borrador ─► emisión ─► firma XAdES en transit
+      ─► DIAN ─► RIPS + CUV del Ministerio (MUV) ─► radicación ante el pagador ─► devoluciones y glosas
 ```
 
-El asistente detecta intención en la conversación: si el médico describe síntomas de un paciente, puede iniciar automáticamente la creación de una atención llamando al Admissions Service internamente.
+- **Factura electrónica UBL 2.1** con la extensión del sector salud (DT2 de la Resolución 948 de 2026) y
+  firma XAdES-EPES con la clave del certificado importada en transit (no exportable).
+- **Copagos y cuotas** facturados al paciente al recaudarlos y descontados de la factura al pagador.
+- **Facturación sin contrato** solo en los casos que permite la norma (urgencias, SOAT/ADRES, tutela…),
+  con motivo, justificación y segundo factor.
+- **RIPS** armado desde la historia clínica y admisiones, validado ante el mecanismo único para obtener
+  el CUV; **radicación** dentro de los 22 días hábiles; **notas crédito**; **devoluciones y glosas** con
+  el manual único (Resolución 2284) y sus plazos en días hábiles.
+- Publica `billing.invoices.v1` (compactado, estado completo) y las alertas de plazos
+  `billing.filing-deadlines.v1` y `billing.claim-objections.v1`.
 
-### 4.8 API Gateway (`:8080`)
+Contra la DIAN y el MUV corre con simuladores WireMock (`platform/simulators`). Detalle en
+`billing-service/docs/ciclo-de-facturacion.md`.
+
+### 4.8 AI Assistant Service (`:8084`, por capas)
+
+Asistente de **revisión y control de facturas emitidas** con un modelo local.
+
+```
+billing.invoices.v1 ─► copia local ─► reglas deterministas ─► bandeja de hallazgos
+alertas de billing ──┘
+usuario ─► conversación ─► modelo local (LM Studio) ─► herramientas: copia local + API de billing
+                                   │                   con el token intercambiado del usuario
+                                   ▼
+                           acción propuesta ──(confirmación del usuario)──► billing
+```
+
+- Los hallazgos (rechazo DIAN, RIPS sin CUV, plazos de radicación y de glosas, copago faltante…) salen de
+  reglas, no del modelo.
+- El modelo explica y consulta, pero **solo puede proponer**: firmar, reenviar a la DIAN, enviar el RIPS,
+  radicar o responder una glosa. Nada ocurre hasta que el usuario confirma; responder glosas pide segundo
+  factor.
+- Lo que devuelven las herramientas se trata como dato, nunca como instrucción.
+- Conversaciones privadas por usuario, borradas a los 30 días; las acciones quedan como auditoría.
+
+Detalle en `ai-assistant-service/docs/asistente-de-facturas.md`.
+
+### 4.9 API Gateway (`:8080`)
 
 Punto de entrada único del navegador, reconstruido como *backend for frontend* sobre Spring Cloud
 Gateway Server WebMVC con hilos virtuales. Contrato para el frontend en `api-gateway/docs/bff.md`.
@@ -424,8 +434,8 @@ api-gateway ─ Spring Security: CORS → rate limit por IP → sesión (Spring 
    │          → rate limit por usuario
    ├─ /bff/session, /bff/login, /bff/step-up, /bff/logout
    ├─ /auth/**                         → auth-service (su cookie; X-Forwarded-Prefix /auth)
-   └─ /api/v1/users, /api/v1/me,       → auth-service, patient-service, clinical-history-service
-      /api/v1/patients, /api/v1/clinical   con Authorization: Bearer (renovado con candado en Redis)
+   └─ /api/v1/**                       → el servicio dueño de la ruta (tabla en api-gateway/docs/bff.md)
+                                         con Authorization: Bearer (renovado con candado en Redis)
 
 gateway-redis (red interna gateway-data, contraseña en OpenBao): sesiones, tokens, candados y contadores
 ```
@@ -439,28 +449,41 @@ gateway-redis (red interna gateway-data, contraseña en OpenBao): sesiones, toke
   cerrar la sesión.
 - En Compose las rutas usan los nombres DNS de Docker (`http://auth-service:8086`), que reparten entre
   réplicas; fuera de Docker pueden ser `lb://` con Eureka.
+- La verificación pública de documentos sellados (comprobantes de admisión, representaciones gráficas de
+  facturas y claves de sellado) pasa sin sesión, con su propio límite por IP.
+- Cada ruta espera la respuesta 30 s; la del asistente, 90 s.
+
+---
+
+### 4.10 Mapa de eventos
+
+| Topic | Publica | Consumen |
+|---|---|---|
+| `patient.events.v1` | patient | clinical-history, admissions |
+| `auth.users.v1` | auth | todos (revocación de tokens), practitioners (cuentas) |
+| `auth.security-audit.v1` | auth | auditoría |
+| `practitioners.v1` | practitioners | clinical-history, admissions |
+| `contracting.contracts.v1`, `contracting.tariffs.v1` | contracting | — (disponibles para liquidación) |
+| `admissions.events.v1` | admissions | billing |
+| `clinical.encounters.v1` | clinical-history | admissions (triage), billing (RIPS) |
+| `clinical.access-audit.v1` | clinical-history | auditoría |
+| `billing.invoices.v1`, `billing.filing-deadlines.v1`, `billing.claim-objections.v1` | billing | ai-assistant |
+
+Cada productor documenta el contrato en `<servicio>/events/` (JSON Schema), y sus consumidores validan
+en sus pruebas los ejemplos contra ese esquema. Cada consumidor tiene su dead letter topic
+(`<topic>.<consumidor>.dlt`).
 
 ---
 
 ## 5. Service Discovery — Eureka
 
-```
-Arranque de un microservicio:
-  1. Spring Cloud Eureka Client se activa
-  2. Servicio publica: { serviceId, host, port, status: UP }
-  3. Eureka mantiene heartbeat cada 30s; si falla → marca DOWN
-  4. API Gateway consulta el registro para resolver rutas
+Los servicios se registran en Eureka y los clientes Feign entre servicios (billing → admissions, el
+asistente → billing, clinical-history → patient…) eligen el destino con él y reparten entre réplicas. El
+gateway, en cambio, enruta por el nombre DNS de Docker.
 
-Sin Eureka: cada servicio necesitaría IPs hardcodeadas
-Con Eureka: el gateway resuelve "PATIENT-SERVICE" → IP actual dinámicamente
-```
-
-**Beneficio en Docker Compose:** al reiniciar un contenedor con nueva IP, Eureka lo re-registra automáticamente. Ninguna configuración cambia.
-
-**Registro cerrado.** Los clientes Feign entre servicios (billing→admissions, el asistente→billing, etc.)
-eligen su destino con Eureka y le envían el token intercambiado del usuario, así que quien pudiera
-registrarse como `billing-service` recibiría esos tokens. Eureka exige por eso credenciales para leer y
-para registrarse: cada servicio las toma de OpenBao (`secret/eureka/client`) con su AppRole y el servidor
+**Registro cerrado.** Esos clientes envían el token intercambiado del usuario, así que quien pudiera
+registrarse como `billing-service` recibiría esos tokens. Por eso Eureka exige credenciales para leer y
+para registrarse: cada servicio las toma de OpenBao (`secret/eureka/client`) con su AppRole, y el servidor
 las recibe del agente en un volumen propio. Solo `/actuator/health` e `/info` quedan abiertos, y el puerto
 se publica únicamente en `docker-compose.debug.yml` y en `127.0.0.1`.
 
@@ -468,160 +491,114 @@ se publica únicamente en `docker-compose.debug.yml` y en `127.0.0.1`.
 
 ## 6. Estrategia de Base de Datos
 
-Cada servicio es dueño exclusivo de su base de datos. No hay JOINs entre servicios.
+Cada servicio es dueño exclusivo de su base; nadie hace JOIN con otra. Lo que un servicio necesita de
+otro lo recibe por eventos y lo guarda en una copia local, o lo pide por API.
 
-| Servicio         | Motor      | Justificación                                                          |
-| ---------------- | ---------- | ---------------------------------------------------------------------- |
-| Patient          | MySQL 8    | Esquema relacional estable, buena integración con Hibernate             |
-| Clinical History | MySQL 8    | Cifrado InnoDB con keyring; esquemas separados para libro, borradores y claves |
-| Admissions       | PostgreSQL | Enums nativos para triage y estados; mejor soporte para audit triggers |
-| Auth             | MySQL 8    | Tablas de usuarios con índices en email y username                     |
-| Suppliers        | MySQL 8    | Relaciones médico ↔ especialidad                                       |
-| Clients          | MySQL 8    | Datos de proveedores y contratos                                       |
-| AI Assistant     | PostgreSQL | JSONB para almacenar mensajes con metadata flexible                    |
-| API Gateway      | PostgreSQL | Logs de analytics: volumen alto de escritura, queries de agregación    |
+| Servicio | Motor | Esquemas y notas |
+|---|---|---|
+| auth | MySQL 8 | usuarios, historial, sesiones y tokens hasheados, outbox |
+| patient | MySQL 8 | pacientes, historial Envers, outbox |
+| clinical-history | MySQL 8 | libro de integridad, borradores, claves envueltas; cifrado InnoDB con keyring |
+| contracting | MySQL 8 | pagadores, contratos, manuales versionados, outbox |
+| practitioners | MySQL 8 | directorio, catálogo de especialidades, honorarios, outbox |
+| admissions | PostgreSQL 16 | episodios y camas con `EXCLUDE USING gist`, outbox por WAL |
+| billing | MySQL 8 | ventas, facturas, documentos electrónicos, RIPS, glosas, outbox |
+| ai-assistant | PostgreSQL 16 | copia de facturas en JSONB, hallazgos, conversaciones y acciones |
 
-**Flyway:** cada servicio tiene su carpeta `db/migration/` con archivos `V{n}__{descripcion}.sql`. Las migraciones corren automáticamente al arrancar el servicio.
+**Dos usuarios por base.** El migrador ejecuta Flyway y es dueño del esquema; la aplicación solo lee,
+inserta y actualiza, sin `DELETE` ni DDL, y lo comprueba un `DatabaseAccessIT` en cada servicio con base
+(salvo practitioners, que todavía no lo tiene). Las
+excepciones están acotadas: los borradores clínicos, el outbox (que Debezium vacía) y la purga de
+conversaciones del asistente, que corre por una función `SECURITY DEFINER` y no por un permiso.
+
+**Flyway** corre al arrancar con el usuario migrador; las migraciones nunca se editan después de aplicadas.
 
 ---
 
 ## 7. Patrones de Resiliencia
 
-### 7.1 Circuit Breaker
-
-```
-Estado CLOSED (normal):
-  Requests pasan al servicio destino
-
-Estado OPEN (servicio caído):
-  Se activa cuando la tasa de fallos > umbral configurado
-  Las requests fallan rápido → no esperan timeout
-  Se llama el método @Fallback
-
-Estado HALF-OPEN (recuperación):
-  Permite algunas requests de prueba
-  Si tienen éxito → vuelve a CLOSED
-  Si fallan → vuelve a OPEN
-```
-
-### 7.2 Retry con Backoff Exponencial
-
-```
-Intento 1 → falla
-Espera 500ms
-Intento 2 → falla
-Espera 1000ms
-Intento 3 → falla
-→ Fallback o error al cliente
-```
-
-### 7.3 Rate Limiting (Redis)
-
-Contador de ventana fija implementado con operaciones atómicas de Redis (`INCR` + `EXPIRE`).
-
-```
-Por cada request que llega al gateway:
-  1. Deriva la clave: rate_limit:ip:<ip> y, si hay token, rate_limit:user:<userId>
-  2. INCR sobre la clave (atómico)
-  3. Si el contador vale 1 → EXPIRE a 60s (arranca la ventana)
-  4. Si el contador <= límite → permite
-  5. Si lo supera → 429 Too Many Requests
-  6. Al expirar la clave, la ventana se reinicia desde cero
-```
-
-Se aplican dos límites independientes: **100 req/min por usuario** y **1000 req/min por IP**.
-El de IP existe porque protege endpoints donde todavía no hay usuario autenticado —el login,
-sobre todo—; el umbral es más alto porque tras un NAT corporativo hay muchos usuarios
-legítimos compartiendo IP.
-
-**Limitación conocida:** una ventana fija tiene el problema del borde — 100 peticiones en el
-segundo 59 y otras 100 en el 61 son 200 en dos segundos reales. Un token bucket con recarga
-continua lo suavizaría, a costa de un script Lua para mantener la atomicidad.
+- **Timeouts y circuit breaker** en cada cliente Feign (Resilience4j). Abierto el circuito, se responde
+  `503` con un código propio (`CONTRACTING_UNAVAILABLE`, `MINISTRY_VALIDATOR_UNAVAILABLE`…) sin esperar el
+  timeout.
+- **Copias locales** de lo que se consulta en cada petición (pacientes, profesionales, facturas), para que
+  la caída del dueño no tumbe al consumidor.
+- **Degradar en vez de fallar** donde la norma lo exige: urgencias admite aunque contracting no responda;
+  billing deja la factura emitida y en cola si la DIAN o el Ministerio no contestan, y reintenta.
+- **Reintentos con backoff** en los consumidores de Kafka (4 intentos, exponencial desde 500 ms) antes de
+  mandar el mensaje a su dead letter topic; los mensajes mal formados van directo, sin reintentar.
+- **Rate limit en el gateway** con ventana fija en Redis: 1000 peticiones por minuto por IP antes de
+  autenticar, 300 por usuario y 60 por IP en las rutas públicas sin sesión (verificación de documentos).
+  Si Redis cae, el límite deja pasar y lo registra.
+- **Timeouts del gateway**: 30 s por defecto y 90 s para el asistente, cuyo modelo local puede tardar.
 
 ---
 
-## 8. Asistente IA — Integración
+## 8. Decisiones de Diseño Clave
 
-```
-Cliente              AI Service            Admissions Service
-   │                     │                        │
-   │ POST /chat          │                        │
-   │ {"message":"..."}   │                        │
-   │─────────────────►   │                        │
-   │                     │ Gemini API             │
-   │                     │ (Spring AI)            │
-   │                     │ ─────────────►         │
-   │                     │ ◄─────────────         │
-   │                     │                        │
-   │                     │ (detecta intención)    │
-   │                     │ POST /api/v1/attentions│
-   │                     │ ───────────────────►   │
-   │                     │ ◄───────────────────   │
-   │                     │                        │
-   │ ◄─────────────────  │                        │
-   │ respuesta + acción  │                        │
-```
+### 8.1 JWT ES256 firmado en OpenBao en lugar de HMAC o de una clave en archivo
 
-Spring AI actúa como capa de abstracción: cambiando la configuración se puede apuntar a Gemini (producción) o a LM Studio (desarrollo local sin costos de API).
-
----
-
-## 9. Decisiones de Diseño Clave
-
-### 9.1 JWT ES256 firmado en OpenBao en lugar de HMAC o de una clave en archivo
-
-**Decisión:** `auth-service` firma los tokens con ECDSA P-256 en el motor transit de OpenBao; los servicios validan con las claves públicas del JWKS.  
+**Decisión:** `auth-service` firma los tokens con ECDSA P-256 en el motor transit de OpenBao; los servicios validan con las claves públicas del JWKS.
 **Por qué:** con HMAC todos los servicios compartirían el secreto que permite emitir tokens. Con una clave privada en archivo, quien comprometa `auth-service` se la lleva (la clave RS256 anterior llegó a publicarse en el repositorio). En transit la clave nunca sale de OpenBao, rota sola cada 30 días y cada firma queda auditada.
 
-### 9.2 Flyway sobre scripts manuales
+### 8.2 Backend for frontend en el gateway
 
-**Decisión:** todas las migraciones de esquema son archivos Flyway versionados.  
-**Por qué:** en un sistema de salud, los cambios de esquema son auditables por regulación. Flyway garantiza que la versión del esquema en producción es exactamente reproducible y no puede aplicarse en orden incorrecto.
+**Decisión:** el navegador solo tiene una cookie de sesión; el gateway guarda los tokens en Redis y los renueva.
+**Por qué:** un token en el navegador queda expuesto a XSS. Con el BFF, el access token vive 5 minutos, nunca toca JavaScript y cerrar la sesión revoca el refresh token en `auth-service`.
 
-### 9.3 Soft Deletes en todos los dominios
+### 8.3 Token exchange entre servicios
 
-**Decisión:** ninguna entidad del sistema se elimina con `DELETE` SQL.  
-**Por qué:** los expedientes médicos tienen valor legal. La capacidad de restaurar un registro "eliminado" es un requisito de cumplimiento. El campo `deleted_at` permite filtrar lógicamente sin perder el dato.
+**Decisión:** cuando un servicio llama a otro, intercambia el token del usuario por uno con la audiencia del destino (RFC 8693).
+**Por qué:** el servicio llamado aplica los permisos de la persona, no los de un servicio con acceso total. El token intercambiado conserva `auth_time` y el segundo factor, así que el step-up funciona de punta a punta.
 
-### 9.4 MapStruct sobre ModelMapper o conversión manual
+### 8.4 Outbox con Debezium en lugar de publicar desde el servicio
 
-**Decisión:** MapStruct genera el código de mapping entre entidades y DTOs en tiempo de compilación.  
-**Por qué:** ModelMapper usa reflection en runtime (lento, difícil de debuggear). Mapping manual es verbose y propenso a errores al agregar campos. MapStruct: sin reflection, error de compilación si falta un campo mapeado, tan rápido como código manual.
+**Decisión:** los eventos se escriben en una tabla outbox en la misma transacción del cambio y Debezium los publica.
+**Por qué:** publicar en Kafka dentro de la transacción no es atómico; o se pierde el evento o se publica uno que no ocurrió. Con outbox, si Kafka cae el servicio sigue funcionando y los eventos salen después.
 
-### 9.5 Un base de datos por servicio
+### 8.5 La aplicación no borra
 
-**Decisión:** no hay tablas compartidas entre microservicios. Las referencias cruzadas se hacen por ID.  
-**Por qué:** el acoplamiento a nivel de esquema es la forma más peligrosa de acoplamiento en microservicios — un cambio de columna en la tabla de pacientes rompe todos los servicios que hacen JOIN directamente. Con bases de datos independientes, cada servicio evoluciona su esquema de forma autónoma.
+**Decisión:** el usuario de base de datos de la aplicación no tiene `DELETE` ni DDL; no hay borrado lógico con `deleted_at`.
+**Por qué:** un bug o un atacante con la conexión de la aplicación no puede destruir registros. Lo que termina se modela como estado (inactivo, anulado, revocado) y lo firmado se corrige agregando: una nota aclaratoria, una nota crédito, una revocación.
+
+### 8.6 Reglas en el dominio, integridad en la base
+
+**Decisión:** las reglas de negocio viven en el dominio; la base solo aplica restricciones deterministas (`CHECK`, unicidad, exclusión) y no hay triggers.
+**Por qué:** una regla en un trigger no se prueba ni se lee con el resto del código. Los `CHECK` quedan como segunda línea de defensa contra escrituras que no pasen por la aplicación.
+
+### 8.7 Una base de datos por servicio
+
+**Decisión:** no hay tablas compartidas entre microservicios. Las referencias cruzadas se hacen por UUID.
+**Por qué:** el acoplamiento a nivel de esquema es el más peligroso en microservicios: un cambio de columna rompe a todos los que hacen JOIN. Con bases independientes, cada servicio evoluciona su esquema solo.
 
 ---
 
-## 10. Estructura del Proyecto
+## 9. Estructura del Proyecto
 
 ```
 Clinica/
 ├── BackEnd-Clinica/
-│   ├── pom.xml                         # POM padre — gestión de dependencias
-│   ├── docker-compose.yml              # Stack completo
-│   ├── .env                            # Variables de entorno
-│   ├── eureka-service/                 # Registro de servicios
-│   ├── api-gateway/                    # Gateway + rate limiting + analytics
-│   ├── auth-service/                   # JWT, usuarios, roles
-│   │   └── src/main/java/.../
-│   │       ├── module/entity/          # User, Role, RefreshToken, AuditLog
-│   │       ├── module/service/         # Auth, User, PasswordReset
-│   │       └── module/controller/      # AuthController
-│   ├── libs/                           # clinica-commons-web, clinica-commons-security
-│   ├── patient-service/                # Registro administrativo de pacientes
-│   ├── clinical-history-service/       # Historia clínica: notas firmadas, anexos, auditoría
-│   ├── admissions-service/             # Episodios, camas, cobertura, egresos y comprobantes
-│   ├── practitioners-service/          # Directorio profesional, especialidades y honorarios
-│   ├── contracting-service/            # Pagadores, contratos, tarifas y precios
-│   ├── ai-assistant-service/           # Chat con Gemini / LM Studio
-│   └── billing-service/                # Facturación (en desarrollo)
-├── FrontEnd-Clinica/                   # Astro 6 (en desarrollo)
-└── docs/                               # Este documento y referencia de API
+│   ├── pom.xml                     # POM padre: versiones de dependencias y módulos
+│   ├── docker-compose.yml          # stack completo; solo publica el gateway
+│   ├── docker-compose.debug.yml    # puertos de depuración en 127.0.0.1 y simuladores
+│   ├── libs/                       # web, openbao, security, documents
+│   ├── api-gateway/                # BFF
+│   ├── auth-service/               # OAuth 2.1 / OIDC, cuentas y TOTP
+│   ├── patient-service/            # registro administrativo de pacientes
+│   ├── clinical-history-service/   # historia clínica firmada, anexos y auditoría
+│   ├── contracting-service/        # pagadores, contratos, tarifas y precios
+│   ├── practitioners-service/      # directorio profesional y honorarios
+│   ├── admissions-service/         # episodios, camas, cobertura y comprobantes
+│   ├── billing-service/            # facturación electrónica en salud
+│   ├── ai-assistant-service/       # revisión de facturas con modelo local
+│   ├── eureka-service/             # registro de servicios con credenciales
+│   └── platform/                   # openbao, kafka, kafka-connect, simuladores y E2E
+├── FrontEnd-Clinica/               # Astro (base del proyecto)
+└── docs/                           # este documento, seguridad, API y variables
 ```
+
+Cada servicio tiene `docs/` con sus reglas de negocio, `events/` con los contratos que publica (si
+publica), `debezium/` con su conector y, si aplica, `load-test/` con su prueba de carga k6.
 
 ---
 
-_Documento mantenido junto al código — si la arquitectura cambia, actualizar esta descripción._
+_Documento mantenido junto al código: si la arquitectura cambia, se actualiza aquí._
