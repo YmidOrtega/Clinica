@@ -20,7 +20,7 @@ class PractitionerEventsListener {
         this.directory = directory;
     }
 
-    @KafkaListener(id = "practitioner-events", topics = TOPIC,
+    @KafkaListener(id = "practitioner-events", idIsGroup = false, topics = TOPIC,
             autoStartup = "${clinica.admissions.practitioner-events.enabled:true}")
     void onPractitionerEvent(ConsumerRecord<String, String> record) {
         PractitionerEventMapper.toReference(record.value()).ifPresentOrElse(directory::apply,
