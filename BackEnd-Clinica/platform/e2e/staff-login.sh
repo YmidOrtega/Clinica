@@ -29,7 +29,13 @@ latest_token_mailed_to() {
   curl -s "$MAILPIT_URL/api/v1/message/$id" | jq -r .Text | grep -o 'token=[A-Za-z0-9_-]*' | head -1 | cut -d= -f2
 }
 
+fresh_totp_window() {
+  elapsed=$(( $(date +%s) % 30 ))
+  [ "$elapsed" -lt 25 ] || sleep $(( 31 - elapsed ))
+}
+
 totp() {
+  fresh_totp_window
   set -- $(node "$DIR/totp-code.mjs" "$(jq -r .otpauthUrl "$TOTP_STATE")" "$(jq -r .lastPeriod "$TOTP_STATE")")
   jq --argjson period "$2" '.lastPeriod = $period' "$TOTP_STATE" > "$TOTP_STATE.tmp" && mv "$TOTP_STATE.tmp" "$TOTP_STATE"
   echo "$1"
@@ -134,8 +140,15 @@ invited_staff_access_token() {
   curl -s -o /dev/null -b "$JAR" -c "$JAR" "$(authorize_url "$verifier")"
   api /api/v1/login "{\"email\": \"$email\", \"password\": \"$password\"}" > /dev/null
   [ "$(api /api/v1/login/second-factor/enrollment '{}')" = "200" ] || fail "enrolamiento de $email: $(cat "$WORK/body")"
-  enrolled=$(node "$DIR/totp-code.mjs" "$(jq -r .otpauthUrl "$WORK/body")" | cut -d' ' -f1)
-  [ "$(api /api/v1/login/second-factor/enrollment/confirmation "{\"code\": \"$enrolled\"}")" = "200" ] || fail "confirmación de $email: $(cat "$WORK/body")"
+  otpauth=$(jq -r .otpauthUrl "$WORK/body")
+  for attempt in 1 2; do
+    fresh_totp_window
+    enrolled=$(node "$DIR/totp-code.mjs" "$otpauth" | cut -d' ' -f1)
+    status=$(api /api/v1/login/second-factor/enrollment/confirmation "{\"code\": \"$enrolled\"}")
+    [ "$status" = "200" ] && break
+    [ "$attempt" = "1" ] || fail "confirmación de $email: $(cat "$WORK/body")"
+    sleep $(( 31 - $(date +%s) % 30 ))
+  done
   token=$(code_for_token "$verifier" "$(curl -s -o /dev/null -w '%{redirect_url}' -b "$JAR" -c "$JAR" "$(jq -r .continueUrl "$WORK/body")")")
   JAR="$previous_jar"
   echo "$token"
