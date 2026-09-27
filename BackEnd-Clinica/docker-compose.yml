@@ -287,9 +287,9 @@ services:
          - -c
          - max_wal_senders=4
       environment:
-         POSTGRES_DB: ${ADMISSIONS_DB_NAME}
-         POSTGRES_USER: ${ADMISSIONS_DB_USER}
-         POSTGRES_PASSWORD: ${ADMISSIONS_DB_PASSWORD}
+         POSTGRES_DB: ${ADMISSIONS_DB_NAME:-admissions_db}
+         POSTGRES_USER: ${ADMISSIONS_DB_USER:-admissions}
+         POSTGRES_PASSWORD_FILE: /run/secrets/admissions-db/root-password
          ADMISSIONS_DB_MIGRATOR_USER_FILE: /run/secrets/admissions-db/migrator-user
          ADMISSIONS_DB_MIGRATOR_PASSWORD_FILE: /run/secrets/admissions-db/migrator-password
          ADMISSIONS_DB_APP_USER_FILE: /run/secrets/admissions-db/app-user
@@ -309,7 +309,7 @@ services:
          test:
             [
                "CMD-SHELL",
-               "pg_isready -U ${ADMISSIONS_DB_USER} -d ${ADMISSIONS_DB_NAME}",
+               "pg_isready -U ${ADMISSIONS_DB_USER:-admissions} -d ${ADMISSIONS_DB_NAME:-admissions_db}",
             ]
          interval: 10s
          timeout: 5s
@@ -541,7 +541,7 @@ services:
          CONTRACTING_DB_HOST: contracting-db
          PRACTITIONERS_DB_HOST: practitioners-db
          ADMISSIONS_DB_HOST: admissions-db
-         ADMISSIONS_DB_NAME: ${ADMISSIONS_DB_NAME}
+         ADMISSIONS_DB_NAME: ${ADMISSIONS_DB_NAME:-admissions_db}
          BILLING_DB_HOST: billing-db
       volumes:
          - kafka_connect_secrets:/run/secrets/kafka-connect:ro
@@ -723,7 +723,7 @@ services:
             condition: service_healthy
       environment:
          - SPRING_PROFILES_ACTIVE=openbao
-         - ADMISSIONS_DB_URL=jdbc:postgresql://admissions-db:5432/${ADMISSIONS_DB_NAME}
+         - ADMISSIONS_DB_URL=jdbc:postgresql://admissions-db:5432/${ADMISSIONS_DB_NAME:-admissions_db}
          - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/auth}
          - AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
          - AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token
