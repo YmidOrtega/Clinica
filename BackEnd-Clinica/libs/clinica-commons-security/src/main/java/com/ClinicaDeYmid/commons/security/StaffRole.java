@@ -29,8 +29,14 @@ public enum StaffRole {
             StaffPermission.BILLING_VOID,
             StaffPermission.BILLING_COLLECT,
             StaffPermission.BILLING_FILE,
-            StaffPermission.BILLING_GLOSSES,
-            StaffPermission.BILLING_MANAGE_CONFIG)),
+            StaffPermission.BILLING_GLOSSES)),
+    ACCOUNTS_RECEIVABLE(EnumSet.of(
+            StaffPermission.CONTRACTING_READ,
+            StaffPermission.ADMISSIONS_READ,
+            StaffPermission.PRACTITIONERS_READ,
+            StaffPermission.BILLING_READ,
+            StaffPermission.BILLING_FILE,
+            StaffPermission.BILLING_GLOSSES)),
     HUMAN_RESOURCES(EnumSet.of(
             StaffPermission.PRACTITIONERS_READ,
             StaffPermission.PRACTITIONERS_MANAGE,
