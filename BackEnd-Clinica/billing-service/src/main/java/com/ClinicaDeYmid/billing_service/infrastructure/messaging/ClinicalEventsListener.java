@@ -20,7 +20,7 @@ class ClinicalEventsListener {
         this.projection = projection;
     }
 
-    @KafkaListener(id = "clinical-events", topics = TOPIC,
+    @KafkaListener(id = "clinical-events", idIsGroup = false, topics = TOPIC,
             autoStartup = "${clinica.billing.clinical-events.enabled:true}")
     void onClinicalEvent(ConsumerRecord<String, String> record) {
         ClinicalEventMapper.toFact(record.value()).ifPresentOrElse(projection::follow,
