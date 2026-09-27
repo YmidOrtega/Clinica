@@ -28,7 +28,8 @@ Los servicios ya escritos (patient, clinical-history) siguen autorizando por rol
 | `SUPER_ADMIN` | administración del sistema | todos |
 | `ADMIN` | administración operativa | todos |
 | `CONTRACTING` | contratación | `contracting:read`, `manage-payers`, `manage-contracts`, `manage-tariffs`, `manage-capitation`, `quote-prices` |
-| `BILLING` | facturación | `contracting:read`, `contracting:quote-prices` |
+| `BILLING` | facturación | `billing:read`, `sell`, `price-manually`, `invoice`, `void`, `collect`, `file`, `glosses`; `contracting:read`, `contracting:quote-prices`, `admissions:read`, `practitioners:read`, `practitioners:read-fees` |
+| `ACCOUNTS_RECEIVABLE` | cartera | `billing:read`, `billing:file`, `billing:glosses`; `contracting:read`, `admissions:read`, `practitioners:read` |
 | `HUMAN_RESOURCES` | talento humano | `practitioners:read`, `practitioners:manage`, `practitioners:manage-fees` |
 | `RECEPTIONIST` | recepción | `contracting:read` |
 | `DOCTOR`, `NURSE`, `MEDICAL_RECORDS` | asistencial y archivo clínico | ninguno de contratación ni del directorio |
@@ -53,13 +54,18 @@ dominio.
 `HUMAN_RESOURCES` administra el directorio profesional y los honorarios, y nada más: no toca
 contratación ni pacientes. Como cualquier rol operativo, no administra usuarios.
 
+La configuración fiscal de billing (`billing:manage-config`: emisor, resoluciones de numeración, paso a
+producción ante la DIAN, tarifas de estancia) es solo de la administración. `ACCOUNTS_RECEIVABLE` valida
+el RIPS, radica ante el pagador y responde devoluciones y glosas, pero no vende, no factura ni emite
+notas crédito: responder aceptando un valor emite una nota crédito y exige además `billing:void`, que
+solo tiene `BILLING`.
+
 ## Lo que falta parametrizar
 
 El catálogo cubre lo que contracting-service necesita hoy. Cada servicio que entre al refactor traerá
 sus permisos, y hay casos ya identificados que no son un rol sino un permiso acotado:
 
 - **admissions**: quién abre una atención, quién la corrige y quién la anula.
-- **billing**: anular una factura o eliminar una venta mal hecha sin poder emitirlas.
 - **settlement** (servicio futuro): liquidar y conciliar capitación y PGP.
 - **practitioners**: quién puede leer el directorio desde los servicios asistenciales. Hoy solo lo leen
   `HUMAN_RESOURCES` y la administración; cuando admissions y billing entren al refactor traerán su

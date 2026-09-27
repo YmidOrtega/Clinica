@@ -94,6 +94,11 @@ class UserAdministrationApiIT {
         JsonNode found = api.post("/api/v1/users/search", token, Map.of("text", "nueva." + email.substring(6, 10))).json();
         assertThat(found.get("content")).extracting(match -> match.get("email").asText()).contains(email);
 
+        OAuthBrowser.Response receivables = api.post("/api/v1/users", token,
+                Map.of("email", "cartera." + email, "fullName", "Luis Cárdenas", "role", "ACCOUNTS_RECEIVABLE"));
+        assertThat(receivables.status()).isEqualTo(201);
+        assertThat(receivables.json().get("role").asText()).isEqualTo("ACCOUNTS_RECEIVABLE");
+
         OAuthBrowser.Response privileged = api.post("/api/v1/users", token,
                 Map.of("email", "otro." + email, "fullName", "Sara Méndez", "role", "ADMIN"));
         assertThat(privileged.status()).isEqualTo(403);

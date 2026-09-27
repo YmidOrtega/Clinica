@@ -9,6 +9,7 @@ public enum Role {
     MEDICAL_RECORDS,
     CONTRACTING,
     BILLING,
+    ACCOUNTS_RECEIVABLE,
     HUMAN_RESOURCES;
 
     public boolean privileged() {
@@ -19,7 +20,8 @@ public enum Role {
         return switch (actor) {
             case SUPER_ADMIN -> true;
             case ADMIN -> !privileged();
-            case DOCTOR, NURSE, RECEPTIONIST, MEDICAL_RECORDS, CONTRACTING, BILLING, HUMAN_RESOURCES -> false;
+            case DOCTOR, NURSE, RECEPTIONIST, MEDICAL_RECORDS, CONTRACTING, BILLING, ACCOUNTS_RECEIVABLE,
+                 HUMAN_RESOURCES -> false;
         };
     }
 }
