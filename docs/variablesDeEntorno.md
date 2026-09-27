@@ -1,531 +1,164 @@
-# Environment Variables Documentation
+# Variables de entorno — Clínica
 
-## Overview
+## Principio
 
-This document provides a comprehensive guide to all environment variables used in the Clinica microservices architecture. Following proper naming conventions ensures maintainability, clarity, and consistency across the system.
+**No hace falta un `.env` para levantar el proyecto.** Los secretos (contraseñas de bases, claves de
+firma, códigos TOTP, credenciales de Eureka y del Ministerio) no son variables de entorno: viven en
+OpenBao, `openbao-init` los genera la primera vez y cada servicio los lee al arrancar con el perfil
+`openbao`. Las variables que quedan son las que cambian el comportamiento o el entorno (URLs, tiempos,
+réplicas), y todas tienen un valor por defecto que sirve para el stack local.
 
-## Naming Conventions
-
-### General Rules
-
-1. **Use UPPERCASE with underscores**: `DATABASE_HOST`, `JWT_SECRET`
-2. **Prefix by service/component**: `AUTH_`, `PATIENT_`, `BILLING_`
-3. **Be descriptive and specific**: Avoid abbreviations unless commonly understood
-4. **Group related variables**: Keep database configs together, API keys together, etc.
-
-### Format Pattern
-
-```
-{SERVICE}_{COMPONENT}_{PROPERTY}
-```
-
-**Examples:**
-- `AUTH_DB_HOST` - Auth service database host
-- `PATIENT_DB_PASSWORD` - Patient service database password
-- `JWT_ACCESS_TOKEN_EXPIRATION` - JWT access token expiration time
+Los servicios aceptan las variables de usuario y contraseña de su base (`<SERVICIO>_DB_APP_USER`,
+`_APP_PASSWORD`, `_MIGRATOR_USER`, `_MIGRATOR_PASSWORD`) solo para correr fuera de Docker o en pruebas,
+sin el perfil `openbao`.
 
 ---
 
-## Database Configuration
+## 1. Secretos en OpenBao
 
-### Pattern
-```
-{SERVICE}_DB_{PROPERTY}
-```
+Rutas del motor KV (`secret/`) que siembra `platform/openbao/scripts/configure.sh`:
 
-### Properties
-- `ROOT_PASSWORD` - Root password for database
-- `NAME` - Database name
-- `USER` - Database user
-- `PASSWORD` - User password
-- `HOST` - Connection host (JDBC URL or hostname:port)
+| Ruta | Claves | Quién la lee |
+|---|---|---|
+| `<servicio>/db/root` | `password` | la base del servicio, vía `openbao-agent` |
+| `<servicio>/db/migrator` | `username`, `password` | el servicio (Flyway) y su base |
+| `<servicio>/db/app` | `username`, `password` | el servicio y su base |
+| `<servicio>/db/debezium` | `username`, `password` | la base y `kafka-connect` |
+| `auth/bootstrap` | `super-admin-email`, `super-admin-name` | `auth-service`, para invitar al primer `SUPER_ADMIN` |
+| `gateway/redis` | `password` | `api-gateway` y `gateway-redis` |
+| `clinical/storage/root` · `clinical/storage/attachments` | usuario raíz · `access-key`, `secret-key` | MinIO · `clinical-history-service` |
+| `billing/dian/software` | `software-id`, `software-pin`, `test-set-id` | `billing-service` |
+| `billing/ministry/credentials` | `document-type`, `document-number`, `password` | `billing-service` (login SISPRO del MUV) |
+| `eureka/client` | `username`, `password` | los 9 servicios y `eureka-service` |
 
-### Examples
+`<servicio>` es `patient`, `clinical`, `auth`, `contracting`, `practitioners`, `admissions`, `billing` y
+`assistant` (este último sin usuario Debezium).
 
-#### Secretos en OpenBao
-
-Las contraseñas y claves de `patient-service`, `clinical-history-service` y su infraestructura (MySQL,
-Kafka Connect y almacenamiento S3) **ya no son variables de entorno**: viven en el clúster OpenBao y
-`openbao-init` las genera la primera vez. Los servicios Spring las leen con el perfil `openbao`
-(`SPRING_PROFILES_ACTIVE=openbao`), y MySQL, Kafka Connect y el almacenamiento las reciben como
-archivos que renderiza `openbao-agent`. Rutas, políticas y operación en
+Claves del motor transit (no exportables): `auth-jwt` (firma de tokens), `<servicio>-client` (aserciones
+de cada cliente OAuth), `clinical-kek` y `clinical-seal` (cifrado y sello de la historia clínica),
+`admissions-seal` y `billing-seal` (sello de comprobantes y representaciones gráficas) y `billing-dian`
+(certificado de firma de la DIAN, importado). Operación y rotación en
 [`BackEnd-Clinica/platform/openbao/README.md`](../BackEnd-Clinica/platform/openbao/README.md).
 
-| Ruta KV (`secret/`)            | Claves                     | Quién la lee                                  |
-| ------------------------------ | -------------------------- | --------------------------------------------- |
-| `patient/db/root`              | `password`                 | `patient-db` (vía agente)                     |
-| `patient/db/migrator`          | `username`, `password`     | `patient-service` (Flyway), `patient-db`      |
-| `patient/db/app`               | `username`, `password`     | `patient-service`, `patient-db`               |
-| `patient/db/debezium`          | `username`, `password`     | `patient-db`, `kafka-connect`                 |
-| `clinical/db/*`                | igual que `patient/db/*`   | `clinical-history-service`, `clinical-db`, `kafka-connect` |
-| `clinical/storage/root`        | `username`, `password`     | `clinical-storage`, `clinical-storage-init`   |
-| `clinical/storage/attachments` | `access-key`, `secret-key` | `clinical-history-service`, `clinical-storage-init` |
+---
 
-`OPENBAO_ADDR` (por defecto `https://openbao:8200`) cambia la dirección del clúster. Fuera de Docker y
-en los tests, sin el perfil `openbao`, los servicios siguen aceptando las variables
-`PATIENT_DB_APP_USER`, `PATIENT_DB_APP_PASSWORD`, `PATIENT_DB_MIGRATOR_*` y sus equivalentes
-`CLINICAL_*`.
+## 2. Variables del stack (`docker-compose.yml`)
 
-#### Patient Service
-```bash
-PATIENT_DB_NAME=patient_db
-PATIENT_DB_URL=jdbc:mysql://localhost:3307/patient_db
-AUTH_ISSUER=http://localhost:8080/auth                  # emisor público de los tokens
-AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks      # claves públicas ES256
-KAFKA_BOOTSTRAP_SERVERS=kafka:9092                      # vacío desactiva la revocación por auth.users.v1
-```
-
-#### Clinical History Service
-```bash
-CLINICAL_DB_NAME=clinical_db
-CLINICAL_DB_URL=jdbc:mysql://clinical-db:3306/clinical_db
-AUTH_ISSUER=http://localhost:8080/auth
-AUTH_JWKS_URI=http://auth-service:8086/oauth2/jwks
-AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token          # intercambio de tokens para llamar a patient-service
-CLINICAL_CLIENT_TRANSIT_KEY=clinical-history-service-client   # opcional; firma de su aserción private_key_jwt
-AUTH_CONTRACTING_SERVICE_CLIENT_KEY=contracting-service-client  # opcional; clave transit del cliente de contratación
-
-CLINICAL_TRANSIT_MOUNT=transit                                # opcional; motor transit de OpenBao
-CLINICAL_ENCRYPTION_TRANSIT_KEY=clinical-kek                  # opcional; clave maestra aes256-gcm96
-CLINICAL_SEAL_TRANSIT_KEY=clinical-seal                       # opcional; clave del sello ecdsa-p256
-
-CLINICAL_ATTACHMENTS_ENDPOINT=http://clinical-storage:9000    # cualquier S3 con Object Lock
-```
-
-Las claves de sello y de cifrado **viven en el motor transit de OpenBao y nunca salen de él**; el
-servicio no arranca sin OpenBao ni con el perfil `openbao` desactivado. `openbao-init` crea las claves.
-Rotación, migración desde claves en archivos y recuperación en
-`clinical-history-service/docs/claves-y-cifrado.md`.
-Opcionales: `CLINICAL_SERVICE_PORT`, `CLINICAL_SERVICE_REPLICAS`, `CLINICAL_DB_POOL_SIZE`,
-`EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`, `SWAGGER_UI_ENABLED`.
-
-#### Plataforma de eventos
-```bash
-KAFKA_CLUSTER_ID=Q2xpbmljYUthZmthMDAwMQ   # opcional; identificador KRaft en Base64 de 16 bytes
-PATIENT_SERVICE_REPLICAS=2               # opcional; instancias de patient-service
-CLINICAL_SERVICE_REPLICAS=2              # opcional; instancias de clinical-history-service
-```
-
-El usuario `migrator` solo lo usa Flyway; la aplicación se conecta con el usuario `app`, que no tiene
-permisos de `DELETE` ni de DDL sobre el registro, y Kafka Connect lee el outbox con el usuario
-`debezium`. Los tokens se validan con el JWKS de `auth-service`; no hay claves de firma en variables de
-entorno. Opcionales: `PATIENT_DB_POOL_SIZE`, `EUREKA_URL`, `TRACING_SAMPLING_PROBABILITY`,
-`SWAGGER_UI_ENABLED`.
-
-#### Billing Service
-```bash
-BILLING_DB_ROOT_PASSWORD=BillingRootPass2024!
-BILLING_DB_NAME=billing_db
-BILLING_DB_USER=billing_user
-BILLING_DB_PASSWORD=BillingSecure123!
-BILLING_DB_HOST=jdbc:mysql://localhost:3308/billing_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-```
-
-#### Admissions Service
-```bash
-ADMISSIONS_DB_ROOT_PASSWORD=AdmissionsRootPass2024!
-ADMISSIONS_DB_NAME=admissions_db
-ADMISSIONS_DB_USER=admissions_user
-ADMISSIONS_DB_PASSWORD=AdmissionsSecure123!
-ADMISSIONS_DB_HOST=localhost:3309
-```
-
-#### AI Assistant Service
-```bash
-AI_ASSISTANT_DB_ROOT_PASSWORD=AIRootPass2024!
-AI_ASSISTANT_DB_NAME=ai_assistant_db
-AI_ASSISTANT_DB_USER=ai_user
-AI_ASSISTANT_DB_PASSWORD=AISecure123!
-AI_ASSISTANT_DB_HOST=localhost:3310
-```
-
-#### Auth Service
-```bash
-AUTH_DB_NAME=auth_db                                        # opcional
-AUTH_DB_URL=jdbc:mysql://auth-db:3306/auth_db
-AUTH_SERVICE_REPLICAS=2                                     # opcional
-AUTH_ISSUER=http://localhost:8080/auth                      # URL pública del emisor (a través del gateway)
-AUTH_LOGIN_URL=http://localhost:4321/login                  # pantalla de login del frontend
-AUTH_HOME_URL=http://localhost:4321/
-AUTH_ACTIVATION_URL=http://localhost:4321/activar-cuenta    # el correo agrega ?token=
-AUTH_PASSWORD_RESET_URL=http://localhost:4321/restablecer-contrasena
-AUTH_GATEWAY_REDIRECT_URI=http://localhost:8080/login/oauth2/code/clinica
-AUTH_GATEWAY_POST_LOGOUT_URI=http://localhost:4321/          # adónde vuelve el navegador tras cerrar sesión
-AUTH_SESSION_COOKIE_SECURE=true                             # false solo en desarrollo sin HTTPS
-AUTH_MAIL_HOST=mailpit
-AUTH_MAIL_PORT=1025
-AUTH_MAIL_FROM=no-responder@clinica.local                   # opcional
-AUTH_SIGNING_TRANSIT_KEY=auth-jwt                           # opcional
-```
-
-El correo del primer `SUPER_ADMIN` sale de OpenBao (`secret/auth/bootstrap`: `super-admin-email`,
-`super-admin-name`) o de `AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL`.
-
-Las credenciales (`secret/auth/db/root`, `migrator`, `app`) están en OpenBao. Fuera del perfil
-`openbao` se aceptan `AUTH_DB_APP_USER`, `AUTH_DB_APP_PASSWORD`, `AUTH_DB_MIGRATOR_USER` y
-`AUTH_DB_MIGRATOR_PASSWORD`. Opcionales: `AUTH_SERVICE_PORT`, `AUTH_DB_POOL_SIZE`, `EUREKA_URL`,
-`TRACING_SAMPLING_PROBABILITY`.
-
-#### Clients Service
-```bash
-CLIENTS_DB_ROOT_PASSWORD=ClientsRootPass2024!
-CLIENTS_DB_NAME=clients_db
-CLIENTS_DB_USER=clients_user
-CLIENTS_DB_PASSWORD=ClientsSecure123!
-CLIENTS_DB_HOST=jdbc:mysql://localhost:3313/clients_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-```
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `<SERVICIO>_SERVICE_REPLICAS` | `2` | réplicas de patient, clinical, auth, contracting, practitioners, admissions y billing |
+| `<SERVICIO>_DB_NAME` | `<servicio>_db` | nombre de la base de cada servicio |
+| `AUTH_ISSUER` | `http://localhost:8080/auth` | emisor de los tokens; debe ser la URL pública de auth a través del gateway |
+| `GATEWAY_FRONTEND_ORIGINS` · `GATEWAY_FRONTEND_HOME_URL` | `http://localhost:4321` · `http://localhost:4321/` | orígenes del frontend aceptados por CORS y página de inicio |
+| `GATEWAY_SESSION_SAME_SITE` · `GATEWAY_SESSION_COOKIE_SECURE` | `lax` · `false` | cookie de sesión del gateway; `true` detrás de HTTPS |
+| `AUTH_SESSION_COOKIE_SECURE` | `false` | cookie de sesión de auth; `true` detrás de HTTPS |
+| `AUTH_LOGIN_URL`, `AUTH_HOME_URL`, `AUTH_ACTIVATION_URL`, `AUTH_PASSWORD_RESET_URL` | pantallas en `http://localhost:4321` | a dónde llevan los enlaces y redirecciones de auth |
+| `AUTH_GATEWAY_REDIRECT_URI` · `AUTH_GATEWAY_POST_LOGOUT_URI` | `http://localhost:8080/login/oauth2/code/clinica` · `http://localhost:4321/` | URIs registradas del cliente OAuth del gateway |
+| `AI_ASSISTANT_LLM_BASE_URL` | `http://host.docker.internal:1234` (con debug, `http://llm-simulator:8080`) | API compatible con OpenAI del modelo local |
+| `AI_ASSISTANT_LLM_MODEL` · `AI_ASSISTANT_LLM_TIMEOUT` | `qwen3-8b` · `80s` | modelo cargado en LM Studio y espera máxima |
+| `STEP_UP_MAX_AGE_SECONDS` | `300` | solo en debug: antigüedad máxima del segundo factor para el step-up (los E2E la bajan) |
+| `KAFKA_CLUSTER_ID` | fijo | identificador del clúster KRaft |
 
 ---
 
-## JWT Configuration
+## 3. Variables comunes a los servicios
 
-### Pattern
-```
-JWT_{PROPERTY}
-```
-
-### Properties
-- `SECRET` - Secret key for signing tokens
-- `EXPIRATION` - Default token expiration (seconds)
-- `PUBLIC_KEY` - Public key for token verification
-- `ACCESS_TOKEN_EXPIRATION` - Access token expiration (seconds)
-- `REFRESH_TOKEN_EXPIRATION` - Refresh token expiration (seconds)
-
-### Examples
-
-```bash
-JWT_SECRET='MiClaveSecretaSuperSeguraParaJWT2024!@#$%^&*()'
-JWT_EXPIRATION=3600
-JWT_PUBLIC_KEY=TUClavePublic..
-JWT_ACCESS_TOKEN_EXPIRATION=900        # 15 minutes
-JWT_REFRESH_TOKEN_EXPIRATION=604800    # 7 days
-```
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `<SERVICIO>_SERVICE_PORT` | el puerto del servicio | puerto HTTP |
+| `<SERVICIO>_DB_URL` · `<SERVICIO>_DB_POOL_SIZE` | base local · `15` | URL JDBC y tamaño del pool |
+| `AUTH_JWKS_URI` · `AUTH_TOKEN_URI` | `http://localhost:8086/oauth2/…` | claves públicas y endpoint de tokens de auth |
+| `<SERVICIO>_CLIENT_TRANSIT_KEY` | `<servicio>-client` | clave de transit con que el servicio firma su aserción de cliente |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` o vacío | broker; vacío desactiva la revocación por `auth.users.v1` en los servicios que solo la usan para eso |
+| `EUREKA_URL` · `EUREKA_PREFER_IP_ADDRESS` | `http://localhost:8761/eureka/` · `true` | registro; en compose lleva las credenciales de OpenBao y `false` |
+| `OPENBAO_ADDR` | `https://openbao:8200` | dirección del clúster OpenBao (perfil `openbao`) |
+| `TRACING_SAMPLING_PROBABILITY` | `0.1` | fracción de trazas muestreadas |
+| `SWAGGER_UI_ENABLED` | `false` (`true` en debug) | publica `/swagger-ui.html` |
 
 ---
 
-## Redis Configuration
-
-### Pattern
-```
-REDIS_{PROPERTY}
-```
-
-### Properties
-- `HOST` - Redis server host
-- `PORT` - Redis server port
-- `PASSWORD` - Redis password
-- `TIMEOUT` - Connection timeout
-
-### Examples
-
-```bash
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=tu_password_redis_seguro
-REDIS_TIMEOUT=2000
-```
-
----
-
-## External API Configuration
-
-### Pattern
-```
-{SERVICE}_{API_NAME}_{PROPERTY}
-```
-
-### Asistente de facturas - modelo local
-
-El asistente no usa proveedores en la nube: habla con un modelo local (LM Studio u otro runtime compatible
-con la API de OpenAI). No hay claves que guardar.
-
-```bash
-AI_ASSISTANT_LLM_BASE_URL=http://host.docker.internal:1234
-AI_ASSISTANT_LLM_MODEL=qwen3-8b
-AI_ASSISTANT_LLM_TIMEOUT=80s
-```
-
-El resto de su configuración está en `BackEnd-Clinica/ai-assistant-service/docs/asistente-de-facturas.md`.
-
----
-
-## Security Configuration
-
-La política de contraseñas y el frenado de intentos de `auth-service` se configuran con propiedades
-(`clinica.auth.*` en `application.yml`); sus valores por defecto son los acordados y rara vez cambian:
-
-| Propiedad                                         | Defecto        |
-| ------------------------------------------------- | -------------- |
-| `clinica.auth.password-deny-lists`                | `classpath:passwords/ncsc-100k-common.txt` |
-| `clinica.auth.password-service-words`             | `clinica, clinicadeymid, ymid` |
-| `clinica.auth.argon2.memory-kib` / `iterations` / `parallelism` | `19456` / `2` / `1` |
-| `clinica.auth.login-throttle.address-free-attempts` / `address-max-delay` | `5` / `15m` |
-| `clinica.auth.login-throttle.account-free-attempts` / `account-max-delay` | `10` / `1m` |
-| `clinica.auth.login-throttle.account-lock-threshold` | `100`       |
-| `clinica.auth.login-throttle.retention`           | `30d`          |
-
----
-
-## API Gateway Configuration
-
-### Pattern
-```
-GATEWAY_{COMPONENT}_{PROPERTY}
-```
-
-### Variables
-
-```bash
-GATEWAY_FRONTEND_ORIGINS=http://localhost:4321               # orígenes con CORS y returnTo permitidos, separados por coma
-GATEWAY_FRONTEND_HOME_URL=http://localhost:4321/
-GATEWAY_SESSION_SAME_SITE=lax                                # none si frontend y gateway están en dominios distintos
-GATEWAY_SESSION_COOKIE_SECURE=true                           # false solo en desarrollo sin HTTPS
-AUTH_PUBLIC_URL=http://localhost:8080/auth                   # emisor público; el navegador va aquí a autorizar
-AUTH_INTERNAL_URL=http://auth-service:8086                   # token, JWKS y revocación desde el gateway
-GATEWAY_REDIS_HOST=gateway-redis
-GATEWAY_AUTH_SERVICE_URI=http://auth-service:8086             # destino de /auth/** y /api/v1/users; lb://auth-service con Eureka
-GATEWAY_PATIENT_SERVICE_URI=http://patient-service:8081
-GATEWAY_CLINICAL_SERVICE_URI=http://clinical-history-service:8089
-GATEWAY_CLIENT_TRANSIT_KEY=api-gateway-client                # opcional
-```
-
-La contraseña de `gateway-redis` está en OpenBao (`secret/gateway/redis`); el gateway la lee con su
-AppRole y el agente la renderiza para el contenedor de Redis. No hay base de datos del gateway.
-
----
-
-## Service Discovery (Eureka)
-
-### Pattern
-```
-EUREKA_{PROPERTY}
-```
-
-### Examples
-
-```bash
-EUREKA_SERVER_HOST=localhost
-EUREKA_SERVER_PORT=8761
-EUREKA_CLIENT_ENABLED=true
-```
-
----
-
-## Best Practices
-
-### 1. **Never Commit Real Values**
-- Use `.env.example` with placeholder values
-- Add `.env` to `.gitignore`
-- Document expected format, not actual secrets
-
-### 2. **Use Strong Passwords**
-```bash
-# ❌ BAD
-DB_PASSWORD=password123
-
-# ✅ GOOD
-DB_PASSWORD=K9$mP#nQ2@vL8xR!wT5
-```
-
-### 3. **Boolean Values**
-```bash
-# Use lowercase true/false
-FEATURE_ENABLED=true
-DEBUG_MODE=false
-```
-
-### 4. **Numeric Values**
-```bash
-# No quotes for numbers
-MAX_CONNECTIONS=100
-TIMEOUT_SECONDS=30
-```
-
-### 5. **URLs and Paths**
-```bash
-# Use full paths/URLs
-API_BASE_URL=https://api.example.com/v1
-FILE_UPLOAD_PATH=/var/uploads
-```
-
-### 6. **List of Values**
-```bash
-# Use comma-separated values
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:4200,https://app.example.com
-```
-
----
-
-## Environment-Specific Variables
-
-### Development
-```bash
-SPRING_PROFILES_ACTIVE=dev
-LOG_LEVEL=DEBUG
-ENABLE_SWAGGER=true
-```
-
-### Production
-```bash
-SPRING_PROFILES_ACTIVE=prod
-LOG_LEVEL=WARN
-ENABLE_SWAGGER=false
-```
-
-### Testing
-```bash
-SPRING_PROFILES_ACTIVE=test
-LOG_LEVEL=INFO
-USE_IN_MEMORY_DB=true
-```
-
----
-
-## Quick Reference Table
-
-| Category | Prefix | Example |
-|----------|--------|---------|
-| Database | `{SERVICE}_DB_` | `PATIENT_DB_HOST` |
-| JWT/Auth | `JWT_` or `AUTH_` | `JWT_SECRET`, `AUTH_MAX_LOGIN_ATTEMPTS` |
-| Redis | `REDIS_` | `REDIS_HOST` |
-| API Keys | `{API_NAME}_API_` | `SENDGRID_API_KEY` |
-| Gateway | `GATEWAY_` | `GATEWAY_RATE_LIMIT` |
-| Service Discovery | `EUREKA_` | `EUREKA_SERVER_HOST` |
-
----
-
-## Loading Environment Variables
-
-### In Docker Compose
-```yaml
-services:
-  patient-service:
-    env_file:
-      - .env
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-```
-
-### In Spring Boot
-```yaml
-# application.yml
-spring:
-  datasource:
-    url: ${PATIENT_DB_HOST}
-    username: ${PATIENT_DB_USER}
-    password: ${PATIENT_DB_PASSWORD}
-```
-
-### In Application Code
-```java
-@Value("${JWT_SECRET}")
-private String jwtSecret;
-```
-
----
-
-## Troubleshooting
-
-### Variable Not Found
-1. Check `.env` file exists
-2. Verify variable name matches exactly (case-sensitive)
-3. Ensure no spaces around `=`
-4. Check if docker-compose is loading the file
-
-### Invalid Value Format
-1. Remove quotes for numbers and booleans
-2. Use quotes for strings with spaces
-3. Escape special characters in passwords
-
-### Connection Issues
-1. Verify HOST includes protocol if needed (jdbc:mysql://)
-2. Check port numbers are correct
-3. Ensure network connectivity between services
-
----
-
-## Security Checklist
-
-- [ ] All production passwords are strong and unique
-- [ ] `.env` file is in `.gitignore`
-- [ ] API keys are rotated regularly
-- [ ] Database credentials use principle of least privilege
-- [ ] JWT secrets are at least 256 bits
-- [ ] No sensitive data in logs
-- [ ] Environment variables are documented
-- [ ] Access to `.env` files is restricted
-
----
-
-## Additional Resources
-
-- [Spring Boot External Configuration](https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config)
-- [Docker Environment Variables](https://docs.docker.com/compose/environment-variables/)
-- [12 Factor App - Config](https://12factor.net/config)
-
-### contracting-service
-
-```
-CONTRACTING_SERVICE_PORT=8087
-CONTRACTING_DB_URL=jdbc:mysql://contracting-db:3306/contracting_db
-CONTRACTING_DB_POOL_SIZE=15                      # opcional
-CONTRACTING_CLIENT_TRANSIT_KEY=contracting-service-client  # opcional; firma de su aserción private_key_jwt
-CONTRACTING_SERVICE_REPLICAS=2                   # opcional; réplicas en compose
-```
-
-Con el perfil `openbao` el usuario y la contraseña de la base salen de `secret/contracting/db/{migrator,app}`
-y no se definen por entorno. `AUTH_ISSUER`, `AUTH_JWKS_URI`, `AUTH_TOKEN_URI`, `EUREKA_URL` y
-`KAFKA_BOOTSTRAP_SERVERS` son los mismos del resto de servicios.
-
-### practitioners-service
-
-```
-PRACTITIONERS_SERVICE_PORT=8085
-PRACTITIONERS_DB_URL=jdbc:mysql://practitioners-db:3306/practitioners_db
-PRACTITIONERS_DB_NAME=practitioners_db            # opcional; nombre del esquema principal
-PRACTITIONERS_DB_POOL_SIZE=15                     # opcional
-PRACTITIONERS_SERVICE_REPLICAS=2                  # opcional; réplicas en compose
-```
-
-Con el perfil `openbao` el usuario y la contraseña de la base salen de `secret/practitioners/db/{migrator,app}`.
-No tiene cliente OAuth ni clave transit: no llama a ningún servicio. `KAFKA_BOOTSTRAP_SERVERS` sí es
-necesario, porque de ahí lee `auth.users.v1` para verificar la cuenta que se vincula.
-`GATEWAY_PRACTITIONERS_SERVICE_URI` apunta al servicio desde el gateway.
+## 4. Variables propias de cada servicio
+
+### api-gateway
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `GATEWAY_<SERVICIO>_SERVICE_URI` | `lb://<servicio>` (en compose, `http://<servicio>:<puerto>`) | destino de cada ruta |
+| `AUTH_PUBLIC_URL` · `AUTH_INTERNAL_URL` | `http://localhost:8080/auth` · `http://localhost:8086` | auth visto por el navegador y desde el gateway |
+| `GATEWAY_REDIS_HOST` · `GATEWAY_REDIS_PORT` | `localhost` · `6379` | Redis de sesiones |
+| `GATEWAY_READ_TIMEOUT` · `GATEWAY_ASSISTANT_READ_TIMEOUT` | `30s` · `90s` | espera por la respuesta de un servicio; la del asistente es más larga |
+| `GATEWAY_TRUSTED_PROXIES` | `.*` | proxies de confianza para resolver la IP del cliente |
+
+### auth-service
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `AUTH_MAIL_HOST` · `AUTH_MAIL_PORT` · `AUTH_MAIL_FROM` | `localhost` · `1025` · `no-responder@clinica.local` | SMTP de los correos de activación y reseteo (Mailpit en local) |
+| `AUTH_TOTP_ISSUER` | `Clinica` | nombre que muestra la app autenticadora |
+| `AUTH_SIGNING_TRANSIT_KEY` | `auth-jwt` | clave de transit que firma los tokens |
+| `AUTH_<CLIENTE>_CLIENT_KEY` | `<cliente>-client` | clave pública con que auth verifica cada cliente OAuth |
+| `AUTH_BOOTSTRAP_SUPER_ADMIN_EMAIL` | vacía | correo del primer `SUPER_ADMIN`; con OpenBao sale de `secret/auth/bootstrap` |
+
+### clinical-history-service
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `CLINICAL_ATTACHMENTS_ENDPOINT` · `_REGION` | vacía · `us-east-1` | almacenamiento S3 de anexos (MinIO en local) |
+| `CLINICAL_ATTACHMENTS_STAGING_BUCKET` · `_ARCHIVE_BUCKET` | `clinical-attachments-staging` · `clinical-attachments` | bucket de espera y bucket WORM de archivo |
+| `CLINICAL_ATTACHMENTS_CREATE_BUCKETS` | `false` | crea los buckets al arrancar (solo en pruebas) |
+| `CLINICAL_ENCRYPTION_TRANSIT_KEY` · `CLINICAL_SEAL_TRANSIT_KEY` | `clinical-kek` · `clinical-seal` | clave maestra de cifrado y clave de sello |
+| `CLINICAL_NOTES_EXTEMPORANEOUS_AFTER` | `24h` | a partir de cuándo una nota se registra como extemporánea |
 
 ### admissions-service
 
-```
-ADMISSIONS_SERVICE_PORT=8088
-ADMISSIONS_DB_URL=jdbc:postgresql://admissions-db:5432/admissions_db
-ADMISSIONS_DB_NAME=admissions_db                  # base y nombre del esquema principal
-ADMISSIONS_DB_POOL_SIZE=15                        # opcional
-ADMISSIONS_SERVICE_REPLICAS=2                     # opcional; réplicas en compose
-ADMISSIONS_SEAL_TRANSIT_KEY=admissions-seal       # opcional; clave que sella los comprobantes
-ADMISSIONS_CLIENT_TRANSIT_KEY=admissions-service-client   # opcional; firma sus asertos de cliente
-ADMISSIONS_COVERAGE_TTL=10m                       # opcional; caché de la verificación de cobertura
-ADMISSIONS_COVERAGE_CACHE_SIZE=5000               # opcional
-ADMISSIONS_PATIENT_EVENTS_ENABLED=true            # opcional; consumo de patient.events.v1
-ADMISSIONS_PRACTITIONER_EVENTS_ENABLED=true       # opcional; consumo de practitioners.v1
-ADMISSIONS_CLINICAL_EVENTS_ENABLED=true           # opcional; consumo del triage
-ADMISSIONS_PUBLIC_CHECKS_PER_WINDOW=20            # opcional; verificaciones públicas por IP
-ADMISSIONS_PUBLIC_CHECK_WINDOW=1m                 # opcional
-```
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `ADMISSIONS_PATIENT_EVENTS_ENABLED`, `_PRACTITIONER_EVENTS_ENABLED`, `_CLINICAL_EVENTS_ENABLED` | `true` | consumo de cada topic |
+| `ADMISSIONS_COVERAGE_TTL` · `ADMISSIONS_COVERAGE_CACHE_SIZE` | `10m` · `5000` | caché de la verificación de cobertura |
+| `ADMISSIONS_SEAL_TRANSIT_KEY` | `admissions-seal` | clave con que se sellan los comprobantes |
+| `ADMISSIONS_PUBLIC_CHECKS_PER_WINDOW` · `_PUBLIC_CHECK_WINDOW` | `600` · `1m` | tope global de verificaciones públicas (el límite por cliente lo pone el gateway) |
 
-Con el perfil `openbao` el usuario y la contraseña de la base salen de `secret/admissions/db/{migrator,app}`;
-la aplicación entra como `admissions_app` (sin DELETE ni DDL) y Flyway como `admissions_migrator`. Necesita
-`AUTH_TOKEN_URI` porque llama a patient-service, contracting-service y practitioners-service con el token
-del usuario intercambiado, y `KAFKA_BOOTSTRAP_SERVERS` para leer `patient.events.v1`, `practitioners.v1`
-y `clinical.encounters.v1`. `GATEWAY_ADMISSIONS_SERVICE_URI` apunta al servicio desde el gateway.
+### billing-service
 
-La base de datos es **PostgreSQL con `wal_level=logical`**: Debezium lee su WAL con el rol
-`admissions_debezium` (REPLICATION) a través de la publicación `admissions_outbox_pub`, que crea el
-script de inicio porque el conector no puede crearla.
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `BILLING_ADMISSION_EVENTS_ENABLED` · `BILLING_CLINICAL_EVENTS_ENABLED` | `true` | consumo de cada topic |
+| `BILLING_PRIVATE_CONTRACT_UUID` | vacía | contrato con que se tasa la atención particular |
+| `BILLING_DIAN_TEST_URL` · `BILLING_DIAN_PRODUCTION_URL` | servicios web de la DIAN | habilitación y producción (en debug, el simulador) |
+| `BILLING_DIAN_SIGNING_KEY` | `billing-dian` | clave de transit del certificado de firma |
+| `BILLING_DIAN_DELIVERY_DELAY` · `BILLING_DIAN_SIGNATURE_RETRY_DELAY` | `PT30S` · `PT1M` | envío a la DIAN y reintento de firmas pendientes |
+| `BILLING_MINISTRY_VALIDATOR_URL` · `BILLING_MINISTRY_RETRY_DELAY` | `https://fevrips-api:9443` · `PT5M` | API FEV-RIPS del MUV y reintento de envíos pendientes |
+| `BILLING_FILING_WARNING_BUSINESS_DAYS` · `BILLING_FILING_ALERTS_CRON` | `5` · `0 0 6 * * *` | aviso de radicación por vencer y hora de la tarea |
+| `BILLING_OBJECTIONS_WARNING_BUSINESS_DAYS` · `BILLING_OBJECTIONS_ALERTS_CRON` | `3` · `0 5 6 * * *` | aviso de glosas por vencer y hora de la tarea |
+| `BILLING_SEAL_TRANSIT_KEY` | `billing-seal` | sello de las representaciones gráficas |
+| `BILLING_PUBLIC_CHECKS_PER_WINDOW` · `_PUBLIC_CHECK_WINDOW` | `600` · `1m` | tope global de verificaciones públicas |
+| `BILLING_OUTBOX_RETENTION` | `7d` | cuánto se conservan los eventos ya publicados |
 
-### patient-service (cambios de esta versión)
+Las credenciales de la DIAN (`BILLING_DIAN_SOFTWARE_*`) y del Ministerio (`BILLING_MINISTRY_*`) salen de
+OpenBao con el perfil `openbao`; las variables solo sirven fuera de Docker.
 
-```
-AUTH_TOKEN_URI=http://auth-service:8086/oauth2/token   # necesario: verifica el pagador con su token de servicio
-PATIENT_CLIENT_TRANSIT_KEY=patient-service-client      # opcional
-```
+### ai-assistant-service
 
-`GATEWAY_CONTRACTING_SERVICE_URI` apunta al servicio desde el gateway (`lb://contracting-service` por defecto).
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `AI_ASSISTANT_LLM_BASE_URL` · `_MODEL` · `_API_KEY` · `_TIMEOUT` | `http://localhost:1234` · `qwen3-8b` · `lm-studio` · `80s` | modelo local compatible con OpenAI |
+| `AI_ASSISTANT_INVOICE_EVENTS_ENABLED` | `true` | consumo de los topics de billing |
+| `AI_ASSISTANT_REVIEW_DIAN_GRACE` · `_RIPS_GRACE` · `_SWEEP_DELAY` | `PT2H` · `PT24H` · `PT30M` | cuándo se marca una factura sin respuesta de la DIAN o sin CUV, y cada cuánto se revisa |
+| `AI_ASSISTANT_ACTION_LIFETIME` | `PT30M` | vigencia de una acción propuesta |
+| `AI_ASSISTANT_CONVERSATION_RETENTION` · `_PURGE_CRON` | `P30D` · `0 30 3 * * *` | cuánto se guarda una conversación sin actividad y cuándo se purga |
+
+### eureka-service
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `EUREKA_USERNAME` · `EUREKA_PASSWORD` | `eureka` · vacía | credencial del registro; en compose sale de OpenBao y sin ella no arranca |
+| `EUREKA_HOSTNAME` · `EUREKA_SELF_PRESERVATION` | `localhost` · `true` | nombre del servidor y autopreservación |
+
+---
+
+## 5. Convenciones
+
+- Prefijo por servicio (`BILLING_`, `AI_ASSISTANT_`…) y nombres en mayúsculas con guion bajo.
+- Duraciones en formato ISO 8601 (`PT30M`, `P30D`) o de Spring (`30s`, `10m`); crons de Spring con segundos.
+- Todo valor por defecto debe servir para el stack local; lo que no tiene un valor seguro por defecto es un
+  secreto y va a OpenBao.
