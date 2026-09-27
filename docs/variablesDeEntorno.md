@@ -234,13 +234,18 @@ REDIS_TIMEOUT=2000
 {SERVICE}_{API_NAME}_{PROPERTY}
 ```
 
-### AI Assistant - Gemini API
+### Asistente de facturas - modelo local
+
+El asistente no usa proveedores en la nube: habla con un modelo local (LM Studio u otro runtime compatible
+con la API de OpenAI). No hay claves que guardar.
 
 ```bash
-AI_ASSISTANT_GEMINI_PROJECT_ID=gen-lang-client-0771416717
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY
-GEMINI_MODEL_NAME=gemini-1.5-pro
+AI_ASSISTANT_LLM_BASE_URL=http://host.docker.internal:1234
+AI_ASSISTANT_LLM_MODEL=qwen3-8b
+AI_ASSISTANT_LLM_TIMEOUT=25s
 ```
+
+El resto de su configuración está en `BackEnd-Clinica/ai-assistant-service/docs/asistente-de-facturas.md`.
 
 ---
 
@@ -383,7 +388,7 @@ USE_IN_MEMORY_DB=true
 | Database | `{SERVICE}_DB_` | `PATIENT_DB_HOST` |
 | JWT/Auth | `JWT_` or `AUTH_` | `JWT_SECRET`, `AUTH_MAX_LOGIN_ATTEMPTS` |
 | Redis | `REDIS_` | `REDIS_HOST` |
-| API Keys | `{API_NAME}_API_` | `GEMINI_API_KEY` |
+| API Keys | `{API_NAME}_API_` | `SENDGRID_API_KEY` |
 | Gateway | `GATEWAY_` | `GATEWAY_RATE_LIMIT` |
 | Service Discovery | `EUREKA_` | `EUREKA_SERVER_HOST` |
 

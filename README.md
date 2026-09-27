@@ -29,7 +29,7 @@
 - 👥 **Patient Registry**: Patient identity, contact, affiliation and status with full change history, optimistic concurrency and least-privilege database access
 - 📅 **Appointments**: Multi-professional scheduling system with conflict detection
 - 🏥 **Admissions**: Patient admission and discharge workflow management
-- 🤖 **AI Assistant**: Gemini-powered medical assistance and consultation support
+- 🤖 **Invoice Assistant**: rule-based review of issued invoices explained by a local LLM, with actions the user confirms
 - 👔 **Clients Management**: Healthcare providers and insurance companies integration
 - 📦 **Suppliers**: Medical supplies and pharmaceutical inventory management
 - 💳 **Billing**: Invoice generation and payment processing (🚧 In Development)
@@ -89,7 +89,7 @@ docker-compose ps
 | **Admissions Service** | 8083 | PostgreSQL | Spring Boot | ✅ Active |
 | **Clients Service** | 8087 | MySQL | Spring Boot | ✅ Active |
 | **Suppliers Service** | 8085 | MySQL | Spring Boot | ✅ Active |
-| **AI Assistant Service** | 8084 | PostgreSQL | Spring AI + Gemini | ✅ Active |
+| **AI Assistant Service** | 8084 | PostgreSQL | Spring AI + local LLM (LM Studio) | ✅ Active |
 | **Billing Service** | 8082 | MySQL | Spring Boot | 🚧 In Development |
 
 ---
@@ -180,7 +180,7 @@ Clinica/
 - 🍃 **Spring Boot 3.5.7**
 - ☁️ **Spring Cloud 2025.0.0**
 - 🔐 **Spring Security + JWT (RSA-256)**
-- 🤖 **Spring AI + Google Gemini**
+- 🤖 **Spring AI + local LLM (LM Studio, OpenAI-compatible API)**
 
 ### Databases
 - 🐘 **PostgreSQL 16** (Gateway, AI Assistant, Admissions)
@@ -297,7 +297,6 @@ This project is proprietary software. All rights reserved.
 
 - Spring Framework community
 - Netflix OSS for Eureka
-- Google for Gemini AI
 - Open source contributors
 
 ---

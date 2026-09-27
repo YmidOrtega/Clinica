@@ -71,7 +71,7 @@ Adicionalmente, un sistema de salud tiene requisitos no negociables:
 | ORM               | Hibernate + MapStruct 1.6           | JPA estándar; MapStruct genera el código de mapping en compile time (zero reflect)|
 | Resiliencia       | Resilience4j                        | Circuit breaker, retry con backoff exponencial, fallback declarativo             |
 | Cache / Rate Limit| Redis 7                             | Cache distribuida + contador atómico para rate limiting en el gateway           |
-| IA                | Spring AI + Gemini API              | Abstracción portable (Gemini en prod, LM Studio en local)                        |
+| IA                | Spring AI + modelo local (LM Studio)| Los datos de facturación no salen de la clínica; API compatible con OpenAI       |
 | Contenedores      | Docker + Compose                    | Stack completo levantable con un solo comando                                    |
 | Testing           | JUnit 5 + Mockito                   | Pruebas unitarias de servicios, controladores e integraciones                    |
 | Build             | Maven multi-módulo                  | Un POM padre gestiona versiones de dependencias para todos los servicios         |

@@ -643,58 +643,32 @@ y el de capitación en
 
 ---
 
-## 7. AI Assistant Service — `/api/v1/ai`
+## 7. Asistente de revisión de facturas — `/api/v1/assistant`
 
-### POST `/chat`
+Revisa facturas emitidas con reglas y un modelo local; todo exige `assistant:use` (facturación, cartera y
+administración). Detalle completo en `BackEnd-Clinica/ai-assistant-service/docs/asistente-de-facturas.md`.
 
-Envía un mensaje al asistente y recibe respuesta con posibles acciones ejecutadas.
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /findings?status&severity&rule&invoiceNumber` | bandeja de hallazgos, los graves y urgentes primero |
+| `GET /findings/summary` | hallazgos abiertos por regla y gravedad |
+| `GET /invoices/{number}/findings` | historial de hallazgos de una factura |
+| `POST /conversations` | abre una conversación (`{"title": "..."}`) |
+| `GET /conversations`, `GET /conversations/{uuid}` | mis conversaciones y sus mensajes |
+| `POST /conversations/{uuid}/messages` | pregunta al modelo (`{"content": "..."}`); `503 ASSISTANT_MODEL_UNAVAILABLE` si no responde |
+| `POST /conversations/{uuid}/closure` | cierra la conversación (`If-Match`) |
+| `GET /actions?status` | mis acciones propuestas |
+| `POST /actions/{uuid}/confirmation` | ejecuta la propuesta en billing con mis permisos (`If-Match`; responder glosas pide segundo factor reciente) |
+| `POST /actions/{uuid}/discard` | descarta la propuesta (`If-Match`) |
 
-**Request:**
+**Respuesta de `POST /conversations/{uuid}/messages`:**
 ```json
 {
-  "sessionId": "session-abc123",
-  "message": "El paciente Carlos Rodríguez, CC 1234567890, llega con dolor torácico severo, necesito registrar atención urgente nivel ROJO"
-}
-```
-
-**Response `200 OK`:**
-```json
-{
-  "sessionId": "session-abc123",
-  "reply": "He registrado la atención de urgencia para Carlos Rodríguez (CC 1234567890) con triage RED. ID de atención: att999-...",
-  "actionsPerformed": [
-    {
-      "type": "CREATE_ATTENTION",
-      "attentionId": "att999-...",
-      "triageLevel": "RED",
-      "patientId": "p1a2b3c4-..."
-    }
-  ],
-  "timestamp": "2025-05-19T14:22:05"
-}
-```
-
----
-
-### GET `/conversations/{sessionId}`
-
-Retorna el historial de una sesión de conversación.
-
-**Response `200 OK`:**
-```json
-{
-  "sessionId": "session-abc123",
-  "messages": [
-    {
-      "role": "USER",
-      "content": "El paciente Carlos Rodríguez...",
-      "timestamp": "2025-05-19T14:22:00"
-    },
-    {
-      "role": "ASSISTANT",
-      "content": "He registrado la atención de urgencia...",
-      "timestamp": "2025-05-19T14:22:05"
-    }
+  "question": { "position": 3, "role": "USER", "content": "Reenvía la SETP990000101 a la DIAN" },
+  "answer": { "position": 4, "role": "ASSISTANT", "content": "Te dejé propuesto el reenvío; confírmalo para ejecutarlo." },
+  "proposedActions": [
+    { "uuid": "7c1e…", "version": 0, "invoiceNumber": "SETP990000101", "kind": "SEND_TO_DIAN",
+      "label": "Enviar o reenviar la factura a la DIAN", "status": "PROPOSED", "expiresAt": "2026-09-27T16:30:00Z" }
   ]
 }
 ```
