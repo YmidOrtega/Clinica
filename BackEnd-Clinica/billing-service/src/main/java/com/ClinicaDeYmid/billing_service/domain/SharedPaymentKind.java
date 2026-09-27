@@ -4,7 +4,6 @@ public enum SharedPaymentKind {
 
     COPAYMENT("COPAGO", "Copago", "01"),
     MODERATING_FEE("CUOTA_MODERADORA", "Cuota moderadora", "02"),
-    RECOVERY_FEE("CUOTA_RECUPERACION", "Cuota de recuperación", null),
     VOLUNTARY_PLAN("PAGOS_COMPARTIDOS", "Pago compartido de plan voluntario", "03");
 
     static final String CONTRIBUTORY = "CONTRIBUTORY";
@@ -32,10 +31,6 @@ public enum SharedPaymentKind {
 
     public String label() {
         return label;
-    }
-
-    public boolean creditable() {
-        return collectionConcept != null;
     }
 
     public String collectionConcept() {

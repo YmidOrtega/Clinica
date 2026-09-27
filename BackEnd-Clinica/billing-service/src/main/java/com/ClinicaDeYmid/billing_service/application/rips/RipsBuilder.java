@@ -303,12 +303,8 @@ public final class RipsBuilder {
         if (shared == null) {
             return new Collection(RipsCodes.NOT_APPLICABLE_COLLECTION, BigDecimal.ZERO, null);
         }
-        String concept = RipsCodes.collection(shared.sharedPaymentKind());
-        if (RipsCodes.NOT_APPLICABLE_COLLECTION.equals(concept)) {
-            gaps.add("La cuota de recuperación " + shared.number() + " no tiene concepto de recaudo en la tabla de "
-                    + "SISPRO; revise cómo reportarla");
-        }
-        return new Collection(concept, amount(shared.grossTotal()), shared.number());
+        return new Collection(RipsCodes.collection(shared.sharedPaymentKind()), amount(shared.grossTotal()),
+                shared.number());
     }
 
     private Map<Integer, Invoice> allocateSharedPayments(Invoice invoice) {

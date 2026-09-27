@@ -18,7 +18,6 @@ public final class SharedPaymentAllocation {
         Set<String> ofAccount = authorizations(summary.units());
         boolean takesTheRest = unit.kind() == AccountSummary.UnitKind.ACCOUNT || summary.units().size() == 1;
         return shared.stream()
-                .filter(payment -> payment.sharedPaymentKind().creditable())
                 .filter(payment -> payment.authorizationNumber() != null
                         ? ofUnit.contains(payment.authorizationNumber())
                         || (takesTheRest && !ofAccount.contains(payment.authorizationNumber()))

@@ -86,7 +86,6 @@ final class RipsCodes {
             case COPAYMENT -> "01";
             case MODERATING_FEE -> "02";
             case VOLUNTARY_PLAN -> "03";
-            case RECOVERY_FEE -> NOT_APPLICABLE_COLLECTION;
         };
     }
 }

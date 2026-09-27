@@ -396,9 +396,6 @@ class StaxUblWriter implements UblWriter {
         }
         int id = 1;
         for (Map.Entry<SharedPaymentKind, List<Invoice>> concept : byConcept.entrySet()) {
-            if (!concept.getKey().creditable()) {
-                throw new IllegalStateException("A " + concept.getKey() + " cannot be credited to the payer");
-            }
             xml.writeStartElement(CAC, "PrepaidPayment");
             basic(xml, "ID", String.valueOf(id++), "schemeID", concept.getKey().collectionConcept());
             amount(xml, "PaidAmount", concept.getValue().stream().map(Invoice::grossTotal)

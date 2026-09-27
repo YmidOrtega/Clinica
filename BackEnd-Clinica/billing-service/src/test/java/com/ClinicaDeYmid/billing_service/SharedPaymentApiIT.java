@@ -51,6 +51,9 @@ class SharedPaymentApiIT extends InvoicingIntegrationTest {
                 .andExpect(status().isForbidden());
         as("BILLING", post(SHARED_PAYMENTS), collection(covered, null, "0", UUID.randomUUID().toString(), null))
                 .andExpect(status().isBadRequest());
+        as("BILLING", post(SHARED_PAYMENTS),
+                collection(covered, null, "35000", UUID.randomUUID().toString(), "RECOVERY_FEE"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -357,8 +357,8 @@ public class Invoice {
         BigDecimal invoiced = Money.ZERO;
         for (Invoice payment : shared) {
             if (payment.purpose != Purpose.SHARED_PAYMENT || !(payment.status() instanceof InvoiceStatus.Issued)
-                    || !payment.account.uuid().equals(account.uuid()) || !payment.sharedPaymentKind.creditable()) {
-                throw new IllegalArgumentException("Only issued creditable shared payments of the same account are deducted");
+                    || !payment.account.uuid().equals(account.uuid())) {
+                throw new IllegalArgumentException("Only issued shared payments of the same account are deducted");
             }
             invoiced = invoiced.add(payment.grossTotal);
         }

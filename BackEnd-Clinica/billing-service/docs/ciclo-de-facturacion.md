@@ -31,6 +31,12 @@ El borrador (`POST /invoices`) agrupa lo confirmado de una unidad facturable y c
 paciente. Emitirlo (`/issuance`) toma el siguiente consecutivo de la resolución activa bajo un bloqueo de
 fila: dos emisiones simultáneas nunca repiten número ni dejan huecos, y la prueba de carga lo comprueba.
 
+Lo que paga el paciente se le factura al recaudarlo (`POST /shared-payments`): copago, cuota moderadora o
+pago compartido de plan voluntario, los tres conceptos de recaudo que admite el DT2 de la Resolución 948
+de 2026. La factura al pagador lo descuenta como `PrepaidPayment`. La cuota de recuperación no se recauda:
+la extensión de salud vigente no tiene campo para ella ni RIPS un concepto, así que no habría cómo
+descontarla al pagador; a quien no tiene afiliación se le factura como particular.
+
 La firma XAdES-EPES es un paso aparte: emitir nunca espera a OpenBao. La clave privada del certificado
 DIAN está importada en OpenBao transit (`transit/billing-dian`) y no se puede exportar; billing arma el XML
 UBL 2.1 con sus extensiones (DIAN, sector salud con modalidad de pago, cobertura y copagos, y firma) y
