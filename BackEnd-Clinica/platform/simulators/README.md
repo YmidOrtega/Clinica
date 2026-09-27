@@ -6,7 +6,7 @@ facturación completa y el asistente sin credenciales reales ni un modelo cargad
 | Contenedor | Simula | Responde |
 |---|---|---|
 | `dian-simulator` | Servicio web de facturación electrónica de la DIAN (SOAP 1.2, ambiente de habilitación) | recibe el set de pruebas, acepta cualquier zip con un `ApplicationResponse` y dice no conocer documentos consultados por CUFE |
-| `llm-simulator` | API compatible con OpenAI del modelo local (LM Studio) | si la pregunta menciona una factura `SETP…` pide la herramienta `invoiceStatus` con ese número y, con el resultado, contesta un texto fijo; si no, contesta directo. Puerto de depuración 8079; con `AI_ASSISTANT_LLM_BASE_URL` se apunta a LM Studio real |
+| `llm-simulator` | API compatible con OpenAI del modelo local (LM Studio) | si la pregunta menciona una factura de pruebas (`SETP…`, `SETT…`) pide la herramienta `invoiceStatus` con ese número y, con el resultado, contesta un texto fijo; si no, contesta directo. Puerto de depuración 8079; con `AI_ASSISTANT_LLM_BASE_URL` se apunta a LM Studio real |
 | `muv-simulator` | API FEV-RIPS del mecanismo único de validación del Ministerio de Salud | autentica cualquier usuario SISPRO y valida cualquier RIPS con un CUV aleatorio de 96 caracteres |
 
 Solo exigen lo mínimo del contrato real: el sobre de la DIAN debe venir firmado con WS-Security y el

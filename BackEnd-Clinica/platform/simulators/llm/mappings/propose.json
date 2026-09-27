@@ -1,11 +1,11 @@
 {
-  "name": "El modelo pide el estado de la factura que menciona el usuario",
-  "priority": 1,
+  "name": "El modelo propone reenviar a la DIAN la factura que el usuario pide reenviar",
+  "priority": 0,
   "request": {
     "method": "POST",
     "urlPath": "/v1/chat/completions",
     "bodyPatterns": [
-      { "matches": "(?s).*SET[A-Z][0-9]{6,}.*" },
+      { "matches": "(?s).*[Rr]eenv[ií]a.*SET[A-Z][0-9]{6,}.*" },
       { "doesNotMatch": "(?s).*\"role\"\\s*:\\s*\"tool\".*" }
     ]
   },
@@ -13,7 +13,7 @@
     "status": 200,
     "headers": { "Content-Type": "application/json" },
     "jsonBody": {
-      "id": "sim-tool",
+      "id": "sim-propose",
       "object": "chat.completion",
       "created": 1,
       "model": "simulador",
@@ -25,11 +25,11 @@
             "content": null,
             "tool_calls": [
               {
-                "id": "call_1",
+                "id": "call_2",
                 "type": "function",
                 "function": {
-                  "name": "invoiceStatus",
-                  "arguments": "{\"number\":\"{{regexExtract request.body 'SET[A-Z][0-9]{6,}'}}\"}"
+                  "name": "proposeAction",
+                  "arguments": "{\"kind\":\"SEND_TO_DIAN\",\"invoiceNumber\":\"{{regexExtract request.body 'SET[A-Z][0-9]{6,}'}}\",\"reason\":\"El usuario pidió reenviarla\"}"
                 }
               }
             ]
