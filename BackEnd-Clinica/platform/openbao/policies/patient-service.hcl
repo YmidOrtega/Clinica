@@ -13,3 +13,7 @@ path "transit/keys/patient-service-client" {
 path "transit/sign/patient-service-client" {
   capabilities = ["update"]
 }
+
+path "secret/data/eureka/client" {
+  capabilities = ["read"]
+}

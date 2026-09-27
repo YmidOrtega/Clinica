@@ -53,3 +53,7 @@ path "totp/keys/staff-*" {
 path "totp/code/staff-*" {
   capabilities = ["update"]
 }
+
+path "secret/data/eureka/client" {
+  capabilities = ["read"]
+}

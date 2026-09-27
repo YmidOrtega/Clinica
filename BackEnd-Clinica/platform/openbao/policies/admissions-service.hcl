@@ -21,3 +21,7 @@ path "transit/keys/admissions-service-client" {
 path "transit/sign/admissions-service-client" {
   capabilities = ["update"]
 }
+
+path "secret/data/eureka/client" {
+  capabilities = ["read"]
+}

@@ -9,3 +9,7 @@ path "transit/keys/api-gateway-client" {
 path "transit/sign/api-gateway-client" {
   capabilities = ["update"]
 }
+
+path "secret/data/eureka/client" {
+  capabilities = ["read"]
+}

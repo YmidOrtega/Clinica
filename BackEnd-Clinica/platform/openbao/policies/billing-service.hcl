@@ -37,3 +37,7 @@ path "transit/keys/billing-dian" {
 path "transit/sign/billing-dian" {
   capabilities = ["update"]
 }
+
+path "secret/data/eureka/client" {
+  capabilities = ["read"]
+}

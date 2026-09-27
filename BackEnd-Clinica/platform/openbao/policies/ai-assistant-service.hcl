@@ -13,3 +13,7 @@ path "transit/keys/ai-assistant-service-client" {
 path "transit/sign/ai-assistant-service-client" {
   capabilities = ["update"]
 }
+
+path "secret/data/eureka/client" {
+  capabilities = ["read"]
+}

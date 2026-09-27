@@ -459,3 +459,15 @@ template {
   destination = "/rendered/assistant-db/app-password"
   perms       = "0444"
 }
+
+template {
+  contents    = "{{ with secret \"secret/data/eureka/client\" }}{{ .Data.data.username }}{{ end }}"
+  destination = "/rendered/eureka/username"
+  perms       = "0444"
+}
+
+template {
+  contents    = "{{ with secret \"secret/data/eureka/client\" }}{{ .Data.data.password }}{{ end }}"
+  destination = "/rendered/eureka/password"
+  perms       = "0444"
+}

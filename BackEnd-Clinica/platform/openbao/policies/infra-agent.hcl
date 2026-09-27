@@ -26,6 +26,10 @@ path "secret/data/assistant/db/*" {
   capabilities = ["read"]
 }
 
+path "secret/data/eureka/client" {
+  capabilities = ["read"]
+}
+
 path "secret/data/auth/db/*" {
   capabilities = ["read"]
 }

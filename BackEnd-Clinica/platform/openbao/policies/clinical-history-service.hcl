@@ -45,3 +45,7 @@ path "transit/keys/clinical-history-service-client" {
 path "transit/sign/clinical-history-service-client" {
   capabilities = ["update"]
 }
+
+path "secret/data/eureka/client" {
+  capabilities = ["read"]
+}
