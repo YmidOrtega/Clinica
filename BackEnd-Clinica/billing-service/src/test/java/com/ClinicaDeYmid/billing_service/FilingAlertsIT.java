@@ -1,7 +1,8 @@
 package com.ClinicaDeYmid.billing_service;
 
 import com.ClinicaDeYmid.billing_service.application.filing.FilingDeadlineAlerts;
-import com.ClinicaDeYmid.billing_service.domain.FilingDeadline;
+import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
+import com.ClinicaDeYmid.billing_service.domain.InvoiceFiling;
 import com.ClinicaDeYmid.billing_service.support.ProducerContract;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
@@ -59,7 +60,8 @@ class FilingAlertsIT extends InvoicingIntegrationTest {
 
     private static LocalDate dueSoonIssueDate() {
         LocalDate day = TODAY;
-        while (FilingDeadline.of(day, TODAY, 5).state() != FilingDeadline.State.DUE_SOON) {
+        while (BusinessDeadline.of(day, InvoiceFiling.BUSINESS_DAYS_TO_FILE, TODAY, 5).state()
+                != BusinessDeadline.State.DUE_SOON) {
             day = day.minusDays(1);
         }
         return day;

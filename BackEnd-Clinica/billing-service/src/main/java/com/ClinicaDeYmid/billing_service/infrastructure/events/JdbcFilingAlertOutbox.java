@@ -1,7 +1,7 @@
 package com.ClinicaDeYmid.billing_service.infrastructure.events;
 
 import com.ClinicaDeYmid.billing_service.application.filing.FilingAlertOutbox;
-import com.ClinicaDeYmid.billing_service.domain.FilingDeadline;
+import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -52,7 +52,7 @@ class JdbcFilingAlertOutbox implements FilingAlertOutbox {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public boolean alertOnce(Invoice invoice, FilingDeadline deadline, String cuv) {
+    public boolean alertOnce(Invoice invoice, BusinessDeadline deadline, String cuv) {
         String state = deadline.state().name();
         Integer earlier = jdbc.queryForObject(ALREADY_ALERTED, Integer.class, invoice.uuid().toString(), state);
         if (earlier != null && earlier > 0) {

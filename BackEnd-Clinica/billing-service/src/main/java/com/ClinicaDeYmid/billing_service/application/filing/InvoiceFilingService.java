@@ -1,7 +1,7 @@
 package com.ClinicaDeYmid.billing_service.application.filing;
 
 import com.ClinicaDeYmid.billing_service.domain.BillingException;
-import com.ClinicaDeYmid.billing_service.domain.FilingDeadline;
+import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
 import com.ClinicaDeYmid.billing_service.domain.Invoice;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceFiling;
 import com.ClinicaDeYmid.billing_service.domain.InvoiceFilings;
@@ -86,7 +86,7 @@ public class InvoiceFilingService {
         return new FilingStatus(invoice, filing, filing == null ? deadlineOf(invoice) : null, cuv);
     }
 
-    public List<FilingStatus> tray(UUID payerUuid, FilingDeadline.State state, int limit) {
+    public List<FilingStatus> tray(UUID payerUuid, BusinessDeadline.State state, int limit) {
         List<Invoice> awaiting = filings.awaitingFiling(payerUuid, limit);
         Map<UUID, String> cuvs = submissions.validatedOf(awaiting.stream().map(Invoice::uuid).toList()).stream()
                 .collect(Collectors.toMap(submission -> submission.invoice().uuid(), RipsSubmission::cuv));
@@ -96,8 +96,9 @@ public class InvoiceFilingService {
                 .toList();
     }
 
-    public FilingDeadline deadlineOf(Invoice invoice) {
-        return FilingDeadline.of(invoice.issuedOn(), LocalDate.now(clock), policy.warningBusinessDays());
+    public BusinessDeadline deadlineOf(Invoice invoice) {
+        return BusinessDeadline.of(invoice.issuedOn(), InvoiceFiling.BUSINESS_DAYS_TO_FILE, LocalDate.now(clock),
+                policy.warningBusinessDays());
     }
 
     private RipsSubmission validated(UUID invoiceUuid) {

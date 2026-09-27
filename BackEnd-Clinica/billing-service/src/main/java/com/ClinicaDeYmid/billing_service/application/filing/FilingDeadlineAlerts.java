@@ -1,6 +1,6 @@
 package com.ClinicaDeYmid.billing_service.application.filing;
 
-import com.ClinicaDeYmid.billing_service.domain.FilingDeadline;
+import com.ClinicaDeYmid.billing_service.domain.BusinessDeadline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -28,7 +28,7 @@ public class FilingDeadlineAlerts {
     public int run() {
         int published = 0;
         for (FilingStatus status : filings.tray(null, null, SCAN_LIMIT)) {
-            if (status.deadline().state() == FilingDeadline.State.ON_TIME) {
+            if (status.deadline().state() == BusinessDeadline.State.ON_TIME) {
                 continue;
             }
             try {

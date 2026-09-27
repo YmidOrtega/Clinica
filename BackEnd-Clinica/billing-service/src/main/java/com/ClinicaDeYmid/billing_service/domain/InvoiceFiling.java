@@ -31,6 +31,8 @@ import java.util.UUID;
 @EntityListeners(AuditingEntityListener.class)
 public class InvoiceFiling {
 
+    public static final int BUSINESS_DAYS_TO_FILE = 22;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -94,9 +96,13 @@ public class InvoiceFiling {
         filing.uuid = UUID.randomUUID();
         filing.invoice = invoice;
         filing.cuv = validated.cuv();
-        filing.deadline = FilingDeadline.deadlineOf(invoice.issuedOn());
+        filing.deadline = InvoiceFiling.deadlineOf(invoice.issuedOn());
         filing.apply(filingNumber, filedOn, validatedOn, today);
         return filing;
+    }
+
+    public static LocalDate deadlineOf(LocalDate issuedOn) {
+        return BusinessCalendar.plusBusinessDays(DomainRules.required(issuedOn, "issuedOn"), BUSINESS_DAYS_TO_FILE);
     }
 
     public static void requireFileable(Invoice invoice) {
