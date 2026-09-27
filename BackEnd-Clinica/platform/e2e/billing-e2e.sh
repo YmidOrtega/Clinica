@@ -60,7 +60,7 @@ as_staff() {
 }
 
 staff_member() {
-  role=$1; email="$(printf '%s' "$role" | tr 'A-Z_' 'a-z.').fac.$SUFFIX@clinica.local"
+  role=$1; email="$(printf '%s' "$role" | tr 'A-Z_' 'a-z.')${2:+.$2}.fac.$SUFFIX@clinica.local"
   status=$(as_staff POST "$AUTH_URL/api/v1/users" "$SUPER_ADMIN_ACCESS" "{
     \"email\": \"$email\", \"fullName\": \"Personal de $(printf '%s' "$role" | tr 'A-Z_' 'a-z ')\", \"role\": \"$role\"}")
   [ "$status" = "201" ] || { cat "$WORK/body" >&2; fail "invitación de $role"; }
@@ -388,5 +388,17 @@ status=$(call GET "$BILLING_URL/api/v1/billing/invoices/$INVOICE" RECEPTIONIST "
 expect "$status" 403 "recepción no consulta facturas"
 status=$(curl -s -o "$WORK/body" -w '%{http_code}' "$BILLING_URL/api/v1/billing/invoices/$INVOICE")
 expect "$status" 401 "billing no responde sin credenciales"
+
+if [ -n "${E2E_EXPORT_FILE:-}" ]; then
+  LOAD_ACCESS=$(staff_member BILLING carga)
+  {
+    echo "BILLING_URL=$BILLING_URL"
+    echo "ADMISSION_NUMBER=$NUMBER"
+    echo "INVOICE_UUID=$INVOICE"
+    echo "PORTFOLIO_ITEM_UUID=$ITEM"
+    echo "TOKEN=$LOAD_ACCESS"
+  } > "$E2E_EXPORT_FILE"
+  echo "ok  datos y token de facturación para la prueba de carga en $E2E_EXPORT_FILE (el token dura cinco minutos)"
+fi
 
 printf '\nbilling-e2e OK\n'
