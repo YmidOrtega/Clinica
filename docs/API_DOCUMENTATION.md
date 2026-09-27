@@ -1,8 +1,11 @@
 # Referencia de API REST — Clínica
 
-**Versión:** 1.0  
-**Base URL:** `http://localhost:8080` (API Gateway)  
-**Autenticación:** Bearer JWT (RSA-256) en header `Authorization`
+**Base URL:** `http://localhost:8080` (api-gateway)
+**Autenticación:** sesión del gateway (cookie) desde el navegador; hacia los servicios, `Authorization: Bearer`
+con un access token ES256 de `auth-service`
+
+Esta es la referencia de contrato de cada servicio. Cada uno publica además su OpenAPI en
+`/swagger-ui.html` con los puertos de `docker-compose.debug.yml`.
 
 ---
 
@@ -12,10 +15,13 @@
   gateway, que agrega el access token hacia cada servicio (`BackEnd-Clinica/api-gateway/docs/bff.md`).
   Los servicios, detrás del gateway, exigen `Authorization: Bearer <token>`.
 - Toda escritura desde el navegador lleva el token CSRF de `GET /bff/session`.
-- Las respuestas exitosas devuelven `2xx`; los errores siguen el formato estándar de Spring.
+- Los errores siguen RFC 9457 (`application/problem+json`) con un `code` estable y el `traceId` (sección 9).
 - Los UUIDs se expresan como strings en formato `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
-- Los timestamps usan ISO 8601: `2025-05-19T14:30:00`.
-- Soft delete: los registros eliminados tienen `deletedAt` no nulo y no aparecen en listados normales.
+- Los instantes van en ISO 8601 con zona (`2026-09-27T15:04:05Z`) y las fechas como `2026-09-27`.
+- Las modificaciones exigen `If-Match` con la versión del `ETag` (`428` sin cabecera, `412` con versión
+  vieja).
+- Nada se borra: lo que termina cambia de estado (inactivo, anulado, revocado) con motivo.
+- Los datos personales nunca van en la URL: las búsquedas por documento usan `POST …/search`.
 
 ---
 
@@ -132,14 +138,14 @@ clínica (alergias, enfermedades crónicas, medicamentos, antecedentes, vacunas)
 
 | Operación                                        | Roles                                   |
 | ------------------------------------------------ | --------------------------------------- |
-| Consultar y buscar                               | SUPER_ADMIN, ADMIN, DOCTOR, NURSE, RECEPTIONIST, MEDICAL_RECORDS, CONTRACTING |
+| Consultar y buscar                               | SUPER_ADMIN, ADMIN, DOCTOR, NURSE, RECEPTIONIST, MEDICAL_RECORDS, CONTRACTING, BILLING, ACCOUNTS_RECEIVABLE |
 | Registrar y actualizar datos                     | SUPER_ADMIN, ADMIN, RECEPTIONIST        |
 | Desactivar y reactivar                           | SUPER_ADMIN, ADMIN                      |
 | Registrar fallecimiento                          | SUPER_ADMIN, ADMIN, DOCTOR              |
 | Historial de cambios                             | SUPER_ADMIN, ADMIN                      |
 
-`CONTRACTING` solo lee: `contracting-service` busca por documento para contrastar la población capitada
-contra el registro, con el token de quien carga el archivo intercambiado para esta audiencia.
+`CONTRACTING`, `BILLING` y `ACCOUNTS_RECEIVABLE` solo leen: contratación contrasta la población capitada y
+facturación arma el RIPS y el adquiriente, con el token de la persona intercambiado para esta audiencia.
 
 ### POST `/`
 
@@ -362,11 +368,12 @@ eventos; aquí el paciente siempre se referencia por `patientUuid`.
 Abre una atención. Quien la abre entra en el equipo de cuidado.
 
 ```json
-{ "patientUuid": "3f1c…", "type": "EMERGENCY", "admissionId": "A-2026-114" }
+{ "patientUuid": "3f1c…", "type": "EMERGENCY", "admissionUuid": "9b2d…",
+  "careSetting": { "serviceCode": "1102", "modality": "01" } }
 ```
 
-`type`: `OUTPATIENT`, `EMERGENCY`, `INPATIENT` o `TELEHEALTH`. `admissionId` es opcional y solo referencia la
-admisión administrativa. Responde `201` con el id de la atención. Si el paciente no está en la copia
+`type`: `OUTPATIENT`, `EMERGENCY`, `INPATIENT` o `TELEHEALTH`. `admissionUuid` es opcional y une la atención
+con el episodio de admisiones; `careSetting` (servicio habilitado y modalidad) es lo que el RIPS necesita. Responde `201` con el id de la atención. Si el paciente no está en la copia
 local y `patient-service` no responde, devuelve `503` sin afectar al resto del servicio.
 
 ### GET `/encounters/{id}`
@@ -575,8 +582,9 @@ Autoriza por permiso (`admissions:read`, `admit`, `move-bed`, `discharge`, `canc
 ## 5. Practitioners Service — `/api/v1`
 
 Directorio de profesionales de la salud, su catálogo de especialidades y sus honorarios. Autoriza por
-permiso (`practitioners:read`, `practitioners:manage`, `practitioners:manage-fees`), que hoy tienen
-`HUMAN_RESOURCES` y la administración. El documento y el registro profesional nunca viajan en la URL.
+permiso: `practitioners:read` (recepción, facturación, cartera y talento humano), `practitioners:manage`
+y `practitioners:manage-fees` (talento humano) y `practitioners:read-fees` (talento humano y
+facturación). El documento y el registro profesional nunca viajan en la URL.
 
 | Método y ruta | Para qué | Permiso |
 |---|---|---|
@@ -593,7 +601,7 @@ permiso (`practitioners:read`, `practitioners:manage`, `practitioners:manage-fee
 | `PUT` · `DELETE /api/v1/practitioners/{uuid}/account` | vincular o soltar la cuenta de auth | manage |
 | `POST /api/v1/practitioners/{uuid}/suspension` · `/retirement` · `/reinstatement` | cambiar su estado; nunca se borra | manage |
 | `POST` · `GET /api/v1/practitioners/{uuid}/fee-agreements` | pactar y consultar honorarios (**step-up**) | manage-fees |
-| `GET /api/v1/practitioners/{uuid}/fee-agreements/in-force?on=` | qué honorarios regían en una fecha (`204` si ninguno) | manage-fees |
+| `GET /api/v1/practitioners/{uuid}/fee-agreements/in-force?on=` | qué honorarios regían en una fecha (`204` si ninguno) | read-fees |
 
 ### Reglas que conviene conocer
 
@@ -643,7 +651,73 @@ y el de capitación en
 
 ---
 
-## 7. Asistente de revisión de facturas — `/api/v1/assistant`
+## 7. Billing Service — `/api/v1/billing`
+
+Facturación electrónica en salud, de la venta a la glosa. Autoriza por permiso (`billing:read`, `sell`,
+`price-manually`, `invoice`, `void`, `collect`, `file`, `glosses`, `manage-config`); el ciclo completo y sus
+reglas están en
+[billing-service/docs/ciclo-de-facturacion.md](../BackEnd-Clinica/billing-service/docs/ciclo-de-facturacion.md).
+Las marcadas con **step-up** exigen segundo factor verificado hace 5 minutos o menos.
+
+**Cuenta y ventas**
+
+| Método y ruta | Para qué | Permiso |
+|---|---|---|
+| `GET /accounts/{admissionNumber}` · `GET /accounts?status=` | la cuenta del episodio y las cuentas por estado | read |
+| `GET /accounts/{admissionNumber}/summary` | qué se factura, a quién y en qué unidades; propone el motivo si el pagador no tiene contrato | read |
+| `POST /accounts/{admissionNumber}/patient-share-adjustments` | corregir a mano lo que paga el paciente (**step-up**) | invoice |
+| `GET /accounts/{admissionNumber}/stay` | tramos de cama y periodos de 24 h | read |
+| `GET /sales/context/{admissionNumber}` | contexto para abrir una venta | sell o read |
+| `POST /sales` · `GET /sales/{uuid}` · `GET /accounts/{n}/sales` | abrir y consultar ventas | sell / read |
+| `POST /sales/{uuid}/lines` · `/procedures` · `PUT /sales/{uuid}/surgical-team` | cargar servicios, procedimientos y equipo quirúrgico | sell |
+| `POST /sales/{uuid}/lines/{lineUuid}/removal` | retirar una línea con motivo | sell |
+| `POST /sales/{uuid}/lines/{lineUuid}/manual-price` | poner precio a lo que el contrato no tasa (**step-up**) | price-manually |
+| `GET /sales/{uuid}/price-preview` · `POST /sales/{uuid}/confirmation` · `/cancellation` | tasar, confirmar (congela precios) o anular | sell |
+| `GET /sales/{uuid}/practitioner-fees` · `GET /practitioner-fees` | honorarios que generan las ventas quirúrgicas | read |
+
+**Facturas y DIAN**
+
+| Método y ruta | Para qué | Permiso |
+|---|---|---|
+| `POST /invoices` | borrador de una unidad lista; sin contrato, con `uncontracted` (**step-up**) | invoice |
+| `GET /invoices/{uuid}` · `GET /accounts/{n}/invoices` | consultar facturas | read |
+| `POST /invoices/{uuid}/issuance` | emitir con el siguiente consecutivo (**step-up**) | invoice |
+| `POST /invoices/{uuid}/signature` · `/dian-delivery` · `/discard` | firmar, enviar o reenviar a la DIAN, descartar un borrador | invoice |
+| `GET /invoices/{uuid}/dian-verdicts` · `/ubl` · `/attached-document` | respuestas de la DIAN y documentos XML | read |
+| `POST /invoices/{uuid}/graphic-representation` | PDF sellado de la factura | read |
+| `POST /invoices/{uuid}/credit-notes` · `GET` | emitir (**step-up**) y consultar notas crédito | void / read |
+| `GET /credit-notes/{uuid}` · `/ubl` · `/attached-document` · `/dian-verdicts` | la nota y sus documentos | read |
+| `POST /credit-notes/{uuid}/signature` · `/dian-delivery` · `/graphic-representation` | firmar, enviar y PDF de la nota | invoice / read |
+| `POST /shared-payments` · `GET /accounts/{n}/shared-payments` | facturar al paciente un copago o cuota recaudada; esperado y pendiente | collect / read |
+
+**RIPS, radicación y glosas**
+
+| Método y ruta | Para qué | Permiso |
+|---|---|---|
+| `GET /invoices/{uuid}/rips` | vista previa del RIPS JSON con sus vacíos | read |
+| `POST /invoices/{uuid}/rips-validation` · `GET …/rips-validations` | enviar al mecanismo único del Ministerio y ver los envíos | file / read |
+| `POST /invoices/{uuid}/filing` · `PUT` | registrar el radicado o corregirlo con motivo (**step-up**) | file |
+| `GET /invoices/{uuid}/filing` · `/filing-package` · `GET /filings/pending` | radicado, paquete para radicar y bandeja con semáforo | read |
+| `POST /invoices/{uuid}/objections` · `GET` | registrar lo que comunicó el pagador y consultarlo | glosses / read |
+| `POST /objections/{uuid}/response` | responder con los códigos RE (**step-up**; aceptar valor exige además `billing:void`) | glosses |
+| `POST /objections/{uuid}/decision` | decisión del pagador (**step-up**) | glosses |
+| `GET /objections/{uuid}` · `GET /objections/pending` · `GET /objection-codes` | consultar, bandeja con semáforo y manual único | read |
+
+**Configuración fiscal** (solo administración)
+
+| Método y ruta | Para qué | Permiso |
+|---|---|---|
+| `POST` · `PUT /issuer` · `PUT /issuer/credit-note-prefix` · `POST /issuer/production` | emisor, prefijo de notas y paso a producción (**step-up**) | manage-config |
+| `POST /numbering-resolutions` · `/{uuid}/activation` · `/{uuid}/retirement` | resoluciones de numeración de la DIAN (activar y retirar con **step-up**) | manage-config |
+| `PUT /stay-charges/{stayType}` | con qué servicio se cobra cada tipo de estancia | manage-config |
+| `GET /issuer` · `GET /numbering-resolutions` · `GET /stay-charges` | consultar la configuración | read |
+
+**Sin credenciales**: `POST /graphic-representations/verification` (`{number, sha256}` → `{authentic}`) y
+`GET /seal-keys`, con cuota por IP en el gateway.
+
+---
+
+## 8. Asistente de revisión de facturas — `/api/v1/assistant`
 
 Revisa facturas emitidas con reglas y un modelo local; todo exige `assistant:use` (facturación, cartera y
 administración). Detalle completo en `BackEnd-Clinica/ai-assistant-service/docs/asistente-de-facturas.md`.
@@ -675,30 +749,38 @@ administración). Detalle completo en `BackEnd-Clinica/ai-assistant-service/docs
 
 ---
 
-## 8. Códigos de Error Comunes
+## 9. Errores
 
-| Código | Significado                                          |
-| ------ | ---------------------------------------------------- |
-| `400`  | Solicitud malformada o datos de validación inválidos |
-| `401`  | Token ausente, expirado o firma inválida             |
-| `403`  | El rol del usuario no tiene permiso para este recurso |
-| `404`  | Recurso no encontrado                                |
-| `409`  | Conflicto de estado (ej. transición de estado inválida) |
-| `422`  | Entidad no procesable (regla de negocio violada)     |
-| `429`  | Rate limit excedido — demasiadas solicitudes         |
-| `500`  | Error interno del servidor                           |
-| `503`  | Servicio no disponible (circuit breaker abierto)     |
+Todos los servicios responden los errores en RFC 9457 (`application/problem+json`), con el mismo esquema:
 
-**Formato de error estándar:**
 ```json
 {
-  "timestamp": "2025-05-19T14:30:00",
+  "type": "urn:clinica:error:invoice-not-creditable",
+  "title": "Unprocessable Entity",
   "status": 422,
-  "error": "Unprocessable Entity",
-  "message": "No se puede dar de alta una atención CANCELLED.",
-  "path": "/api/v1/attentions/att001-..."
+  "detail": "Solo se acredita una factura emitida que no esté anulada",
+  "instance": "urn:clinica:trace:6ab93927026f7480c68ee8b126f8fa0c",
+  "code": "INVOICE_NOT_CREDITABLE",
+  "timestamp": "2026-09-27T16:13:33Z",
+  "traceId": "6ab93927026f7480c68ee8b126f8fa0c"
 }
 ```
+
+- `code` es estable y es lo que el frontend debe usar para decidir; `detail` es un texto para personas.
+- Los errores de validación traen además `errors` con el campo y el problema.
+- Las respuestas nunca repiten los valores recibidos ni detalles de SQL o de la infraestructura.
+
+| Estado | Cuándo |
+|---|---|
+| `400` | datos inválidos (`INVALID_INPUT` o el código del servicio) |
+| `401` | sin sesión o token inválido; `STEP_UP_REQUIRED` si falta un segundo factor reciente |
+| `403` | el rol no tiene el permiso, o falta la relación de cuidado en la historia clínica |
+| `404` | no existe, o no es del usuario (conversaciones, borradores) |
+| `409` | modificación concurrente o conflicto de integridad |
+| `412` / `428` | `If-Match` con versión vieja / sin `If-Match` |
+| `422` | regla de negocio violada, con su `code` |
+| `429` | límite del gateway superado, con `Retry-After` |
+| `503` | una dependencia no responde, con su `code` (`CONTRACTING_UNAVAILABLE`, `ASSISTANT_MODEL_UNAVAILABLE`…) |
 
 ---
 
