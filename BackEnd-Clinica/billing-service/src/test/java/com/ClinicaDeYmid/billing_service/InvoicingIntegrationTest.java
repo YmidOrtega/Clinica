@@ -9,6 +9,7 @@ import com.ClinicaDeYmid.billing_service.domain.AdmissionSnapshot;
 import com.ClinicaDeYmid.billing_service.support.AdmissionEvents;
 import com.ClinicaDeYmid.billing_service.support.BillingSetup;
 import com.ClinicaDeYmid.billing_service.support.DianSimulator;
+import com.ClinicaDeYmid.billing_service.support.MinistrySimulator;
 import com.ClinicaDeYmid.billing_service.support.StubbedServices;
 import com.jayway.jsonpath.JsonPath;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -176,5 +177,27 @@ abstract class InvoicingIntegrationTest extends IntegrationTest {
     protected String numberOf(String invoice) throws Exception {
         return JsonPath.read(as("BILLING", get(INVOICES + "/" + invoice)).andReturn().getResponse()
                 .getContentAsString(), "$.number");
+    }
+
+    protected String validatedInvoice(String prefix, DianDelivery delivery, ClinicalProjection clinical)
+            throws Exception {
+        anActiveResolution(prefix);
+        Episode episode = outpatient("COVERED");
+        String sale = confirmedSale(episode);
+        documentedCare(clinical, episode);
+        String invoice = acceptedInvoice(delivery, episode, sale);
+        MinistrySimulator.logsIn();
+        MinistrySimulator.validates(numberOf(invoice));
+        as("BILLING", post(INVOICES + "/" + invoice + "/rips-validation"))
+                .andExpect(jsonPath("$.status").value("VALIDATED"));
+        return invoice;
+    }
+
+    protected String filedInvoice(String prefix, DianDelivery delivery, ClinicalProjection clinical) throws Exception {
+        String invoice = validatedInvoice(prefix, delivery, clinical);
+        as("BILLING", post(INVOICES + "/" + invoice + "/filing"),
+                "{\"filingNumber\":\"RAD-" + prefix + "\",\"filedOn\":\"" + TODAY + "\"}")
+                .andExpect(status().isCreated());
+        return invoice;
     }
 }

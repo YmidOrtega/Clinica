@@ -562,4 +562,23 @@ public sealed abstract class BillingException extends DomainException {
             super(ErrorCategory.RULE_VIOLATION, "FILING_PACKAGE_NOT_READY", detail);
         }
     }
+
+    public static final class InvoiceNotFiled extends BillingException {
+        public InvoiceNotFiled() {
+            super(ErrorCategory.RULE_VIOLATION, "INVOICE_NOT_FILED",
+                    "La factura no está radicada; el pagador aún no puede devolverla ni glosarla");
+        }
+    }
+
+    public static final class InvalidObjection extends BillingException {
+        public InvalidObjection(String detail) {
+            super(ErrorCategory.RULE_VIOLATION, "INVALID_OBJECTION", detail);
+        }
+    }
+
+    public static final class ObjectionNotFound extends BillingException {
+        public ObjectionNotFound() {
+            super(ErrorCategory.NOT_FOUND, "OBJECTION_NOT_FOUND", "No se encontró la glosa o devolución solicitada");
+        }
+    }
 }

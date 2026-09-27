@@ -143,16 +143,7 @@ class FilingApiIT extends InvoicingIntegrationTest {
     }
 
     private String validated(String prefix) throws Exception {
-        anActiveResolution(prefix);
-        Episode episode = outpatient("COVERED");
-        String sale = confirmedSale(episode);
-        documentedCare(clinical, episode);
-        String invoice = acceptedInvoice(delivery, episode, sale);
-        MinistrySimulator.logsIn();
-        MinistrySimulator.validates(numberOf(invoice));
-        as("BILLING", post(INVOICES + "/" + invoice + "/rips-validation"))
-                .andExpect(jsonPath("$.status").value("VALIDATED"));
-        return invoice;
+        return validatedInvoice(prefix, delivery, clinical);
     }
 
     private static String filingOf(String invoice) {
