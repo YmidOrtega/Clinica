@@ -15,20 +15,20 @@
       "Content-Type": "application/json"
     },
     "jsonBody": {
-      "ResultState": true,
-      "ProcesoId": 1024,
-      "NumFactura": "{{jsonPath request.body '$.rips.numFactura'}}",
-      "CodigoUnicoValidacion": "{{randomValue length=96 type='HEXADECIMAL'}}",
-      "FechaRadicacion": "{{now}}",
-      "RutaArchivos": null,
-      "ResultadosValidacion": [
+      "resultState": true,
+      "procesoId": 1024,
+      "numFactura": "{{jsonPath request.body '$.rips.numFactura'}}",
+      "codigoUnicoValidacion": "{{randomValue length=96 type='HEXADECIMAL'}}",
+      "fechaRadicacion": "{{now}}",
+      "rutaArchivos": null,
+      "resultadosValidacion": [
         {
-          "Clase": "NOTIFICACION",
-          "Codigo": "SIM001",
-          "Descripcion": "Validado por el simulador del entorno de pruebas",
-          "Observaciones": "",
-          "PathFuente": "",
-          "Fuente": "Simulador"
+          "clase": "NOTIFICACION",
+          "codigo": "SIM001",
+          "descripcion": "Validado por el simulador del entorno de pruebas",
+          "observaciones": "",
+          "pathFuente": "",
+          "fuente": "Simulador"
         }
       ]
     }

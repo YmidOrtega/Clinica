@@ -10,8 +10,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
@@ -78,6 +81,32 @@ class RestMinistryValidatorTest {
     }
 
     @Test
+    void keepsTheTokenUntilShortlyBeforeTheExpiryItCarries() {
+        MinistrySimulator.logsIn(jwtExpiringIn(Duration.ofMinutes(3)));
+        StubbedServices.server().stubFor(WireMock.post(urlPathEqualTo(SUBMIT)).willReturn(okJson("""
+                {"resultState":true,"numFactura":"F1","codigoUnicoValidacion":"%s"}""".formatted(MinistrySimulator.CUV))));
+
+        validator.submit("{}", "", "800197268");
+        validator.submit("{}", "", "800197268");
+        StubbedServices.server().verify(2, postRequestedFor(urlPathEqualTo(LOGIN)));
+
+        StubbedServices.server().resetRequests();
+        MinistrySimulator.logsIn(jwtExpiringIn(Duration.ofHours(4)));
+        RestMinistryValidator fresh = validator(CREDENTIALS);
+        fresh.submit("{}", "", "800197268");
+        fresh.submit("{}", "", "800197268");
+        StubbedServices.server().verify(1, postRequestedFor(urlPathEqualTo(LOGIN)));
+    }
+
+    @Test
+    void aRefusedLoginIsACredentialsProblemNotAnOutage() {
+        MinistrySimulator.refusesTheLogin();
+
+        assertThatThrownBy(() -> validator.submit("{}", "", "800197268"))
+                .isInstanceOf(BillingException.MinistryCredentialsRejected.class);
+    }
+
+    @Test
     void anAnswerWithoutAValidationResultMeansTheValidatorIsUnavailable() {
         MinistrySimulator.logsIn();
         StubbedServices.server().stubFor(WireMock.post(urlPathEqualTo(SUBMIT))
@@ -92,6 +121,14 @@ class RestMinistryValidatorTest {
         assertThatThrownBy(() -> validator(new MinistryCredentials("CC", "", null)).submit("{}", "", "800197268"))
                 .isInstanceOf(BillingException.MinistryCredentialsMissing.class);
         assertThat(CREDENTIALS.toString()).doesNotContain("clave");
+    }
+
+    private static String jwtExpiringIn(Duration lifetime) {
+        Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
+        String header = encoder.encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
+        String claims = encoder.encodeToString(("{\"exp\":" + Instant.now().plus(lifetime).getEpochSecond() + "}")
+                .getBytes(StandardCharsets.UTF_8));
+        return header + "." + claims + ".firma";
     }
 
     private static RestMinistryValidator validator(MinistryCredentials credentials) {

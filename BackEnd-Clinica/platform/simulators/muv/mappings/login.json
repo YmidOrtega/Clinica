@@ -13,7 +13,7 @@
       "token": "{{randomValue length=40 type='ALPHANUMERIC'}}",
       "login": true,
       "registrado": true,
-      "errors": []
+      "errors": null
     }
   }
 }

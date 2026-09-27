@@ -59,6 +59,13 @@ queda `PENDING` y se reintenta cada `BILLING_MINISTRY_RETRY_DELAY`. Validado, la
 **CUV**; rechazado, quedan los hallazgos para corregir y volver a enviar. Cada envío conserva el RIPS
 enviado y la respuesta (`/rips-validations/{submission}/{rips|response}`).
 
+El cliente sigue el *Documento para consumo de API FEV-RIPS* del Ministerio: `POST /api/Auth/LoginSISPRO`
+con `persona.identificacion`, `clave` y `nit` responde `token` (JWT), `login`, `registrado` y `errors`.
+El token se reusa hasta cinco minutos antes del `exp` que trae (110 minutos si no lo trae) y se renueva
+si el MUV contesta 401 o `TOT002`. `login: false` es `MINISTRY_CREDENTIALS_REJECTED`: no se reintenta
+hasta corregir las credenciales. El campo opcional `tipoUsuario` del login es para profesionales
+independientes y no aplica a la clínica.
+
 ## Radicar ante el pagador
 
 El pagador tiene que recibir la factura dentro de los 22 días hábiles siguientes a su expedición

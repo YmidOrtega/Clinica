@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -23,6 +24,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -35,6 +37,7 @@ public class RestMinistryValidator implements MinistryValidator {
     static final String RECOVER = "/api/ConsultasFevRips/RecuperarCUV";
     static final String EXPIRED_TOKEN = "TOT002";
     static final Duration TOKEN_LIFETIME = Duration.ofMinutes(110);
+    static final Duration TOKEN_MARGIN = Duration.ofMinutes(5);
 
     private static final Logger log = LoggerFactory.getLogger(RestMinistryValidator.class);
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -97,14 +100,38 @@ public class RestMinistryValidator implements MinistryValidator {
         body.put("clave", credentials.password());
         body.put("nit", providerNit);
         Exchange login = post(LOGIN, body, null);
+        JsonNode granted = login.json() == null ? null : field(login.json(), "login");
+        if ((granted != null && !granted.asBoolean(false)) || login.status() == 401 || login.status() == 403) {
+            log.warn("SISPRO rejected the login of the ministry validator ({}): {}", login.status(),
+                    login.json() == null ? null : field(login.json(), "errors"));
+            throw new BillingException.MinistryCredentialsRejected();
+        }
         String issued = login.json() == null ? null : text(login.json(), "token");
         if (login.status() / 100 != 2 || issued == null || issued.isBlank()) {
-            log.warn("The ministry validator refused the SISPRO login ({})", login.status());
+            log.warn("The ministry validator did not issue a SISPRO token ({})", login.status());
             throw new BillingException.MinistryUnavailable();
         }
         token = issued;
-        tokenExpiresAt = clock.instant().plus(TOKEN_LIFETIME);
+        tokenExpiresAt = expiryOf(issued);
         return token;
+    }
+
+    private Instant expiryOf(String jwt) {
+        Instant fallback = clock.instant().plus(TOKEN_LIFETIME);
+        String[] parts = jwt.split("\\.");
+        if (parts.length != 3) {
+            return fallback;
+        }
+        try {
+            JsonNode claims = JSON.readTree(Base64.getUrlDecoder().decode(parts[1]));
+            JsonNode expiry = claims == null ? null : claims.get("exp");
+            if (expiry == null || !expiry.canConvertToLong()) {
+                return fallback;
+            }
+            return Instant.ofEpochSecond(expiry.asLong()).minus(TOKEN_MARGIN);
+        } catch (IllegalArgumentException | IOException unreadable) {
+            return fallback;
+        }
     }
 
     private Exchange post(String path, JsonNode body, String bearer) {

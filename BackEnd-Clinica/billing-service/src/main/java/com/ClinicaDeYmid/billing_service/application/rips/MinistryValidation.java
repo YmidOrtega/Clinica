@@ -146,7 +146,7 @@ public class MinistryValidation {
             try {
                 send(pending);
                 sent++;
-            } catch (BillingException.MinistryUnavailable unavailable) {
+            } catch (BillingException.MinistryUnavailable | BillingException.MinistryCredentialsRejected blocked) {
                 break;
             } catch (RuntimeException failed) {
                 log.warn("RIPS submission {} stays pending: {}", pending, failed.getMessage());

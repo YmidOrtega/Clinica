@@ -518,6 +518,13 @@ public sealed abstract class BillingException extends DomainException {
         }
     }
 
+    public static final class MinistryCredentialsRejected extends BillingException {
+        public MinistryCredentialsRejected() {
+            super(ErrorCategory.PRECONDITION_FAILED, "MINISTRY_CREDENTIALS_REJECTED",
+                    "SISPRO rechazó las credenciales del mecanismo único de validación; revíselas antes de reenviar");
+        }
+    }
+
     public static final class MinistryCredentialsMissing extends BillingException {
         public MinistryCredentialsMissing() {
             super(ErrorCategory.PRECONDITION_FAILED, "MINISTRY_CREDENTIALS_MISSING",

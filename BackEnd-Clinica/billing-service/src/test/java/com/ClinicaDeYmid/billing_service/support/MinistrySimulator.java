@@ -21,28 +21,38 @@ public final class MinistrySimulator {
     }
 
     public static void logsIn() {
+        logsIn(TOKEN);
+    }
+
+    public static void logsIn(String token) {
         StubbedServices.server().stubFor(WireMock.post(urlPathEqualTo(PATH + "/api/Auth/LoginSISPRO"))
-                .willReturn(okJson("{\"token\":\"" + TOKEN + "\",\"login\":true,\"registrado\":true,\"errors\":[]}")));
+                .willReturn(okJson("{\"token\":\"" + token + "\",\"login\":true,\"registrado\":true,\"errors\":null}")));
+    }
+
+    public static void refusesTheLogin() {
+        StubbedServices.server().stubFor(WireMock.post(urlPathEqualTo(PATH + "/api/Auth/LoginSISPRO"))
+                .willReturn(okJson("""
+                        {"token":null,"login":false,"registrado":true,"errors":["Usuario o contraseña incorrectos"]}""")));
     }
 
     public static void validates(String invoiceNumber) {
         submit(okJson(result(true, invoiceNumber, CUV, """
-                {"Clase":"NOTIFICACION","Codigo":"FED078","Descripcion":"Aviso de prueba","Observaciones":"",
-                 "PathFuente":"","Fuente":"FacturaElectronica"}""")));
+                {"clase":"NOTIFICACION","codigo":"FED078","descripcion":"Aviso de prueba","observaciones":"",
+                 "pathFuente":"","fuente":"FacturaElectronica"}""")));
     }
 
     public static void rejects(String invoiceNumber, String code, String description) {
         submit(aResponse().withStatus(400).withHeader("Content-Type", "application/json").withBody(
                 result(false, invoiceNumber, null, """
-                        {"Clase":"RECHAZADO","Codigo":"%s","Descripcion":"%s","Observaciones":"",
-                         "PathFuente":"usuarios[0]","Fuente":"Rips"}""".formatted(code, description))));
+                        {"clase":"RECHAZADO","codigo":"%s","descripcion":"%s","observaciones":"",
+                         "pathFuente":"usuarios[0]","fuente":"Rips"}""".formatted(code, description))));
     }
 
     public static void alreadyValidated(String invoiceNumber) {
         submit(aResponse().withStatus(400).withHeader("Content-Type", "application/json").withBody(
                 result(false, invoiceNumber, null, """
-                        {"Clase":"RECHAZADO","Codigo":"RVG18","Descripcion":"La factura ya fue validada",
-                         "Observaciones":"CUV %s","PathFuente":"","Fuente":"FacturaElectronica"}""".formatted(CUV))));
+                        {"clase":"RECHAZADO","codigo":"RVG18","descripcion":"La factura ya fue validada",
+                         "observaciones":"CUV %s","pathFuente":"","fuente":"FacturaElectronica"}""".formatted(CUV))));
         StubbedServices.server().stubFor(WireMock.post(urlPathEqualTo(PATH + "/api/ConsultasFevRips/RecuperarCUV"))
                 .withHeader("Authorization", equalTo("Bearer " + TOKEN))
                 .willReturn(okJson(result(true, invoiceNumber, CUV, ""))));
@@ -60,9 +70,9 @@ public final class MinistrySimulator {
 
     private static String result(boolean state, String invoiceNumber, String cuv, String findings) {
         return """
-                {"ResultState":%s,"ProcesoId":1024,"NumFactura":"%s","CodigoUnicoValidacion":%s,
-                 "FechaRadicacion":"2026-09-26T17:25:54.7705162+00:00","RutaArchivos":null,
-                 "ResultadosValidacion":[%s]}""".formatted(state, invoiceNumber,
+                {"resultState":%s,"procesoId":1024,"numFactura":"%s","codigoUnicoValidacion":%s,
+                 "fechaRadicacion":"2026-09-26T17:25:54.7705162+00:00","rutaArchivos":null,
+                 "resultadosValidacion":[%s]}""".formatted(state, invoiceNumber,
                 cuv == null ? "null" : "\"" + cuv + "\"", findings);
     }
 }
