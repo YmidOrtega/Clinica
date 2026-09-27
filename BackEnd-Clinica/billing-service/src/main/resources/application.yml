@@ -109,6 +109,8 @@ clinica:
         cron: ${BILLING_FILING_ALERTS_CRON:0 0 6 * * *}
     objections:
       warning-business-days: ${BILLING_OBJECTIONS_WARNING_BUSINESS_DAYS:3}
+      alerts:
+        cron: ${BILLING_OBJECTIONS_ALERTS_CRON:0 5 6 * * *}
     outbox:
       retention: ${BILLING_OUTBOX_RETENTION:7d}
     seal:

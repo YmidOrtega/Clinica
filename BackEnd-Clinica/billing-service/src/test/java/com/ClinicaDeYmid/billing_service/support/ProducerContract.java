@@ -24,6 +24,9 @@ public final class ProducerContract {
     public static final ProducerContract FILING_DEADLINES =
             new ProducerContract(Path.of("events/billing.filing-deadlines.v1.schema.json"));
 
+    public static final ProducerContract CLAIM_OBJECTIONS =
+            new ProducerContract(Path.of("events/billing.claim-objections.v1.schema.json"));
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final JsonSchema schema;

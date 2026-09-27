@@ -34,7 +34,7 @@ class JdbcFilingAlertOutbox implements FilingAlertOutbox {
     private static final String REMEMBER = """
             INSERT INTO filing_alerts (invoice_id, state, alerted_on, event_id)
             SELECT i.id, ?, ?, ? FROM invoices i WHERE i.uuid = ?""";
-    private static final String INSERT = "INSERT INTO " + TABLE
+    static final String INSERT = "INSERT INTO " + TABLE
             + " (id, aggregatetype, aggregateid, type, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)";
     private static final ObjectMapper JSON = JsonMapper.builder()
             .addModule(new JavaTimeModule())
@@ -68,7 +68,7 @@ class JdbcFilingAlertOutbox implements FilingAlertOutbox {
         return true;
     }
 
-    private static String write(Object message) {
+    static String write(Object message) {
         try {
             return JSON.writeValueAsString(message);
         } catch (JsonProcessingException ex) {
