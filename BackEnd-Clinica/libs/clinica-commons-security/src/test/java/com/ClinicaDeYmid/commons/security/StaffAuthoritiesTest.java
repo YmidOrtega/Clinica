@@ -62,6 +62,12 @@ class StaffAuthoritiesTest {
     }
 
     @Test
+    void receptionReadsTheDirectoryToNameTheAttendingPractitioner() {
+        assertThat(StaffRole.RECEPTIONIST.permissions()).contains(StaffPermission.PRACTITIONERS_READ)
+                .doesNotContain(StaffPermission.PRACTITIONERS_READ_FEES, StaffPermission.PRACTITIONERS_MANAGE);
+    }
+
+    @Test
     void onlyDoctorsDischarge() {
         assertThat(rolesHolding(StaffPermission.ADMISSIONS_DISCHARGE)).containsExactlyInAnyOrder(
                 StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.DOCTOR);

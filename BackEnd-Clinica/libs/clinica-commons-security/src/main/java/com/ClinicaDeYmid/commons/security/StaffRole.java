@@ -44,6 +44,7 @@ public enum StaffRole {
             StaffPermission.PRACTITIONERS_READ_FEES)),
     RECEPTIONIST(EnumSet.of(
             StaffPermission.CONTRACTING_READ,
+            StaffPermission.PRACTITIONERS_READ,
             StaffPermission.ADMISSIONS_READ,
             StaffPermission.ADMISSIONS_ADMIT)),
     DOCTOR(EnumSet.of(

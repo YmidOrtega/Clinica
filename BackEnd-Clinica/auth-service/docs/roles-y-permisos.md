@@ -31,8 +31,10 @@ Los servicios ya escritos (patient, clinical-history) siguen autorizando por rol
 | `BILLING` | facturación | `billing:read`, `sell`, `price-manually`, `invoice`, `void`, `collect`, `file`, `glosses`; `contracting:read`, `contracting:quote-prices`, `admissions:read`, `practitioners:read`, `practitioners:read-fees` |
 | `ACCOUNTS_RECEIVABLE` | cartera | `billing:read`, `billing:file`, `billing:glosses`; `contracting:read`, `admissions:read`, `practitioners:read` |
 | `HUMAN_RESOURCES` | talento humano | `practitioners:read`, `practitioners:manage`, `practitioners:manage-fees` |
-| `RECEPTIONIST` | recepción | `contracting:read` |
-| `DOCTOR`, `NURSE`, `MEDICAL_RECORDS` | asistencial y archivo clínico | ninguno de contratación ni del directorio |
+| `RECEPTIONIST` | recepción | `admissions:read`, `admissions:admit`; `contracting:read`, `practitioners:read` |
+| `DOCTOR` | médicos | `admissions:read`, `admissions:discharge` |
+| `NURSE` | enfermería | `admissions:read`, `admissions:admit`, `admissions:move-bed` |
+| `MEDICAL_RECORDS` | archivo clínico | `admissions:read` |
 
 `SUPER_ADMIN` recibe todo permiso nuevo automáticamente: es el usuario con el que corren los E2E y las
 pruebas de carga.
@@ -50,6 +52,9 @@ Dos archivos, ninguno en los servicios que ya autorizan por permiso:
 Después hay que publicar la versión de la librería y subirla en los servicios que la usen, y aceptar el
 valor nuevo en el `CHECK` de la tabla `users` con una migración, porque la base repite la regla del
 dominio.
+
+`RECEPTIONIST` lee el directorio profesional para nombrar al médico tratante al admitir: admissions lo busca
+en practitioners-service con el token del usuario cuando aún no le llegó por eventos. No ve honorarios.
 
 `HUMAN_RESOURCES` administra el directorio profesional y los honorarios, y nada más: no toca
 contratación ni pacientes. Como cualquier rol operativo, no administra usuarios.
