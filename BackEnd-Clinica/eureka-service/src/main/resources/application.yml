@@ -1,14 +1,41 @@
 server:
   port: 8761
+  shutdown: graceful
+
+spring:
+  application:
+    name: eureka-service
+  config:
+    import: optional:configtree:/run/secrets/
+  security:
+    user:
+      name: ${eureka.username:${EUREKA_USERNAME:eureka}}
+      password: ${eureka.password:${EUREKA_PASSWORD:}}
+      roles: EUREKA_CLIENT
 
 eureka:
   instance:
-    hostname: localhost
-    prefer-ip-address: false
+    hostname: ${EUREKA_HOSTNAME:localhost}
   client:
     register-with-eureka: false
     fetch-registry: false
-    serviceUrl:
-      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
   server:
-    enable-self-preservation: false
+    enable-self-preservation: ${EUREKA_SELF_PRESERVATION:true}
+    eviction-interval-timer-in-ms: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+logging:
+  level:
+    root: WARN
+    com.netflix.eureka: INFO
+    com.netflix.discovery: INFO
