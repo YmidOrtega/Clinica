@@ -98,11 +98,25 @@ class StaffAuthoritiesTest {
     }
 
     @Test
-    void theWholeBillingCycleBelongsToBilling() {
-        EnumSet.allOf(StaffPermission.class).stream()
-                .filter(permission -> permission.code().startsWith("billing:"))
+    void billingRunsTheCycleButOnlyTheAdministrationConfiguresIt() {
+        EnumSet.of(StaffPermission.BILLING_SELL, StaffPermission.BILLING_PRICE_MANUALLY,
+                        StaffPermission.BILLING_INVOICE, StaffPermission.BILLING_VOID, StaffPermission.BILLING_COLLECT)
                 .forEach(permission -> assertThat(rolesHolding(permission)).containsExactlyInAnyOrder(
                         StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.BILLING));
+        assertThat(rolesHolding(StaffPermission.BILLING_MANAGE_CONFIG))
+                .containsExactlyInAnyOrder(StaffRole.SUPER_ADMIN, StaffRole.ADMIN);
+    }
+
+    @Test
+    void accountsReceivableFilesAndAnswersGlossesButNeverInvoicesNorVoids() {
+        EnumSet.of(StaffPermission.BILLING_READ, StaffPermission.BILLING_FILE, StaffPermission.BILLING_GLOSSES)
+                .forEach(permission -> assertThat(rolesHolding(permission)).containsExactlyInAnyOrder(
+                        StaffRole.SUPER_ADMIN, StaffRole.ADMIN, StaffRole.BILLING, StaffRole.ACCOUNTS_RECEIVABLE));
+        assertThat(StaffRole.ACCOUNTS_RECEIVABLE.permissions()).doesNotContain(StaffPermission.BILLING_SELL,
+                StaffPermission.BILLING_INVOICE, StaffPermission.BILLING_VOID, StaffPermission.BILLING_COLLECT,
+                StaffPermission.BILLING_MANAGE_CONFIG, StaffPermission.BILLING_PRICE_MANUALLY);
+        assertThat(StaffRole.ACCOUNTS_RECEIVABLE.permissions()).contains(StaffPermission.ADMISSIONS_READ,
+                StaffPermission.CONTRACTING_READ, StaffPermission.PRACTITIONERS_READ);
     }
 
     @Test
