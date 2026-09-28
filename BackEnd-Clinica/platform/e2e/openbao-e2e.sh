@@ -6,6 +6,7 @@ TOOLS_IMAGE=clinica/openbao-tools:2.6.2
 NODES="openbao-1 openbao-2 openbao-3"
 CLIENT_KEYS="api-gateway-client patient-service-client clinical-history-service-client contracting-service-client admissions-service-client billing-service-client ai-assistant-service-client"
 DIR=$(cd "$(dirname "$0")" && pwd)
+PATIENT_URL_GIVEN="${PATIENT_URL:-}"
 PATIENT_URL="${PATIENT_URL:-http://$(docker compose -p "$PROJECT" port --index 1 patient-service 8081 2>/dev/null)}"
 CLINICAL_URL="${CLINICAL_URL:-http://$(docker compose -p "$PROJECT" port --index 1 clinical-history-service 8089 2>/dev/null)}"
 [ "$PATIENT_URL" != "http://" ] && [ "$CLINICAL_URL" != "http://" ] || { echo "Publica los puertos con docker-compose.debug.yml o define PATIENT_URL y CLINICAL_URL" >&2; exit 1; }
@@ -226,9 +227,11 @@ wait_until "no se eligió un nuevo nodo activo" new_leader
 ok "$(active_node) asumió tras detener $leader"
 bao_as openbao_approle_clinical "bao kv get -mount=secret clinical/db/app > /dev/null" || fail "sin lectura con un nodo caído"
 ok "login AppRole y lectura con dos nodos"
-docker restart "${PROJECT}-patient-service-2" > /dev/null
-healthy() { [ "$(docker inspect -f '{{.State.Health.Status}}' "${PROJECT}-patient-service-2")" = "healthy" ]; }
+REPLICA="${PROJECT}-patient-service-${PATIENT_SERVICE_REPLICAS:-2}"
+docker restart "$REPLICA" > /dev/null
+healthy() { [ "$(docker inspect -f '{{.State.Health.Status}}' "$REPLICA")" = "healthy" ]; }
 wait_until "patient-service no arrancó con un nodo caído" healthy
+[ -n "$PATIENT_URL_GIVEN" ] || PATIENT_URL="http://$(docker compose -p "$PROJECT" port --index 1 patient-service 8081 2>/dev/null)"
 ok "una réplica de patient-service arranca con un nodo caído"
 docker start "$leader" > /dev/null
 wait_until "$leader no se desselló ni volvió al clúster" cluster_ready
