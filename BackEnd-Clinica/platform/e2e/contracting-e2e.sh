@@ -164,7 +164,15 @@ echo "ok  la analista activa su cuenta, enrola TOTP y obtiene su token"
 status=$(bearer_call POST "$CONTRACTING_URL/api/v1/contracts/$CAPITATED/capitated-members/imports?period=2026-03" "$ANALYST_ACCESS" "{
   \"members\": [{\"documentType\": \"CEDULA_DE_CIUDADANIA\", \"documentNumber\": \"$DOCUMENT\", \"fullName\": \"Marta Cárdenas Ruiz\"}]}")
 expect "$status" 200 "carga de la población capitada con el token de la analista"
-[ "$(jq -r .matched "$WORK/body")" = "1" ] || { cat "$WORK/body" >&2; fail "el afiliado no se contrastó contra patient-service"; }
+tries=0
+while [ "$(jq -r .matched "$WORK/body")" != "1" ]; do
+  [ "$(jq -r .unverified "$WORK/body")" = "1" ] && [ "$tries" -lt 24 ] \
+    || { cat "$WORK/body" >&2; fail "el afiliado no se contrastó contra patient-service"; }
+  tries=$((tries + 1))
+  sleep 5
+  status=$(bearer_call POST "$CONTRACTING_URL/api/v1/contracts/$CAPITATED/capitated-members/verification?period=2026-03" "$ANALYST_ACCESS" '{}')
+  expect "$status" 200 "reintento de la verificación del afiliado pendiente"
+done
 echo "ok  el afiliado quedó vinculado al paciente $PATIENT"
 
 status=$(call GET "$CONTRACTING_URL/api/v1/capitated-members/coverage?documentType=CEDULA_DE_CIUDADANIA&documentNumber=$DOCUMENT&on=2026-03-15" RECEPTIONIST "$(cat /proc/sys/kernel/random/uuid)")
