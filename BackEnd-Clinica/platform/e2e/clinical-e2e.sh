@@ -126,6 +126,13 @@ expect "$status" 201 "abre atención de un paciente ya conocido con patient-serv
 status=$(call POST "$CLINICAL_URL/api/v1/clinical/encounters" NURSE "$NURSE_ID" "{\"patientUuid\": \"$(cat /proc/sys/kernel/random/uuid)\", \"type\": \"OUTPATIENT\"}")
 expect "$status" 503 "paciente desconocido responde 503 sin tumbar el servicio"
 docker compose -p "$PROJECT" start patient-service > /dev/null 2>&1
-echo "ok  patient-service reiniciado"
+tries=0
+until health=$(docker compose -p "$PROJECT" ps patient-service --format '{{.Health}}') \
+  && [ -n "$health" ] && [ -z "$(echo "$health" | grep -v '^healthy$')" ]; do
+  tries=$((tries + 1))
+  [ "$tries" -le 60 ] || fail "patient-service no volvió a quedar sano"
+  sleep 5
+done
+echo "ok  patient-service reiniciado y sano"
 
 printf '\nE2E clínico completo: paciente %s\n' "$PATIENT"
