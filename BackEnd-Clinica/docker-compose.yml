@@ -540,7 +540,7 @@ services:
          interval: 10s
          timeout: 5s
          retries: 12
-         start_period: 30s
+         start_period: 300s
 
    kafka-topics-init:
       image: apache/kafka:4.3.1
