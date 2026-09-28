@@ -23,7 +23,8 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
 
-import java.awt.Image;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Map;
@@ -151,8 +152,10 @@ class RepresentationApiIT extends InvoicingIntegrationTest {
         int scale = 8;
         BufferedImage large = new BufferedImage(modules.getWidth() * scale, modules.getHeight() * scale,
                 BufferedImage.TYPE_INT_RGB);
-        large.getGraphics().drawImage(modules.getScaledInstance(large.getWidth(), large.getHeight(),
-                Image.SCALE_FAST), 0, 0, null);
+        Graphics2D graphics = large.createGraphics();
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        graphics.drawImage(modules, 0, 0, large.getWidth(), large.getHeight(), null);
+        graphics.dispose();
         int[] pixels = large.getRGB(0, 0, large.getWidth(), large.getHeight(), null, 0, large.getWidth());
         return new QRCodeReader().decode(new BinaryBitmap(new HybridBinarizer(
                         new RGBLuminanceSource(large.getWidth(), large.getHeight(), pixels))),
