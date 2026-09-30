@@ -163,7 +163,7 @@ class ClinicalEventsIT {
         mockMvc.perform(as("DOCTOR", UUID.randomUUID(), get("/api/v1/clinical/encounters/" + encounter)))
                 .andExpect(status().isForbidden());
 
-        List<ConsumerRecord<String, String>> events = awaitEvents(patient.toString(), 2).stream()
+        List<ConsumerRecord<String, String>> events = awaitEvents(patient.toString(), 3).stream()
                 .filter(record -> TOPIC.equals(record.topic())).toList();
 
         assertThat(events).extracting(record -> new String(record.headers().lastHeader("eventType").value(), StandardCharsets.UTF_8))
