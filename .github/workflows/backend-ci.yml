@@ -102,7 +102,7 @@ jobs:
         run: mvn jacoco:report
         continue-on-error: true
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v7
         with:
           file: BackEnd-Clinica/${{ matrix.service }}/target/site/jacoco/jacoco.xml
           flags: ${{ matrix.service }}
@@ -310,7 +310,7 @@ jobs:
             type=sha
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./BackEnd-Clinica/${{ matrix.service }}
           push: true
