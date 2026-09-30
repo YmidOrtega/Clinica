@@ -17,7 +17,7 @@ public final class LocalDianSigningKey implements DianSigningKey {
 
     private final KeyPair keys = TestCertificates.rsaKeyPair();
     private final X509Certificate certificate = TestCertificates.selfSigned(keys, "Clinica de Ymid Pruebas",
-            Instant.now().minus(Duration.ofDays(1)), Instant.now().plus(Duration.ofDays(365)));
+            Instant.parse("2020-01-01T00:00:00Z"), Instant.now().plus(Duration.ofDays(365)));
     private volatile boolean available = true;
 
     public void available(boolean available) {
