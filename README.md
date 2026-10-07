@@ -218,4 +218,15 @@ contratos en `events/`.
 
 ## Licencia
 
-[MIT](LICENSE) © Ymid Ortega · [GitHub](https://github.com/YmidOrtega) · [LinkedIn](https://linkedin.com/in/ymidortega)
+[MIT](LICENSE)
+
+<div align="center">
+
+**Hecho con ☕ por [Ymid Ortega](https://github.com/YmidOrtega)**
+
+[![GitHub](https://img.shields.io/badge/GitHub-YmidOrtega-181717?logo=github)](https://github.com/YmidOrtega)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?logo=linkedin)](https://linkedin.com/in/ymidortega)
+
+*Si este proyecto te resulta útil, ¡considera darle una ⭐!*
+
+</div>
