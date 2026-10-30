@@ -24,7 +24,7 @@
 		<wiremock.version>3.13.1</wiremock.version>
 		<archunit.version>1.4.1</archunit.version>
 		<json-schema-validator.version>1.5.9</json-schema-validator.version>
-		<aws-sdk.version>2.54.17</aws-sdk.version>
+		<aws-sdk.version>2.55.10</aws-sdk.version>
 		<pdfbox.version>3.0.8</pdfbox.version>
 	</properties>
 
