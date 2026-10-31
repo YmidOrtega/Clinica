@@ -1,197 +1,185 @@
 # Clínica
 
-Plataforma de gestión para una IPS colombiana construida con microservicios: registro de pacientes,
-historia clínica firmada, admisiones y camas, contratación con pagadores, directorio de profesionales,
-facturación electrónica en salud ante la DIAN y el Ministerio, y un asistente de revisión de facturas
-que corre con un modelo de lenguaje local.
+**A management platform for a Colombian healthcare provider (IPS), built as microservices.** Patient
+registry, signed clinical records, admissions and beds, payer contracts, a practitioner directory,
+electronic health invoicing to the DIAN and the Ministry of Health, and an invoice review assistant that
+runs on a local language model.
 
 [![Backend CI](https://github.com/YmidOrtega/Clinica/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/YmidOrtega/Clinica/actions/workflows/backend-ci.yml)
-![Java 21](https://img.shields.io/badge/Java-21-orange)
-![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5.14-brightgreen)
-![Spring Cloud 2025.0](https://img.shields.io/badge/Spring%20Cloud-2025.0.1-brightgreen)
-[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.14-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2025.0.1-6DB33F?logo=spring)](https://spring.io/projects/spring-cloud)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> Proyecto de portafolio. Implementa la normativa colombiana vigente (FEV en salud, RIPS de la
-> Resolución 948 de 2026, manual único de glosas) contra simuladores; no está habilitado ante la DIAN ni
-> el Ministerio ni certificado para operar con datos reales de pacientes.
+> Portfolio project. It implements current Colombian regulations (health e-invoicing, RIPS under
+> Resolution 948 of 2026, the single glosa manual) against simulators. It is not registered with the DIAN
+> or the Ministry, and it is not certified to handle real patient data.
 
----
+## Measured, not claimed
 
-## Servicios
+Every service on a hot path has a k6 load test with its own thresholds. Results at the expected peak (×1)
+and above it, 0 % errors in every run:
 
-| Servicio | Qué hace | Arquitectura | Datos | Documentación |
-|---|---|---|---|---|
-| `api-gateway` | Backend for frontend: sesión en cookie, login OIDC, CSRF, rate limit y enrutamiento con el token del usuario | hexagonal | Redis (sesiones) | [bff](BackEnd-Clinica/api-gateway/docs/bff.md) |
-| `auth-service` | Servidor OAuth 2.1 / OIDC, cuentas del personal, TOTP obligatorio, step-up y token exchange entre servicios | hexagonal | MySQL | [login](BackEnd-Clinica/auth-service/docs/flujo-de-login.md), [roles y permisos](BackEnd-Clinica/auth-service/docs/roles-y-permisos.md), [operación](BackEnd-Clinica/auth-service/docs/operacion.md) |
-| `patient-service` | Identidad, contacto, afiliación y estado del paciente, incluidos los no identificados (NN) | hexagonal | MySQL | — |
-| `clinical-history-service` | Atenciones, notas firmadas, CIE-10, signos vitales, anexos cifrados en almacenamiento WORM y copias selladas | hexagonal | MySQL + MinIO | [claves y cifrado](BackEnd-Clinica/clinical-history-service/docs/claves-y-cifrado.md), [anexos](BackEnd-Clinica/clinical-history-service/docs/anexos.md) |
-| `contracting-service` | Pagadores, contratos, manuales tarifarios, capitación y cotización de precios | hexagonal | MySQL | [resolución de precios](BackEnd-Clinica/contracting-service/docs/resolucion-de-precios.md) |
-| `practitioners-service` | Directorio de profesionales, especialidades y acuerdos de honorarios | por capas | MySQL | [directorio y honorarios](BackEnd-Clinica/practitioners-service/docs/directorio-y-honorarios.md) |
-| `admissions-service` | Episodios de atención, cobertura, autorizaciones, camas, triage y comprobantes sellados | hexagonal | PostgreSQL | [episodio, camas y comprobantes](BackEnd-Clinica/admissions-service/docs/episodio-camas-y-comprobantes.md) |
-| `billing-service` | Ventas, factura electrónica firmada, DIAN, RIPS y CUV, radicación, notas crédito y glosas | hexagonal | MySQL | [ciclo de facturación](BackEnd-Clinica/billing-service/docs/ciclo-de-facturacion.md) |
-| `ai-assistant-service` | Bandeja de hallazgos sobre facturas emitidas y chat con un modelo local que solo propone acciones | por capas | PostgreSQL | [asistente de facturas](BackEnd-Clinica/ai-assistant-service/docs/asistente-de-facturas.md) |
-| `eureka-service` | Registro de servicios, cerrado con credenciales | — | — | — |
+| Service | What runs | p95 at ×1 | Highest load measured |
+|---|---|---|---|
+| `auth-service` | Shift change for 1,500 staff with TOTP, refresh and token exchange | full login 303 ms, refresh 60 ms | ×2: 185 req/s, full login 617 ms |
+| `clinical-history-service` | 5,000 patients a day; every note encrypted, hashed, ECDSA-sealed and chained | signing a note 32.6 ms | ×10: 255 req/s, signing 40.1 ms |
+| `patient-service` | 500,000 patients in MySQL, no cache | read by UUID 10.4 ms | ×5: 137 req/s, read 5.0 ms |
+| `billing-service` | Reads, charges and invoices issued end to end with a XAdES signature in OpenBao | issuing 116 ms | ×5: 11,099 requests, issuing 84 ms |
+| `contracting-service` | Price resolution, contracts, payers and capitation coverage | 13–18 ms | ×10: 250 price lookups/s, 8–10 ms |
+| `practitioners-service` | Profile, search by specialty, catalog, account lookup | 17–18 ms | ×5: 100 profile reads/s, 13–14 ms |
 
-Librerías compartidas en `BackEnd-Clinica/libs`, con versión fija (no SNAPSHOT):
+Measured between 2026-09-13 and 2026-09-15 on a 16-core machine with 61 GB of RAM, with the stack in
+Docker and no resource limits. Each `load-test/README.md` has the load model, the full table and what it
+found: the first auth run deadlocked the connection pool (fixed, with a one-connection test so it stays
+fixed), and name search was rewritten after an `ngram` FULLTEXT index hit a p95 of 1,895 ms (now 37 ms).
+Billing issued 109 invoices across both runs with no repeated or missing number.
 
-- `clinica-commons-web`: errores en ProblemDetail y ETag.
-- `clinica-commons-security`: validación de tokens, catálogo de roles y permisos, delegación entre servicios.
-- `clinica-commons-openbao`: cliente de OpenBao transit.
-- `clinica-commons-documents`: PDF sellados y verificables.
+## Run it
 
----
-
-## Arquitectura
-
-```
-                         navegador (FrontEnd-Clinica, Astro)
-                                    │ cookie de sesión + CSRF
-                            ┌───────▼────────┐        ┌───────────────┐
-                            │  api-gateway   │◄──────►│ gateway-redis │
-                            │  (BFF, :8080)  │        └───────────────┘
-                            └───┬────────┬───┘
-                   login OIDC   │        │ Bearer con el token del usuario
-            ┌───────────────────▼┐   ┌───▼─────────────────────────────────────────────┐
-            │    auth-service    │   │ patient · clinical-history · contracting ·      │
-            │  OAuth 2.1 + TOTP  │   │ practitioners · admissions · billing · assistant │
-            └─────────┬──────────┘   └───┬─────────────┬────────────────────┬──────────┘
-                      │ firma ES256      │ Feign con   │ outbox             │ una base por
-                      │ en transit       │ token       │ transaccional      │ servicio, en su
-            ┌─────────▼──────────┐       │ intercambiado▼                    ▼ red interna
-            │ OpenBao (3 nodos)  │   ┌───▼─────────┐ ┌──────────┐    ┌─────────────────┐
-            │ secretos, transit, │   │   Eureka    │ │ Debezium │───►│  Kafka (KRaft)  │
-            │ TOTP y AppRoles    │   │ (con clave) │ └──────────┘    │ contratos JSON  │
-            └────────────────────┘   └─────────────┘                 └─────────────────┘
-```
-
-**Seguridad**
-- El navegador nunca ve un token. El gateway guarda la sesión en Redis y reenvía a los servicios un
-  access token de 5 minutos, que auth-service firma (ES256) con una clave de OpenBao transit que no se
-  puede exportar.
-- Todo el personal usa segundo factor TOTP. Lo sensible pide además autenticación reciente (step-up):
-  firmar notas clínicas, emitir facturas, aceptar valor en una glosa.
-- Los permisos son finos y por rol (`billing:invoice`, `admissions:admit`, `assistant:use`…), definidos en
-  una librería compartida.
-- Entre servicios, cada llamada lleva el token del usuario intercambiado para el destino (RFC 8693), así
-  que el servicio que recibe aplica los permisos de esa persona.
-- Cada servicio entra a OpenBao con su propio AppRole y solo lee sus secretos. Eureka exige credenciales
-  para que nadie se registre como otro servicio.
-
-**Datos**
-- Cada servicio es dueño de su base, en una red Docker interna sin puerto publicado.
-- Cada base tiene dos usuarios: el de migraciones (Flyway, DDL) y el de la aplicación, que no puede borrar
-  filas ni cambiar el esquema.
-- Auditoría con Hibernate Envers y concurrencia optimista con `If-Match`/ETag.
-- Las URLs llevan UUID y las búsquedas por documento van por `POST /search`, para que los datos
-  personales no queden en los logs.
-
-**Integración**
-- Eventos con outbox transaccional y Debezium: ningún servicio publica directo en Kafka.
-- Topics compactados con el estado completo, dead letter topics, y contratos JSON Schema que los
-  consumidores validan en sus pruebas.
-- Las llamadas síncronas llevan circuit breaker, y lo que se consulta seguido se guarda en una copia
-  local.
-
-**Normativa colombiana en billing**
-- Factura electrónica UBL 2.1 con la extensión del sector salud y firma XAdES-EPES.
-- RIPS en JSON validado ante el mecanismo único del Ministerio para obtener el CUV.
-- Radicación dentro de los 22 días hábiles, notas crédito, y devoluciones y glosas según el manual único
-  (Resolución 2284).
-
-**IA local**
-- El asistente usa Spring AI contra LM Studio (API compatible con OpenAI): los datos de facturación no
-  salen de la clínica.
-- Los hallazgos salen de reglas deterministas. El modelo los explica y consulta las facturas con
-  herramientas tipadas, pero solo puede proponer acciones: el usuario las confirma.
-
-Más detalle en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) y [docs/SECURITY.md](docs/SECURITY.md).
-
----
-
-## Stack
-
-| | |
-|---|---|
-| Lenguaje y framework | Java 21, Spring Boot 3.5.14, Spring Cloud 2025.0.1, Spring Security, Spring AI 1.1 |
-| Gateway | Spring Cloud Gateway Server MVC como BFF, Spring Session sobre Redis |
-| Datos | MySQL 8, PostgreSQL 16, Flyway, Hibernate Envers, MinIO para anexos WORM |
-| Eventos | Apache Kafka 4 (KRaft), Debezium 3 con outbox |
-| Secretos y criptografía | OpenBao 2.6 en clúster de 3 nodos (KV, transit, TOTP, AppRole) |
-| Resiliencia y descubrimiento | Resilience4j, Spring Cloud OpenFeign, Eureka |
-| Pruebas | JUnit 5, Testcontainers, WireMock, ArchUnit, JSON Schema, k6 y E2E en shell sobre el stack completo |
-| Infraestructura | Docker Compose, GitHub Actions |
-
----
-
-## Levantar el proyecto
-
-**Requisitos:** Docker con Compose v2, Java 21, Maven 3.9 y, para los E2E, Node.js 22, `jq`, `curl` y
+Docker with Compose v2, Java 21 and Maven 3.9. The E2E scripts also need Node.js 22, `jq`, `curl` and
 `openssl`.
 
 ```bash
 git clone https://github.com/YmidOrtega/Clinica.git
 cd Clinica/BackEnd-Clinica
 
-# 1. Compilar librerías y servicios
+# 1. Build the shared libraries and the services
 mvn install -DskipTests
 
-# 2. Levantar el stack con los puertos de depuración y los simuladores (DIAN, MUV y modelo local)
+# 2. Start the stack with debug ports and the simulators (DIAN, MUV and the local model)
 docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d --build \
   api-gateway auth-service patient-service clinical-history-service contracting-service \
   practitioners-service admissions-service billing-service ai-assistant-service \
   dian-simulator muv-simulator llm-simulator kafka-connect-init mailpit
 
-# 3. Esperar a que todo esté sano
+# 3. Wait until everything is healthy
 docker compose ps
 ```
 
-No hace falta un `.env`. OpenBao se inicializa solo: genera las contraseñas de las bases, las claves de
-firma y los AppRoles, y cada servicio los lee al arrancar. El primer usuario es
-`superadmin@clinica.local` y su enlace de activación llega a Mailpit.
+No `.env` needed. OpenBao initializes itself: it generates the database passwords, signing keys and
+AppRoles, and each service reads its own at startup. The first user is `superadmin@clinica.local`, and its
+activation link arrives in Mailpit.
 
-Para usar un modelo real en lugar del simulador, carga en LM Studio un modelo con tool calling (por
-ejemplo `qwen3-8b`) y define `AI_ASSISTANT_LLM_BASE_URL=http://host.docker.internal:1234`.
+To use a real model instead of the simulator, load a model with tool calling in LM Studio (for example
+`qwen3-8b`) and set `AI_ASSISTANT_LLM_BASE_URL=http://host.docker.internal:1234`.
 
-| Qué | Dónde |
+| Interface | Address |
 |---|---|
 | API (gateway) | http://localhost:8080 |
-| Mailpit (correos de activación) | http://127.0.0.1:8025 |
+| Mailpit (activation emails) | http://127.0.0.1:8025 |
 | Kafka UI | http://127.0.0.1:8090 |
-| Eureka (con la credencial de `secret/eureka/client`) | http://127.0.0.1:8761 |
-| Swagger de cada servicio | `http://127.0.0.1:<puerto>/swagger-ui.html`, con los puertos de `docker-compose.debug.yml` |
+| Eureka (with the credential in `secret/eureka/client`) | http://127.0.0.1:8761 |
+| Swagger for each service | `http://127.0.0.1:<port>/swagger-ui.html`, ports in `docker-compose.debug.yml` |
 
-Sin `docker-compose.debug.yml` solo queda publicado el gateway.
+Without `docker-compose.debug.yml`, only the gateway is published.
 
----
+## Services
 
-## Pruebas
+| Service | What it does | Style | Data |
+|---|---|---|---|
+| `api-gateway` | Backend for frontend: cookie session, OIDC login, CSRF, rate limiting, routing with the user's token | hexagonal | Redis |
+| `auth-service` | OAuth 2.1 / OIDC server, staff accounts, mandatory TOTP, step-up and token exchange between services | hexagonal | MySQL |
+| `patient-service` | Identity, contact, insurance affiliation and status, including unidentified patients | hexagonal | MySQL |
+| `clinical-history-service` | Encounters, signed notes, ICD-10, vital signs, encrypted attachments on WORM storage, sealed copies | hexagonal | MySQL + MinIO |
+| `contracting-service` | Payers, contracts, tariff manuals, capitation and price quotes | hexagonal | MySQL |
+| `practitioners-service` | Practitioner directory, specialties and fee agreements | layered | MySQL |
+| `admissions-service` | Care episodes, coverage, authorizations, beds, triage and sealed receipts | hexagonal | PostgreSQL |
+| `billing-service` | Sales, signed e-invoices, DIAN, RIPS and CUV, filing, credit notes and glosas | hexagonal | MySQL |
+| `ai-assistant-service` | Findings inbox over issued invoices and a chat with a local model that can only propose actions | layered | PostgreSQL |
+| `eureka-service` | Service registry, locked with credentials | — | — |
+
+Shared libraries in `BackEnd-Clinica/libs`, with fixed versions (no SNAPSHOT): `clinica-commons-web`
+(ProblemDetail errors and ETags), `clinica-commons-security` (token validation, the role and permission
+catalog, delegation between services), `clinica-commons-openbao` (OpenBao transit client) and
+`clinica-commons-documents` (sealed, verifiable PDFs).
+
+## Architecture
+
+```
+                         browser (FrontEnd-Clinica, Astro)
+                                    │ session cookie + CSRF
+                            ┌───────▼────────┐        ┌───────────────┐
+                            │  api-gateway   │◄──────►│ gateway-redis │
+                            │  (BFF, :8080)  │        └───────────────┘
+                            └───┬────────┬───┘
+                   OIDC login   │        │ Bearer with the user's token
+            ┌───────────────────▼┐   ┌───▼─────────────────────────────────────────────┐
+            │    auth-service    │   │ patient · clinical-history · contracting ·      │
+            │  OAuth 2.1 + TOTP  │   │ practitioners · admissions · billing · assistant │
+            └─────────┬──────────┘   └───┬─────────────┬────────────────────┬──────────┘
+                      │ ES256 signing    │ Feign with  │ transactional      │ one database
+                      │ in transit       │ exchanged   │ outbox             │ per service, on
+            ┌─────────▼──────────┐       │ token       ▼                    ▼ an internal network
+            │ OpenBao (3 nodes)  │   ┌───▼─────────┐ ┌──────────┐    ┌─────────────────┐
+            │ secrets, transit,  │   │   Eureka    │ │ Debezium │───►│  Kafka (KRaft)  │
+            │ TOTP and AppRoles  │   │ (with auth) │ └──────────┘    │ JSON contracts  │
+            └────────────────────┘   └─────────────┘                 └─────────────────┘
+```
+
+- **The browser never sees a token.** The gateway keeps the session in Redis and forwards a 5-minute access
+  token, signed by auth-service (ES256) with an OpenBao transit key that cannot be exported.
+- **Two factors for everyone, step-up for what matters.** All staff use TOTP. Signing clinical notes,
+  issuing invoices and accepting a glosa also require recent authentication (step-up). Permissions are
+  fine-grained per role (`billing:invoice`, `admissions:admit`, `assistant:use`…).
+- **The user's permissions travel with the call.** Between services, each request carries the user's token
+  exchanged for the target (RFC 8693). Each service logs into OpenBao with its own AppRole and reads only
+  its own secrets; Eureka requires credentials so no one can register as another service.
+- **Each service owns its database**, on an internal Docker network with no published port, with two
+  users: the migration user (Flyway, DDL) and the application user, which cannot delete rows or change the
+  schema. Hibernate Envers audits changes, `If-Match`/ETag guards concurrent edits, URLs use UUIDs, and
+  searches by ID document go through `POST /search` so personal data stays out of the logs.
+- **No service publishes to Kafka directly.** Events go through a transactional outbox and Debezium, to
+  compacted topics with dead letter topics and JSON Schema contracts that consumers validate in their tests.
+  Synchronous calls have circuit breakers, and hot reference data is kept in a local copy.
+- **Colombian health billing.** UBL 2.1 e-invoices with the health sector extension and XAdES-EPES
+  signatures; RIPS in JSON validated by the Ministry's single mechanism to get the CUV; filing within 22
+  business days, credit notes, and returns and glosas under the single manual (Resolution 2284).
+- **AI that stays in the clinic.** The assistant uses Spring AI against LM Studio (OpenAI-compatible API),
+  so billing data never leaves. Findings come from deterministic rules; the model explains them and queries
+  invoices through typed tools, but it can only propose actions, and the user confirms them.
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Language and framework | Java 21, Spring Boot 3.5.14, Spring Cloud 2025.0.1, Spring Security, Spring AI 1.1 |
+| Gateway | Spring Cloud Gateway Server MVC as a BFF, Spring Session on Redis |
+| Data | MySQL 8, PostgreSQL 16, Flyway, Hibernate Envers, MinIO for WORM attachments |
+| Events | Apache Kafka 4 (KRaft), Debezium 3 with outbox |
+| Secrets and cryptography | OpenBao 2.6, 3-node cluster (KV, transit, TOTP, AppRole) |
+| Resilience and discovery | Resilience4j, Spring Cloud OpenFeign, Eureka |
+| Testing | JUnit 5, Testcontainers, WireMock, ArchUnit, JSON Schema, k6, shell E2E on the full stack |
+| Infrastructure | Docker Compose, GitHub Actions |
+
+## Testing
 
 ```bash
 cd BackEnd-Clinica/billing-service
-mvn verify        # unitarias + integración con Testcontainers (necesita Docker)
+mvn verify        # unit + integration with Testcontainers (needs Docker)
 ```
 
-Cada servicio tiene pruebas unitarias, pruebas de integración contra bases, Kafka y OpenBao reales en
-contenedores, y reglas de arquitectura con ArchUnit. Sobre el stack levantado:
+Every service has unit tests, integration tests against real databases, Kafka and OpenBao in containers,
+and ArchUnit architecture rules. On the running stack:
 
 ```bash
 cd BackEnd-Clinica
-sh platform/e2e/auth-e2e.sh          # login, TOTP, sesiones y revocación
-sh platform/e2e/clinical-e2e.sh      # pacientes e historia clínica
-sh platform/e2e/admissions-e2e.sh    # episodios, camas y comprobantes
-sh platform/e2e/billing-e2e.sh       # de la venta a la glosa, con DIAN y MUV simulados
-sh platform/e2e/assistant-e2e.sh     # asistente de facturas con el modelo simulado
-sh platform/e2e/openbao-e2e.sh       # conmutación del clúster y aislamiento de secretos
+sh platform/e2e/auth-e2e.sh            # login, TOTP, sessions and revocation
+sh platform/e2e/gateway-e2e.sh         # BFF session, login, token relay and step-up
+sh platform/e2e/clinical-e2e.sh        # patients and clinical records
+sh platform/e2e/contracting-e2e.sh     # payers, manuals and contracts
+sh platform/e2e/practitioners-e2e.sh   # directory and linked accounts
+sh platform/e2e/admissions-e2e.sh      # episodes, beds and receipts
+sh platform/e2e/billing-e2e.sh         # from sale to glosa, with simulated DIAN and MUV
+sh platform/e2e/assistant-e2e.sh       # invoice assistant with the simulated model
+sh platform/e2e/openbao-e2e.sh         # cluster failover and secret isolation
 ```
 
-La CI (`.github/workflows/backend-ci.yml`) prueba las librerías y cada servicio en cada push, y corre la
-suite E2E completa cada noche o a mano. Las pruebas de carga con k6 están en la carpeta `load-test` de
-los servicios que las tienen (auth, patient, clinical-history, contracting, practitioners, admissions y
-billing).
+CI (`.github/workflows/backend-ci.yml`) tests the libraries and every service on each push, and runs the
+full E2E suite nightly or on demand. CodeQL and dependency review run on pull requests. The k6 load tests
+live in each service's `load-test` folder.
 
----
-
-## Estructura
+## Project layout
 
 ```
 Clinica/
@@ -199,34 +187,55 @@ Clinica/
 │   ├── api-gateway/  auth-service/  patient-service/  clinical-history-service/
 │   ├── contracting-service/  practitioners-service/  admissions-service/
 │   ├── billing-service/  ai-assistant-service/  eureka-service/
-│   ├── libs/                  # librerías compartidas con versión fija
+│   ├── libs/                  shared libraries with fixed versions
 │   ├── platform/
-│   │   ├── openbao/           # políticas, agente y aprovisionamiento del clúster
-│   │   ├── kafka/  kafka-connect/
-│   │   ├── simulators/        # WireMock de la DIAN, el MUV y el modelo local
-│   │   └── e2e/               # pruebas de extremo a extremo
+│   │   ├── openbao/           policies, agent and cluster provisioning
+│   │   ├── kafka/  kafka-connect/  minio/
+│   │   ├── simulators/        WireMock for the DIAN, the MUV and the local model
+│   │   └── e2e/               end-to-end tests
 │   ├── docker-compose.yml
 │   └── docker-compose.debug.yml
-├── FrontEnd-Clinica/          # Astro; por ahora solo la base del proyecto
-└── docs/                      # arquitectura, seguridad, API y variables de entorno
+├── FrontEnd-Clinica/          Astro; only the project scaffold for now
+└── docs/                      architecture, security, API and environment variables
 ```
 
-Cada servicio documenta sus reglas de negocio en su carpeta `docs/`, y los que publican eventos dejan sus
-contratos en `events/`.
+Each service documents its business rules in its own `docs/` folder, and services that publish events keep
+their contracts in `events/`.
+
+## Documentation
+
+The documentation is written in Spanish.
+
+| Document | Content |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Services, boundaries, events and design decisions |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Sessions, tokens, OpenBao, permissions and data protection |
+| [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) | REST API through the gateway |
+| [`docs/variablesDeEntorno.md`](docs/variablesDeEntorno.md) | Environment variables and secrets |
+| [BFF](BackEnd-Clinica/api-gateway/docs/bff.md) | Gateway sessions, CSRF and routing |
+| [Login](BackEnd-Clinica/auth-service/docs/flujo-de-login.md), [roles and permissions](BackEnd-Clinica/auth-service/docs/roles-y-permisos.md), [operations](BackEnd-Clinica/auth-service/docs/operacion.md) | auth-service |
+| [Keys and encryption](BackEnd-Clinica/clinical-history-service/docs/claves-y-cifrado.md), [attachments](BackEnd-Clinica/clinical-history-service/docs/anexos.md) | clinical-history-service |
+| [Price resolution](BackEnd-Clinica/contracting-service/docs/resolucion-de-precios.md) | contracting-service |
+| [Directory and fees](BackEnd-Clinica/practitioners-service/docs/directorio-y-honorarios.md) | practitioners-service |
+| [Episodes, beds and receipts](BackEnd-Clinica/admissions-service/docs/episodio-camas-y-comprobantes.md) | admissions-service |
+| [Billing cycle](BackEnd-Clinica/billing-service/docs/ciclo-de-facturacion.md) | billing-service |
+| [Invoice assistant](BackEnd-Clinica/ai-assistant-service/docs/asistente-de-facturas.md) | ai-assistant-service |
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 ---
 
-## Licencia
-
-[MIT](LICENSE)
-
 <div align="center">
 
-**Hecho con ☕ por [Ymid Ortega](https://github.com/YmidOrtega)**
+**Built with ☕ Java and 🩺 Healthcare Engineering**
+
+**by [Ymid Ortega](https://github.com/YmidOrtega)**
 
 [![GitHub](https://img.shields.io/badge/GitHub-YmidOrtega-181717?logo=github)](https://github.com/YmidOrtega)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?logo=linkedin)](https://linkedin.com/in/ymidortega)
 
-*Si este proyecto te resulta útil, ¡considera darle una ⭐!*
+*If you found this project useful, consider giving it a ⭐!*
 
 </div>
