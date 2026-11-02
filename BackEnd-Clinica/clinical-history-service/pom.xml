@@ -23,7 +23,7 @@
 		<clinica-commons-documents.version>1.1.1</clinica-commons-documents.version>
 		<wiremock.version>3.13.2</wiremock.version>
 		<archunit.version>1.4.1</archunit.version>
-		<json-schema-validator.version>1.5.9</json-schema-validator.version>
+		<json-schema-validator.version>3.0.8</json-schema-validator.version>
 		<aws-sdk.version>2.55.10</aws-sdk.version>
 		<pdfbox.version>3.0.8</pdfbox.version>
 	</properties>
