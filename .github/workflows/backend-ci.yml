@@ -81,7 +81,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: clinica-libraries
           path: ~/.m2/repository/com/ClinicaDeYmid
@@ -140,7 +140,7 @@ jobs:
         with:
           node-version: '22'
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: clinica-libraries
           path: ~/.m2/repository/com/ClinicaDeYmid
